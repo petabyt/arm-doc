@@ -1,0 +1,905 @@
+=== Page 2015 ===
+This chapter describes the on-chip debug support.
+13.1 On-Chip Debug Overview....................................................................................................................................2016
+13.2 On-Chip Debug Features.....................................................................................................................................2016
+13.3 On-Chip Debug Functional Description.............................................................................................................2017
+Chapter 13
+On-Chip Debug
+
+=== Page 2016 ===
+13.1 On-Chip Debug Overview
+This chapter describes the properties and capabilities of the various features available through the On-Chip
+Debug framework deployed on this device.
+The On-Chip Debug framework enables various Debug and Trace use-cases, including:
+•
+JTAG Tooling ± Access to on-chip debug resources is supported by an IEEE 1149.1 (JTAG) compliant
+interface that is supported by an Arm® CoreSight™ DAP JTAG-DP.
+•
+Self-Hosted Tooling ± code running on programmable cores within the device is able to use on-chip debug
+resources to enable embedded tooling solutions.
+•
+PCB-level interconnect testing ± IEEE 1149.1 and IEEE 1149.6 compliant Boundary Scan supports product
+level integration testing
+•
+Low Power Operation ± When on-chip JTAG and debug management logic is in a low power state, activity
+sensed on the JTAG interface will cause this logic to be placed in a functional state.
+•
+Stop Mode debugging ± Debug of embedded processors is supported using various mechanisms that
+can halt the pipeline of a CPU. Breakpoints (Software and Hardware), Watchpoints, Cross-Triggering, and
+On-demand (e.g. user requested) halt request mechanisms may be supported based on the capabilities of a
+given processor.
+•
+Debug-aware Peripherals ± Peripheral awareness of processor execution state allows safe suspension of
+peripheral operation. Supported by select peripherals.
+•
+Synchronized Debug ± Wide deployment of Cross-Triggering allows multiple processors and/or debug
+elements to be grouped together to process various actions based on a common event occurrence.
+•
+Processor Trace ± Support for the generation of a trace stream with the encoding of processor state that
+may include some combination of program flow, timing details (execution and stall), and memory references
+(address and/or data) with the goal of facilitating processor state reconstruction for debug purposes.
+•
+Software Messaging Trace ± Support for software messaging trace where embedded code running within
+the device can be instrumented to use memory writes to send important debug information to a trace stream.
+•
+System Traffic Trace ± Strategically selected points in the SoC topology are instrumented with trace-capable
+bus probes that support transaction trace, read-latency monitoring, and throughput computation.
+•
+Trace Correlation (through timestamping) ± Support for the correlation of different trace streams is
+enabled through the use of a common global timestamp that is distributed to supported trace sources.
+•
+Trace data movement ± Trace data movement on chip is supported using standard Arm ATB trace
+infrastructure components. Concurrent use of the trace bus by multiple trace sources is supported, with
+each trace source identifiable through a unique ID. An Arm® CoreSight™ Trace Router supports sending a
+trace stream off-chip (TPIU), to dedicated memory on-chip (TBR), or broadcasted to both (TPIU + TBR).
+•
+On-Chip trace collection via dedicated buffer ± An on-chip trace buffer is supported by logic that
+implements capturing trace data until either the memory fills (stop-on-full, system-bridge) or continuously until
+a request to stop is received (circular buffer). Interleaving of multiple trace streams is made possible through
+the use of a standardized encoding that embeds trace data along with the corresponding trace source ID.
+•
+Trace export over TPIU ± Trace data is exported over device LVCMOS pins using a standard protocol that
+embeds trace data along with the corresponding trace source ID.
+•
+Trace export over USB ± The on-chip trace buffer is used as an intermediate buffer allowing trace data to be
+exported over an USB endpoint in real-time.
+13.2 On-Chip Debug Features
+The On-Chip Debug framework provides a comprehensive hardware platform for a rich debug and development
+experience. The On-Chip Debug framework supports these features:
+•
+An IEEE 1149.1 (JTAG and Boundary Scan) compliant device interface
+•
+Cross-triggering and Debug boot mode device interface
+•
+Trace port device interface
+•
+Advanced power, reset, and clock management to facilitate debug across complex low power modes
+•
+Breakpoint-based debug
+•
+Cross-triggering
+•
+Program flow trace
+
+=== Page 2017 ===
+•
+System traffic monitoring trace
+•
+Software instrumentation trace
+•
+Trace export via trace port device interface
+•
+Trace capture on-chip via dedicated buffer with options to support stop-on-full, circular-buffer, or data hand-off
+to various peripherals
+•
+Arm® CoreSight™ compliant debug components deployed to streamline 3rd party tooling support
+Note
+Some features may not be available. See Module Integration for more information.
+13.3 On-Chip Debug Functional Description
+13.3.1 On-Chip Debug Block Diagram
+A logical partitioning of the On-Chip Debug features deployed on this device is illustrated in Figure 13-1.
+Figure 13-1. On-Chip Debug Block Diagram
+Note
+SMS0_TIFSM is intentionally omitted from the block diagram as it is not a debuggable entity.
+
+=== Page 2018 ===
+13.3.2 Device Interfaces
+AM62x On-Chip Debug features are supported through three device interfaces:
+•
+JTAG: IEEE 1149.1 compliant interface that provides access to Boundary Scan and acts as the primary
+interface for off-chip access to On-Chip debug resources (See Section 13.3.2.1)
+•
+Trigger and Debug Boot Mode: Multi-functional interface that supports product level cross-triggering and
+debug-related boot modes (See Section 13.3.6, Section 13.3.4)
+•
+Trace Port: Arm TPIU compliant Trace Port interface is used to facilitate export of trace (See Section
+13.3.12)
+Texas Instruments supports a variety of eXtended Development System (XDS) JTAG controllers with various
+debug capabilities beyond only JTAG support. The following document is a good reference for guidelines:
+Emulation and Trace Headers. More information can also be found here:XDS Target Connection Guide .
+The previous link connects to TI community resources. Linked contents are provided „AS IS“ by the respective
+contributors. They do not constitute TI specifications and do not necessarily reflect TI's views; see TI's Terms of
+Use.
+13.3.2.1 JTAG Interface
+Table 13-1. JTAG Interface Signals
+SignalName
+I/OType(1)
+Description
+TRSTn
+I
+Test Reset. Initializes and disables the test interface.
+TCK
+I
+Test Clock. Controls the timing of the test interface independently from any system clocks.
+TCK is pulsed by the equipment controlling the test and not by the tested device.
+TMS
+I
+Test Mode Select. Controls the transitions of the test interface state machine.
+TDI
+I
+Test Data Input. Supplies the data to the JTAG registers.
+TDO
+O/Z
+Test Data Output. Used to serially output the data from the JTAG registers to the equipment
+controlling the test.
+(1)
+I = Input; I/O = Input or output; O = Output; O/Z = Output or three-state
+13.3.2.2 Trigger and Debug Boot Mode Interface
+Table 13-2. Trigger and Debug Boot Mode Interface Signals
+Signal Name
+I/O Type(1)
+Description
+EMU0
+I/O
+Channel 0 trigger or boot mode select
+EMU1
+I/O
+Channel 1 trigger or boot mode select
+(1)
+I = Input; I/O = Input or output; O = Output; O/Z = Output or three-state
+13.3.2.3 Trace Port Interface
+Table 13-3. Trace Port Signals
+Pin Name
+TPIU Signal Name
+I/O Type(1)
+Description
+TRC_CLK
+TRACECLK
+O
+TraceClock
+TRC_CTL
+TRACECTL
+O
+TraceControl
+TRC_DATA[n:0]
+TRACEDATA[n:0]
+O
+TraceData [n:0]
+(1)
+I = Input; I/O = Input or output; O = Output; O/Z = Output or three-state
+Note
+Note that the Trace Port interface signals are associated with device pins that are multiplexed with
+other signal functions.
+13.3.3 Debug and Boundary Scan Access and Control
+On-Chip debug resources are made available through three mechanisms:
+
+=== Page 2019 ===
+•
+JTAG access via DAP and related APs
+•
+JTAG access via Boundary Scan TAP
+•
+Embedded access to debug resources via SoC address space
+DAP
+Off-chip debug tools are able to access On-Chip debug resources via the JTAG interface when not in Boundary
+Scan mode (see below). A CoreSight™ Compliant DAP architecture provides access via a DP and a collection of
+APs:
+•
+SWJ-DP: Arm® CoreSight™ compliant SWJ Debug Port provides support for a JTAG interface with a 4-bit IR
+Note
+Even though an SWJ-DP is implemented on-chip, only JTAG is supported. This device does not
+support SWD.
+•
+APB-AP: Arm® CoreSight™ APB Access Port provides access to the Debug-APB address space which is the
+primary configuration space for On-Chip Debug resources.
+•
+AXI-AP: Arm® CoreSight™ AXI Access Port provides access to the SoC address space, allowing visibility and
+control over system resources.
+•
+Config-AP: TI Configuration AP supports access to SoC debug management registers
+•
+Power-AP: TI Configuration AP supports advanced power, reset, and clock management. (See Section
+13.3.5)
+Table 13-4 describes the APSEL assignment for this device.
+Table 13-4. DAP APSEL Assignment
+APSEL
+AP
+Description
+0
+Config-AP
+TI AP - Reserved
+1
+APB-AP
+Provides access to Debug Config Plane
+2
+AXI-AP
+Provides access to SoC Address Space
+3
+Power-AP
+TI AP - Extended Power/Reset/Clock Control
+4-5
+Reserved
+Reserved for future use
+6
+SEC-AP
+TI AP - Authentication Interface
+7
+SMS TIFS M4F
+8
+MCU_M4F
+9
+SMS HSM M4F
+10-31
+Reserved
+Reserved for future use
+Boundary Scan
+This device supports boundary scan using an IEEE 1149.1 compliant JTAG TAP that is made visible through the
+use of a compliance-enable mode (see Section 13.3.4). IEEE 1149.1 and 1149.6 Boundary Scan support are
+defined in device-specific BSDL files that can be found in the respective device’s product folder on ti.com.
+SoC Address Space
+The device architecture provides access to On-Chip debug resources through the SoC Address Space. This
+includes access to all DAP Access Ports (APs) as well as the Debug-APB address space.
+13.3.4 Debug Boot Modes and Boundary Scan Compliance
+The EMU1 and EMU0 device pins are used to convey debug boot mode behavior and can also be used as part
+of a boundary scan compliance sequence to enable boundary scan features.
+Debug Boot Mode
+
+=== Page 2020 ===
+EMU1 and EMU0 are sampled when MCU_PORz is de-asserted and the decoded value determines the debug
+boot mode behavior as detailed in Table 13-5.
+Table 13-5. Debug Boot Modes
+Sample Time
+EMU1
+EMU0
+Boot Mode
+Behavior
+MCU_PORz deassertion
+0
+0
+Reserved
+Reserved for future use
+0
+1
+Reserved
+Reserved for future use
+1
+0
+Wait-In-Reset (WIR)
+Device will remain quiescent until a debug connection
+is established and the debugger releases WIR. This
+mode is useful for debugging boot sequences.
+1
+1
+Normal
+Device boots normally. Debug can connect at any time
+but the context will be post-boot.
+Boundary Scan Compliance
+EMU1 and EMU0 are sampled when TRSTz is de-asserted and the decoded value determines the debug boot
+mode behavior as detailed in Table 13-6.
+Table 13-6. Boundary Scan Compliance
+Sample Time
+EMU1
+EMU0
+Boundary Scan
+Compliance
+Behavior
+TRSTn deassertion
+0
+1
+Boundary Scan Enabled
+The device’s Boundary Scan TAP is connected to the
+device’s JTAG interface.
+0
+0
+1
+0
+Boundary Scan Disabled
+The device’s SWJ-DP is connected to the device’s
+JTAG interface.
+1
+1
+13.3.5 Power, Reset, Clock Management
+This device includes advanced power, reset, and clock management debug capabilities, including:
+•
+Wakeup support for debug logic: logic within the device is able to sense JTAG activity and ensure that
+debug logic is on and able to service JTAG requests.
+•
+Reset isolation: critical configuration and trace datapaths and logic are not sensitive to warm reset
+•
+Configuration independence: debug configuration occurs over a debug-only interconnect, separate from
+SoC traffic to ensure debug logic remains available even during deadlock scenarios.
+•
+Power-AP: a CoreSight™ compliant Access Port (AP) developed by TI that provides a standard interface
+for debug tooling to access status and control over power, reset, and clocking for the system and various
+LPSC-defined sub-domains.
+13.3.6 Debug Cross Triggering
+This device supports an Arm® CoreSight™ compliant four-channel programmable on-chip Cross Triggering
+network. In addition to the four-channel on-chip network, this device implements two channels of product level
+triggering via the EMU0 and EMU1 device pins.
+Conceptually, each channel of Cross Triggering can be viewed as mapping of a user-defined set of events to a
+user-defined set of actions, where the occurrence of any event in the set-of-events results in the generation of
+the set-of-actions. Table 13-7 provides a domain-level summary of the supported events and actions.
+Table 13-7. Domain-Level Summary of Triggering Capability
+Domain
+Events
+Actions
+Product-Level
+Zero detected on EMU0 input pin
+EMU0 output pin driven to Zero
+Zero detected on EMU1 input pin
+EMU1 output pin driven to Zero
+
+=== Page 2021 ===
+Table 13-7. Domain-Level Summary of Triggering Capability (continued)
+Domain
+Events
+Actions
+SoC Debug
+TBR Acquisition Complete
+TPIU insert trigger packet
+TBR Embedded buffer is full
+TPIU start flush process
+System reset asserted
+TBR insert trigger packet
+Bus Probe-n match
+TBR start flush process
+STM write to a TRIG location
+Bus Probe-n Start
+STM write to a trigger-enabled stimulus port
+Bus Probe-n Stop
+SMS0_HSM
+SMS0_HSM has halted
+SMS0_HSM ± halt request
+ETM External Out (EXTOUT) trigger
+SMS0_HSM ± resume request
+--
+ETM External In (EXTIN) trigger
+MCU_M4F
+MCU_M4F has halted
+MCU_M4F ± halt request
+ETM External Out (EXTOUT) trigger
+MCU_M4F ± resume request
+--
+ETM External In (EXTIN) trigger
+WKUP_R5F
+WKUP_R5F has halted
+WKUP_R5F ± halt request
+PMU generated interrupt
+WKUP_R5F ± resume request
+ETM External Out (EXTOUT) trigger
+ETM External In (EXTIN) trigger
+A53SS0
+A53SS0 core-n has halted
+A53SS0 core-n ± halt request
+PMU generated interrupt
+A53SS0 core-n ± resume request
+ETM generated trigger (external output)
+CTI interrupt
+--
+ETM External In (EXTIN) trigger
+13.3.7 WKUP_R5F Debug
+The WKUP_R5F includes an Arm Cortex R5F with embedded debug capability, including:
+•
+Independent debug configuration
+•
+ROM Table
+•
+Basic debug functionality
+•
+Cross Triggering
+•
+PMU: Performance Monitor Unit
+•
+ETM: Embedded Trace Macrocell
+A summary of the WKUP_R5F debug capabilities is detailed in Table 13-8.
+Table 13-8. WKUP_R5F Debug Capabilities
+Capability
+Feature
+Notes
+Basic Debug
+Independent debug configuration
+Debug resource configuration is performed over a configuration interface that
+is isolated from functional traffic
+ROM table
+Facilitates discovery of debug resources within debug configuration address
+space
+Processor halt
+Support user-requested entry into the suspended state
+Single step
+Execution of a single instruction before entering the suspended state
+Software breakpoints
+Software breakpoints are supported via opcode replacement
+Hardware breakpoints
+Eight Debug Breakpoint resources support hardware breakpoints
+Hardware watchpoints
+Eight Debug Watchpoint resources support data address breakpoints
+Core register access
+Access to processor core registers
+System memory access
+Access to memory from perspective of CPU
+Vector catch
+Halting in response to an exception
+Arm® TrustZone® debug authentication
+Provisioning for DBGEN and NIDEN
+
+=== Page 2022 ===
+Table 13-8. WKUP_R5F Debug Capabilities (continued)
+Capability
+Feature
+Notes
+Cross
+Triggering
+Debug state
+Support for controlling execution state (run, halt) via triggers and creating
+triggers upon entry into debug state
+PMU
+PMU interrupt trigger
+ETM
+Five ETM external triggers (one ETM Trigger, two external out event triggers,
+two external in event triggers)
+PMU
+Profile Counters
+Three counters can be used to count different events available for gathering
+statistics on the operation of the processor and memory system
+Cycle Counter
+One dedicated counter available for counting CPU clock cycles
+ETM
+Triggering Infrastructure
+Comprehensive triggering infrastructure supports use of comparators
+(address, data value, context ID), counters, sequencer state, an external
+inputs and outputs to control the enabling of trace.
+Instruction trace
+Supports tracing of instruction flow
+Cycle-accurate tracing
+Supports inclusion of a precise cycle count of executed instructions.
+Branch broadcast tracing
+Support for tracing branch address details even in circumstances where that
+information might be discoverable from object code
+Data tracing
+Support for data address and data value tracing
+13.3.8 SMS0_HSM and MCU_M4F Debug
+Both SMS0_HSM and MCU_M4F include an Arm Cortex M4F with embedded debug capability, including:
+•
+Independent debug configuration via AHB-AP
+•
+ROM Table
+•
+Basic debug functionality
+•
+Cross Triggering
+•
+DWT : Data Watchpoint and Trace
+•
+FPB : Flash Patch Breakpoint
+•
+ITM : Instrumentation Trace Macrocell
+•
+ETM : Embedded Trace Macrocell
+A summary of the SMS0_HSM and MCU_M4F debug capabilities is detailed in Table 13-9.
+Table 13-9. SMS0_HSM and MCU_M4F Debug Capabilities
+Capability
+Feature
+Notes
+Basic Debug
+AHB-AP
+AHB-AP provides access to resources
+ROM table
+Facilitates discovery of debug resources within AHB-AP address space
+Processor halt
+Support user-requested entry into the suspended state
+Single step
+Execution of a single instruction before entering the suspended state
+Core register access
+Access to processor core registers
+Vector catch
+Halting in response to an exception
+Software breakpoints
+Software breakpoints are supported via opcode replacement
+System memory access
+Access to M4F address space is supported via AHB-AP
+Arm® TrustZone® debug authentication
+Provisioning for DBGEN and NIDEN
+Cross
+Triggering
+Cross Triggering
+Cross Triggering support via CoreSight™ CTI
+
+=== Page 2023 ===
+Table 13-9. SMS0_HSM and MCU_M4F Debug Capabilities (continued)
+Capability
+Feature
+Notes
+DWT
+Watchpoints
+Four comparators implemented that can be configured to support
+watchpoints, data address trace, ETM signaling and PC sampling
+Data address trace
+ETM signaling
+PC sampling trace
+Cycle count matching
+Performance counting
+Profiling counter support provides visibility into instruction cycle count,
+exception overhead, sleep overhead, load-store overhead, and folded
+instruction count
+FPB
+Hardware breakpoints
+Six instruction address comparators support hardware breakpoints
+Remapping of literal and instruction fetch
+accesses
+Two comparators support address remapping of literal or instruction
+accesses to facilitate software patching
+ITM
+Software trace
+Software writes to ITM stimulus registers provoke the generation of trace
+packets that convey the values written
+DWT hardware trace
+Support for conveying DWT output using trace
+Timestamping
+Support for attaching a local timestamp to trace traffic
+Global timestamping
+Support for attaching a global timestamp to trace traffic
+ETM
+Program execution trace
+Support for tracing instruction execution
+Global timestamping
+Support for attaching a global timestamp to trace traffic
+13.3.9 A53SS0 Debug
+The A53SS0 is a multi-core Arm Cortex-A53 subsystem with embedded debug capability and features, including:
+•
+Independent debug configuration
+•
+ROM Table
+•
+Basic debug functionality
+•
+Cross Triggering
+•
+PMU: Performance Monitor Unit
+•
+ETM: Embedded Trace Macrocell
+A summary of the A53SS0 debug capabilities and features is detailed in Table 13-10.
+Table 13-10. A53SS0 Debug Capabilities
+Capability
+Feature
+Notes
+Basic Debug
+Independent debug configuration
+Debug resource configuration is performed over a configuration interface that
+is isolated from functional traffic
+ROM table
+Facilitates discovery of debug resources within debug configuration address
+space
+Processor halt
+Support user-requested entry into the suspended state
+Single step
+Execution of a single instruction before entering the suspended state
+Software breakpoints
+Software breakpoints are supported via opcode replacement
+Hardware breakpoints
+Six Debug Breakpoint resources support hardware breakpoints
+Hardware watchpoints
+Four Debug Watchpoint resources support data address breakpoints
+Core register access
+Access to processor core registers
+System memory access
+Access to memory from perspective of CPU
+Vector catch
+Halting in response to an exception
+Arm® TrustZone® debug authentication
+Provisioning for DBGEN, NIDEN, SPIDEN, SPNIDEN, SUIDEN, and
+SUNIDEN
+
+=== Page 2024 ===
+Table 13-10. A53SS0 Debug Capabilities (continued)
+Capability
+Feature
+Notes
+Cross
+Triggering
+Debug state
+Support for controlling execution state (run, halt) via triggers and creating
+triggers upon entry into debug state
+PMU
+PMU interrupt trigger
+ETM
+Four ETM external triggers
+CPU
+CTI interrupt into CPU
+PMU
+Profile Counters
+Six counters can be used to count different events available for gathering
+statistics on the operation of the processor and memory system
+Cycle Counter
+One dedicated counter available for counting CPU clock cycles
+ETM
+Instruction trace with cycle counting
+Support for tracing instruction execution with timing information
+Branch broadcast tracing
+Support for tracing branch address details even in circumstances where that
+information might be discoverable from object code
+Return stack tracing
+Support for tracing of the return stack
+Stall Control
+Support for stalling the A53 processor to avoid ETM overflows
+Global timestamping
+Support for attaching a global timestamp to trace traffic
+13.3.10 PRUSS Debug
+The PRUSS includes two PRU RISC cores, PRU0 and PRU1. Each PRU supports basic debug functionality as
+detailed in Table 13-11.
+Table 13-11. PRUSS Debug Capabilities
+Capability
+Feature
+Notes
+Basic Debug
+Processor halt
+Support user-requested entry into the suspended state
+Single step
+Execution of a single instruction before entering the suspended state
+Software breakpoints
+Software breakpoints are supported via opcode replacement
+Core register access
+Access to processor core registers
+System memory access
+Access to memory from perspective of CPU
+13.3.11 SoC Debug and Trace
+This device includes debug capabilities deployed at the system level, including:
+•
+Software messaging trace
+•
+Debug-aware peripherals
+•
+Traffic monitoring with bus probes
+•
+Global timestamping for trace
+More details for each of these capability areas can be found in the corresponding sections below.
+13.3.11.1 Software messaging trace
+Software messaging trace is supported on this device by an MIPI STP-V2 compliant Arm® CoreSight™ STM with
+supporting logic that maps initiator IDs to specific STP Major Source IDs. The following device initiators support
+software messaging:
+•
+A53SS0 cores
+•
+MCU_M4F
+•
+WKUP_R5F
+•
+SMS0_HSM
+•
+DMSS BCDMA
+•
+DMSS PktDMA
+•
+DAP AXI-AP
+
+=== Page 2025 ===
+13.3.11.2 Debug-Aware Peripherals
+Select peripherals support a debug feature that allows them to react to the debug state of a controlling
+processor. For instance, a timer peripheral that is allocated to a particular processor could be configured to
+stop counting when the associated processor is in the halted state. This device includes programmable support
+for shared peripherals that allows the developer to select the processor whose debug state a given peripheral
+should receive.
+A list of the processors and peripherals that support this debug model can be found in Table 13-12.
+Table 13-12. Debug-Aware Peripheral Support
+Supported Processors
+Supported Peripherals
+A53SS0 cores
+GTC
+MCU_M4F
+CPSW3G
+WKUP_R5F
+DMSS
+SMS0_HSM
+SA3SS
+--
+TIMER instances
+--
+EPWM instances
+--
+MCAN instances
+--
+I2C instances
+--
+MCRC64 instances
+--
+ECAP instances
+--
+EQEP instances
+--
+PDMA_SPI
+--
+PDMA_UART
+--
+PDMA_MCASP
+--
+RTI/WWDT instances
+13.3.11.3 Traffic Monitoring With Bus Probes
+Traffic monitoring bus probes are deployed at strategic points in the system interconnect and support the
+following capabilities:
+•
+MIPI STP-V2 compliant trace messaging support with global timestamping support
+•
+Latency Statistics Collection: Statistics on the timeliness of responses to read requests are collected during a
+sampling window and then read by a profiling entity (application thread or encoded into a trace message)
+•
+Throughput Statistics Collection: Statistics on the amount of data moving across an interface are collected
+during a sampling window and then read by a profiling entity (application thread or encoded into a trace
+message)
+•
+Transaction Trace: Information about specific transactions occurring at a probed location are captured and
+encoded into a trace message
+•
+Complex filtering support allows discrimination of traffic being monitored
+•
+Cross-Trigger support for enabling and disabling probe monitoring
+Table 13-13 details the locations in the system interconnect that are probed:
+Table 13-13. Bus Probe Points
+Probe Point
+Bus Monitoring Details
+A53SS0 Write Initiator
+Provides visibility to all write requests initiated by A53SS0
+A53SS0 Read Initiator
+Provides visibility to all read requests initiated by A53SS0
+A53SS0 ACP Target
+Monitors traffic to the A53SS0 ACP port
+DDR Target
+Monitors traffic to DDR
+GMPC Target
+Monitors traffic to GPMC
+FSS Target
+Monitors traffic to FSS0
+
+=== Page 2026 ===
+Table 13-13. Bus Probe Points (continued)
+Probe Point
+Bus Monitoring Details
+DSS Initiator
+Provides visibility to all requests initiated by DSS
+Peripheral CBASS Targets
+Monitors traffic to these targets:
+ECAP#
+EQEP#
+I2C#
+MCAN#
+PDMA_SPI
+PDMA_UART
+SPI#
+UART#
+McASP CBASS Targets
+Monitors traffic to these targets:
+EPWM#
+MCASP#
+WKUP CBASS Targets
+Monitors traffic from MAIN to WKUP, including these targets:
+WKUP_GTC
+WKUP_R5F
+WKUP_TIMER#
+WKUP_RTI
+WKUP_I2C0
+WKUP_CTRL_MMR0
+WKUP_VTM0
+GPU Write Initiator
+Provides visibility to all write requests initiated by GPU
+GPU Read Initiator
+Provides visibility to all read requests initiated by GPU
+MCU CBASS Targets
+Monitors traffic from MAIN to MCU, including these targets:
+MCU_M4F
+MCU_SPI#
+MCU_MCRC64
+MCU_UART0
+MCU_MCAN#
+MCU_TIMER#
+MCU_DCC0
+MCU_RTI0
+MCU_I2C0
+PSRAM 0 Target
+Monitors traffic to PSRAM (64KB)
+
+=== Page 2027 ===
+Table 13-13. Bus Probe Points (continued)
+Probe Point
+Bus Monitoring Details
+Infrastructure CBASS Targets
+Monitors traffic to these targets:
+CMP_EVENT_INTROUTER
+CTRL_MMR
+DCC#
+DDPA
+DFTSS
+ESM
+PSRAM#
+GPIO#
+EFUSE
+GPIOMUX_INTROUTER
+PADCFG_CTRL_MMR0
+PLL_MMR0
+PLLCTRL
+PSC
+TIMESYNC_EVENT_ROUTER
+13.3.11.4 Global timestamping for trace
+Support for a global timestamp for use by debug is enabled by a 48-bit continuous timestamp managed by the
+device’s GTC. This 48-bit global timestamp is readable by embedded software, via the GTC, and distributed
+across the device to various trace sources where it is used as a time reference when timestamping trace
+streams. Trace sources that support global timestamping, include:
+•
+A53SS0 cores: ETM
+•
+MCU_M4F: ITM and ETM
+•
+SMS0_HSM: ITM and ETM
+•
+STM
+•
+Bus Probes
+13.3.12 Trace Traffic
+Trace traffic originates from a trace source, is distributed across the device using Arm® CoreSight™ compliant
+trace infrastructure components, and reaches one of two possible trace sinks.
+13.3.12.1 Trace Sources
+A summary of the trace sources present on this device is included in Table 13-14.
+Table 13-14. Trace Sources
+Domain
+Trace Source
+SoC Debug
+Bus Probes
+STM
+MCU_M4F
+ITM
+ETM
+WKUP_R5F
+ETM
+A53SS0
+ETM (each core)
+13.3.12.2 Trace Infrasctructure
+Trace distribution is accomplished using standard Arm® CoreSight™ compliant trace infrastructure components:
+•
+CoreSight™ Trace Funnels (CSTF): Non-programmable CSTFs are used at points of interleaving where
+multiple trace sources converge and form a single stream of trace traffic. This device includes one instance of
+a programmable CSTF that is deployed immediately before the TPIU.
+
+=== Page 2028 ===
+•
+CoreSight™ Trace Replicator (CSREP): A programmable CSREP is used as a routing device, that can be
+used to forward trace traffic, based on its ID, to one, both, or none of the device trace sinks.
+13.3.12.3 Trace Sinks
+Two trace sinks are supported on this device:
+•
+Arm® CoreSight™ TPIU: TPIU supports export of trace off-chip via LVCMOS device pins (See 1.3.3.3) for
+capture by an external receiver.
+•
+TI Trace Buffer Router (TBR) with 64KB of storage: the TBR can function as a trace buffer or as a system
+bridge. As a trace buffer, the TBR can be setup to capture trace data until the internal buffer fills or it can
+operate as a circular buffer that will capture continuously. When configured as a system bridge the TBR’s
+storage becomes an elastic buffer that supports the concurrent queueing and dequeuing of trace traffic. The
+system bridge mode supports interrupt and event notification capabilities that support integration with device
+level CPUs and/or DMAs to support a variety of use cases, including, for e.g., relocation of trace data to DDR
+and off-chip export over USB.
+13.3.13 Application Support
+TI includes a set of system level debug facilities in the Debug Subsystem of devices known as Chip Tools
+(CTools). For easy integration of A53 processor trace and system trace into applications, a set of libraries
+commonly referred to as CToolsLib are provided. CToolsLib is a collection of embedded target APIs/libraries
+focused on enabling easy access to the CTools. CToolsLib encompasses the following libraries to assist in trace
+integration:
+•
+STM Library
+•
+CP Tracer Library
+•
+TBR Library
+•
+ETM Library
+For more information about these libraries, downloadable files, and other useful links, please visit the CToolsLib
+Wiki site.
+The previous link connects to TI community resources. Linked contents are provided „AS IS“ by the
+respectivecontributors. They do not constitute TI specifications and do not necessarily reflect TI's views; see
+TI's Terms of Use.
+

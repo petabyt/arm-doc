@@ -1,0 +1,5047 @@
+12.1 Audio Peripherals
+=== Page 1025 ===
+12.1.1 Multichannel Audio Serial Port (MCASP)
+This section describes the Multichannel Audio Serial Port (MCASP).
+12.1.1.1 MCASP Overview
+This section introduces the Multichannel Audio Serial Port (MCASP) module and describes its main functions
+and connections in the device.
+The MCASP functions as a general-purpose audio serial port are optimized to the requirements of various audio
+applications. The MCASP module can operate in both transmit and receive modes. The MCASP is useful for
+time-division multiplexed (TDM) stream, Inter-IC Sound (I2S) protocols reception and transmission as well as
+for an inter-component digital audio interface transmission (DIT). The MCASP has the flexibility to gluelessly
+connect to a Sony/Philips digital interface (S/PDIF) transmit physical layer component.
+Although inter-component digital audio interface reception (DIR) mode (this is, S/PDIF stream receiving) is not
+natively supported by the MCASP module, a specific TDM mode implementation for the MCASP receivers allows
+an easy connection to external DIR components (for example, S/PDIF to I2S format converters).
+Figure 12-1 shows the MCASP modules overview.
+A.
+j represents a valid instance of MCASP in a domain
+B.
+i represents the maximum number of MCASPj_AXR signals - 1.
+Figure 12-1. MCASP Modules Overview
+12.1.1.1.1 MCASP Features
+Each MCASP module includes the following main features:
+•
+Independent serializer for each AXRx channel of each MCASP module
+•
+Clock stop request/acknowledge protocol
+•
+A single 32-bit buffer per serializer for transmit and receive operations
+•
+Interconnect interface port for CBASS0
+=== Page 1026 ===
+•
+Two independent clock generator modules for transmit and receive (clocking flexibility allows the MCASP
+to receive and transmit at different rates. For example, the MCASP can receive data at 48 kHz, but output
+up-sampled data at 96 kHz or 192 kHz)
+•
+Each MCASP module functional clock can be generated:
+•
+Internally (controller mode)
+•
+Supplied over MCASP serial interface (target mode)
+•
+Has a controllable functional clock divide ratio
+•
+Independent transmit and receive modules, each includes:
+•
+Programmable clock and frame sync generator
+•
+TDM streams from 2 to 32, and 384 time slots
+•
+Support for time slot sizes of 8, 12, 16, 20, 24, 28, and 32 bits
+•
+Data formatter for bit manipulation
+•
+Glueless connection to audio Analog-to-Digital Converters (ADC), Digital-to-Analog Converters (DAC), codec,
+digital audio interface receiver (DIR), and S/PDIF transmit physical layer components
+•
+Wide variety of I2S and similar bit-stream format
+•
+Integrated digital audio interface transmitter (DIT):
+•
+S/PDIF, IEC60958-1, AES-3 formats
+•
+Enhanced channel status/user data RAM
+•
+384-slot TDM with external digital audio interface receiver (DIR) device
+•
+For DIR reception, an external DIR receiver integrated circuit should be used with I2S output format and
+connected to the MCASP receive section
+•
+Support for 2 × DMA requests (one per direction):
+•
+1 level-sensitive transmit direct memory access (DMA) request common for all of the MCASP serializers
+•
+1 level-sensitive receive direct memory access (DMA) request common for all of the MCASP serializers
+•
+All transmit DMA requests are mapped to the device DMA controllers
+•
+One transmit interrupt request common for all serializers
+•
+One receive interrupt request common for all serializers
+•
+Each of the Rx and Tx interrupts is propagated to different host processors via the device Interrupts
+Note
+Because a serializer receive and transmit channels data is shared on the same MCASP data pin, user
+can choose to have either Tx or Rx function from a serializer, not both at the same time.
+Note
+Some features may not be available. See Module Integration for more information.
+12.1.1.1.2 Unsupported Features
+See the Module Integration section for information about unsupported features.
+=== Page 1027 ===
+12.1.1.2 MCASP Environment
+This section describes the MCASP application fields from an environment point of view (external connections).
+This section also lists the possible interfaces and describes the protocol and data format used in each case.
+12.1.1.2.1 MCASP Signals
+Figure 12-2 shows all of the MCASP interface signals.
+Note
+i represents a MCASP instance. See the device datasheet for available domains and MCASP
+instances.
+n represents a AXR signal from a MCASP instance. See the device datasheet for available domains
+and MCASP instances.
+Figure 12-2. MCASP Interface Signals
+Table 12-1 describes the MCASP I/O signals.
+Table 12-1. MCASP I/O Signals
+Module Pin
+Device Level Signal
+I/O(1)
+Description
+Module Pin Reset
+Value(2)
+MCASPi(3) module
+AXR0
+MCASPi(3)_AXR0
+I/O
+Audio transmit/receive data - channel 0
+HiZ
+AXR1
+MCASPi(3)_AXR1
+I/O
+Audio transmit/receive data - channel 1
+HiZ
+AXR2
+MCASPi(3)_AXR2
+I/O
+Audio transmit/receive data - channel 2
+HiZ
+AXR3
+MCASPi(3)_AXR3
+I/O
+Audio transmit/receive data - channel 3
+HiZ
+AXR4
+MCASPi(3)_AXR4
+I/O
+Audio transmit/receive data - channel 4
+HiZ
+AXR5
+MCASPi(3)_AXR5
+I/O
+Audio transmit/receive data - channel 5
+HiZ
+AXR6
+MCASPi(3)_AXR6
+I/O
+Audio transmit/receive data - channel 6
+HiZ
+AXR7
+MCASPi(3)_AXR7
+I/O
+Audio transmit/receive data - channel 7
+HiZ
+AXR8
+MCASPi(3)_AXR8
+I/O
+Audio transmit/receive data - channel 8
+HiZ
+AXR9
+MCASPi(3)_AXR9
+I/O
+Audio transmit/receive data - channel 9
+HiZ
+AXR10
+MCASPi(3)_AXR10
+I/O
+Audio transmit/receive data - channel 10
+HiZ
+AXR11
+MCASPi(3)_AXR11
+I/O
+Audio transmit/receive data - channel 11
+HiZ
+AXR12
+MCASPi(3)_AXR12
+I/O
+Audio transmit/receive data - channel 12
+HiZ
+=== Page 1028 ===
+Table 12-1. MCASP I/O Signals (continued)
+Module Pin
+Device Level Signal
+I/O(1)
+Description
+Module Pin Reset
+Value(2)
+AXR13
+MCASPi(3)_AXR13
+I/O
+Audio transmit/receive data - channel 13
+HiZ
+AXR14
+MCASPi(3)_AXR14
+I/O
+Audio transmit/receive data - channel 14
+HiZ
+AXR15
+MCASPi(3)_AXR15
+I/O
+Audio transmit/receive data - channel 15
+HiZ
+ACLKX
+MCASPi(3)_ACLKX
+I/O
+Transmit bit clock
+HiZ
+AFSX
+MCASPi(3)_AFSX
+I/O
+Transmit frame synchronization
+HiZ
+ACLKR
+MCASPi(3)_ACLKR
+I/O
+Receive bit clock
+HiZ
+AFSR
+MCASPi(3)_AFSR
+I/O
+Receive frame synchronization
+HiZ
+MCASPi(3)_AHCLKX_I/O
+AUDIO_EXT_REFCLK[0-1]
+I/O
+Transmit high-frequency controller clock. See
+Module Integration
+HiZ
+MCASPi(3)_AHCLKR_I/O
+AUDIO_EXT_REFCLK[0-1]
+I/O
+Receive high-frequency controller clock. See
+Module Integration
+HiZ
+(1)
+I = Input; O = Output; I/O = Bidirectional
+(2)
+HiZ = High Impedance
+(3)
+i represents a MCASP instance. See the device datasheet for available domains and MCASP instances.
+Note
+MCASPi_AHCLKR_I/O and MCASPi_AHCLKX_I/O signals are multiplexed to
+AUDIO_EXT_REFCLK[0-1] device pins.
+Note
+For MCASPi_ACLKR_I/O, MCASPi_ACLKX_I/O, MCASPi_AHCLKR_I/O and MCASPi_AHCLKX_I/O
+signals to work properly, the RXACTIVE bit of the appropriate CTRLMMR_PADCONFIGy registers
+should be set to 0x1 because of retiming purposes.
+Note
+For more information about device level signals (pull-up/down resistors, buffer type, multiplexing and
+others), see tables Pin Attributes and Pin Multiplexing in the device-specific Datasheet.
+Note
+A serializer AXR data pin is shared between the transmit and receive logic of that serializer. The
+direction of data is determined in the MCASP_PDIR register and the function (Tx or Rx) is selected in
+the corresponding serializer control register MCASP_SRCTLn (n = 0 to 15).
+12.1.1.2.2 MCASP Protocols and Data Formats
+12.1.1.2.2.1 Protocols Supported
+The MCASP supports a wide variety of protocols:
+•
+Transmit section supports:
+•
+Wide variety of I2S and similar bit-stream formats
+•
+TDM streams from 2 to 32 time slots
+•
+S/PDIF, IEC60958-1, AES-3 formats
+•
+Receive section supports:
+•
+Wide variety of I2S and similar bit-stream formats
+•
+TDM streams from 2 to 32 time slots
+=== Page 1029 ===
+•
+TDM stream of 384 time slots specifically designed for easy interface to external digital interface receiver
+(DIR) device transmitting DIR frames to MCASP using the I2S protocol (one time slot for each DIR
+subframe)
+The transmit and receive sections of the module may be individually programmed to support the following
+options on the basic serial protocol:
+•
+Programmable clock and frame sync polarity (rising or falling edge): ACLKR/X, AFSR/X and AHCLKR/X_I/O
+•
+Slot length (number of bits per time slot): 2, 4, 8, 12, 16, 20, 24, 28, 32 bits supported
+•
+Word length (bits per word): 2, 4, 8, 12, 16, 20, 24, 28, 32 bits; always less than or equal to the time slot
+length
+•
+First-bit data delay: 0, 1, 2 bit clocks
+•
+Left/right alignment of word inside slot
+•
+Bit order: MSB first or LSB first
+•
+Bit mask/pad/rotate function
+•
+Automatically aligns data internally in either Q31 or integer formats
+•
+Automatically masks nonsignificant bits (sets to 0, 1, or extends value of another bit)
+Note
+In I2S mode, the transmit and receive sections can support simultaneous transfers on up to all serial
+data pins operating as 192 kHz stereo channels.
+In DIT mode for MCASP, additional features of the transmitters are:
+•
+Transmit-only mode 384 time slots (subframe) per frame
+•
+Biphase encoded 3.3 V Output
+•
+Channel status RAM (384 bits)
+•
+User data RAM (384 bits)
+•
+Support for consumer and professional applications
+•
+Separate valid bit (V) for subframe A, B
+•
+Stereo Support Only (Mono means send data 2 × via software)
+In DIT mode, the transmitter can support a 192 kHz frame rate (stereo) on up to all serial data pins
+simultaneously (note that the internal bit clock for DIT runs two times faster than the equivalent bit clock for
+I2S mode, due to the need to generate Biphase Mark Encoded Data).
+Note
+The MCASP does NOT natively support DIR-mode reception (this is, receiving in the S/PDIF format).
+To allow this, the MCASP can use a DIR-input to I2S-output converter implemented by an external
+device (this is, external DIR component). To facilitate reception in this case, the TDM mode of MCASP
+receivers logic is extended to support a non-standard 384-slot TDM stream.
+Note
+An external transceiver must be connected to the MCASP port in the device to translate the electrical
+signals delivered by the MCASP (1.2 V or 1.8 V LVCMOS levels) to the electrical levels of the S/PDIF
+standard.
+12.1.1.2.2.2 Definition of Terms
+The serial bitstream transmitted or received by a MCASP serializer is a long sequence of 1s and 0s on an audio
+transmit/receive pins AXRn. However, the sequence has a hierarchical organization that can be described in
+terms of frames of data, slots, words, and bits.
+A basic synchronous serial interface consists of three important components: clock, frame sync, and data.
+Figure 12-3 shows two of the three basic components: the clock signal (ACLKX/ACLKR) and the data signals
+=== Page 1030 ===
+AXRn. Figure 12-3 does not specify whether the clock is for transmit (ACLKX) or receive (ACLKR) because the
+definitions of terms apply to both receive and transmit interfaces. In operation, each transmitter and receiver
+uses the signals ACLKX and ACLKR as serial clock, respectively. Optionally, a receiver can use ACLKX as
+the serial clock when a transmitter and receiver (not from the same serializer) of the MCASP are configured to
+operate synchronously.
+•
+Bit:
+A bit is the smallest entity in the serial data stream. The beginning and end of each bit is marked by an edge
+of the serial clock. The duration of a bit is a serial clock period. A '1' is represented by a logic high on AXRn
+pins for the entire duration of the bit. A 0 is represented by a logic low on an AXRn pin for the entire duration
+of the bit.
+•
+Word:
+A word is a group of bits that make up the data being transferred between the MCASP and the external
+device. Figure 12-3 shows an 8-bit word.
+•
+Slot:
+A slot consists of the bits that make up the word and can consist of additional bits used to pad the word to
+a convenient number of bits for the interface between the MCASP and the external device. In Figure 12-3,
+the audio data consists of only 8 bits of useful data (8-bit word), but it is padded with four 0s (12-bit slot) to
+satisfy the desired protocol in interfacing to an external device. Within a slot, the bits can be shifted out of the
+MCASP on an AXRn pin with either MSB or LSB first.
+When the word size is smaller than the slot size, the word can be aligned to the left of the slot (beginning) or
+to the right of the slot (end). The additional bits in the slot not belonging to the word can be padded with 0, 1,
+or with one of the bits (typically, the MSB or LSB) from the data word, this is, left-aligned words within a slot
+are terminated with padding bits and right-aligned words within a slot are preceded by padding bits to fit in the
+slot size. Figure 12-4 shows these options.
+b7
+b6
+b5
+b4
+b3
+b2
+b1
+b0
+P
+P
+P
+P
+bit
+ACLKX/R
+AXRn
+word
+slot
+mcasp-003
+(1)  b7:b0 - bits. Bits b7 to b0 form a word.
+(2)  P - pad bits. Bits b7 to b0, together with the 4 pad bits, form a slot.
+(3)  In this example, the data is transmitted MSB first, left-aligned.
+Figure 12-3. Definition of Bit, Word, and Slot
+=== Page 1031 ===
+1
+0
+0
+1
+0
+0
+2
+3
+4
+0
+9
+0
+0
+11
+8
+0
+Bit
+Time
+5
+0
+0
+0
+0
+1
+0
+1
+2
+3
+4
+1
+1
+6
+7
+8
+10
+9
+11
+5
+1
+0
+4
+3
+2
+8
+7
+6
+11
+9 10
+1
+1
+1
+0
+0
+0
+0
+1
+0
+0
+0
+0
+5
+0
+1
+2
+6
+10
+9
+11
+0
+0
+0
+0
+1
+1
+1
+0
+0
+0
+0
+1
+5
+0
+1
+2
+3
+4
+6
+11
+1
+0
+0
+0
+0
+1
+1
+1
+1
+1
+1
+1
+5
+1
+0
+4
+3
+2
+8
+7
+6
+11
+9 10
+1
+1
+1
+1
+1
+0
+0
+0
+0
+1
+1
+1
+5
+0
+1
+2
+6
+10
+9
+11
+1
+1
+1
+0
+0
+0
+0
+1
+1
+1
+1
+1
+5
+1
+0
+3
+2
+4
+6
+8
+7
+10
+9
+11
+1
+1
+1
+1
+1
+1
+1
+0
+0
+0
+0 1
+5
+0
+1
+4
+2
+3
+7
+6
+11
+9 10
+1
+1
+1
+0
+0
+0
+0
+0
+0
+0
+0
+0
+5
+0
+1
+2
+6
+10
+9
+11
+0
+0
+0
+0
+0
+1
+1
+0
+0
+0
+0
+1
+8-bit word
+12-bit slot
+Unshaded: bit belongs to word
+Shaded: bit is a pad bit
+(a)
+87h as 8-bit word, 12-bit slot,
+left align, MSB first, pad zeros
+87h as 8-bit word, 12-bit slot,
+(b)
+right align, MSB first, pad zeros
+left align, LSB first, pad zeros
+87h as 8-bit word, 12-bit slot,
+(c)
+right align, LSB first, pad zeros
+87h as 8-bit word, 12-bit slot,
+(d)
+87h as 8-bit word, 12-bit slot,
+left align, MSB first, pad with bit 7
+(e)
+87h as 8-bit word, 12-bit slot,
+right align, MSB first, pad with bit 4
+(f)
+87h as 8-bit word, 12-bit slot,
+left align, LSB first, pad with bit 7
+(g)
+87h as 8-bit word, 12-bit slot,
+right align, LSB first, pad with bit 4
+(h)
+left align, LSB first, pad with bit 7
+07h as 8-bit word, 12-bit slot,
+(i)
+right align, LSB first, pad with bit 4
+86h as 8-bit word, 12-bit slot,
+(j)
+0
+1
+1
+1
+1
+0
+0
+0
+0
+mcasp-004
+10
+7
+6
+5
+8
+7
+4
+3
+10
+9
+8
+7
+8
+7
+4
+3
+8
+8
+7
+4
+3
+Figure 12-4. Bit Order and Word Alignment Within a Slot Examples
+•
+Frame
+The third basic element of a synchronous serial interface is the frame synchronization signal, also referred to
+as frame sync in this chapter. A frame contains one or multiple slots, as determined by the desired protocol.
+Figure 12-5 shows an example frame of data and the frame definitions. In operation, the transmitter uses
+AFSX, and the receiver - AFSR signal. Figure 12-5 does NOT specify whether the frame sync (FS) is for
+transmit (AFSX) or receive (AFSR) because the definitions of terms apply to both receive and transmit
+interfaces. In operation, each transmitter/receiver uses AFSX/AFSR as a frame synchronization signal,
+respectively. Optionally, the receiver can use AFSX as the frame sync when the transmitter and receiver
+of the MCASP are configured to operate synchronously. This example shows two slots in a frame (I2S format)
+and a frame-sync (FS) duration of a slot length.
+This section shows only the generic definition of the frame sync. For more information about the frame-sync
+formats required for the transfer modes and protocols (TDM-mode and DIT-mode supported formats), see
+Section 12.1.1.2.2.3, TDM Format and Section 12.1.1.2.2.5, S/PDIF-Coding Format.
+=== Page 1032 ===
+Note
+All of the MCASP serializers share the same, device pad accessible, clock and frame signals, as
+follows:
+•
+AHCLKX_I/O, ACLKX and AFSX for the transmitting section
+•
+AHCLKR_I/O, ACLKR and AFSR for the receiving section
+AFSX/R
+AXRn
+Slot 0
+Slot 1
+Frame-sync width
+Slot
+Frame
+mcasp-005
+Figure 12-5. Definition of Frame and Frame-Sync Width
+The following terms are used throughout this chapter:
+•
+TDM: Time-division multiplexed. See Section 12.1.1.2.2.3, TDM Format for details on the TDM protocol.
+•
+I2S: Inter-Integrated Sound protocol, commonly used on audio interfaces. The MCASP supports the I2S
+protocol as part of the TDM mode (when configured as a 2-slot frame).
+•
+DIT: Digital audio interface transmit. The MCASP supports transmitting in S/PDIF format on each AXRn data
+pin.
+•
+DIR: Digital audio interface receive. The MCASP does NOT natively support receiving in S/PDIF format on
+AXRn data pins and requires an external DIR-to-TDM or DIR-to-I2S converter chip for a DIR-frame reception.
+•
+Slot or time slot: For DIT/DIR format, a MCASP time slot corresponds to a DIT/DIR subframe.
+12.1.1.2.2.3 TDM Format
+The TDM format is used to transfer data between the host CPU and one or more analog-to-digital converter
+(ADC), digital-to-analog converter (DAC), or S/PDIF receiver (DIR) devices. An example for a 6-slot (channel)
+TDM transmission on one MCASP data pin - AXRn is illustrated on Figure 12-6.
+=== Page 1033 ===
+mcasp-006
+Slot 0
+Slot 1
+Slot 2
+Slot 3
+Slot 4
+Slot 5
+Slot 0
+Slot 1
+Slot 2
+Slot 3
+Slot 4
+Slot 5
+Slot 0
+Slot 1
+Slot 2
+Slot 3
+Slot 4
+Slot 5
+Slot 0
+Slot 1
+Slot 2
+Slot 3
+Slot 4
+Slot 5
+2-clock cycles delay
+no  delay
+CLK
+AXRn
+(2)
+FS
+(1)
+(1) - Frame sync duration of 1 slot - length  is shown. A single bit - duration of FS is also supported
+(2) - Slot 0 of AXRn stream is being offset with 0-, 1-, and 2- clock cycle delay from the frame sync, respectively.
+Slot 0
+Slot 1
+Slot 2
+Slot 3
+Slot 4
+Slot 5
+Slot 0
+Slot 1
+Slot 2
+Slot 3
+Slot 4
+Slot 5
+1-clock cycles
+delay
+TDM Frame
+Figure 12-6. TDM Format - 6 channel example
+The TDM format uses three signals in a basic synchronous serial interface: data (AXRn), clock (CLK) and frame
+sync (FS). The data signal present on AXRn pin is fully synchronous to the serial clock (ACLKX or ACLKR). The
+data bits are grouped into words and slots (see also Section 12.1.1.2.2.2), the latter being also refered to as
+the "time-slots" or "channels" in TDM terminology. A frame consists of multiple time-slots. Each TDM frame is
+marked by the frame sync signal (AFSX or AFSR). The TDM transfer is continuous and periodic, with no delays
+between slots.
+Within a certain frame, the last bit of slot N is followed immediately on the next serial clock with the first bit of
+the next slot N+1. On the boundary between two adjacent TDM-frames, the last bit of the last slot from the frame
+M, is followed immediately on the next clock cycle with the first bit of the first slot from the next frame M+1. For
+MCASP, there is an option to offset the first bit of the first slot with a 0-,1- or 2-cycle delay from the frame sync
+signal.
+The frame sync - AFSX/AFSR only marks the beginning of slot 0 and start of a new frame. Since it does not
+determine the boundaries of a slot, there is a requirement for a connected transmitter and receiver to agree on
+the number of transferred bits per slot.
+In a typical audio system involving MCASP module, a single TDM data frame is transferred during each sample
+period Ts of a data converter. The user has following choices to implement multiple channels:
+•
+Use more data slots (on a price of higher speed serial clock) per frame transmitted/received on just one of the
+available MCASP data pins AXRn.
+•
+Use less number of slots per TDM frame (requires a slower serial clock), making them available on several of
+the MCASP pins AXRn.
+12.1.1.2.2.4 I2S Format
+The TDM transfer mode of the MCASP supports the I2S format when frame is configured to have 2 slots. The
+I2S format is specifically designed to transfer a stereo channel (left and right) over a single data pin AXRn. The
+"Slots" are also commonly referred to as "channels". The frame width duration in the I2S format equals size of a
+slot. The frame signal is also referred to as "word select" in the I2S format.
+The I2S protocol is illustrated on Figure 12-7.
+=== Page 1034 ===
+mcasp-007
+(1) - The example shows I2S  data  MSB-first transmission with 1-clock cycle delay between FS and data MSB
+MSB
+LSB
+Word N
+left channel
+LSB
+MSB
+Word N-1
+right channel
+Word N+1
+right channel
+CLK
+FS
+AXRn
+(1)
+Figure 12-7. I2S Format Overview
+12.1.1.2.2.5 S/PDIF Coding Format
+The MCASP transmitter supports the S/PDIF format with 3.3 V biphase-mark encoded output. The S/PDIF
+format is supported by the DIT- transfer mode of the MCASP. This section briefly discusses the S/PDIF coding
+format.
+Note
+The DIR- reception of S/PDIF format frames is NOT natively supported from the device MCASP. For
+this purpose, an external DIR-to-TDM transfer mode adapter can be used between the remote device
+S/PDIF transmitter output and the MCASP TDM-only compatible receiver input.
+12.1.1.2.2.5.1 Biphase-Mark Code
+In S/PDIF format, the digital signal is coded using the biphase-mark code (BMC). For each serializer transmitter
+n, the clock, frame, and data are embedded in only one signal - the data signal AXRn. In the BMC system, each
+data bit is encoded into two logical states (00, 01, 10, or 11) at the pin. These two logical states form a cell. The
+duration of the cell, which equals the duration of the data bit, is called a time interval. A logical 1 is represented
+by two transitions of the signal within a time interval, which corresponds to a cell with logical states 01 or 10. A
+logical 0 is represented by one transition within a time interval, which corresponds to a cell with logical states 00
+or 11. In addition, the logical level at the start of a cell is inverted from the level at the end of the previous cell.
+Figure 12-8 and Table 12-2 show how data is encoded to the BMC format.
+As shown in Figure 12-8, the clock frequency is twice the unencoded data bit rate. In addition, the clock is
+always programmed to 128 × fs, where fs is the sample rate (see Section 12.1.1.2.2.5.3, Frame Format, for
+details on how this clock rate is derived based on the S/PDIF format). The device receiving in S/PDIF format can
+recover the clock and frame information from the BMC signal.
+=== Page 1035 ===
+Time interval
+1
+0
+1
+1
+0
+0
+1
+0
+1
+1
+0
+1
+0
+1 1
+0
+1
+1
+0
+0
+0
+1
+1
+0
+1
+0
+0
+1
+0
+1
+0
+1
+1
+Internal
+to MCASP
+At pin
+Clock
+128 x fs
+Data
+(unencoded)
+Biphase
+mark signal
+(at pin AXRn)
+Cell
+mcasp-008
+Figure 12-8. Biphase-Mark Code
+Table 12-2. Biphase-Mark Encoder
+Data (Unencoded)
+Previous State at Pin AXRn
+BMC-Encoded Cell Output at
+Pin AXRn
+0
+0
+11
+0
+1
+00
+1
+0
+10
+1
+1
+01
+12.1.1.2.2.5.2 S/PDIF Subframe Format
+Every audio sample transmitted in a subframe consists of 32 S/PDIF time intervals (or cells), numbered 0 to 31.
+Figure 12-9 shows a subframe.
+•
+Time intervals 0±3 carry one of the three permitted preambles to signify the type of audio sample in the
+current subframe. The preamble is not encoded in BMC format, and therefore the preamble code can contain
+more than two consecutive 0 or 1 logical states in a row. See Table 12-3.
+•
+Time intervals 4±27 carry the audio sample word in linear 2s-complement representation. The MSB is carried
+by time interval 27. When a 24-bit coding range is used, the LSB is in time interval 4. When a 20-bit coding
+range is used, time intervals 8-27 carry the audio sample word with the LSB in time interval 8. Time intervals
+4±7 may be used for other applications and are designated auxiliary sample bits.
+•
+If the source provides fewer bits than the interface allows (20 or 24), the unused LSBs are set to logical 0. For
+a nonlinear PCM audio application or a data application, the main data field can carry any other information.
+•
+Time interval 28 carries the validity bit (V) associated with the main data field in the subframe.
+•
+Time interval 29 carries the user data channel (U) associated with the main data field in the subframe.
+•
+Time interval 30 carries the channel status information (C) associated with the main data field in the
+subframe. The channel status indicates if the data in the subframe is digital audio or some other type of
+data.
+•
+Time interval 31 carries a parity bit (P) such that time intervals 4±31 carry an even number of 1s and an even
+number of 0s (even parity). As listed in Table 12-3, the preambles (time intervals 0±3) are also defined with
+even parity.
+=== Page 1036 ===
+0
+3 4
+7 8
+27 28
+31
+Sync
+preamble
+Auxiliary
+LSB
+MSB V U C P
+Audio sample word
+Validity flag
+User data
+Channel status
+Parity bit
+mcasp-009
+Figure 12-9. S/PDIF Subframe Format
+As listed in Table 12-3, the MCASP DIT generates only one polarity of preambles, and it assumes the previous
+logical state is 0. This is because the MCASP assures an even-polarity encoding scheme when transmitting in
+DIT mode. If an underrun condition occurs, the DIT resynchronizes to the correct logic level on the AXRn pin
+before continuing with the next transmission.
+Table 12-3. Preamble Codes
+Preamble Code(1)
+Previous Logical State
+Logical States on pin AXRn(2)
+Description
+B (or Z)
+0
+1110 1000
+Start of a block and subframe 1
+M (or X)
+0
+1110 0010
+Subframe 1
+W (or Y)
+0
+1110 0100
+Subframe 2
+(1)
+Historically, preamble codes are referred to as B, M, and W. For use in professional applications, preambles are referred to as Z, X,
+and Y, respectively.
+(2)
+The preamble is not BMC-encoded. Each logical state is synchronized to the serial clock. These eight logical states make up time slots
+(cells) 0 to 3 in the S/PDIF stream.
+12.1.1.2.2.5.3 Frame Format
+An S/PDIF frame is composed of two subframes (see Figure 12-10). For linear coded audio applications, the
+rate of frame transmission normally corresponds exactly to the source sampling frequency fs. The S/PDIF format
+clock rate is therefore 128 × fs (128 = 32 cells per subframe × 2 clocks per cell × 2 subframes per sample). For
+example, for an S/PDIF stream at a 192-kHz sampling frequency, the serial clock is 128 × 192 kHz = 24.58 MHZ.
+In 2-channel operation mode, the samples taken from both channels are transmitted by time multiplexing in
+consecutive subframes. Both subframes contain valid data (cell 28 validity bits for A- and B- channels, both
+set to '0'). The first subframe (left or A channel in stereophonic operation and primary channel in monophonic
+operation) normally starts with preamble M. However, the preamble of the first subframe changes to preamble B
+once every 192 frames to identify the start of the block structure used to organize the channel status information.
+The second subframe (right or B channel in stereophonic operation and secondary channel in monophonic
+operation) always starts with preamble W.
+In single-channel operation mode in a professional application, the frame format is the same as in the 2-channel
+mode. Data is carried in the first subframe and may be duplicated in the second subframe. If the second
+subframe is not carrying duplicate data, cell 28 (validity bit) is set to logical 1.
+X
+Y
+Z
+Y
+X
+Y
+X
+M
+Channel
+1
+Channel
+2
+W
+W
+Channel
+2
+Channel
+1
+B
+Channel
+2
+W
+Channel
+1
+M
+M
+Subframe 1
+Subframe 2
+Frame 191
+Frame 0
+Frame 1
+mcasp-010
+Figure 12-10. S/PDIF Frame Format
+=== Page 1037 ===
+12.1.1.3 Integration
+See the Module Integration section for information about clocks, resets and hardware requests.
+=== Page 1038 ===
+12.1.1.4 MCASP Functional Description
+In the text throughout this section a single instance of MCASP is described assuming that all modules
+are functionally identical. For module availability and integration differences, see Section 12.1.1.2, MCASP
+Environment, and Module Integration.
+12.1.1.4.1 MCASP Block Diagram
+Figure 12-11. MCASP Module Block Diagram
+Note
+The internal and external clocks mentioned in this section are with respect to clock and frame-sync
+generator modules.
+12.1.1.4.2 MCASP Clock and Frame-Sync Configurations
+There are three scenarios to provide clock source signals for the Tx part and four scenarios for the Rx part of
+the MCASP serializers. The first three scenarios are identical between the Tx and Rx part of the MCASP. They
+feature an asynchronous operation between receiver and transmitter channels using independent Tx/Rx bit rate
+clock sources (either internal or external).
+In the first scenario, the transmit - XCLK and receive - RCLK serial clocks (clock at the bit rate) are generated
+internally by passing through a couple of clock dividers off the internal functional clock source (AUXCLK). In this
+case, the bit rate clock is generated internally and is driven out on the pin ACLKX for the Tx part and pin ACLKR
+for the Rx part, respectively. An internally generated high-frequency clock can be optionally driven out onto the
+AHCLKX pin for the Tx part to serve as a reference clock for other components in the system.
+In the second scenario, an external for the device clock, is passed on the ACLKX (for the TX part) and ACLKR
+(for the RX part) pins which are configured as inputs. In this case the Rx- /Tx- high-speed clock logic is bypassed
+for the XCLK/RCLK generation.
+In the third (mixed) scenario, an externally driven (controller) high-frequency clock is applied on the AHCLKX (for
+the TX part) pin, which is configured as input. In this case the AHCLKX clock frequency can be divided down
+via programming the ACLKX associated divider to produce the necessary bit rate clock. The high-speed clock
+divider can NOT be used.
+In the fourth clock generation scenario the bit rate clock for MCASP receivers - RCLK is derived from the bit
+rate clock of the MCASP transmitters - XCLK for a synchronous operation between transmitters and receivers.
+Hence, the whole receiver clock generator logic is bypassed.
+A typical role of the MCASP frame sync signal is to carry the left/right clock (LRCLK) signal when transmitting
+and receiving stereo data.
+For an asynchronous operation, the AFSX (Tx part) and AFSR (Rx part) frame synchronization signals can
+be sourced internally or delivered externally independently for the Tx and Rx channels. During synchronous
+operation the receive frame sync - AFSR signal is derived from the transmit frame sync - AFSX signal. A
+synchronous and asynchronous mode applies to bit rate clock and frame sync signals at the same time.
+12.1.1.4.2.1 MCASP Transmit Clock
+The transmit high-speed and transmit clock configuration is controlled by the following registers:
+•
+MCASP_ACLKXCTL
+•
+MCASP_AHCLKXCTL
+In case, the transmit bit clock, ACLKX, is generated internally, the MCASP_ACLKXCTL[5] CLKXM bit must be
+set to 1. Thus, the clock is divided down by a programmable bit clock divider (the MCASP_ACLKXCTL[4-0]
+CLKXDIV bit field) from the source signal.
+If the transmit high-frequency controller clock, AHCLKX, is also sourced internally (that is first scenario described
+in Section 12.1.1.4.2, the MCASP_AHCLKXCTL[15] HCLKXM bit must be set to 1. Thus, the clock is divided
+=== Page 1039 ===
+down by a programmable high-clock divider (the MCASP_AHCLKXCTL[11-0] HCLKXDIV bit field) from the
+MCASP internal clock source AUXCLK.
+Internally, the MCASP always shifts transmit data at the rising edge of the internal transmit clock - XCLK,
+(see Figure 12-12). The CLKXP mux determines if ACLKX needs to be inverted to become XCLK. If
+MCASP_ACLKXCTL[7] CLKXP = 0, the CLKXP mux directly passes ACLKX signal to XCLK. As a result, the
+MCASP shifts transmit data at the rising edge of ACLKX. If MCASP_ACLKXCTL[7] CLKXP = 1, the CLKX mux
+passes the inverted version of ACLKX to XCLK. As a result, the MCASP shifts transmit data at the falling edge of
+ACLKX.
+It can be seen in Figure 12-12 that XCLK is propagated to the Rx clock logic, to allow an internally synchronous
+operation between MCASP transmitters and receivers. This is used for example in the MCASP loopback mode.
+Note
+The polarity of ACLKX can be controlled in the MCASP_ACLKXCTL[7] CLKXP bit, regardless of
+ACLKX signal being internally or externally sourced.
+In addition, there is an option to invert polarity of the AHCLKX controller high speed clock via writing the
+MCASP_AHCLKXCTL[14] HCLKXP bit.
+Note
+In a similar way, the polarity of AHCLKX clock can be controlled in the MCASP_AHCLKXCTL[14]
+HCLKXP bit, regardless of the AHCLKX signal being internally or externally sourced.
+Figure 12-12 presents the block diagram of the transmit clock generator.
+0
+1
+1
+0
+XCLK
+(Internal func. Tx clock)
+CLKXM
+(internal /external)
+(MCASP_ACLKXCTL[5])
+CLKXP
+(polarity)
+(MCASP_ACLKXCTL[7])
+external ACLKX
+internal ACLKX
+XCLK to Rx logic
+(MCASP_ACLKXCTL[6] ASYNC)
+1
+0
+Divider
+/1.../128
+CLKXDIV
+(MCASP_ACLKXCTL[4-0])
+mcasp-013
+HCLKXP
+(MCASP_AHCLKXCTL[14])
+1
+0
+HCLKXM
+(MCASP_AHCLKXCTL[15])
+external AHCLKX
+internal AHCLKX
+Divider
+/1.../4096
+HCLKXDIV
+(MCASP_AHCLKXCTL[11-0])
+AUXCLK
+MCASP
+Figure 12-12. Transmit Clock Generator Block Diagram
+=== Page 1040 ===
+Note
+In this device:
+•
+ACLKX is mapped on the device ball ACLKX
+•
+internal AHCLKX is mapped on the device balls AUDIO_EXT_REFCLK[0-1]
+•
+external AHCLKX is mapped on MCASPi_AHCLKX clock from the Device Configuration
+For more information about MCASP integration, see Section 12.1.1.2, MCASP Environment, and
+Module Integration.
+12.1.1.4.2.2 MCASP Receive Clock
+The MCASP receive clock generator is built on a very similar to the transmit clock generator (but independent)
+circuit.
+The receive clock configuration is controlled by the following registers:
+•
+MCASP_ACLKRCTL
+•
+MCASP_AHCLKRCTL
+In case, the receive bit clock, ACLKR, is generated internally (but asynchronously to XCLK), the
+MCASP_ACLKRCTL[5] CLKRM bit must be set to 1. Thus, the clock is divided down by a programmable bit
+clock divider (the MCASP_ACLKRCTL[4-0] CLKRDIV bit field) from the source signal.
+If the receive high-frequency controller clock, AHCLKR, is also sourced internally (that is, first scenario described
+in Section 12.1.1.4.2) and the MCASP_AHCLKRCTL[15] HCLKRM bit must be set to 1. Thus, the clock is
+divided down by a programmable high-clock divider (the MCASP_AHCLKRCTL[11-0] HCLKRDIV bit field) from
+the MCASP internal clock source AUXCLK.
+Note
+The polarity of ACLKR can be controlled in the MCASP_ACLKRCTL[7] CLKRP bit, regardless of
+ACLKR signal being internally or externally sourced.
+In a similar way, the polarity of AHCLKR clock can be controlled in the MCASP_AHCLKRCTL[14]
+HCLKRP bit, regardless of the AHCLKR signal being internally or externally sourced.
+There is an option for the MCASP receiver to be configured to operate synchronously to the ACLKX and AFSX
+signals. The XCLK output of the Tx Clock generator (see Figure 12-12 and Figure 12-13) becomes source of the
+receive clock (RCLK output), when the MCASP_ACLKRCTL[6] ASYNC bit in the transmit clock control register is
+set to '0b0'. For more information, refer to Section 12.1.1.4.2.4.
+Figure 12-13 presents the block diagram of the receive clock generator.
+=== Page 1041 ===
+0
+1
+1
+0
+RCLK
+(Internal func. Rx clock)
+CLKRM
+(internal /external)
+(MCASP_ACLKRCTL[5])
+CLKRP
+(polarity)
+(MCASP_ACLKRCTL[7])
+external ACLKR
+internal ACLKR
+ASYNC
+synchr. / asynchr.
+(MCASP_ACLKXCTL[6])
+1
+0
+Divider
+/1.../128
+CLKRDIV
+(MCASP_ACLKRCTL[4-0])
+HCLKRP
+(polarity)
+(MCASP_AHCLKRCTL[14])
+1
+0
+HCLKRM
+(internal / external)
+(MCASP_AHCLKRCTL[15])
+Divider
+/1.../4096
+HCLKRDIV
+(MCASP_AHCLKRCTL[11-0])
+1
+0
+XCLK
+(internal func. Tx clock)
+mcasp-014
+AUXCLK
+MCASP
+external AHCLKR
+internal AHCLKR
+Figure 12-13. Receive Clock Generator Block Diagram
+Note
+In this device:
+•
+ACLKR is mapped on the device ball ACLKR
+•
+internal AHCLKX is mapped on the device balls AUDIO_EXT_REFCLK[0-1]
+•
+external AHCLKR is mapped on Device Configuration MCASPi_AHCLKR from Device
+Configuration
+For more information about MCASP integration, see Section 12.1.1.2, MCASP Environment, and ,
+Module Integration.
+12.1.1.4.2.3 Frame-Sync Generator
+There are two different modes for frame sync: burst and TDM. The MCASP frame sync generator logic is
+illustrated in Figure 12-14.The I/O buffers are not part of the MCASP module, and are not shown in the figure.
+=== Page 1042 ===
+0
+1
+mcasp-015
+Transmit frame
+sync generator
+(MCASP_TXFMCTL[0])
+FSXP
+1
+0
+1
+0
+Internal
+Tx frame
+sync
+(MCASP_TXFMCTL[0])
+FSXP
+MCASP_TXFMCTL[15-7]
+XMOD
+MCASP_TXFMCTL[4]
+FXWID
+Receive frame
+sync generator
+MCASP_RXFMCTL[15-7]
+RMOD
+MCASP_RXFMCTL[4]
+RXWID
+0
+1
+(MCASP_RXFMCTL[0])
+FSRP
+1
+0
+0
+1
+FSXM
+(internal /
+external)
+(MCASP_TXFMCTL[1])
+1
+0
+Internal
+Rx frame
+sync
+(MCASP_RXFMCTL[0])
+FSRP
+FSRM
+(internal /
+external)
+(MCASP_RXFMCTL[1])
+ASYNC
+MCASP_ACLKXCTL[6]
+MCASP
+external AFSX
+internal ASFX
+external AFSR
+internal ASFR
+Figure 12-14. Frame Sync Generator Block Diagram
+Note
+For more on MCASP integration, see Section 12.1.1.2, MCASP Environment, and Module Integration.
+For the transmit logic, following frame-sync generator configurations can be selected:
+•
+Internally/externally generated frame-sync via configuring MCASP_AFSXCTL[1] FSXM bit
+•
+Frame-sync polarity: Rising edge or falling edge via configuring MCASP_AFSXCTL[0] FSXP bit
+•
+Frame-sync width: "single bit" or "single word" via configuring MCASP_AFSXCTL[4] FXWID bit
+•
+Frame sync mode - the appropriate frame sync generation pattern for the selected transfer mode is defined in
+the MCASP_AFSXCTL[15-7] XMOD bit field, as follows:
+•
+For DIT mode (384 slots) - MCASP_AFSXCTL[15-7] XMOD = 0x180
+•
+For I2S mode (2 TDM slots) - MCASP_AFSXCTL[15-7] XMOD = 0x2
+•
+For TDM mode (from 3 to 32 TDM slots) - MCASP_AFSXCTL[15-7] XMOD bit field set in range 0x3 - 0x20
+•
+Bit delay: 0, 1, or 2 cycles before the first data bit. This delay is defined in MCASP_XFMT[17-16] XDATDLY
+bit field
+For the receive logic, following frame-sync generator configurations can be selected:
+•
+Internally/externally generated frame-sync via configuring MCASP_AFSRCTL[1] FSRM bit
+•
+Frame-sync polarity: Rising edge or falling edge via configuring MCASP_AFSRCTL[0] FSRP bit
+•
+Frame-sync width: "single bit" or "single word" via configuring MCASP_AFSRCTL[4] FRWID bit
+=== Page 1043 ===
+•
+Frame sync mode - the appropriate frame sync generation pattern for the selected transfer mode is defined in
+the MCASP_AFSRCTL[15-7] RMOD bit field, as follows:
+•
+For I2S mode (2 TDM slots) - MCASP_AFSRCTL[15-7] RMOD = 0x2
+•
+For TDM mode (from 3 to 32 TDM slots) - MCASP_AFSRCTL[15-7] RMOD set in range 0x3 - 0x20
+•
+For the special 384-slot TDM mode - MCASP_AFSRCTL[15-7] RMOD = 0x180
+•
+Bit delay: 0, 1, or 2 cycles before the first data bit. This delay is defined in the MCASP_RFMT[17-16]
+RDATDLY bit field
+•
+Selecting the source (AFSX or AFSR) of receiver internal frame synchronization. This is done in the same bit
+- MCASP_ACLKXCTL[6] ASYNC, used to define the receiver internal clock source. For more details, refer to
+Section 12.1.1.4.2.4, Synchronous and Asynchronous Transmit and Receive Operations.
+Regardless of the AFSX/AFSR being internally generated or externally sourced, the polarity of AFSX/AFSR is
+determined by FSXP/FSRP, respectively, to be either rising or falling edge. If FSXP/FSRP = 0, the frame sync
+polarity is rising edge. If FSXP/FSRP = 1, the frame sync polarity is falling edge.
+Note
+Certain restrictions apply to the receive and transmit logic settings, when the MCASP_ACLKXCTL[6]
+ASYNC bit is set to 0b0. They are described in Section 12.1.1.4.2.4.
+12.1.1.4.2.4 Synchronous and Asynchronous Transmit and Receive Operations
+Synchronous Transmit and Receive Operations -
+When the MCASP_ACLKXCTL[6] ASYNC bit is written to 0b0, the transmit and receive sections operate
+synchronously to the transmit section clock and transmit frame sync signals.
+Though Rx section may have a different data format, it has to be configured to have the same slot size than
+the transmit section one. As shown on the Figure 12-13, with the ASYNC bit set to 0b0, the RCLK becomes an
+inverted version of the transmit clock generator XCLK output.
+When the MCASP_ACLKXCTL[6] ASYNC = 0b0, both Rx and Tx sections use the same clock and frame sync
+signals. For this reason, they must be aligned on the following settings:
+•
+MCASP_DITCTL[0] DITEN = 0 (that is, transmission in TDM mode is enabled)
+•
+The total number of bits per frame must be the same (that is, RSSZ * RMOD product value must equal XSSZ
+* XMOD product value)
+•
+The settings in the MCASP_ACLKRCTL register are NOT considered
+•
+FSXM must match FSRM
+•
+FXWID must match FRWID
+For all other settings, the transmit and receive sections may be programmed independently.
+Asynchronous Transmit and Receive Operations -
+When the MCASP_ACLKXCTL[6] ASYNC = 0b1, Tx and Rx operate independently from each other with
+separate clock and frame sync signals.
+Note
+Synchronous transmit and receive operations are allowed only in the MCASP TDM (I2S) mode (this is,
+when MCASP_DITCTL[0] DITEN = 0b0).
+12.1.1.4.3 MCASP Serializers
+The MCASP serializers shift serial data in (Rx) and out (Tx) of the MCASP. A given serializer n consists of a
+shift register (XRSRn) with a single-entry data buffer XRBUFn used either for transmitting (write accessible in
+the MCASP_XBUFn register) or for receiving (read accessible in the MCASP_RBUFn register) data. In addition,
+each serializer has a dedicated control register (MCASP_SRCTLn) and a serial bidirectional data pin - AXRn.
+The register MCASP_SRCTLn allows n-th serializer to be configured as a transmitter, receiver, or as inactive.
+=== Page 1044 ===
+There are transmit and receive data formatting units to support data alignment options of the MCASP which are
+shared between all Tx and Rx serializers, respectively.
+A given serializer XRSRn shifter configured as a receiver in the MCASP_SRCTLn register, shifts in data through
+MCASP corresponding device level bidirectional data pad AXRn. A given serializer XRSRn shifter configured as
+a transmitter in the MCASP_SRCTLn register, shifts out data on MCASP corresponding device level bidirectional
+data pad AXRn (n = 0 to 15).
+The serializer is clocked from the transmit section clock (ACLKX signal) if configured to transmit or clocked from
+the receive section clock (ACLKR signal) if configured to receive. A serializer configured to transmit and receive
+operates in lockstep, which means that for MCASP there are at most a couple of zones, one for transmit and one
+for receive.
+Figure 12-15 shows the serializer block diagram.
+Control
+Serializer n
+32
+32
+AXRn
+mcasp-016
+Pin
+control
+function
+Transmit
+format unit
+XRSRn
+XRSRCTLn
+Receive
+format unit
+32
+32
+n=0 to 15
+XRBUFn
+Figure 12-15. Individual Serializer and Connections Within MCASP
+Transmission on the n-th serializer is performed as follows:
+The MCASP is serviced by writing data into the MCASP_XBUFn register, which is an alias of the serializer data
+buffer - XRBUFn for transmit function. The data automatically passes through the transmit format unit before
+reaching the XRBUFn register in the serializer. The data is then copied from the XRBUFn to XRSRn and shifted
+out from AXRn synchronously to the serial clock.
+Reception from the n-th serializer is performed as follows:
+The data is shifted into the MCASP XRSRn serializer register through the AXRn pin, bit by bit. Once the
+entire slot becomes available within the XRSRn shift register, the data is copied into the serializer data buffer
+- XRBUFn, and can be accessed in the MCASP_RBUFn register, which is an alias of the serializer data buffer
+- XRBUFn for receive function. When software reads the data from this register, the MCASP passes the data
+through the receive format unit, hence it returns the formatted data.
+Serializer controls:
+A serializer n is configured as inactive via setting MCASP_SRCTLn[1-0] SRMOD bit field to 0x0.
+For a transmitting serializer, the MCASP_SRCTLn[3-2] DISMOD bitfield, defines the AXRn pin output state,
+during inactive slots (HIGH, LOW or Hi-Z).
+Transmit function for the n-th serializer is selected via setting MCASP_SRCTLn[1-0] SRMOD bit field to 0x1.
+Receive function for the n-th serializer is selected via setting MCASP_SRCTLn[1-0] SRMOD bit field to 0x2 (n =
+0 to 15).
+=== Page 1045 ===
+In the DIT-transmission mode (that is S/PDIF format data transmission): in addition to the data, the serializer
+shifts out other DIT-specific information accordingly (preamble, user data, etc.). For more information, see
+Section 12.1.1.2.2.5, S/PDIF Coding Format.
+12.1.1.4.4 MCASP Format Units
+The MCASP has one transmit data formatting unit and one receive data formatting unit, shared between the
+device MCASP serializers. These units automatically remap the data bits within the transmitted or received
+words between a natural format for the device processors (for example, a Q31 representation) and the required
+format for the external serial device (for example I2S format). During the remapping process, the format unit can
+also mask off certain bits.
+Since all transmitters share the same data formatting unit, the MCASP only supports one transmit format at
+a time. For example, the MCASP does NOT transmit in "I2S format" on serializer 0, while transmitting "Left
+Justified" on serializer 1. Likewise, the receiver section of the MCASP only supports one data format at a time,
+and this format applies to all receiving serializers.
+Note
+The MCASP can transmit in one format while receiving in a completely different format.
+The bit mask and pad stage of each of Tx and Rx format units includes a full 32-bit mask register, allowing
+selected individual bits to either pass through the stage unchanged, or be masked off. The bit mask and pad
+then pad the value of the masked off bits by inserting either a 0, a 1, or one of the original 32 bits as the pad
+value. The last option allows for sign-extension when the sign bit is selected to pad the remaining bits. The
+rotate right stage performs bitwise rotation by a multiple of 4 bits (between 0 and 28 bits), programmable by the
+MCASP_RFMT/MCASP_XFMT register. Note that this is a rotation process, not a shifting process, so bit 0 gets
+shifted back into bit 31 during the rotation. The bit order - reversal stage either passes all 32 bits directly through,
+or swaps them. This allows for either MSB or LSB first data formats. If bit order reversal is not enabled, then the
+MCASP will naturally transmit and receive in an LSB first order. Finally, note that the RDATDLY/XDATDLY bits
+in the MCASP_RFMT/MCASP_XFMT also determine the data format. For example, the difference between I2S
+format and left-justified is determined by the delay between the frame sync edge and the first data bit of a given
+time slot. For I2S format, RDATDLY/XDATDLY should be set to a 1-bit delay, whereas for left-justified format, it
+should be set to a 0-bit delay. The combination of all the options in the MCASP_RFMT/MCASP_XFMT register
+means that the MCASP supports a wide variety of data formats, both on the serial data lines, and in the device
+CPU data representation.
+12.1.1.4.4.1 Transmit Format Unit
+The MCASP transmit formatting unit consists of three stages :
+•
+Bit mask (masks off bits)
+•
+Rotate right (aligns data within word)
+•
+Bit reversal (selects between MSB-first or LSB-first)
+Figure 12-16 shows the transmit formatting unit.
+The MCASP transmitter supports serial formats of:
+•
+Slot (or Time slot) size = 8, 12, 16, 20, 24, 28, 32 bits
+•
+Word size — Slot size
+•
+Alignment: when more bits/slot than bits/words, then:
+•
+Left aligned = word shifted first, remaining bits are pad
+•
+Right aligned = pad bits are shifted first, word occupies the last bits in slot
+•
+Order of bits shifted out:
+•
+MSB: most-significant bit of word is shifted out first, last bit is LSB
+•
+LSB: least-significant bit of word is shifted out last, last bit is MSB
+=== Page 1046 ===
+Hardware support for these serial formats comes from the programmable options in the bitstream format register
+- MCASP_XFMT:
+•
+XRVRS: bit reverse (1) or no bit reverse (0)
+•
+XROT: rotate right by 0, 4, 8, 12, 16, 20, 24, or 28 bits
+•
+XSSZ: transmit slot size of 8, 12, 16, 20, 24, 28, or 32 bits
+XMASK
+XROT
+Bit mask/pad
+Programmable rotate by: 0, 4,
+8, 12, 16, 20, 24, and 28 bits
+32
+32
+32
+CFG bus
+mcasp-017
+Parallel load
+to XRBUFn
+DATA bus
+Select between the
+two buses with
+MCASP_TXFMT[3] XBUSEL
+XRVRS
+32
+Bit reverse
+XPBIT
+XPAD
+Figure 12-16. Transmit Format Unit
+As shown in Figure 12-16, the data to the transmit format unit can come from the configuration port (CFG) or
+the data port (DATA). The selection is made through the MCASP_XFMT[3] XBUSEL bit. According to port type
+selected, data transfer has different behaviour. For more details, refer to the Section 12.1.1.4.10.1.3, Transfers
+Through the DATA Port, and Section 12.1.1.4.10.1.4, Transfers Through the Configuration (CFG) Bus.
+In the transmit format unit (TFU), the input data bits are first masked-off with the MCASP_XMASK[31-0] XMASK
+contents. The masked data is then right-rotated to the MCASP_XFMT[2-0] XROT bit field positions, to produce
+the output word for a TDM- or DIT- transmission.
+The bit mask stage includes a full 32-bit mask register, allowing selected individual bits to pass through the stage
+unchanged or be masked off.
+12.1.1.4.4.1.1 TDM Mode Transmission Data Alignment Settings
+The TDM-mode transmission settings are relevant for I2S-protocol and protocols using more than 2 TDM-slots.
+XSSZ should always be programmed to match the slot size of the serial stream.
+=== Page 1047 ===
+Note
+Note that, TDM word size is not directly programmed into the MCASP, but rather is used to determine
+the rotation needed in the XROT field.
+The Table 12-4 show the XRVRS and XROT fields for each serial format and for both integer and Q31 fractional
+internal representations.
+The Table 12-4 assumes that all slot size (SLOT in Table 12-4) and word size (WORD in Table 12-4) options
+are multiples of 4, since the transmit rotate right unit only supports rotation by multiples of 4. However, the
+bit mask/pad unit does allow for any number of significant digits. For example, a Q31 number may have 19
+significant digits (word) and be transmitted in a 24-bit slot; this would be formatted as a word size of 20 bits and
+a slot size of 24 bits. However, it is possible to set the bit mask unit to only pass the 19 most-significant digits
+(program the mask value to FFFF E000h). The digits that are not significant can be set to a selected pad value,
+which can be any one of the significant digits, a fixed value of 0, or a fixed value of 1.
+The transmit bit mask/pad unit operates on data as an initial step of the transmit format unit, and the data is
+aligned in the same representation as it is written to the transmitter (typically Q31 or integer).
+Table 12-4. MCASP TFU TDM Mode Settings
+Bit Stream Order
+Bit Stream Alignment
+Internal Numeric
+Representation
+MCASP_XFMT bits
+XROT(1)
+XRVRS
+MSB first(2)
+Left aligned
+Q31 fraction
+0
+1
+MSB first
+Right aligned
+Q31 fraction
+SLOT - WORD
+1
+LSB first
+Left aligned
+Q31 fraction
+32 - WORD
+0
+LSB first
+Right aligned
+Q31 fraction
+32 - SLOT
+0
+MSB first(2)
+Left aligned
+Integer
+WORD
+1
+MSB first
+Right aligned
+Integer
+SLOT
+1
+LSB first
+Left aligned
+Integer
+0
+0
+LSB first
+Right aligned
+Integer
+(32 - (SLOT - WORD)) % 32
+0
+(1)
+WORD = Word size rounded up to the nearest multiple of 4; SLOT = slot size; % = modulo operator
+(2)
+To transmit in I2S format, select MSB first, left aligned, and also select XDATDLY = 01 (1 bit delay)
+12.1.1.4.4.1.2 DIT Mode Transmission Data Alignment Settings
+In case of a DIT-mode (S/PDIF protocol ) transmission, while left-aligned Q31 data should be right-rotated to
+a multiple by 4 positions, no right-rotation is required for a right-aligned Q31 data. Because this is a rotation
+process, not a shifting process, bit 0 gets shifted back into bit 31 during the process.
+The MCASP_XFMT[17-16] XDATDLY bit field must be set to a 0-bit delay (0x0 value).
+For left-aligned Q31 data, the following transmit format unit settings process the data into right-aligned data,
+ready for transmission:
+•
+MCASP_XFMT[2-0] XROT =
+•
+0x2 (rotate right by 8 bits) - for a 24-bit output audio data
+•
+0x3 (rotate right by 12 bits) - for a 20-bit output audio data
+•
+0x4 (rotate right by 16 bits) - for a 16-bit output audio data
+•
+MCASP_XFMT[15] XRVRS = 0x0 ± Bit reversal is not enabled; the MCASP naturally transmits and receives
+in a LSB-first order.
+•
+MCASP_XMASK[32] XMASK = 0xFFFFFF00 ± 0xFFFF0000
+•
+MCASP_XFMT[14-13] XPAD = 0x0 (Pad extra bits with 0s.)
+For right-aligned data, the following transmit format unit settings process the data into right-aligned audio data
+ready for transmission:
+•
+MCASP_XFMT[2-0] XROT = 0x0 (rotate right by 0 bits regardless of the audio word length)
+=== Page 1048 ===
+•
+MCASP_XFMT[15] XRVRS = 0x0 ± Bit reversal is not enabled; the MCASP naturally transmits and receives
+in a LSB-first order.
+•
+MCASP_XMASK[32] XMASK = 0x00FFFFFF ± 0x0000FFFF
+•
+MCASP_XFMT[14-13] XPAD = 0x0 (Pad extra bits with 0s.)
+The example settings provided in Table 12-5 should be applied to MCASP in cases of DIT-transmitting a Q31
+data as a 24-bit, 20-bit and 16-bit left- or right- aligned audio word, respectively. Note that the listed settings let
+the MCASP TFU preserve the most significant bits and cut only the LSBs of the original Q31 CPU data:
+Table 12-5. MCASP TFU DIT-Mode Example Settings
+Output Audio Word
+Alignment
+Audio Word Length
+Right-rotation (multiple
+of 4-bit positions)
+XMASK
+XROT
+LEFT
+16
+16
+0xFFFF0000
+0x4
+LEFT
+20
+12
+0xFFFFF000
+0x3
+LEFT
+24
+8
+0xFFFFFF00
+0x2
+RIGHT
+16
+0
+0x0000FFFF
+0x0
+RIGHT
+20
+0
+0x000FFFFF
+0x0
+RIGHT
+24
+0
+0x00FFFFFF
+0x0
+Assuming that a Q31 data word 0xFA5AFxxx (where x-marked nibbles of the data are applied as padding bits
+of the word) is generated on the MCASP CFG (peripheral) port. To transmit a left-aligned 20-bit version of same
+word, preserving the MSBs, according to the Table 12-5, the user must set XMASK = 0xFFFFF000, and to select
+a right-rotation to 12 positions (XROT = 0x3).
+•
+After applying 0-s (XPAD = 0) as masking-off bits at the first TFU stage, word is transformed to the word
+0xFA5AF000.
+•
+After a rotation by 12 positions to the right is performed in TFU, the 20-bit output word obtained is:
+0x000FA5AF. Thus the word gets ready for transmission being mapped with its LS-bit as bit 8 and its MS-bit
+as bit 27 within a S/PDIF bitstream. This word is shifted in a LSB-to-MSB order (XRVRS = 0x0) out of the
+XRSR register during a DIT-transmission.
+Assuming that a right-aligned Q31 data word - 0x yyyyE4B4 is generated by software on the MCASP CFG
+(peripheral) port (with the presumption that y-marked nibbles of the input data are applied as padding bits). To
+transmit a right-aligned 16-bit version of same word, preserving the MSBs, according to the table MCASP TFU
+Example Settings, user is supposed to set XMASK = 0x0000FFFF, and to select right-rotation to 0 positions
+(XROT = 0x0).
+•
+After masking-off with 0s at first TFU stage, word is transformed to 0x0000E4B4.
+•
+Since no rotation is applied, the 16-bit output word obtained is actually the one obtained in the masking stage
+± 0x0000E4B4.
+The above examples use internal representation in integer and Q31 notation, but other fractional notations are
+also possible.
+12.1.1.4.4.2 Receive Format Unit
+The MCASP receive formatting unit consists of three stages:
+•
+Bit mask (masks off bits)
+•
+Rotate right (aligns data within word)
+•
+Bit reversal (selects between MSB first or LSB first)
+Figure 12-17 shows the receive format unit (RFU).
+=== Page 1049 ===
+RMASK
+RROT
+Bit mask/pad
+Programmable rotate by: 0, 4,
+8, 12, 16, 20, 24, and 28 bits
+32
+32
+32
+CFG bus
+mcasp-018
+Parallel read from
+XRBUFn
+DATA bus
+Select between the
+two buses with
+MCASP_RXFMT[3] RBUSEL
+RRVRS
+32
+Bit reverse
+RPBIT
+RPAD
+Figure 12-17. Receive Format Unit
+The MCASP receiver supports serial formats of:
+•
+Slot or time slot size = 8, 12, 16, 20, 24, 28, 32 bits
+•
+Word size — Slot size
+•
+Alignment when more bits are available per slot than bits per word within the slot, then:
+•
+Left aligned = word shifted first, remaining bits are pad
+•
+Right aligned = pad bits are shifted first, word occupies the last bits in slot
+•
+Order of bits shifted out:
+•
+MSB: most-significant bit of word is shifted out first, last bit is LSB
+•
+LSB: least-significant bit of word is shifted out last, last bit is MSB
+Hardware support for these serial formats comes from the programmable options in the receive bitstream format
+register - MCASP_RFMT:
+•
+RRVRS: bit reverse (1) or no bit reverse (0)
+•
+RROT: rotate right by 0, 4, 8, 12, 16, 20, 24, or 28 bits
+•
+RSSZ: receive slot size of 8, 12, 16, 20, 24, 28, or 32 bits
+As shown on Figure 12-17, the data processed in the RFU can be output to host CPU through the configuration
+port (CFG) or the data port (DATA). The selection is made through the MCASP_RFMT[3] RBUSEL bit. According
+to port type selected, data transfer has different behaviour. For more details, refer to the Section 12.1.1.4.10.1.3,
+Transfers Through the DATA Port, and Section 12.1.1.4.10.1.4, Transfers Through the Configuration (CFG) Bus.
+12.1.1.4.4.2.1 TDM Mode Reception Data Alignment Settings
+RSSZ should always be programmed to match the slot size of the serial stream.
+=== Page 1050 ===
+Note
+Note that the word size is not directly programmed into the MCASP, but rather is used to determine
+the rotation needed in the RROT field.
+Table 12-6 shows the RRVRS and RROT fields for each serial format and for both integer and Q31 fractional
+internal representations.
+Table 12-6. MCASP RFU Settings
+Bit Stream Order
+Bit Stream Alignment
+Internal Numeric
+Representation
+MCASP_RFMT bits
+RROT(1)
+RRVRS
+MSB first(2)
+Left aligned
+Q31 fraction
+SLOT
+1
+MSB first
+Right aligned
+Q31 fraction
+WORD
+1
+LSB first
+Left aligned
+Q31 fraction
+(32 - (SLOT - WORD)) % 32
+0
+LSB first
+Right aligned
+Q31 fraction
+0
+0
+MSB first(2)
+Left aligned
+Integer
+SLOT - WORD
+1
+MSB first
+Right aligned
+Integer
+0
+1
+LSB first
+Left aligned
+Integer
+32 - SLOT
+0
+LSB first
+Right aligned
+Integer
+32 - WORD
+0
+(1)
+WORD = Word size rounded up to the nearest multiple of 4; SLOT = slot size; % = modulo operator
+(2)
+To receive in I2S format, select MSB first, left aligned, and also select RDATDLY = 01 (1 bit delay)
+The Table 12-6 assumes that all slot size and word size options are multiples of 4; since the receive rotate
+right unit only supports rotation by multiples of 4. However, the bit mask/pad unit does allow for any number of
+significant digits. For example, a Q31 number may have 19 significant digits (word) and be received in a 24-bit
+slot; this would be formatted as a word size of 20 bits and a slot size of 24 bits. However, it is possible to set
+the bit mask unit to only pass the 19 most-significant digits (program the mask value to FFFF E000h). The digits
+that are not significant can be set to a selected pad value, which can be any one of the significant digits, a fixed
+value of 0, or a fixed value of 1. The receive bit mask/pad unit operates on data as the final step of the receive
+format unit (see Figure 12-17), and the data is aligned in the same representation as it is read from the receiver
+(typically Q31 or integer).
+12.1.1.4.5 MCASP State-Machines
+The receive and transmit sections have independent state machines.
+Each state-machine controls the interactions between the various units in the MCASP Rx and Tx sections,
+respectively. In addition, each state-machine keeps track of error conditions and serial port status. No serial
+transfers can occur until the RX/TX state-machine is released from reset.
+The transmit state-machine is controlled by the transmit bitstream format register (MCASP_XFMT) and it reports
+the MCASP status and error conditions in the transmitter status register (MCASP_XSTAT).
+Similarly, the receive state-machine is controlled by the receive bitstream format register (MCASP_RFMT) and it
+reports the MCASP status and error conditions in the receiver status register (MCASP_RSTAT).
+12.1.1.4.6 MCASP TDM Sequencers
+There are separate TDM sequencers for the transmit section and the receive section. Each TDM sequencer
+keeps track of the slot count. In addition, the TDM sequencer checks the bits of the MCASP_RTDM/
+MCASP_XTDM register and determines if the MCASP should receive/transmit in that time slot.
+There are two possibilities for a slot: The MCASP either performs Rx/Tx operations during the time slot (transmit/
+receive bit is active), or the MCASP skips Rx/Tx operations during the time slot (transmit/receive bit is inactive).
+In the latter case, no transfers between the XRBUF and XRSR registers in the serializer would occur during that
+time slot.
+=== Page 1051 ===
+In addition, during time of inactive slots, the serializers programmed as transmitters place their data output
+pins - AXRn in a predetermined state - logic low, high, or high impedance (tri-stated) as programmed in each
+serializer control MCASP_SRCTLn[3-2] DISMOD register. Refer also to Section 12.1.1.4.9.2.1, TDM Time Slots
+Generation and Processing, for details on how DMA event or interrupt generations are handled during inactive
+time slots in TDM mode.
+In case of a DIT-transmission (S/PDIF transfers): the time division multiplexing (TDM) sequencer is used to
+count the 384 subframes (slots) in the DIT block. If currently transmitting slot 1, slot 2 (next value of the TDM
+slot counter) should be used during the encode phase to select the appropriate C, V, and U bit, because the data
+encoded and written to a MCASP_XBUFn register during the current time slot (slot 1) is actually shifted out on
+the next time slot (n = 0 to 15).
+The transmit TDM sequencer is controlled by the MCASP_XTDM register and reports the current transmit slot to
+the MCASP_XTDMSLOT[9-0] XSLOTCNT bit field.
+12.1.1.4.7 MCASP Software Reset
+The MCASP can be put into reset through the global transmit and receive control register (MCASP_GBLCTL).
+A valid serial clock must be supplied to the MCASP to assert the software reset bits in the MCASP_GBLCTL
+register.
+12.1.1.4.8 MCASP Power Management
+Table 12-7 describes power-management features available to the MCASP.
+Table 12-7. Local Power-Management Features
+Feature
+Registers
+Description
+Target clock stop modes=MCASP_PWRIDLESYSCONFIG[1-0
+] IDLE_MODE
+Force-clock stop, no-clock stop, and smart-clock stop modes are available.
+CAUTION
+No wakeup schema is supported for the MCASP. To ensure a correct behavior after enabling
+MCASP at device Device Configuration level, the user software is strongly recommended to choose
+No Idle mode, setting MCASP_PWRIDLESYSCONFIG[1-0] IDLE_MODE bit field to 0x1. Before
+disabling MCASP at device Device Configuration level, user software is strongly recommended to
+choose a Smart-Idle mode, setting MCASP_PWRIDLESYSCONFIG[1-0] IDLE_MODE bit field to
+0x2.
+12.1.1.4.9 MCASP Transfer Modes
+12.1.1.4.9.1 Burst Transfer Mode
+The MCASP supports a burst transfer mode, which is useful for nonaudio data such as passing control
+information between two processors. Burst transfer mode uses a synchronous serial format similar to the TDM
+mode. The frame sync generation is not periodic or time-driven as in TDM mode, but data driven, and the frame
+sync is generated for each data word transferred.
+When operating in burst frame sync mode (see Figure 12-18), as specified for transmit
+(MCASP_AFSXCTL[15-7] = 0 ) and receive (MCASP_AFSRCTL[15-7] RMOD = 0), one slot is shifted for each
+active edge of the frame sync signal that is recognized. Additional clocks after the slot and before the next frame
+sync edge are ignored.
+In burst frame sync mode, the frame sync delay may be specified as 0, 1, or 2 serial clock cycles. This is the
+delay between the frame sync active edge and the start of the slot. The frame sync signal lasts for a single bit
+clock duration (MCASP_AFSRCTL[4] FRWID = 0, MCASP_AFSXCTL[4] FXWID = 0).
+=== Page 1052 ===
+For transmit, when generating the transmit frame sync internally, the frame sync begins when the previous
+transmission has completed and when all the XBUFn (for every serializer set to operate as a transmitter) has
+been updated with new data.
+For receive, when generating the receive frame sync internally, frame sync begins when the previous
+transmission has completed and when all the RBUFn (for every serializer set to operate as a receiver) has
+been read.
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+CLK
+Frame
+sync
+Frame sync:
+(0 bit delay)
+Frame sync:
+(1 bit delay)
+Frame sync:
+(2 bit delay)
+Slot 0
+Slot 1
+Slot 0
+Slot 1
+Slot 0
+Slot 1
+mcasp-035
+Figure 12-18. Burst Frame Sync Mode
+The control registers must be configured as follows for the burst transfer mode. The burst mode specific bit fields
+are in bold face:
+•
+MCASP_PFUNC: The clock, frame, data pins must be configured for MCASP function.
+•
+MCASP_PDIR: The clock, frame, data pins must be configured to the direction desired.
+•
+MCASP_PDOUT, MCASP_PDIN, MCASP_PDCLR: Not applicable. Leave at default.
+•
+MCASP_GBLCTL: Follow the initialization sequence in Section 12.1.1.5.1.2, MCASP Global Initialization, to
+configure this register.
+•
+MCASP_AMUTE: Not applicable. Leave at default.
+•
+MCASP_DLBCTL: If loopback mode is desired, configure this register according to Section 12.1.1.4.14,
+MCASP Loopback Modes, otherwise leave this register at default.
+•
+MCASP_DITCTL: DITEN must be left at default 0 to select non-DIT mode. Leave the register at default.
+•
+MCASP_RMASK/MCASP_XMASK: Mask desired bits according to Section 12.1.1.4.4, MCASP Format Units.
+•
+MCASP_RFMT/MCASP_XFMT: Program all fields according to data format desired. See Section 12.1.1.4.4,
+MCASP Format Units.
+•
+MCASP_RFMT/MCASP_XFMT: Clear RMOD/XMOD bits to 0 to indicate burst mode. Clear FRWID/FXWID
+bits to 0 for single bit frame sync duration. Configure other fields as desired.
+•
+MCASP_ACLKRCTL/MCASP_ACLKXCTL: Program all fields according to bit clock desired. See Section
+12.1.1.4.2, MCASP Clock and Frame-Sync Configurations.
+•
+MCASP_AHCLKRCTL/MCASP_AHCLKXCTL: Program all fields according to high-frequency clock desired.
+See Section 12.1.1.4.2, MCASP Clock and Frame-Sync Configurations.
+•
+MCASP_RTDM/MCASP_XTDM: Program RTDMS0/XTDMS0 to 1 to indicate one active slot only. Leave
+other fields at default.
+•
+MCASP_RINTCTL/MCASP_XINTCTL: Program all fields according to interrupts desired.
+•
+MCASP_RCLKCHK/MCASP_XCLKCHK: Not applicable. Leave at default.
+•
+MCASP_SRCTLn: Program SRMOD to inactive/transmitter/receiver as desired. DISMOD is not applicable
+and should be left at default (n = 0 to 15).
+•
+MCASP_DITCSRAi, MCASP_DITCSRBi, MCASP_DITUDRAi, MCASP_DITUDRBi: Not applicable. Leave at
+default (i = 0 to 5).
+12.1.1.4.9.2 Time-Division Multiplexed (TDM) Transfer Mode
+The MCASP time-division multiplexed (TDM) transfer mode supports the TDM format discussed in Section
+12.1.1.2.2.3, TDM Format.
+=== Page 1053 ===
+Transmitting data in the TDM transfer mode requires a minimum set of pins:
+•
+ACLKX - transmit bit clock
+•
+AFSX - transmit frame sync (or commonly called left/right clock)
+•
+One or more serial data pins, AXRn, whose serializers are configured to transmit
+For more details on MCASP transmitting serializers clock and frame sync options, refer to the Section
+12.1.1.4.2.1, Transmit Clock, and Section 12.1.1.4.2.3, Frame-Sync Generator.
+Similarly, to receive data in the TDM transfer mode requires a minimum set of pins:
+•
+ACLKR - receive bit clock
+•
+AFSR - receive frame sync (or commonly called left/right clock)
+•
+One or more serial data pins, AXRn, whose serializers are configured to receive
+For more details on MCASP receiving serializers clock and frame sync options, refer to Section 12.1.1.4.2.2,
+Receive Clock, and Section 12.1.1.4.2.3, Frame-Sync Generator.
+The control registers must be configured as follows for the TDM mode. The TDM mode specific bit fields are
+highlighted in bold:
+•
+MCASP_PFUNC: The clock, frame, data pins must be configured for MCASP function.
+•
+MCASP_PDIR: The clock, frame, data pins must be configured to the direction desired.
+•
+MCASP_PDOUT, MCASP_PDIN, MCASP_PDCLR: Not applicable. Leave at default.
+•
+MCASP_GBLCTL: Follow the initialization sequence is described in the Section 12.1.1.5.2, MCASP
+Operational Modes Configuration.
+•
+MCASP_AMUTE: Leave this register at default state.
+•
+MCASP_DLBCTL: If loopback mode is desired, configure this register according to Section 12.1.1.4.14,
+otherwise leave this register at default.
+•
+MCASP_DITCTL: DITEN must be left at default 0 to select TDM mode (transmitters only).
+•
+MCASP_RMASK/MCASP_XMASK: Mask desired bits according to Section 12.1.1.4.4, MCASP Format Units.
+•
+MCASP_RFMT/MCASP_XFMT: Program all fields according to data format desired. See the Section
+12.1.1.4.4, MCASP Format Units.
+•
+MCASP_AFSRCTL/MCASP_AFSXCTL: Set RMOD/XMOD bits to (0x2 - 0x20) for Rx/Tx (2- 32 slots) TDM
+mode. In addition, set RMOD to 0x180 if 384-slot TDM stream has to be received by MCASP. Configure other
+fields as desired.
+•
+MCASP_ACLKRCTL/MCASP_ACLKXCTL: Program all fields according to bit clock desired. For more
+inforamtion, refer to Section 12.1.1.4.2, MCASP Clock and Frame-Sync Configurations.
+•
+MCASP_AHCLKRCTL/MCASP_AHCLKXCTL: Program all fields according to high-frequency clock desired.
+For more details, refer to Section 12.1.1.4.2, MCASP Clock and Frame-Sync Configurations.
+•
+MCASP_RTDM/MCASP_XTDM: Program all fields according to the time slot characteristics desired.
+•
+MCASP_XINTCTL: Program all fields according to transmit interrupts desired.
+•
+MCASP_RCLKCHK/MCASP_XCLKCHK: Program all fields according to clock checking desired.
+•
+MCASP_SRCTLn: Program all fields according to serializer operation desired (n = 0 to 15).
+Note
+The MCASP_DITCSRAi, MCASP_DITCSRBi, MCASP_DITUDRAi, MCASP_DITUDRBi (i = 0 to 5)
+settings are NOT applicable in TDM transfer modes. They have to be kept at their default values.
+12.1.1.4.9.2.1 TDM Time Slots Generation and Processing
+TDM mode on the MCASP can extend to support multiprocessor applications, with up to 32 time slots per
+frame. For each of the time slots, the MCASP may be configured to participate or to be inactive by configuring
+MCASP_XTDM and/or MCASP_RTDM registers.
+The TDM sequencer (separate ones for transmit and receive) functions in this mode. The TDM sequencer
+counts the slots beginning with the frame sync. For each slot, the TDM sequencer checks the respective bit in
+either MCASP_XTDM or MCASP_RTDM register to determine if the MCASP transmits/receives in that time slot.
+=== Page 1054 ===
+Note
+If a MCASP_XTDM/MCASP_RTDM bit defines an active slot (number of slot matches the bit position),
+the MCASP functions normally during that time slot; otherwise, the MCASP is inactive during that
+time slot; no update to the buffer occurs, and no event is generated. MCASP (transmit only) data
+pins are automatically set to a high-impedance state, 0, or 1 during that slot, as determined by bitfield
+MCASP_SRCTLn[3-2] DISMOD (n = 0 to 15).
+Figure 12-19 shows when the transmit DMA event - XINT is generated. See Section 12.1.1.4.10.1, Data Ready
+Status and Event/Interrupt Generation for details on data ready and the initialization period indication. The
+transmit DMA event for an active time slot (slot N) is generated during the previous time slot (slot N - 1),
+regardless of the previous time slot (slot N - 1) being active or inactive.
+During an active transmit time slot (slot N), if the next time slot (slot N + 1) is configured to be active, the copy
+from XRBUFn to XRSRn generates the DMA event for time slot N + 1. If the next time slot (slot N + 1) is
+configured to be inactive, then the DMA event will be delayed to time slot M - 1. In this case, slot M is the next
+active time slot. The DMA event for time slot M is generated during the first bit time of slot M - 1.
+The receive DMA event is generated after data is received in the buffer (looks back in time). If a time slot is
+disabled, then no data is copied to the buffer for that time slot and no DMA event is generated.
+mcasp-019
+Initialization
+period
+Slot 1
+Slot N-1
+Slot N
+Slot N+1
+. . .
+Initialization
+period
+. . .
+. . .
+DMA event
+for slot 0
+DMA event
+for slot 1
+DMA event
+for slot N-1
+DMA event
+for slot N
+DMA event
+for slot N+1
+DMA event
+for slot 2
+DMA event
+for slot M
+Active slot
+Inactive slot
+Slot 0
+Slot N-2
+Slot 0
+Slot 1
+Slot N
+Slot M
+Slot M-1
+Slot 2
+DMA event
+for slot N+2
+Figure 12-19. Transmit DMA Event (XINT) Generation in TDM Time Slots
+12.1.1.4.9.2.2 Special 384-Slot TDM Mode for Connection to External DIR
+The MCASP receiver also supports a 384 time slot TDM mode (DIR mode), to support S/PDIF receiver
+ICs whose natural block (block corresponds to MCASP frame) size is 384 samples. The receive TDM time
+slot register (MCASP_RTDM) should be programmed to all 1s during reception of a DIR block. Other TDM
+functionalities (for example, inactive slots) are not supported (only the slot counter counts the 384 subframes in a
+block). To receive data in DIR mode, the following pins are typically needed:
+•
+ACLKR - receive bit clock
+•
+AFSR - receive frame sync (or commonly called left/right clock)
+•
+In this mode, AFSR should be connected to a DIR which outputs a start of block signal, instead of LRCLK
+•
+One or more serial data pins, AXRn, whose serializers have been configured to receive
+•
+For this special DIR mode, the control registers can be configured just as for TDM mode, except set
+MCASP_AFSRCTL[15-7] RMOD bit field to 384 (0x180) to receive 384 time slots
+=== Page 1055 ===
+12.1.1.4.9.3 DIT Transfer Mode
+The DIT transfer mode of the MCASP also supports transmission of audio data in S/PDIF, AES-3, and
+IEC-60958 formats. These formats are designed to carry audio data between different systems through an
+optical or coaxial cable. The DIT mode applies only to a serializer configured as transmitter, not as receiver. For
+a description of the S/PDIF format, see Section 12.1.1.2.2.5, S/PDIF Coding Format.
+12.1.1.4.9.3.1 Transmit DIT Encoding
+When the MCASP operates in DIT mode, the data transmitted is output as a biphase-mark encoded bitstream,
+with preamble, channel status, user data, validity, and parity automatically stuffed into the bitstream by the
+MCASP. The MCASP includes separate validity bits for even/odd subframes and two 384-bit RAM modules to
+hold channel status and user data bits.
+Note
+The transmit TDM time slot register (MCASP_XTDM) should be programmed to all 1s during DIT
+mode. TDM functionality is not supported in DIT mode, except that the TDM slot counter counts the
+DIT subframes.
+To transmit data in DIT mode, the following pins are typically required:
+•
+AHCLKX ± transmit high-frequency controller clock (The internal clock source can be used instead.)
+•
+One serial data pin (AXRn) of a serializer n configured to transmit.
+For DIT Mode Transmission Data Alignment Settings see Section 12.1.1.4.4.1.2, DIT Mode Transmission Data
+Alignment Settings.
+If the MCASP is configured to transmit in the DIT mode on more than one serial data pin, the bit streams on
+all pins will be synchronized. In addition, although they will carry unique audio data, they will carry the same
+channel status, user data, and validity information.
+The actual 24-bit audio data must always be in bit positions 23±0 after passing through the first three stages of
+the transmit format unit.
+12.1.1.4.9.3.2 Transmit DIT Clock and Frame-Sync Generation
+The DIT transmitter works only in the following configuration:
+•
+In the transmit frame control register (MCASP_AFSXCTL):
+•
+Internally generated transmit frame sync, FSXM = 1
+•
+Rising-edge frame sync, FSXP = 0
+•
+Bit-width frame sync, FXWID = 0
+•
+384-slot TDM, XMOD = 1 1000 0000b
+•
+In the transmit clock control register (MCASP_ACLKXCTL), ASYNC = 1
+•
+In the transmit bitstream format register (MCASP_XFMT), XSSZ = 1111 (32-bit slot size)
+All combinations of AHCLKX and ACLKX are supported.
+The following summarizes the register configurations required for DIT mode. DIT mode-specific bit fields are in
+bold face:
+•
+MCASP_PFUNC: The data pin - AXRn must be configured for MCASP function. If AHCLKX is used, it must
+also be configured for MCASP function. Other pins can be configured to function as GPIOs, if desired.
+•
+MCASP_PDIR: The data pin must be configured as output. If internal clock source AUXCLK is used as the
+reference clock, it may be output as the AHCLKX device level signal by configuring AHCLKX pin as an
+output.
+•
+MCASP_GBLCTL: Global initialization
+•
+MCASP_AMUTE: Leave this register at default state.
+•
+MCASP_DITCTL: The DITEN bit must be set to 0b1 to enable DIT mode. Configure other bits as desired.
+•
+MCASP_XMASK: Mask the desired bits, depending upon left-aligned or right-aligned internal data.
+=== Page 1056 ===
+•
+MCASP_XFMT: XDATDLY = 0. XRVRS = 0. XPAD = 0. XSSZ = Fh (32-bit slot). XBUSEL = configured as
+desired. The XROT bit is configured, as described in the Section 12.1.1.4.4.1.2 .
+•
+MCASP_AFSXCTL: Configure the bits according to former discussions.
+•
+MCASP_ACLKXCTL: ASYNC = 1. Program the CLKXDIV bits to obtain the bit clock rate desired. CLKXM =
+1.
+•
+MCASP_AHCLKXCTL: Program the HCLKXDIV bits to obtain the high-frequency bit clock rate desired.
+•
+MCASP_XTDM: Set to FFFF FFFFh for all active slots for DIT transfers.
+•
+MCASP_XINTCTL: Program all fields according to the interrupts desired.
+•
+MCASP_XCLKCHK: Program all fields according to the clock checking desired.
+•
+MCASP_SRCTLn: Set SRMOD = 1 (transmitter) for the DIT pins (n = 0 to 15).
+•
+MCASP_DITCSRAi and MCASP_DITCSRBi: Program the channel status bits as desired (i = 0 to 5).
+•
+MCASP_DITUDRAi and MCASP_DITUDRBi: Program the user data bits as desired (i = 0 to 5).
+Note
+In DIT mode, the transmitter can support a 192 kHz frame rate (stereo) on up to 2 serial data pins
+simultaneously (note that the internal bit clock for DIT runs two times faster than the equivalent bit
+clock for TDM (I2S) mode, due to the need to generate Biphase Mark Encoded Data - see Section
+12.1.1.2.2.5.1, Biphase-Mark Code).
+12.1.1.4.9.3.3 DIT Channel Status and User Data Register Files
+The channel status registers (MCASP_DITCSRAi and MCASP_DITCSRBi) and user data registers
+(MCASP_DITUDRAi and MCASP_DITUDRBi) are not double-buffered. Typically, programmers use one of the
+synchronizing interrupts, such as the last slot, to create an event at a safe time so the register may be updated.
+In addition, the software reads the transmit TDM slot counter to determine which word of the register is being
+used (i = 0 to 5).
+It is a software requirement to avoid writing to the word of user data and channel status that are being used
+to encode the current time slot; otherwise, it is undetermined whether old or new data is used to encode the
+bitstream.
+The DIT subframe format is defined in Section 12.1.1.2.2.5.2, S/PDIF Subframe Format. The channel status
+information (C) and user data (U) are defined in the following DIT control registers:
+•
+MCASP_DITCSRA0 to MCASP_DITCSRA5: The 192 bits in these six registers contain the channel status
+information for the left channel within each frame.
+•
+MCASP_DITCSRA0 to MCASP_DITCSRA5: The 192 bits in these six registers contain the channel status
+information for the right channel within each frame.
+•
+MCASP_DITCSRA0 to MCASP_DITCSRA5: The 192 bits in these six registers contain the user data
+information for the left channel within each frame.
+•
+MCASP_DITCSRA0 to MCASP_DITCSRA5: The 192 bits in these six registers contain the user data
+information for the right channel within each frame.
+•
+The S/PDIF block format is shown in Figure 12-10. There are 192 frames within a block (frame 0 to frame
+191). There are two subframes within each frame (subframes 1 and 2 for the left and right channels,
+respectively).
+The channel status and user data information sent on each subframe is summarized in Table 12-8.
+Table 12-8. Channel Status and User Data for Each DIT Block
+Frame
+Subframe
+Preamble
+Channel Status Defined in:
+User Data Defined in:
+Defined by DITCSRA0, DITCSRB0, DITUDRA0, DITUDRB0
+0
+1 (L)
+B
+DITCSRA0[0]
+DITUDRA0[0]
+0
+2 (R)
+W
+DITCSRB0[0]
+DITUDRB0[0]
+1
+1 (L)
+M
+DITCSRA0[1]
+DITUDRA0[1]
+1
+2 (R)
+W
+DITCSRB0[1]
+DITUDRB0[1]
+2
+1 (L)
+M
+DITCSRA0[2]
+DITUDRA0[2]
+=== Page 1057 ===
+Table 12-8. Channel Status and User Data for Each DIT Block (continued)
+Frame
+Subframe
+Preamble
+Channel Status Defined in:
+User Data Defined in:
+2
+2 (R)
+W
+DITCSRB0[2]
+DITUDRB0[2]
+…
+…
+…
+…
+…
+31
+1 (L)
+M
+DITCSRA0[31]
+DITUDRA0[31]
+31
+2 (R)
+W
+DITCSRB0[31]
+DITUDRB0[31]
+Defined by DITCSRA1, DITCSRB1, DITUDRA1, DITUDRB1
+32
+1 (L)
+M
+DITCSRA1[0]
+DITUDRA1[0]
+32
+2 (R)
+W
+DITCSRB1[0]
+DITUDRB1[0]
+…
+…
+…
+…
+…
+63
+1 (L)
+M
+DITCSRA1[31]
+DITUDRA1[31]
+63
+2 (R)
+W
+DITCSRB1[31]
+DITUDRB1[31]
+Defined by DITCSRA2, DITCSRB2, DITUDRA2, DITUDRB2
+64
+1 (L)
+M
+DITCSRA2[0]
+DITUDRA2[0]
+64
+2 (R)
+W
+DITCSRB2[0]
+DITUDRB2[0]
+…
+…
+…
+…
+…
+95
+1 (L)
+M
+DITCSRA2[31]
+DITUDRA2[31]
+95
+2 (R)
+W
+DITCSRB2[31]
+DITUDRB2[31]
+Defined by DITCSRA3, DITCSRB3, DITUDRA3, DITUDRB3
+96
+1 (L)
+M
+DITCSRA3[0]
+DITUDRA3[0]
+96
+2 (R)
+W
+DITCSRB3[0]
+DITUDRB3[0]
+…
+…
+…
+…
+…
+127
+1 (L)
+M
+DITCSRA3[31]
+DITUDRA3[31]
+127
+2 (R)
+W
+DITCSRB3[31]
+DITUDRB3[31]
+Defined by DITCSRA4, DITCSRB4, DITUDRA4, DITUDRB4
+128
+1 (L)
+M
+DITCSRA4[0]
+DITUDRA4[0]
+128
+2 (R)
+W
+DITCSRB4[0]
+DITUDRB4[0]
+…
+…
+…
+…
+…
+159
+1 (L)
+M
+DITCSRA4[31]
+DITUDRA4[31]
+159
+2 (R)
+W
+DITCSRB4[31]
+DITUDRB4[31]
+Defined by DITCSRA5, DITCSRB5, DITUDRA5, DITUDRB5
+160
+1 (L)
+M
+DITCSRA5[0]
+DITUDRA5[0]
+160
+2 (R)
+W
+DITCSRB5[0]
+DITUDRB5[0]
+…
+…
+…
+…
+…
+191
+1 (L)
+M
+DITCSRA5[31]
+DITUDRA5[31]
+191
+2 (R)
+W
+DITCSRB5[31]
+DITUDRB5[31]
+12.1.1.4.10 MCASP Data Transmission and Reception
+The MCASP is serviced by writing data to the MCASP_XBUFn registers for transmit operations, and by reading
+data from the MCASP_RBUFn registers for receive operations. The MCASP sets status flags and notifies
+the software whenever data is ready to be serviced. The Section 12.1.1.4.10.1, Data Ready Status and Event/
+Interrupt Generation, discusses data-ready status in details (n = 0 to 15).
+The MCASP transmit/receive XRBUFn buffer can be accessed through one of the two peripheral ports of the
+device:
+•
+DATA port: This port is dedicated to DMA initiated data transfers on the device for MCASP transmit (Tx)
+purposes.
+•
+Configuration bus (CFG): The configuration bus- CFG port is used for peripheral configuration control and
+receive/transmit data transfers initiated by the host CPU in the device.
+=== Page 1058 ===
+Section 12.1.1.4.10.1.3, Transfers Through the Data Port (DATA), and Section 12.1.1.4.10.1.4, Transfers
+Through the Configuration Bus (CFG), discuss how to perform transfers through the data port (DATA) and
+the configuration port (CFG), respectively.
+A device CPU and DMA usages are discussed in Section 12.1.1.4.10.1.5, Using the device CPUs for MCASP
+Servicing, and Section 12.1.1.4.10.1.6, Using the DMA for MCASP Servicing, respectively.
+MCASP DATA port allows DMAs to access the MCASP transmit buffer more efficiently on the CBASS0, using
+burst transfers. The physical addresses to access these registers are listed in DMA Registers.
+12.1.1.4.10.1 Data Ready Status and Event/Interrupt Generation
+12.1.1.4.10.1.1 Transmit Data Ready
+The transmit data ready flag - XDATA in the MCASP_XSTAT register reflects the data ready status of XRBUFn
+buffers for all of the active slot transmitting serializers. The XDATA flag is set whenever data is transferred
+from a transmitting serializer buffer - XRBUFn to its corresponding XRSRn shift register. Thus, the XDATA bit
+indicates the global event that some of the serializers data buffer - XRBUFn is emptied and ready to accept
+new data from the host (CPU or DMA). The transmit data ready event is individually indicated per serializer in
+its corresponding control register MCASP_SRCTLn[4] XRDY status bit. When this bit is set to 0b1, it notifies to
+host that this serializer Tx buffer must be serviced (written). When MCASP_XBUFn is written to by the host, the
+MCASP_SRCTLn[4] XRDY is deasserted to 0b0. As XDATA global flag is an OR-event of all active serializers
+XRDY flags, it indicates to software the moment, when write service operation has to be initiated by the MCASP
+host (XDATA=0b1). The XRDY flags have to be sequentially scanned by user software to determine which
+serializer MCASP_XBUFn register has to be currently written. Once all requested MCASP_XBUFn are written,
+the serializers control XRDY flags are cleared to 0b0. As a consequence, XDATA flag is deasserted to 0b0, to
+indicate to SW that write operation is completed for all serializers.
+The global XDATA flag can be cleared when the MCASP_XSTAT[5] XDATA bit is written to 0b1, or once
+MCASP_XBUFn registers of all the serializers, that have previously raised their XRDY flags, are written with
+corresponding active slot data by the host.
+Whenever XDATA is set, the XINT event is automatically generated on MCASP[0-2]_XMIT_DMA_EVT line
+(if enabled in the MCASP_XEVTCTL register) to notify the DMA of the MCASP_XBUFn empty status. An
+interrupt - MCASP[0-2]_XMIT_INTR_PEND can be also generated if the XDATA interrupt is enabled in the
+MCASP_XINTCTL register (for details, see Section 12.1.1.4.12.1, Transmit Data Ready Interrupt).
+For DMA requests, the MCASP does not require that MCASP_XSTAT register be read between DMA events.
+This means that, even if MCASP_XSTAT register already has the XDATA flag set to 1 from a previous request,
+the next transfer triggers another DMA request.
+Because the serializer acts in lockstep, only one DMA event is generated to indicate that the transmit serializer is
+ready to be written to with new data.
+Figure 12-20 shows the timing details of when XINT is generated at the MCASP boundary. In this example,
+as soon as the last bit (A0) of word A is transmitted, the MCASP sets the XDATA flag and generates an XINT
+event. However, it takes up to five MCASP interface clocks (XINT latency) before XINT is active at the MCASP
+boundary. Upon XINT, the CPU can begin servicing the MCASP by writing word C into the MCASP_XBUFn
+(service time). The CPU must write word C into the MCASP_XBUFn within the setup time required by the
+MCASP (setup time) (n = 0 to 15).
+The maximum service time (see Figure 12-20) can be calculated as:
+Service Time = Time Slot ± XINT Latency ±Setup Time
+=== Page 1059 ===
+5 MCASP
+interface clocks
+A1
+A0
+B15
+B14
+B13
+B12
+B11
+B10
+B9
+B8
+B7
+B6
+B5
+B4
+B3
+B2
+B1
+B0
+C15
+ACLKX
+AXRn
+XINT
+Time slot
+N ACLKX cycles (N = number of bits in slot)
+XINT
+Latency
+(for word C)
+CPU service time
+(to write word C)
+Setup time
+(for word C)
+3 MCASP
+interface clocks +
+4 ACLKX cycles
+mcasp-020
+Figure 12-20. Service Time Upon Transmit DMA Event (XINT)
+12.1.1.4.10.1.2 Receive Data Ready
+Similarly, the receive data ready flag - RDATA in the MCASP_RSTAT register reflects the data ready status of
+XRBUFn buffers for all of the active slot receiving serializers. The RDATA flag is set whenever data is transferred
+from a receiving serializer shift register XRSRn to its corresponding XRBUFn data buffer. Thus, the RDATA bit
+indicates the global event that some of the receivers data buffer - RXBUFn already contains received data (this
+is, a buffer is full) and is ready to transfer it to the host. The receive data ready event is individually indicated
+per serializer in its corresponding control register MCASP_SRCTLn [5] RRDY status bit. When this bit is set
+to 0b1, it notifies to host that this serializer Rx buffer must be serviced (read). When MCASP_RBUFn register
+is read from the host, the MCASP_SRCTLn [5] RRDY bit is deasserted to 0b0. As RDATA global flag is an
+OR-event of all active serializers RRDY flags, it indicates to software the moment, when read service operation
+has to be initiated by the MCASP host (RDATA = 0b1). The RRDY flags have to be sequentially scanned by user
+software to determine which serializer MCASP_RBUFn register has to be currently read. Once all requested
+MCASP_RBUFn registers are read, the serializers control RRDY flags are cleared to 0b0. As a consequence,
+RDATA flag is deasserted to 0b0, to indicate to SW that read operation is completed for all serializers.
+The global RDATA flag can be cleared when the MCASP_RSTAT[5] RDATA bit is written to 0b1, or once
+MCASP_RBUFn registers of all the serializers, that have previously raised their RRDY flags, are read by the
+host.
+Whenever RDATA flag is set, the RINT event is automatically generated on MCASP[0-2]_REC_DMA_EVT
+line (if enabled in the MCASP_PIDTCTL register) to notify the DMA of the MCASP_RBUFn full status. An
+interrupt - MCASP[0-2]_REC_INTR_PEND can be also generated if the RDATA interrupt is enabled in the
+MCASP_RINTCTL register (for details, see Section 12.1.1.4.12.1, Receive Data Ready Interrupt).
+Figure 12-21 shows the timing details of when RINT event is generated at the MCASP boundary. In this
+example, as soon as the last bit (bit A0) of Word A is received, the MCASP sets the RDATA flag and generates
+an RINT event. However, it takes up to five MCASP interface clocks (RINT Latency) before RINT is active
+at the MCASP boundary. Upon RINT, the CPU can begin servicing the MCASP by reading Word A from the
+MCASP_RBUFn (service time). The CPU must read Word A from the MCASP_RBUFn register no later than the
+setup time required by the MCASP (Setup Time) (n = 0 to 15).
+The maximum service time (see Figure 12-21) can be calculated as:
+Service Time = Time Slot - RINT Latency - Setup Time
+=== Page 1060 ===
+5 MCASP
+interface clocks
+A1
+A0
+B15
+B14
+B13
+B12
+B11
+B10
+B9
+B8
+B7
+B6
+B5
+B4
+B3
+B2
+B1
+B0
+C15
+ACLKR
+AXRn
+RINT
+Time slot
+N ACLKR cycles (N = number of bits in slot)
+RINT
+Latency
+(for word A)
+CPU service time
+(to read word A)
+Setup time
+(must read word A
+before this period)
+3 MCASP
+interface clocks +
+4 ACLKR cycles
+mcasp-021
+MCASP latches
+last bit of Word A
+MCASP latches
+last bit of Word B
+Figure 12-21. CPU Service Time Upon Receive Event (RINT)
+12.1.1.4.10.1.3 Transfers Through the Data Port (DATA)
+CAUTION
+To perform internal transfers through the DATA port, clear the XBUSEL/RBUSEL bit to 0b0 in
+the MCASP_XFMT/MCASP_RFMT register, respectively. Failure to do so may result in software
+malfunction.
+In a typical MCASP transfer scenario, the DMA Controller write accesses the XRBUFn transmit buffer through
+the MCASP data port (DATA) on CBASS0 Interconect. CPU hosts can access both XRBUFn transmit and
+receive data buffers on their corresponding DATA port address via DATA port corresponding address. To perform
+transfers through the DATA port, simply have the DMA Controller write the MCASP Tx buffer through Interconect
+DATA port location. Refer to DMA Registers. Although the transfer is passed through an integrated AFIFO
+transmit/receive buffer, the host (DMA or CPU) must follow the described below procedure to access the data
+buffers of each serializer, regardless the AFIFO is enabled or disabled. The AFIFO operation is described in
+Section 12.1.1.4.11.
+For accesses through the DATA port, the DMA/CPU services all the serializers through accessing only a single
+address. In addition, as can be seen in DMA Registers, the same physical DATA port address is used regardless
+of a read or write access is performed. The MCASP automatically cycles through the active slot transmitting/
+receiving serializers, internally generating the appropriate offsets.
+Note
+DATA port allows the DMA/CPU to automatically access only the data buffers. There is no way
+for DMA/CPU to access the MCASP configuration registers addressing their corresponding MCASP
+DATA port.
+For transmit operations through the DATA port, the host must always write to the same transmit buffer DATA port
+address (which is same than the receive buffer DATA port adress) to service all of the active slot transmitting
+serializers. Regardless of MCASP serializer 0 being configured inactive or active, the user software must always
+configure the destination address to match the DATA port location of TXBUF buffer (See DMA Registers).
+In addition, the DMA/CPU must write the buffers of all transmitting serializers in incremental (although not
+necessarily consecutive) order. For example, if only serializers 1 and 3 are set up as active transmitters, to
+the same transmit buffer DATA port address twice - first data for serializer 1 and second data for serializer 3
+=== Page 1061 ===
+upon each transmit data ready event. This exact servicing order must be followed so that data appears in the
+appropriate serializers.
+Note
+For write transfers through MCASP DATA port it is preferable to use DMA on corresponding
+Interconect. This is because DMAs initiated traffic gets better advantage of the burst transfers
+supported by DATA port.
+For receive operations through the DATA port, the DMA/CPU must always read from the same receive buffer
+DATA port address (which is same than the transmit buffer DATA port adress) to service all of the active slot
+receiving serializers. Regardless of MCASP serializer 0 being configured inactive or active, the user software
+must always configure the DMA/CPU source address to match the DATA port location of RXBUF buffer (See
+DMA Registers).
+In addition, reads from the receive buffer for all active slot receiving serializers through the Rx DATA port return
+data in incremental (although not necessarily consecutive) order. For example, if serializers 0, 1 and 3 are set up
+as active receivers, the CPU should read from the same receive buffer DATA port address three times to obtain
+data for serializers 0,1 and 3 in this exact order, upon each receive data ready event.
+Note
+To service a serializer for a transmit or receive operation through the MCASP DATA port, the
+initiator always writes (preferably DMA) and reads from the same address (refer to DMA Registers ),
+respectively.
+Note
+When transmitting through the DATA port, the DMA/CPU must write data (at the same address) to
+each serializer configured as active (active slot selected in MCASP_XTDM) and transmit (Tx enabled
+in MCASP_SRCTLn) within each time slot. Failure to do so results in a buffer underrun condition
+(see Section 12.1.1.4.15.1, Buffer Underrun Error - Transmitter). Similarly, when DMA/CPU receives,
+data must be read from each serializer configured as active (active slot selected in MCASP_RTDM)
+and receive (Rx enabled in MCASP_SRCTLn) within each time slot. Failure to do results in a buffer
+overrun condition (see Section 12.1.1.4.15.2, Buffer Overrun Error - Receiver) (n = 0 to 15).
+12.1.1.4.10.1.4 Transfers Through the Configuration Bus (CFG)
+CAUTION
+To perform internal transfers through the configuration bus, set the XBUSEL/RBUSEL bit to 1 in
+the MCASP_XFMT/MCASP_RFMT registers, respectively. Failure to do so may result in software
+malfunction.
+Note
+MCASP[0-2] whose data ports are accessible directly via CBASS0 do not support FIFO/constant
+addressing modes. Incrementing transfers must be used instead.
+In this method, the CPU accesses the XRBUFn transmit or receive buffer through corresponding configuration
+bus (CFG) address.
+The exact XRBUFn transmit/receive buffer physical address for any particular serializer is determined by adding
+the transmit/receive buffer alias register offset for that particular serializer to the base address of MCASP CFG
+port actual for CBASS0 accesses. The XRBUFn buffer of the n-th serializer configured as a transmitter is aliased
+=== Page 1062 ===
+- MCASP_XBUFn in the CFG port address space. For example, the XRBUF2 transmit buffer is mapped as the
+MCASP_XBUF2 register. Similarly, the XRBUFn buffer of the n-th serializer configured as a receiver is aliased
+- MCASP_RBUFn in the CFG port address space. For example, the XRBUF3 receive buffer is mapped as the
+MCASP_RBUF3 register.
+Accessing the XRBUF through the DATA port (see Section 12.1.1.4.10.1.3) is different than CFG port accesses
+because the DATA port access demands the same physical address, regardless of transfer direction or current
+channel index , while accessing through the peripheral configuration port - CFG, the CPU must provide the exact
+MCASP_XBUFn or MCASP_RBUFn address upon accessing n-th serializer TX or RX buffer, respectively. For
+more details about MCASP_XBUFn and MCASP_RBUFn addresses corresponding to MCASP CFG port, see
+CFG Registers (n = 0 to 15).
+12.1.1.4.10.1.5 Using a Device CPU for MCASP Servicing
+The device CPUs can be used to service the MCASP transmit channels through interrupts
+(upon MCASP[0-2]_XMIT_INTR_PEND and MCASP[0-2]_REC_INTR_PEND interrupts). Because these
+interrupt events are connected to device COMPUTE_CLUSTER0, PRUSS, MAIN2MCU_LVL_INTRTR0,
+R5FSS0/1_INTRTR0, C66SS0/1_INTRTR0, R5FSS0/1 modules, they could be software mapped to input
+interrupt lines of any device CPU. Another way to service the transmit and receive channels, a polling of the
+XDATA bit in the MCASP_XSTAT register and RDATA bit in the MCASP_RSTAT register can be performed by
+device CPUs, respectively. As discussed in Section 12.1.1.4.10.1.3, Transfers Through the Data Port (DATA),
+and Section 12.1.1.4.10.1.4, Transfers Through the Configuration Bus (CFG), the device CPUs can access
+MCASP XRBUF serializer buffer through their corresponding DATA and CFG port locations.
+To use the device CPUs to service the MCASP through interrupts, the XDATA/RDATA bit must
+be enabled in the respective MCASP_XINTCTL/MCASP_RINTCTL registers, to generate interrupts
+MCASP[0-2]_XMIT_INTR_PEND/MCASP[0-2]_REC_INTR_PEND to the device CPUs upon data ready
+12.1.1.4.10.1.6 Using the DMA for MCASP Servicing
+Note
+The associated static Transfer Request (TR) operations of PDMA0, located in front of MCASP,
+must be configured to match the MCASP configuration. For more information, refer to chapter DMA
+Controllers.
+The typical scenario is to use the DMA to service the MCASP transmit and receive logic through the DATA
+port. The transfer passes through integrated AFIFO transmit/receive buffer. If AFIFO is enabled, DMA requests
+are collected and fed to a device DMA controller (see Figure 12-11). The data transfer is managed by the
+AFIFO according to generated transmit and receive events in the MCASP and data is fed to transmit buffers and
+fetched from receive buffers as described in Section 12.1.1.4.11, MCASP Audio FIFO (AFIFO). The generation
+of transmit and receive request is described below. After generation of transmit/receive DMA events from
+MCASP module, these events are collected in AFIFO and on specific AFIFO conditions described in Section
+12.1.1.4.11, MCASP Audio FIFO (AFIFO) the requests (transmit or receive) are forwarded to a DMA controller
+via MCASP[0-2]_XMIT_DMA_EVT and MCASP[0-2]_REC_DMA_EVT outputs. If the AFIFO is disabled (default
+state) it is transperrant for the MCASP module and all request are directly sent to the DMA controller.
+=== Page 1063 ===
+LF1
+RF1
+LF2
+RF2
+CLK
+FS
+AXR0
+XEVT
+XEVT
+XEVT
+XEVT
+XEVT
+LF3
+Transmit
+mcasp-022
+LS1
+RS1
+LS2
+RS2
+AXR1
+LS3
+AXR2
+C1
+LFE1
+C2
+LFE2
+C3
+Receive
+REVT
+REVT
+REVT
+REVT
+REVT
+Figure 12-22. DMA Transmit and Receive Event in an Audio Example ± One Event
+In transmit mode, the DMA event - XINT (MCASP[0-2]_XMIT_DMA_EVT output), which is triggered upon each
+XDATA transition from 0 to 1, is used to service the MCASP TXBUFn transmit buffers. In receive mode, the DMA
+event RINT (MCASP[0-2]_REC_DMA_EVT output) which is triggered upon each RDATA transition from 0 to 1, is
+used to service the MCASP RXBUFn receive buffers.
+Figure 12-22 is an example of an audio system with six audio channels (LF, RF, LS, RS, C and LFE) transmitted
+or received through the MCASP signals - AXR0, AXR1 and AXR2. It shows the points at which events XINT/
+RINT are triggered.
+In Figure 12-22, a Tx DMA event XINT is triggered on each time slot. In the example, XINT is triggered for each
+of the transmit audio channel time slot (time slot for channels LF, LS, and C; and time slot for channels RF,
+RS, LFE). Transmit DMA events are generated automatically upon transmit data ready, provided that DMA TX
+requests generation is enabled in the MCASP_XEVTCTL register. Similarly, Rx DMA event RINT is triggered for
+each of the receive audio channel time slot. Receive DMA events are generated automatically upon receive data
+ready, provided that DMA RX requests generation is enabled in the MCASP_PIDTCTL register.
+12.1.1.4.11 MCASP Audio FIFO (AFIFO)
+The AFIFO contains two FIFOs: one Read FIFO (RFIFO), and one Write FIFO (WFIFO). The RFIFO and the
+WFIFO are the same size: 64 32-bit Words. To ensure backward compatibility with existing software, both the
+Read and Write FIFOs are disabled by default. See Figure 12-23 for a high-level block diagram of the AFIFO.
+The AFIFO may be enabled/disabled and configured via the MCASP_WFIFOCTL and MCASP_RFIFOCTL
+registers. Note that if the Read or Write FIFO is to be enabled, it must be enabled prior to initializing the receive/
+transmit section of the MCASP.
+=== Page 1064 ===
+mcasp-034
+Host or
+DMA
+Write FIFO
+Read FIFO
+32
+32
+32
+32
+Write FIFO Control Register
+Write FIFO Status Register
+Read FIFO Control Register
+Read FIFO Status Register
+AFIFO
+Tx DMA Req.
+Rx DMA Req.
+Data bus
+Data bus
+Peripheral configuration bus
+Tx DMA Req.
+Rx DMA Req.
+MCASPi
+Figure 12-23. MCASP Audio FIFO (AFIFO) Block Diagram
+12.1.1.4.11.1 AFIFO Data Transmission
+When the Write FIFO is disabled, transmit DMA requests pass through directly from the MCASP to the
+host/DMA controller. Whether the WFIFO is enabled or disabled, the MCASP generates transmit DMA requests
+as needed; the AFIFO is „invisible“ to the MCASP. When the Write FIFO is enabled, transmit DMA requests from
+the MCASP are sent to the AFIFO, which in turn generates transmit DMA requests to the host/DMA controller. If
+the Write FIFO is enabled, upon a transmit DMA request from the MCASP, the WFIFO writes WNUMDMA 32-bit
+words to the MCASP if and when there are at least WNUMDMA words in the Write FIFO. If there are not, the
+WFIFO waits until this condition has been satisfied. At that point, it writes WNUMDMA words to the MCASP (see
+description for the MCASP_WFIFOCTL[7-0] WNUMDMA). If the host CPU writes to the Write FIFO, independent
+of a transmit DMA request, the WFIFO will accept host writes until full. After this point, excess data will be
+discarded. Note that when the WFIFO is first enabled, it will immediately issue a transmit DMA request to the
+host. This is because it begins in an empty state, and is therefore ready to accept data.
+12.1.1.4.11.1.1 Transmit DMA Event Pacer
+The AFIFO may be configured to delay making a transmit DMA request to the host until the Write FIFO has
+enough space for a specified number of words. In this situation, the number of transmit DMA requests to the
+=== Page 1065 ===
+host or DMA controller is reduced. If the Write FIFO has space to accept WNUMEVT 32-bit words, it generates
+a transmit DMA request to the host and then waits for a response. Once WNUMEVT words have been written
+to the FIFO, it checks again to see if there is space for WNUMEVT 32-bit words. If there is space, it generates
+another transmit DMA request to the host, and so on. In this fashion, the Write FIFO will attempt to stay filled.
+Note that if transmit DMA event pacing is desired, MCASP_WFIFOCTL[15-8] WNUMEVT bit field should be set
+to a non-zero integer multiple of the value in MCASP_WFIFOCTL[7-0] WNUMDMA bit field. If transmit DMA
+event pacing is not desired, then the value in MCASP_WFIFOCTL[15-8] WNUMEVT bit field should be set equal
+to the value in MCASP_WFIFOCTL[7-0] WNUMDMA bit field.
+12.1.1.4.11.2 AFIFO Data Reception
+When the Read FIFO is disabled, receive DMA requests pass through directly from MCASP to the host/DMA
+controller. Whether the RFIFO is enabled or disabled, the MCASP generates receive DMA requests as needed;
+the AFIFO is „invisible“ to the MCASP. When the Read FIFO is enabled, receive DMA requests from the MCASP
+are sent to the AFIFO, which in turn generates receive DMA requests to the host/DMA controller. If the Read
+FIFO is enabled and the MCASP makes a receive DMA request, the RFIFO reads RNUMDMA 32-bit words
+from the MCASP, if and when the RFIFO has space for RNUMDMA words. If it does not, the RFIFO waits until
+this condition has been satisfied; at that point, it reads RNUMDMA words from the MCASP (see description for
+theMCASP_RFIFOCTL[7-0] RNUMDMA). If the host CPU reads the Read FIFO, independent of a receive DMA
+request, and the RFIFO at that time contains less than RNUMEVT words, those words will be read correctly,
+emptying the FIFO.
+12.1.1.4.11.2.1 Receive DMA Event Pacer
+The AFIFO may be configured to delay making a receive DMA request to the host until the Read FIFO contains
+a specified number of words. In this situation, the number of receive DMA requests to the host or DMA controller
+is reduced. If the Read FIFO contains at least RNUMEVT 32-bit words, it generates a receive DMA request to
+the host and then waits for a response. Once RNUMEVT 32-bit words have been read from the RFIFO, the
+RFIFO checks again to see if it contains at least another RNUMEVT words. If it does, it generates another
+receive DMA request to the host, and so on. In this fashion, the Read FIFO will attempt to stay empty. Note
+that if receive DMA event pacing is desired, MCASP_RFIFOCTL[15-8] RNUMEVT bit field should be set to a
+non-zero integer multiple of the value in MCASP_RFIFOCTL[7-0] RNUMDMA bit field. If receive DMA event
+pacing is not desired, then the value in MCASP_RFIFOCTL[15-8] RNUMEVT bit field should be set equal to the
+value in MCASP_RFIFOCTL[7-0] RNUMDMA bit field.
+12.1.1.4.11.3 Arbitration Between Transmit and Receive DMA Requests
+If both the WFIFO and the RFIFO are enabled and a transmit DMA request and receive DMA request occur
+simultaneously, priority is given to the transmit DMA request. Once a transfer is in progress, it is allowed
+to complete. If only the WFIFO is enabled and a transmit DMA request and receive DMA request occur
+simultaneously, priority is given to the transmit DMA request. Once a transfer is in progress, it is allowed
+to complete. If only the RFIFO is enabled and a transmit DMA request and receive DMA request occur
+simultaneously, priority is given to the receive DMA request. Once a transfer is in progress, it is allowed to
+complete.
+12.1.1.4.12 MCASP Events and Interrupt Requests
+Table 12-9 lists all the transmit event flags. Table 12-10 lists all the Receive event flags. Source of each of
+these TX/RX events can be a TX/RX channel from any MCASP serializer configured as transmitter or receiver
+respectively.
+Table 12-9. TX Events
+Event Mask(1)
+Event Flag
+Map to (1)
+Description
+MCASP_XINTCTL[0] XUNDRN
+MCASP_XSTAT[0] XUNDRN
+MCASP[0-2]_XMIT_INTR_
+PEND
+Transmit buffer underrun
+MCASP_XINTCTL[1] XSYNCERR
+MCASP_XSTAT[1] XSYNCERR
+MCASP[0-2]_XMIT_INTR_
+PEND
+Unexpected transmit frame sync
+MCASP_XINTCTL[2] XCKFAIL
+MCASP_XSTAT[2] XCKFAIL
+MCASP[0-2]_XMIT_INTR_
+PEND
+Transmit clock failure
+=== Page 1066 ===
+Table 12-9. TX Events (continued)
+Event Mask(1)
+Event Flag
+Map to (1)
+Description
+MCASP_XINTCTL[3] XDMAERR
+MCASP_XSTAT[7] XDMAERR
+MCASP[0-2]_XMIT_INTR_
+PEND
+DATA port transmit error
+MCASP_XINTCTL[4] XLAST
+MCASP_XSTAT[4] XLAST
+MCASP[0-2]_XMIT_INTR_
+PEND
+Transmit last slot interrupt
+MCASP_XINTCTL[5] XDATA
+MCASP_XSTAT[5] XDATA
+MCASP[0-2]_XMIT_INTR_
+PEND
+Transmit data-ready interrupt
+MCASP_XINTCTL[7] XSTAFRM
+MCASP_XSTAT[6] XSTAFRM
+MCASP[0-2]_XMIT_INTR_
+PEND
+Transmit start of frame interrupt
+n.a.
+MCASP_XSTAT[8] XERR
+n.a.
+OR-event of all Tx-error events:
+(XDMAERR | XCKFAIL | XUNDRN
+| XSYNCERR ). It is cleared ONLY
+when all error flags are cleared
+n.a.
+MCASP_XSTAT[3] XTDMSLOT
+n.a.
+Qualifies the current TDM slot as an
+odd or an even slot.
+(1)
+Every MCASP module generates separate interrupt event.
+Table 12-10. RX Events
+Event Mask(1)
+Event Flag
+Map to(1)
+Description
+MCASP_RINTCTL[0] ROVRN
+MCASP_RSTAT[0] ROVRN
+MCASP[0-2]_REC_INTR_P
+END
+Receive buffer overrun
+MCASP_RINTCTL[1] RSYNCERR
+MCASP_RSTAT[1] RSYNCERR
+MCASP[0-2]_REC_INTR_P
+END
+Unexpected receive frame sync
+MCASP_RINTCTL[2] RCKFAIL
+MCASP_RSTAT[2] RCKFAIL
+MCASP[0-2]_REC_INTR_P
+END
+Receive clock failure
+MCASP_RINTCTL[3] RDMAERR
+MCASP_RSTAT[7] RDMAERR
+MCASP[0-2]_REC_INTR_P
+END
+DATA port receive error
+MCASP_RINTCTL[4] RLAST
+MCASP_RSTAT[4] RLAST
+MCASP[0-2]_REC_INTR_P
+END
+Receive last slot
+MCASP_RINTCTL[5] RDATA
+MCASP_RSTAT[5] RDATA
+MCASP[0-2]_REC_INTR_P
+END
+Receive data-ready
+MCASP_RINTCTL[7] RSTAFRM
+MCASP_RSTAT[6] RSTAFRM
+MCASP[0-2]_REC_INTR_P
+END
+Receive start of frame
+n.a.
+MCASP_RSTAT[8] RERR
+n.a.
+OR-event of all Rx-error events:
+(RDMAERR | RCKFAIL | ROVRN
+| RSYNCERR ). RERR event is
+cleared once all error flags are
+cleared.
+n.a.
+MCASP_RSTAT[3] RTDMSLOT
+n.a.
+Qualifies the current TDM slot as an
+odd or an even slot.
+(1)
+Every MCASP module generates separate interrupt event.
+Software has to read the MCASP_XSTAT/MCASP_RSTAT register to determine which event occurs at a global
+level for MCASP Tx/Rx logic. In addition user software has to scan the XRDY/RRDY read-only flags in the
+MCASP_SRCTLn registers to determine which active serializer is the actual source of the event.
+A Tx interrupt line (MCASP[0-2]_XMIT_INTR_PEND) is asserted (active high) when one of the MCASP_XSTAT
+notified events occurs, provided that it is enabled in its corresponding MCASP_XINTCTL bit. Similarly, a
+Rx interrupt line (MCASP[0-2]_REC_INTR_PEND) is asserted (active high) when one of MCASP_RSTAT
+notified events occurs, provided that it is enabled in its corresponding MCASP_RINTCTL bit. See also
+Section 12.1.1.4.12.4, Multiple Interrupts and the Section 12.1.1.4.10.1, Data Ready Status and Event/Interrupt
+Generation (n = 0 to 15).
+=== Page 1067 ===
+12.1.1.4.12.1 Transmit Data Ready Event and Interrupt
+The transmit data-ready interrupt (XDATA) is generated if the MCASP_XSTAT[5] XDATA bit is 1 and
+MCASP_XINTCTL[5] XDATA bit is enabled. The Section 12.1.1.4.10.1, Data Ready Status and Event/Interrupt
+Generation, provides details on when XDATA is set in the MCASP_XSTAT register.
+A transmit-start-of-frame interrupt (XSTAFRM) is triggered by the recognition of a transmit frame sync.
+A transmit-last-slot interrupt (XLAST) is a qualified version of the data-ready interrupt (XDATA). It has the same
+behavior than the data-ready interrupt, but is further qualified by having the data requested belonging to the last
+slot (the slot that just ended is the next-to-last TDM slot, the current slot is the last slot).
+12.1.1.4.12.2 Receive Data Ready Event and Interrupt
+The receive data-ready interrupt (RDATA) is generated if the MCASP_RSTAT[5] RDATA bit is 1 and
+MCASP_RINTCTL[5] RDATA bit is enabled. The Section 12.1.1.4.10.1, Data Ready Status and Event/Interrupt
+Generation, provides details on when the MCASP_RSTAT[5] RDATA bit is set.
+A receiver start of frame (RSTAFRM) interrupt is triggered by the recognition of a receiver frame sync.
+A receiver last slot (RLAST) interrupt is a qualified version of the data ready interrupt (RDATA). It has the same
+behavior as the data ready interrupt, but is further qualified by having the data in the buffer come from the last
+TDM time slot (the slot that just ended was last TDM slot).
+12.1.1.4.12.3 Error Interrupt
+Upon detection, the following error conditions generate interrupt flags:
+In the transmit status register (MCASP_XSTAT):
+•
+Transmit underrun (XUNDRN)
+•
+Unexpected transmit frame sync (XSYNCERR)
+•
+Transmit clock failure (XCKFAIL)
+•
+Transmit DATA port error (XDMAERR)
+Each interrupt source also has a corresponding enable bit in the transmit interrupt control register
+(MCASP_XINTCTL). If the enable bit is set, an interrupt is requested when the interrupt flag is set in
+MCASP_XSTAT. If the enable bit is not set, no interrupt request is generated. However, the interrupt flag may be
+polled.
+In the receive status register (MCASP_RSTAT) :
+•
+Receiver overrun (ROVRN)
+•
+Unexpected receive frame sync (RSYNCERR)
+•
+Receive clock failure (RCKFAIL)
+•
+Receive DATA port error (RDMAERR)
+Each interrupt source also has a corresponding enable bit in the receive interrupt control register
+(MCASP_RINTCTL). If the enable bit is set, an interrupt is requested when the interrupt flag is set in
+MCASP_RSTAT. If the enable bit is not set, no interrupt request is generated. However, the interrupt flag may be
+polled.
+12.1.1.4.12.4 Multiple Interrupts
+This only applies to interrupts and not to DMA requests. The following terms are defined:
+•
+Active Interrupt Request: a flag in MCASP_XSTAT is set and the interrupt is enabled in MCASP_XINTCTL.
+•
+Outstanding Interrupt Request: An interrupt request has been issued on one of the MCASP transmit
+interrupt port, but that request has not yet been serviced.
+•
+Serviced: The CPUs write to MCASP_XSTAT to clear one or more of the active interrupt request flags.
+The first interrupt request to become active for the serializer with the interrupt flag set in MCASP_XSTAT/
+MCASP_RSTAT and the interrupt enabled in MCASP_XINTCTL/MCASP_RINTCTL generates a request on the
+MCASP transmit or receive interrupt port.
+=== Page 1068 ===
+If more than one interrupt request becomes active in the same cycle, a single interrupt request is generated on
+the MCASP transmit or receive interrupt port. Subsequent interrupt requests that become active while the first
+interrupt request is outstanding do not immediately generate a new request pulse on the MCASP transmit or
+receive interrupt port.
+The interrupt is serviced with the CPU writing to MCASP_XSTAT/MCASP_RSTAT. If any interrupt requests are
+active after the write, a new request is generated on the MCASP transmit or receive interrupt port.
+One outstanding interrupt request is allowed on each port, so a transmit and a receive interrupt request may
+both be outstanding at the same time.
+12.1.1.4.13 MCASP DMA Requests
+The MCASP can generate one DMA request to the DMA controller to transmit (MCASP[0-2]_XMIT_DMA_EVT)
+or receive (MCASP[0-2]_REC_DMA_EVT) data. A DMA request to transmit data is generated if the
+MCASP_XEVTCTL[0] XDATDMA bit is cleared. A DMA request to receive data is generated if the
+MCASP_PIDTCTL[0] RDATDMA bit is cleared.
+12.1.1.4.14 MCASP Loopback Modes
+The MCASP features a digital loopback mode (DLB) that allows loopback test transfers in TDM mode between
+MCASP transmitters and receivers within the same device. In loopback mode, the output of a transmit serializer
+is connected internally to the input of a receive serializer. Therefore, a receiver data can be checked against a
+transmitter data to ensure that the MCASP settings are correct. Digital loopback mode applies to TDM mode
+only (2 to 32 slots in a frame). It does not apply to DIT mode (XMOD = 0x180) or burst mode (XMOD = 0).
+Figure 12-24 shows the basic logical connection of the serializers in loopback mode.
+=== Page 1069 ===
+mcasp-023
+Receive
+Transmit
+Receive
+Transmit
+Serializer0
+Serializer1
+Serializer2
+Serializer3
+Serializer0
+Serializer1
+Serializer2
+Serializer3
+a) DLBEN=1 (loopback enabled)
+and
+ORD=0 (even receive,
+odd transmit)
+b) DLBEN=1 (loopback enabled)
+and
+ORD=1 (odd  receive,
+even  transmit)
+Transmit
+Receive
+Transmit
+Receive
+Receive
+Transmit
+Serializer n-1
+Serializer n
+Serializer n-1
+Serializer n
+Transmit
+Receive
+Figure 12-24. MCASP Serializers Operation in Loopback Mode
+Two types of loopback connections are possible, selected by the ORD bit in the digital loopback control register -
+MCASP_DLBCTL as follows:
+•
+ORD = 0: Outputs of odd serializers are connected to inputs of even serializers. If this mode is selected, the
+odd serializers must be configured as transmitters and even serializers as receivers.
+•
+ORD = 1: Outputs of even serializers are connected to inputs of odd serializers. If this mode is selected, the
+even serializers must be configured as transmitters and odd serializers as receivers.
+User can choose in software (the MCASP_DLBCTL[4] IOLBEN bit) between a MCASP module internal loopback
+and a device I/O level loopback.
+=== Page 1070 ===
+When a MCASP internal loopback is selected (MCASP_DLBCTL[4] IOLBEN = 0b0 ), it is NOT necessary to
+configure MCASP_PFUNC and MCASP_PDIR registers for MCASP pin settings. Nevertheless, data can be
+optionally made externally visible at the I/O pin of the transmit serializer, if the pin is configured as a MCASP
+output pin by setting the corresponding MCASP_PFUNC bit to 0 (this is, to function as MCASP, not GPIO) and
+MCASP_PDIR bit to 1 (output).
+When a device I/O level loopback is selected (MCASP_DLBCTL[4] IOLBEN = 0b1 ), the MCASP_PFUNC and
+MCASP_PDIR registers must be configured with the appropriate settings for all AXRn pins, according to ORD bit
+configuration.
+In case of device I/O loopback, the connectivity is externally applied between device pads (this is, reaching
+device I/O buffers ).
+When in loopback mode, the transmit clock and frame sync are used by both the transmit and receive sections
+of the MCASP. The transmit and receive sections operate synchronously. This is achieved by setting the
+MCASP_DLBCTL[3-2] MODE bit field to 0x1 and the MCASP_ACLKXCTL[6] ASYNC bit to 0b0.
+12.1.1.4.14.1 Loopback Mode Configurations
+This is a summary of the settings required for digital loopback mode for TDM format :
+•
+The MCASP_DLBCTL[0] DLBEN bit must be set to 0b1 to enable a loopback mode. It must be kept at 0b0
+during normal MCASP operation.
+•
+The MCASP_DLBCTL[4] IOLBEN bit must be set to select between internal (MCASP local) loopback mode
+or device I/O level loopback mode.
+•
+The MCASP_DLBCTL[3-2] MODE bit field must be set to 0x1 for both the transmit and receive sections to
+use the transmit clock and frame sync generator.
+•
+The MCASP_DLBCTL[1] ORD bit must be programmed appropriately to select odd or even serializers to be
+transmitters or receivers.
+•
+The corresponding serializers must be configured accordingly.
+•
+The MCASP_ACLKXCTL[6] ASYNC bit must be cleared to 0b0 to ensure synchronous transmit and receive
+operations.
+•
+The MCASP_AFSRCTL[15-7] RMOD bit field and MCASP_AFSXCTL[15-7] XMOD bit field must be set within
+range (0x2 - 0x20) to indicate TDM mode.
+Note
+Loopback mode does not apply to DIT or burst mode, because MCASP receivers do NOT natively
+support DIR - reception.
+12.1.1.4.15 MCASP Error Reporting
+The MCASP includes error-checking capability for the serial protocol and data underrun. In addition, the MCASP
+includes a timer that continually measures the high-frequency controller clock every 32 AHCLKX clock cycles.
+The value of the timer can be read to get a measurement of the clock frequency and has a minimum and
+maximum range setting that can set an error flag if the controller clock goes out of a specified range.
+When one or more errors (software selectable) are detected, an interrupt can be generated if desired, based on
+one or more error sources.
+12.1.1.4.15.1 Buffer Underrun Error -Transmitter
+A buffer underrun occurs when a serializer is instructed by the transmit state-machine to transfer data from
+XRBUFn buffer to XRSRn shift register, but the corresponding (MCASP_XBUFn ) register has not yet been
+written with new data since the last time the transfer occurred. When this occurs, the transmit state-machine sets
+the XUNDRN flag.
+An underrun is checked only once per time slot. The MCASP_XSTAT[0] XUNDRN flag is set when an underrun
+condition occurs. Once set, the XUNDRN flag remains set until the host explicitly writes 1 to the XUNDRN bit to
+clear it (n = 0 to 15).
+=== Page 1071 ===
+In DIT mode, a pair of BMC zeros is shifted out when an underrun occurs (four bit times at 128 bfs). By shifting
+out a pair of zeros, a clock can be recovered on the receiver. To recover, reset the MCASP and restart with the
+proper initialization.
+In TDM mode, during an underrun case, a long stream of zeros are shifted out causing the DACs to mute. To
+recover, reset the MCASP and start again with the proper initialization.
+12.1.1.4.15.2 Buffer Overrun Error-Receiver
+A buffer overrun occurs when a serializer is instructed to transfer data from XRSRn shift register to XRBUFn
+receiver buffer, but the corresponding MCASP_RBUFn register has not yet been read since the last time the
+transfer occured. When this occurs, the receiver state machine sets the overrun flag - ROVRN. However, the
+individual serializer writes over the data in the XRBUFn buffer register (destroying the previous sample) and
+continues shifting (n = 0 to 15).
+An overrun is checked only once per time slot. The MCASP_RSTAT[0] ROVRN flag is set when an overrun
+condition occurs. It is possible that an overrun occurs on one time slot but then the host catches up and does not
+cause an overrun on the following time slots. However, once the ROVRN flag is set, it remains set until the host
+explicitly writes a 1 to the ROVRN bit to clear the ROVRN bit.
+12.1.1.4.15.3 DATA Port Error - Transmitter
+A transmit DATA port error, as indicated by the MCASP_XSTAT[7] XDMAERR bit, occurs when the DMA or
+device CPU writes more words to the DATA port of the MCASP than it should.
+The MCASP_XSTAT[7] XDMAERR = 0b1 indicates that the DMA or device CPU wrote too many words to the
+MCASP DATA port for a given transmit DMA event. Writing too few words results in a transmit underrun error
+setting the MCASP_XSTAT[0] XUNDRN bit.
+While XDMAERR occurs infrequently, an occurrence indicates a serious loss of synchronization between
+the MCASP and the DMA or device CPU. The MCASP transmitter and the DMA must be reinitialized to
+resynchronize them.
+12.1.1.4.15.4 DATA Port Error - Receiver
+A receive DATA port error, as indicated by the MCASP_RSTAT[7] RDMAERR bit, occurs when the DMA or
+device CPU reads more words from the DATA port of the MCASP than it should.
+The MCASP_RSTAT[7] RDMAERR bit indicates that the DMA or device CPU read too many words from the
+MCASP DATA port for a given receive RINT event. Reading too few words results in a receiver overrun error
+setting the MCASP_RSTAT[0] ROVRN bit.
+While RDMAERR occurs infrequently, an occurrence indicates a serious loss of synchronization between the
+MCASP and the DMA or device CPU. The MCASP receiver and the DMA must be reinitialized to resynchronize
+them.
+12.1.1.4.15.5 Unexpected Frame Sync Error
+An unexpected frame sync occurs in when:
+•
+in burst mode and TDM mode, the next active edge of the frame sync occurs early such that the current slot
+will not be completed by the time the next slot is scheduled to begin.
+•
+in TDM mode, an unexpected frame sync occurs also if the frame sync does NOT occur exactly during the
+correct bit clock (not a cycle earlier or later) and before slot 0.
+When an unexpected frame sync occurs, there are two possible actions depending upon when the unexpected
+frame sync occurs:
+1.
+Early: An early unexpected frame sync occurs when the MCASP is in the process of completing the current
+frame and a new frame sync is detected (not including overlap that occurs due to a 1 or 2 bit frame sync
+delay). When an early unexpected frame sync occurs:
+•
+Error event flag is set (XSYNCERR, if an unexpected transmit frame sync occurs; RSYNCERR, if an
+unexpected receive frame sync occurs).
+=== Page 1072 ===
+•
+Current frame is not resynchronized. The number of bits in the current frame is completed. The next
+frame sync, which occurs after the current frame is completed, will be resynchronized.
+2.
+Late: A late unexpected frame sync occurs when there is a gap or delay between the last bit of the previous
+frame and the first bit of the next frame. When a late unexpected frame sync occurs (as soon as the gap is
+detected):
+•
+Error event flag is set (XSYNCERR, if an unexpected transmit frame sync occurs; RSYNCERR, if an
+unexpected receive frame sync occurs).
+•
+Resynchronization occurs upon the arrival of the next frame sync.
+Late frame sync is detected the same way in burst mode and TDM mode. However, in burst mode, late frame
+sync is not meaningful and its interrupt enable should not be set.
+12.1.1.4.15.6 Clock Failure Detection
+12.1.1.4.15.6.1 Clock Failure Check Startup
+It is initially expected of the clock failure circuits to generate an error until at least one measurement is taken.
+Therefore, the clock failure interrupts, clock switch, and mute functions should not be enabled immediately, but
+only after a specific startup procedure.
+To start the transmit clock failure check procedure:
+1.
+Configure the transmit clock failure detect logic (XMIN, XMAX, XPS) in the transmit clock check control
+register (MCASP_XCLKCHK).
+2.
+Clear the transmit clock failure flag (XCKFAIL) in the transmit status register (MCASP_XSTAT).
+3.
+Wait until the first measurement is taken (> 32 AHCLKX clock periods).
+4.
+Verify that no clock failure is detected.
+5.
+Repeat Step 2 through Step 4 until the clock is running and is no longer issuing clock failure errors.
+6.
+After the transmit clock is measured and falls within the acceptable range, the following can be enabled:
+a.
+The transmit clock failure interrupt enable bit (XCKFAIL) in the transmitter interrupt control register
+(MCASP_XINTCTL)
+To start the receive clock failure check procedure:
+1.
+Configure receive clock failure detect logic (RMIN, RMAX, RPS) in the receive clock check control register
+(MCASP_RCLKCHK).
+2.
+Clear receive clock failure flag (RCKFAIL) in the receive status register (MCASP_RSTAT).
+3.
+Wait until first measurement is taken (> 32 AHCLKR clock periods).
+4.
+Verify no clock failure is detected.
+5.
+Repeat steps 2±4 until clock is running and is no longer issuing clock failure errors.
+6.
+After the receive clock is measured and falls within the acceptable range, the following may be enabled:
+a.
+the receive clock failure (RCKFAIL) interrupt enable bit in the receive interrupt control register
+(MCASP_RINTCTL)
+12.1.1.4.15.6.2 Transmit Clock Failure Check and Recovery
+The transmit clock failure check circuit (see Figure 12-25) works off the internal MCASP interface clock and the
+external high-frequency serial clock (AHCLKX). It continually counts the number of interface clocks for every
+32 high-rate serial clock (AHCLKX) periods, and stores the count in XCNT of the transmit clock check control
+register (MCASP_XCLKCHK) every 32 high-rate serial clock cycles.
+The logic compares the count against a user-defined minimum allowable boundary (XMIN), and automatically
+flags an interrupt (the MCASP_XSTAT[2] XCKFAIL bit) when an out-of-range condition occurs. An out-of-range
+minimum condition occurs when the count is less than XMIN. The logic continually compares the current count
+(from the running interface clock counter) to the maximum allowable boundary (XMAX). This is so that if the
+external clock completely stops, the counter value is not copied to XCNT. An out-of-range maximum condition
+occurs when the count is greater than XMAX. The XMIN and XMAX fields are 8-bit unsigned values, and the
+comparison is performed using unsigned arithmetic.
+=== Page 1073 ===
+An out-of-range count may indicate that an unstable clock was detected or that the audio source has changed
+and a new sample rate is being used.
+For the transmit clock failure check circuit to operate correctly, the high-frequency serial clock divider must be
+taken out of reset.
+If a clock failure is detected, the MCASP_XSTAT[2] XCKFAIL transmit clock failure flag is set. This causes an
+interrupt if the MCASP_XINTCTL[2] XCKFAIL transmit clock failure interrupt enable bit is set.
+Count
+to 32
+External
+AHCLKX
+pin input
+Sync to
+interface
+clock
+8−bit
+counter
+Clear
+Count
+Prescale
+/1 to
+/256
+MCASP
+clock
+interface
+4
+TXCLKCHK[3-0]
+XPS
+Load
+TXCLKCHK[31-24]
+XCNT
+8
+XMIN
+TXCLKCHK[15-8]
+8
+XCNT<XMIN?
+8
+TXCLKCHK[23-16]
+XMAX
+8
+Counter>XMAX?
+8
+OR
+True
+True
+XCKFAIL
+TXSTAT.2
+Set
+Interrupt
+mcasp-024
+Figure 12-25. Transmit Clock Failure Detection Circuit Block Diagram
+12.1.1.4.15.6.3 Receive Clock Failure Check and Recovery
+The receive clock failure check circuit (see Figure 12-26) works off both the internal MCASP interface clock and
+the external high-frequency serial clock (AHCLKR). It continually counts the number of interface clocks for every
+32 high rate serial clock (AHCLKR) periods, and stores the count in RCNT of the receive clock check control
+register (MCASP_RCLKCHK) every 32 high rate serial clock cycles.
+The logic compares the count against a user-defined minimum allowable boundary (RMIN) and automatically
+flags an event (the MCASP_RSTAT[2] RCKFAIL bit) when an out-of-range condition occurs. An out-of-range
+minimum condition occurs when the count is smaller than RMIN. The logic continually compares the current
+count (from the running interface clock counter) against the maximum allowable boundary (RMAX). This is in
+case the external clock completely stops, so that the counter value is not copied to RCNT. An out-of-range
+maximum condition occurs when the count is greater than RMAX. Note that the RMIN and RMAX fields are 8-bit
+unsigned values, and the comparison is performed using unsigned arithmetic.
+=== Page 1074 ===
+An out-of-range count may indicate either that an unstable clock was detected or that the audio source has
+changed and a new sample rate is being used.
+In order for the receive clock failure check circuit to operate correctly, the high-frequency serial clock divider
+must be taken out of reset.
+Count
+to 32
+Sync to
+interface
+clock
+8−bit
+counter
+Clear
+Count
+Prescale
+/1 to
+/256
+MCASP
+clock
+interface
+4
+RXCLKCHK[3-0]
+RPS
+Load
+RXCLKCHK[31-24]
+RCNT
+8
+RMIN
+RXCLKCHK[15-8]
+8
+RCNT<RMIN?
+8
+RXCLKCHK[23-16]
+RMAX
+8
+Counter>RMAX?
+8
+OR
+True
+True
+RCKFAIL
+RXSTAT[.2]
+Set
+Interrupt
+mcasp-025
+External
+AHCLKR
+pin input
+Figure 12-26. Receive Clock Failure Detection Circuit Block Diagram
+=== Page 1075 ===
+12.1.1.5 MCASP Programming Guide
+This section describes the low-level hardware programming sequences for the configuration and use of the
+MCASP module.
+12.1.1.5.1 MCASP Global Initialization
+12.1.1.5.1.1 Surrounding Modules Global Initialization
+This section identifies the requirements for initializing the surrounding modules when the MCASP module is used
+for the first time after a device reset. This initialization of surrounding modules is based on the integration and
+environment of the MCASP (for more information, see Module Integration, and MCASP Environment ).
+Table 12-11 describes the global initialization of surrounding modules.
+Table 12-11. Global Initialization of Surrounding Modules
+Surrounding Modules
+Comments
+LPSC3
+Module reset must be enabled. For more information about the module configuration, see Reset.
+PLLCTRL0
+PLLCTRL0 configuration must be done to enable the clocks to the MCASP modules, see Clocking.
+PLL4
+PLL4 configuration must be done to enable the clocks to the MCASP modules, see Clocking.
+PLL2
+PLL2 configuration must be done to enable the clocks to the MCASP modules, see Clocking.
+ATL
+ATL configuration must be done to enable the clocks to the MCASP modules, see Audio Tracking Logic
+(ATL).
+COMPUTE_CLUSTER0
+Device INTCs must be configured to enable the interrupt request generation. For information about
+enabling COMPUTE_CLUSTER0 interrupts, see Interrupts.
+MAIN2MCU_LVL_INTRTR0
+Device INTCs must be configured to enable the interrupt request generation. For information about
+enabling MAIN2MCU_LVL_INTRTR0 interrupts, see Interrupts.
+R5FSS0_CORE0/1
+Device INTCs must be configured to enable the interrupt request generation. For information about
+enabling R5FSS0_CORE0/1 interrupts, see Interrupts.
+PDMA0_MCASP_G0
+PDMA0_MCASP_G0 controllers configuration must be done to enable the module PDMA0_MCASP_G0
+channel request, see PDMA Controller.
+Interconnects
+For information about the CBASS0 interconnects configuration, see System Interconnect.
+Note
+NAVSS configuration (UMDA channel set-up) must be done in order to move data from/to MCASP via
+the PDMA Controller. For more information, see Navigator Subsystem (NAVSS).
+Note
+The COMPUTE_CLUSTER0, MAIN2MCU_LVL_INTRTR0, R5FSS0_CORE0/1, and the
+PDMA0_MCASP_G0 configurations are required when the interrupt and DMA-based communication
+modes are used. Further initialization of the selected interrupt and DMA controllers of the host CPU
+must be done for full functionality of the MCASP DMA and interrupt lines.
+12.1.1.5.1.2 MCASP Global Initialization
+12.1.1.5.1.2.1 Main Sequence ± MCASP Global Initialization for DIT-Transmission
+The procedure in Table 12-12 initializes the MCASP serializers transmitters to operate in DIT-mode (S/PDIF-
+transmission protocol) after a power-on reset (POR).
+CAUTION
+Before performing MCASP global initialization, If external clock ACLKR is used, it must be running
+already for proper synchronization of the MCASP_GBLCTL register.
+=== Page 1076 ===
+Table 12-12. MCASP Transmitters Global Initialization for DIT-Mode Operation
+Step
+Register/Bit Field/Programming Model
+Value
+1. Apply software reset to different MCASP
+components.
+MCASP_GBLCTL[12-8]
+0x00
+2. Poll the bits to ensure the active reset value (0x00)
+is successfully latched into the register.
+MCASP_GBLCTL[12-8]
+=0x00
+3. Configure the local power management.
+MCASP_PWRIDLESYSCONFIG[1-0] IDLE_MODE
+0x1
+4. Configure the transmit format unit.
+See Section 12.1.1.5.1.2.1.1.
+5. Configure the transmit frame sync generator.
+See Section 12.1.1.5.1.2.1.2.
+6. Configure the transmit clock generator.
+See Section 12.1.1.5.1.2.1.3.
+7. Configure the TDM sequencer—set all slots active.
+MCASP_XTDM[31-0] XTDMS
+0xFFFF FFFF
+8. Configure the desired n-th serializer (n=0 to 3) for
+transmit mode operation.(3)
+MCASP_SRCTLn [1-0] SRMOD; n = 0 to 15
+0x1
+9. Configure the MCASP pins functionality.
+See Section 12.1.1.5.1.2.1.4.
+10. Enable the MCASP DIT - transmission mode.
+MCASP_DITCTL[0] DITEN
+0x1(2)
+11. Configure DIT-specific subframe fields.
+See Table 12-17.
+12. Release from reset state the divider that outputs
+the AHCLKX clock.(1)
+MCASP_GBLCTL[9] XHCLKRST
+0x1
+13. Poll the bit to ensure that it is successfully latched
+in the register.
+MCASP_GBLCTL[9] XHCLKRST
+=0x1
+14. Release from reset state the divider that outputs
+the ACLKX clock.(1)
+MCASP_GBLCTL[8] XCLKRST
+0x1
+15. Poll the bit to ensure that it is successfully latched
+in the register.
+MCASP_GBLCTL[8] XCLKRST
+=0x1
+(1)
+During reset state the local MCASP internal clock dividers maintain a 1:1 ratio at their outputs. The values stored in the
+MCASP_AHCLKXCTL and MCASP_ACLKXCTL registers are ignored; hence, the transmission clock does not stop during the reset
+state of the dividers.
+(2)
+This globally configures all active transmitters to operate in DIT-mode.
+(3)
+For an unused serializer n, write MCASP_SRCTLn [1-0] SRMOD = 0x0 to disable it (n = 0 to 15).
+12.1.1.5.1.2.1.1 Subsequence ± Transmit Format Unit Configuration for DIT-Transmission
+The procedure in Table 12-13 configures the transmit frame format unit of the MCASP module for a DIT-
+transmission.
+Note
+•
+The first transmit data bit always has a 0-bit delay.
+•
+The bitstream is always transmitted in least-significant-bit (LSB)-first order.
+•
+Pad value for extra bits in a certain slot is always 0.
+Table 12-13. Transmit Format Unit Configuration for DIT-Transmission
+Step
+Register/Bit Field/Programming Model
+Value
+Configure the slot size to 32 bits.
+MCASP_XFMT[7-4] XSSZ
+0xF
+IF: the data to transmit is left- aligned
+Software test condition
+Set data mask in the range
+0xFFFF FF00 ± 0xFFFF 0000.
+MCASP_XMASK[31-0] XMASK
+0x-(1)
+Rotate data right by a multiple-of-4- bit positions.
+MCASP_XFMT[2-0] XROT
+0x-(1)
+ELSE
+Set data mask in the range
+0x00FF FFFF± 0x0000 FFFF.
+MCASP_XMASK[31-0] XMASK
+0x-(1)
+Rotate data right by 0-bit positions.
+MCASP_XFMT[2-0] XROT
+0x0
+ENDIF
+=== Page 1077 ===
+Table 12-13. Transmit Format Unit Configuration for DIT-Transmission (continued)
+Step
+Register/Bit Field/Programming Model
+Value
+Select to write data to active serializers transmit
+buffers using peripheral (CFG) or DATA port
+MCASP_XFMT[3] XBUSEL
+0x-
+(1)
+Refer to Section 12.1.1.4.4.1, Transmit Fromat Unit and Section 12.1.1.4.4.1.2, DIT-Mode Transmission Data Alignment Settings.
+12.1.1.5.1.2.1.2 Subsequence ± Transmit Frame Synchronization Generator Configuration for DIT-Transmission
+The procedure in Table 12-14 configures the transmit frame synchronization generator of the MCASP module.
+Note
+The frame synchronization signal is always rising-edge active and always has a single-bit width.
+Table 12-14. Transmit Frame-Synchronization Generator Configuration for DIT-Transmission
+Step
+Register/Bit Field/Programming Model
+Value
+Select 384-slot size block.
+MCASP_AFSXCTL[15-7] XMOD
+0x180
+Select internally-generated transmit frame sync.
+MCASP_AFSXCTL[1] FSXM
+0x1
+12.1.1.5.1.2.1.3 Subsequence ± Transmit Clock Generator Configuration for DIT-Transmission
+Note
+By default, the ACLKX and AHCLKX clocks are generated only from the MCASP internal clock
+source.
+The procedure in Table 12-15 configures the transmit clock generator of the MCASP module.
+Table 12-15. Transmit Clock Generator Configuration in DIT-Mode
+Step
+Register/Bit Field/Programming Model
+Value
+Set the divisor for the internally generated high
+frequency clock± AHCLKX.
+MCASP_AHCLKXCTL[11-0] HCLKXDIV
+0x-
+Set he divisor for the internally generated transmission
+clock± ACLKX.
+MCASP_ACLKXCTL[4-0] CLKXDIV
+0x-
+Configure the transmit clock failure detect logic.
+See Section 12.1.1.4.15.6.1, Clock Failure Check
+Startup.
+12.1.1.5.1.2.1.4 Subsequence - MCASP Pins Functional Configuration
+The procedure in Table 12-16 configures the MCASP pins for MCASP functionality.
+Table 12-16. MCASP Pins Functional Configuration
+Step
+Register/Bit Field/Programming Model
+Value
+Configure module different pins to have MCASP
+functionality.
+MCASP_PFUNC[31-0]
+0x0
+Configure the MCASP pins as outputs:
+AFSX
+AHCLKX
+ACLKX
+Desired i-th MCASP data pin AXRi is configured as an
+output for DIT-transmission.
+MCASP_PDIR[28] AFSX;
+MCASP_PDIR[27] AHCLKX;
+MCASP_PDIR[26] ACLKX;
+MCASP_PDIR[i] AXRi
+0x1
+0x1
+0x1
+0x1
+12.1.1.5.1.2.1.5 Subsequence ± DIT-specific Subframe Fields Configuration
+The procedure in Table 12-17 configures the DIT-specific subframe fields as part of the S/PDIF format data.
+=== Page 1078 ===
+Table 12-17. DIT-Specific Subframe Fields Configuration
+Step
+Register/Bit Field/Programming Model
+Value
+Configure the valid bit value for odd time slots.
+MCASP_DITCTL[3] VB
+0x-
+Configure the valid bit value for even time slots.
+MCASP_DITCTL[2] VA
+0x-
+Configure the user data bit for each subframe A and B
+in a 384-slot S/PDIF block.
+MCASP_DITUDRAi[31-0] DITUDRAi, where i = 0 to 5
+MCASP_DITUDRBi[31-0] DITUDRBi, where i = 0 to 5
+0x-
+0x-
+Configure the channel status bit for each subframe A
+and B in a 384-slot S/PDIF block.
+MCASP_DITCSRAi[31-0], where i = 0 to 5
+MCASP_DITCSRBi[31-0], where i = 0 to 5
+0x-
+0x-
+12.1.1.5.1.2.2 Main Sequence ± MCASP Global Initialization for TDM-Reception
+The procedure in Table 12-18 initializes a MCASP serializer n receiver(s) to operate in TDM-mode (the only
+mode supported by MCASP receivers) after a power-on reset (POR). This is used for I2S (2-slot TDM) and other
+TDM-based audio protocols reception.
+CAUTION
+Before performing MCASP global initialization, If external clock ACLKR is used, it must be running
+already for proper synchronization of the MCASP_GBLCTL register.
+Note
+The MCASP receivers support only TDM-frames (including 384-TDM frames) reception. DIT-frames
+reception (this is, S/PDIF stream) can be implemented indirectly via an external DIR-chip converter
+with DIT-input and TDM (I2S)-compatible output connected to device MCASP receiver input (TDM-
+only compatible).
+Table 12-18. MCASP Receivers Global Initialization for TDM-Mode Operation
+Step
+Register/Bit Field/Programming Model
+Value
+1. Apply software reset to different MCASP receive
+components.
+MCASP_GBLCTL[4-0]
+0x00
+2. Poll the bits to ensure the active reset value (0x00)
+is successfully latched into the register.
+MCASP_GBLCTL[4-0]
+=0x00
+3. Configure the local power management.
+MCASP_PWRIDLESYSCONFIG[1-0] IDLE_MODE
+0x1
+4. Configure the receive format unit.
+See Section 12.1.1.5.1.2.2.1.
+5. Configure the receive frame sync generator.
+See Section 12.1.1.5.1.2.2.2.
+6. Configure the receive clock generator.
+See Section 12.1.1.5.1.2.2.3.
+7. Program all bits - RTDMSk (where k = 0 to
+31) according to the time slot characteristics desired
+(positions of active versus inactive slots within a
+frame).
+MCASP_RTDM[k] RTDMSk , where k = 0 to 31
+0x-
+8. Configure the desired n-th serializer for receive
+mode operation.(4)
+MCASP_SRCTLn [1-0] SRMOD; n = 0 to 15
+0x2
+9. Configure the MCASP pins functionality.
+See Section 12.1.1.5.1.2.2.4.
+10. Optional: Configure a MCASP Rx channel
+for a loopback operation (TDM mode only) in
+MCASP_DLBCTL [31-0].
+See Section 12.1.1.4.14.1, Loopback Mode
+Configurations.
+0x-(5)
+11. Release from reset state the divider that outputs
+the AHCLKR clock.(1)
+See also(2).
+MCASP_GBLCTL[1] RHCLKRST
+0x1
+12. Poll the bit to ensure that it is successfully latched
+in the register.
+See also(2).
+MCASP_GBLCTL[1] RHCLKRST
+=0x1
+=== Page 1079 ===
+Table 12-18. MCASP Receivers Global Initialization for TDM-Mode Operation (continued)
+Step
+Register/Bit Field/Programming Model
+Value
+13. Release from reset state the divider that outputs
+the ACLKR clock. (1)
+See also(3).
+MCASP_GBLCTL[0] RCLKRST
+0x1
+14. Poll the bit to ensure that it is successfully latched
+in the register.
+See also(3).
+MCASP_GBLCTL[0] RCLKRST
+=0x1
+(1)
+During reset state the local MCASP internal clock dividers maintain a 1:1 ratio at their outputs. The values stored in the
+MCASP_AHCLKRCTL and MCASP_ACLKRCTL registers are ignored; hence, the reception clock does not stop during the reset
+state of the dividers.
+(2)
+This step is necessary even if external high-frequency serial clocks are used.
+(3)
+This step can be skipped if external serial clocks are used and they are running.
+(4)
+For an unused serializer n, write MCASP_SRCTLn [1-0] SRMOD = 0x0 to disable it (n = 0 to 15).
+(5)
+In this case the receiver clock and frame sync are derived from the MCASP transmitter logic, so MCASP_ACLKXCTL[6] ASYNC must
+be set to 0b0. Neither MCASP internal receiver clock and frame sync generators, nor external clock and frame sync source are used.
+12.1.1.5.1.2.2.1 Subsequence ± Receive Format Unit Configuration in TDM Mode
+The procedure in Table 12-19 configures the receive frame format unit of the MCASP module for TDM slots
+reception.
+Table 12-19. Receive Format Unit Configuration for TDM-Reception
+Step
+Register/Bit Field/Programming Model
+Value
+Configure the desired TDM-slot size
+MCASP_RFMT[7-4] RSSZ
+0x-(1)
+Set data mask out value (0x0000 0000 - 0xFFFF FFFF).
+MCASP_RMASK[31-0] RMASK
+0x-(2)
+Select a padding value for masked-out bits.
+MCASP_RFMT[14-13] RPAD
+0x-
+Specify position (0x0-0x1F) of the bit in corresponding register
+MCASP_RBUFn which value to be used as a pad value in case
+MCASP_RFMT[14-13] RPAD = 0x2. (n = 0 to 15)
+MCASP_RFMT[12-8] RPBIT
+0x-
+Rotate data right by a multiple of 4- bit positions.
+MCASP_RFMT[2-0] RROT
+0x-(3)
+Received stream bit order (LSB- or MSB-first ). Must be set to
+0x1 for an I2S stream reception (MSB-first).
+MCASP_RFMT[15] RRVRS
+0x-(3)
+Specify a delay between frame sync and first bit of data in
+number of bits. Must be set to 0x1 for an I2S stream reception.
+MCASP_RFMT[17-16] RDATDLY
+0x-
+Select to read data from active serializers receive buffers using
+peripheral (CFG) or DATA port
+MCASP_RFMT[3] RBUSEL
+0x-
+(1)
+Refer to Section 12.1.1.4.4.2, Receive Format Unit, regarding options for received TDM-slot sizes.
+(2)
+For more details on Rx masking value, refer to Section 12.1.1.4.4.2.1, TDM - Mode Reception Data Alignment Settings
+(3)
+For more details on rotation and received TDM stream bit order, refer to Section 12.1.1.4.4.2.1, TDM - Mode Reception Data Alignment
+Settings and Table 12-6, MCASP RFU Settings.
+12.1.1.5.1.2.2.2 Subsequence ± Receive Frame Synchronization Generator Configuration in TDM Mode
+The procedure in Table 12-20 configures the transmit frame synchronization generator of the MCASP module.
+Note
+The same bit - MCASP_ACLKXCTL[6] ASYNC which is used to determine if MCASP receivers and
+transmitters work synchronously on the same clock, is also used to define if receiver frame sync is
+derived from the transmit frame sync generator, or generated independently in the receiver (either
+inernally or externally sourced). Hence, the settings in below table Table 12-20 have no effect, if
+MCASP_ACLKXCTL[6] ASYNC = 0.
+=== Page 1080 ===
+Table 12-20. Receive Frame-Synchronization Generator Configuration for TDM-Reception
+Step
+Register/Bit Field/Programming Model
+Value
+Select number of TDM slots per frame.
+Must be set to 0x2, in case of an I2S-reception.
+For more details on frame-sync generator, refer to
+Section 12.1.1.4.2.3.
+MCASP_AFSRCTL[15-7] RMOD
+0x-(1)
+Choose the receive frame sync width -single bit/single
+word.
+For more details on frame-sync generator, refer to
+Section 12.1.1.4.2.3.
+MCASP_AFSRCTL[4] FRWID
+0x-
+Select start of received frame sync polarity - rising /
+falling edge.
+For more details on frame-sync generator, refer to
+Section 12.1.1.4.2.3.
+MCASP_AFSRCTL[0] FSRP
+0x-
+IFreceive frame sync - FS is internally generated
+Software test condition
+Select internally- generated receive frame sync.
+For more details on frame-sync generator, refer to
+Section 12.1.1.4.2.3.
+MCASP_AFSRCTL[1] FSRM
+0b1
+If MCASP receiver is required to output internally
+generated frame, AFSR pin must be set as an
+output in step 9 of the sequence documented
+in the Table 12-18. This must not be done in
+current step because the frame control register -
+MCASP_AFSXCTL must be appropriately configured
+prior to AFSR pin outputting a frame to an external
+device.
+MCASP_PDIR[31] AFSR
+0b1
+ELSE
+Select externally- generated receive frame sync.
+For more details on frame-sync generator, refer to
+Section 12.1.1.4.2.3.
+MCASP_AFSRCTL[1] FSRM
+0b0
+Setup the AFSR pin as input (device level:
+MCASPi_AFSR)
+MCASP_PDIR[31] AFSR
+0b0
+ENDIF
+To generate MCASP receive frame sync in receiver
+logic, select an asynchronous frame sync.
+MCASP_ACLKXCTL[6] ASYNC
+0b1
+(1)
+Must be set to 0x180 in case of 384-TDM slot frame reception from a DIR component I2S-output. For more details on TDM-frame
+settings, refer to Module Integration.
+12.1.1.5.1.2.2.3 Subsequence ± Receive Clock Generator Configuration
+The procedure in Table 12-21 configures the receive clock generator of the MCASP module.
+Note
+The settings in below table Table 12-21 have no effect, if MCASP_ACLKXCTL[6] ASYNC = 0 (this is,
+receive clock is sourced from the inverted version of the transmit clock). For example, such is the case
+when MCASP loopback mode is used.
+Table 12-21. Receive Clock Generator Configuration
+Step
+Register/Bit Field/Programming Model
+Value
+To use the MCASP receive clock generator, select an
+asynchronous receiver clock schema (ASYNC = 1).
+Otherwise an inverted version of transmit clock XCLK
+is used (receiver synchronized with transmitter).
+MCASP_ACLKXCTL[6] ASYNC
+0b1
+IF receive clock - RCLK is internally generated
+Software test condition
+The high-speed receive clock - AHCLKR is internally
+generated based on AUXCLK
+Select an internally-generated high-frequency clock.
+MCASP_AHCLKXCTL[15] HCLKRM
+0b1
+=== Page 1081 ===
+Table 12-21. Receive Clock Generator Configuration (continued)
+Step
+Register/Bit Field/Programming Model
+Value
+Select the internal high-speed clock source polarity:
+non-inverted or inverted.
+MCASP_AHCLKXCTL[14] HCLKRP
+0x-
+Set the divisor for the internally generated high-
+frequency clock ± AHCLKR in range (1 - 4096).
+MCASP_AHCLKXCTL[11-0] HCLKRDIV
+0x-
+Select an internally-generated receive clock.
+MCASP_ACLKXCTL[5] CLKRM
+0b1
+Receiver samples on rising/falling edge. Select Rx
+sampling on the rising edge if transmitter shifts out on
+falling edge, and vice versa.
+MCASP_ACLKXCTL[7] CLKRP
+0x-
+Set the divisor for the internally generated receive
+clock± ACLKR in range (1 - 32).
+MCASP_ACLKXCTL[4-0] CLKRDIV
+0x-
+Optional: If MCASP receiver is required to output
+internally generated clock, ACLKR pin must be set
+as an output in step 9 of the sequence documented
+in the Table 12-18. This must not be done in
+current step because the clock control register -
+MCASP_ACLKRCTL must be appropriately configured
+prior to ACLKR pin outputting a receive clock to an
+external device.
+MCASP_PDIR[29] ACLKR
+0b1
+ELSE
+Select an externally-generated receive clock. Note that
+in this case the AHCLKR signal path and the CLKRDIV
+divider are NOT used.
+MCASP_ACLKXCTL[5] CLKRM
+0b0
+Receiver samples on rising/falling edge. Select Rx
+sampling on the rising edge if transmitter shifts out on
+falling edge, and vice versa.
+MCASP_ACLKXCTL[7] CLKRP
+0x-
+Setup an input direction for the ACLKR pin
+MCASP_PDIR[29] ACLKR
+0b0
+ENDIF
+Configure the transmit clock failure detect logic.
+See Section 12.1.1.4.15.6.1, Clock Failure Check
+Startup.
+12.1.1.5.1.2.2.4 Subsequence—MCASP Receiver Pins Functional Configuration
+The procedure in Table 12-22 configures the MCASP pins for MCASP functionality.
+Table 12-22. MCASP Receiver Pins Functional Configuration
+Step
+Register/Bit Field/Programming Model
+Value
+Configure module different pins to have MCASP
+functionality.
+MCASP_PFUNC[31-0]
+0x0
+Configure the MCASP pins direction:
+AFSR
+ACLKR
+Desired n-th MCASP data pin AXRn is configured as
+an input for receiving.
+MCASP_PDIR[31] AFSR;
+MCASP_PDIR[29] ACLKR;
+MCASP_PDIR[n] AXRn;
+0x-(1)
+0x-(2)
+0x0
+(1)
+See Table 12-20.
+(2)
+For more details on MCASP clock configurations, refer to Table 12-21.
+12.1.1.5.1.2.3 Main Sequence ± MCASP Global Initialization for TDM -Transmission
+The procedure in Table 12-23 initializes a MCASP serializer n transmitter(s) to operate in TDM-mode after a
+power-on reset (POR). This is used for I2S (2-slot TDM) and other TDM-based audio protocols transmission.
+CAUTION
+Before performing MCASP global initialization, If external clock ACLKR is used, it must be running
+already for proper synchronization of the MCASP_GBLCTL register.
+=== Page 1082 ===
+Table 12-23. MCASP Transmitters Global Initialization for TDM-Mode Operation
+Step
+Register/Bit Field/Programming Model
+Value
+1. Apply software reset to different MCASP transmit
+components.
+MCASP_GBLCTL[12-8]
+0x00
+2. Poll the bits to ensure the active reset value (0x00)
+is successfully latched into the register.
+MCASP_GBLCTL[12-8]
+=0x00
+3. Configure the local power management.
+MCASP_PWRIDLESYSCONFIG[1-0] IDLE_MODE
+0x1
+4. Configure the transmit format unit.
+See Section 12.1.1.5.1.2.3.1.
+5. Configure the transmit frame sync generator.
+See Section 12.1.1.5.1.2.3.2.
+6. Configure the transmit clock generator.
+See Section 12.1.1.5.1.2.3.3.
+7. Program all bits - XTDMSk, where k = 0 to
+31, according to the time slot characteristics desired
+(positions of active versus inactive slots within a
+frame).
+MCASP_XTDM[k] XTDMSk, where k = 0 to 31(4)
+0x-
+8. Configure the desired n-th serializer for transmit
+mode operation.(3)
+MCASP_SRCTLn[1-0] SRMOD; n = 0 to 15
+0x1
+9. Setup all active transmitters to operate in TDM
+mode.
+MCASP_DITCTL[0] DITEN
+0x0(2)
+10. Configure the MCASP pins functionality.
+See Section 12.1.1.5.1.2.3.4.
+11. Optional: Configure a MCASP Tx channel
+for loopback operation (TDM mode only) in
+MCASP_DLBCTL [31-0].
+See Section 12.1.1.4.14.1, Loopback Mode
+Configurations.
+0x-
+12. Release from reset state the divider that outputs
+the AHCLKR clock. See(1)
+MCASP_GBLCTL[9] XHCLKRST
+0x1
+13. Poll the bit to ensure that it is successfully latched
+in the register.
+MCASP_GBLCTL[9] XHCLKRST
+=0x1
+14. Release from reset state the divider that outputs
+the ACLKR clock. See(1)
+MCASP_GBLCTL[8] XCLKRST
+0x1
+15. Poll the bit to ensure that it is successfully latched
+in the register.
+MCASP_GBLCTL[8] XCLKRST
+=0x1
+(1)
+During reset state the local MCASP internal clock dividers maintain a 1:1 ratio at their outputs. The values stored in the
+MCASP_AHCLKXCTL and MCASP_ACLKXCTL registers are ignored; hence, the transmission clock does not stop during the reset
+state of the dividers.
+(2)
+All active transmit channels operate either in TDM mode or in DIT mode depending on DITEN value. There is no option to choose Tx
+Mode between DIT and TDM separately per serializer transmitter.
+(3)
+For an unused serializer n, write MCASP_SRCTLn [1-0] SRMOD = 0x0 to disable it (n = 0 to 15).
+(4)
+Appropriately program in the MCASP_SRCTLn[3-2] DISMOD bit field, the desired level (high-impedance state, 0, or 1) at AXRn output,
+during time of inactive slots. Note, that this setting does NOT apply when all slots are programmed to be active within a frame (in
+particular DIT-mode) (n = 0 to 15).
+12.1.1.5.1.2.3.1 Subsequence ± Transmit Format Unit Configuration in TDM Mode
+The procedure in Table 12-24 configures the transmit frame format unit of the MCASP module for TDM slots
+transmission.
+Table 12-24. Transmit Format Unit Configuration for TDM-Transmission
+Step
+Register/Bit Field/Programming
+Model
+Value
+Configure the desired TDM-slot size
+MCASP_XFMT[7-4] XSSZ
+0x-(1)
+Set data mask out value (0x0000 0000 - 0xFFFF FFFF).
+MCASP_XMASK[31-0] XMASK
+0x-(2)
+Select a padding value for masked-out bits.
+MCASP_XFMT[14-13] XPAD
+0x-
+Specify position (0x0-0x1F) of the bit in corresponding register
+MCASP_XBUFn which value to be used as a pad value in case
+MCASP_XFMT[14-13] XPAD = 0x2 (n = 0 to 15).
+MCASP_XFMT[12-8] XPBIT
+0x-
+Rotate data right by a multiple of 4- bit positions.
+MCASP_XFMT[2-0] XROT
+0x-(3)
+transmitted stream bit order (LSB- or MSB-first). Must be set to 0x1
+for an I2S stream transmission (MSB-first).
+MCASP_XFMT[15] XRVRS
+0x-(3)
+=== Page 1083 ===
+Table 12-24. Transmit Format Unit Configuration for TDM-Transmission (continued)
+Step
+Register/Bit Field/Programming
+Model
+Value
+Specify a delay between frame sync and first bit of data in number of
+bits. Must be set to 0x1 for an I2S stream transmission.
+MCASP_XFMT[17-16] XDATDLY
+0x-
+Select to write data to active serializers transmit buffers using
+peripheral (CFG) or DATA port
+MCASP_XFMT[3] XBUSEL
+0x-
+(1)
+Refer to Section 12.1.1.4.4.1, Transmit Format Unit , regarding options for transmitted TDM-slot sizes.
+(2)
+For more details on Tx masking value, refer to Section 12.1.1.4.4.1.1, TDM - Mode Transmission Data Alignment Settings
+(3)
+For more details on rotation and transmitd TDM stream bit order, refer to Section 12.1.1.4.4.1.1, TDM - Mode Transmission Data
+Alignment Settings and Table 12-4, MCASP TFU TDM Mode Settings.
+12.1.1.5.1.2.3.2 Subsequence ± Transmit Frame Synchronization Generator Configuration in TDM Mode
+The procedure in Table 12-25 configures the transmit frame synchronization generator of the MCASP module.
+Table 12-25. Transmit Frame-Synchronization Generator Configuration for TDM-Transmission
+Step
+Register/Bit Field/Programming Model
+Value
+Select number of TDM slots per frame (2 - 32).
+Must be set to 0x2, in case of an I2S-transmission.
+For more details on frame-sync generator, refer to
+Section 12.1.1.4.2.3, Frame-Sync Generator.
+MCASP_AFSXCTL[15-7] XMOD
+0x-
+Choose the transmit frame sync width -single bit/single
+word.
+For more details on frame-sync generator, refer to
+Section 12.1.1.4.2.3, Frame-Sync Generator.
+MCASP_AFSXCTL[4] FXWID
+0x-
+Select start of transmit frame sync polarity - rising /
+falling edge.
+For more details on frame-sync generator, refer to
+Section 12.1.1.4.2.3, Frame-Sync Generator.
+MCASP_AFSXCTL[0] FSXP
+0x-
+IF transmit frame sync - FS is internally generated
+Software test condition
+Select internally- generated transmit frame sync.
+For more details on frame-sync generator, refer to
+Section 12.1.1.4.2.3, Frame-Sync Generator.
+MCASP_AFSXCTL[1] FSXM
+0b1
+If MCASP transmitter is required to output internally
+generated frame, AFSX pin must be set as an
+output in step 10 of the sequence documented
+in the Table 12-23. This must NOT be done in
+current step because the frame control register -
+MCASP_AFSXCTL must be appropriately configured
+prior to AFSX pin outputting a frame sync to an
+external device.
+MCASP_PDIR[28] AFSX
+0b1
+ELSE
+Select externally- generated transmit frame sync.
+For more details on frame-sync generator, refer to
+Section 12.1.1.4.2.3, Frame-Sync Generator.
+MCASP_AFSXCTL[1] FSXM
+0b0
+Setup the AFSX pin as input
+MCASP_PDIR[28] AFSX
+0b0
+12.1.1.5.1.2.3.3 Subsequence ± Transmit Clock Generator Configuration for TDM Cases
+The procedure in Table 12-26 configures the transmit clock generator of the MCASP module.
+Table 12-26. Transmit Clock Generator Configuration for TDM Cases
+Step
+Register/Bit Field/Programming Model
+Value
+IF transmit clock - XCLK is internally generated
+Software test condition
+IF high-speed transmit clock - AHCLKX is internally
+generated based on AUXCLK
+Software test condition
+Select an internally-generated high-frequency clock.
+MCASP_AHCLKXCTL[15] HCLKXM
+0b1
+=== Page 1084 ===
+Table 12-26. Transmit Clock Generator Configuration for TDM Cases (continued)
+Step
+Register/Bit Field/Programming Model
+Value
+Select the high-frequency clock source polarity: non-
+inverted or inverted.
+MCASP_AHCLKXCTL[14] HCLKXP
+0x-
+Set the divisor for the internally generated high-
+frequency clock ± AHCLKX in range (1 - 4096).
+MCASP_AHCLKXCTL[11-0] HCLKXDIV
+0x-
+Optional: If MCASP transmitter is required to output
+internally generated high-frequency clock, AHCLKX
+pin must be set as an output in step 10 of the
+sequence documented in the Table 12-23. This must
+NOT be done in current step because the clock control
+register - MCASP_AHCLKXCTL must be appropriately
+configured prior to AHCLKX pin outputting a high-
+speed clock to an external device.
+MCASP_PDIR[27] AHCLKX
+0b1
+ELSE
+Select an externally-generated high frequency clock
+(HCLKXDIV divider can not be used).
+MCASP_AHCLKXCTL[15] HCLKXM
+0b0
+Select the high-speed transmit clock source polarity:
+non-inverted or inverted.
+MCASP_AHCLKXCTL[14] HCLKXP
+0x-
+Setup an input directon for the AHCLKX pin
+MCASP_PDIR[27] AHCLKX
+0b0
+ENDIF
+Select an internally-generated transmit clock.
+MCASP_ACLKXCTL[5] CLKXM
+0b1
+Transmitter samples on rising/falling edge. Select Tx
+shifting out data on the rising edge if receiver samples
+on falling edge, and vice versa.
+MCASP_ACLKXCTL[7] CLKXP
+0x-
+Set the divisor for the internally generated transmit
+clock± ACLKX in range (1 - 32).
+MCASP_ACLKXCTL[4-0] CLKXDIV
+0x-
+Optional: If MCASP transmitter is required to output
+internally generated clock, ACLKX pin) must be set
+as an output in step 10 of the sequence documented
+in the Table 12-23. This must NOT be done in
+current step because the clock control register -
+MCASP_ACLKXCTL must be appropriately configured
+prior to ACLKX pin outputting a transmit clock to an
+external device.
+MCASP_PDIR[26] ACLKX
+0b1
+ELSE
+Select an externally-generated transmit clock. Note
+that in this case the AHCLKX signal path and the
+CLKXDIV divider are NOT used.
+MCASP_ACLKXCTL[5] CLKXM
+0b0
+Transmitter samples on rising/falling edge. Select Tx
+shifting out data on the rising edge if receiver samples
+on falling edge, and vice versa.
+MCASP_ACLKXCTL[7] CLKXP
+0x-
+Setup an input directon for the ACLKX pin
+MCASP_PDIR[26] ACLKX
+0b0
+ENDIF
+Configure the transmit clock failure detect logic.
+See Section 12.1.1.4.15.6.1, Clock Failure Check
+Startup.
+12.1.1.5.1.2.3.4 Subsequence—MCASP Transmit Pins Functional Configuration
+The procedure in Table 12-27 configures the MCASP pins for MCASP functionality.
+Table 12-27. MCASP Transmit Pins Functional Configuration
+Step
+Register/Bit Field/Programming Model
+Value
+Configure module different pins to have MCASP
+functionality.
+MCASP_PFUNC[31-0]
+0x0
+=== Page 1085 ===
+Table 12-27. MCASP Transmit Pins Functional Configuration (continued)
+Step
+Register/Bit Field/Programming Model
+Value
+Configure the MCASP pins direction:
+AFSX
+AHCLKX
+ACLKX
+Desired n-th MCASP data pin AXRn is configured as
+an ouput for transmission.
+MCASP_PDIR[28] AFSR;
+MCASP_PDIR[27] AHCLKR;
+MCASP_PDIR[26] ACLKR;
+MCASP_PDIR[n] AXRn
+0x-(1)
+0x-(2)
+0x-(2)
+0x1
+(1)
+See Table 12-25.
+12.1.1.5.2 MCASP Operational Modes Configuration
+12.1.1.5.2.1 MCASP Transmission Modes
+12.1.1.5.2.1.1 Main Sequence ± MCASP DIT- /TDM- Polling Transmission Method
+Figure 12-27 shows the MCASP DIT-/TDM- polling method.
+Start
+Clear the transmitter status logic
+MCASP_XSTAT[8-0]  = 0xFF
+Release transmit state-machine(TSM)
+from RESET
+MCASP_GBLCTL[11] XSMRST = 0b1
+Flush transmitters buffers to an empty state
+MCASP_XGBLCTL[10] XSRCLR = 0b1
+Write the active  transmitters buffers
+MCASP_TXBUFn [31-0] XBUFn = 0x
+Is TSM
+released from reset
+MCASP_GBLCTL[11]
+XSMRST = 0b1?
+No
+Release frame sync generator
+from RESET
+MCASP_GBLCTL[12] XFRST = 0b1
+Yes
+Is frame sync
+generator active
+MCASP_GBLCTL[12]
+XFRST = 0b1?
+Yes
+A
+Is there a transmitter
+buffer empty event
+MCASP_XSTAT[5]
+XDATA = 0x1?
+No
+No
+Yes
+Error handling
+End
+Is serializer active
+MCASP_
+[10]
+XSRCLR = 0b1?
+XGBLCTL
+Yes
+A
+B
+B
+Disable DMA requests generation
+MCASP_XEVTCTL[0] XDATDMA = 0x1
+Yes
+Clear the XLAST bit
+MCASP_XSTAT[4]
+XLAST = 0b1
+Advance CPU data pointer
+to first active slot word
+of the next frame in
+memory
+mcasp-026
+Write in  MCASP_TXBUFn [31-0]
+last  (active only)  slot  data
+for transmitting
+serializers n
+for which
+MCASP_SRCTLn [4]
+XRDY = 0b1
+No
+Is transmit slot 0 - active
+in polling mode, i.e.
+Is MCASP_XSTAT[5]
+XDATA set to 0b1
+No
+Yes
+Yes
+MCASP_XTDM[0] XTDMS0
+= 0b1 ?
+software
+time-out ?
+No
+No
+software
+time-out
+Yes
+C
+C
+Is  external (ACLKX) /
+internal (AUXCLK)
+functional clock
+present ?
+Apply software reset via
+MCASP_GBLCTL[12-8]=0x0 and
+reinitialize MCASP
+Yes
+Ensure func. clock
+is applied
+No
+software
+time-out ?
+No
+software
+time-out ?
+C
+No
+No
+Yes
+Yes
+Is that
+Tx request event :
+MCASP_XSTAT[4]
+XLAST=0b1 ?
+LAST slot
+No
+Is this
+scheduled
+to be sent
+by application
+LAST
+frame
+Yes
+No
+DIT mode (S/PDIF)
+operation
+Update:
+MCASP_DITUDRAi,
+MCASP_DITUDRBi,
+MCASP_DITCSRAi,
+MCASP_DITCSRBi
+for next DIT-frame
+if necessary
+Yes
+Yes
+Advance CPU data pointer
+to next  active slot
+word of the
+current frame in
+memory
+Write in MCASP_TXBUFn [31-0]
+active slot  data
+for transmitting
+serializers n
+for which
+MCASP_XRSRn [4]
+XRDY = 0b1
+No
+B
+Figure 12-27. MCASP DIT- /TDM- Transmission Polling Method
+=== Page 1086 ===
+These registers are for MCASP DIT-/TDM- transmission polling method: MCASP_XEVTCTL,
+MCASP_XSTAT, MCASP_GBLCTL, MCASP_XTDM, MCASP_XBUFn, MCASP_SRCTLn, MCASP_DITUDRAi,
+MCASP_DITUDRBi, MCASP_DITCSRAi, MCASP_DITCSRBi (n = 0 to 15 and i = 0 to 5).
+Table 12-28 summarizes the subprocess call for the DIT-/TDM- transmission polling mode.
+Table 12-28. Subprocess Call Summary for Main Sequence ± MCASP DIT-/TDM- Transmission Polling
+Method
+Subprocess Name
+Cross-Reference
+Error handling
+Figure 12-33
+12.1.1.5.2.1.2 Main Sequence ± MCASP DIT- /TDM - Interrupt Transmission Method
+Figure 12-28 shows the initial setup for interrupt-based transmission.
+=== Page 1087 ===
+Start
+Clear the transmitters status logic
+MCASP_XSTAT[8-0]  = 0xFF
+Release transmit state-machine(TSM)
+from RESET
+MCASP_GBLCTL[11] XSMRST = 0b1
+Flush transmitters buffers to an empty state
+MCASP_GBLCTL[10] XSRCLR = 0b1
+Is TSM
+released from reset
+MCASP_GBLCTL[11]
+XSMRST = 0b1?
+No
+Yes
+Are transmitters activated
+MCASP_GBLCTL[10]
+XSRCLR = 0b1?
+Yes
+A
+mcasp-027
+Verify that  the transmitters
+buffers are already written in ISR:
+MCASP_XSTAT[5]
+XDATA = 0b0 ?
+No
+Yes
+software
+time-out ?
+No
+No
+software
+time-out
+Yes
+B
+B
+Is  external (ACLKX) /
+internal (AUXCLK)
+functional clock
+present ?
+Apply software reset via
+MCASP_GBLCTL[12-8]=0x0 and
+reinitialize MCASP Tx config. regs
+Yes
+Ensure func. clock
+is applied
+No
+No
+Yes
+A
+Release frame sync generator
+from RESET
+MCASP_GBLCTL[12] XFRST = 0b1
+Is frame sync
+generator active
+MCASP_GBLCTL[12]
+XFRST = 0b1?
+Yes
+software
+time-out ?
+B
+No
+No
+Yes
+End
+Figure 12-28. Subsequence ± DIT-/TDM- Transmission Startup Procedure
+=== Page 1088 ===
+Table 12-29 shows the configuration of the MCASP using an interrupt method for DIT-/TDM- transmission.
+Table 12-29. MCASP DIT-/TDM- Interrupt Transmission Model
+Step
+Register/Bit Field/Programming Model
+Value
+Disable Tx DMA requests generation.
+MCASP_XEVTCTL[0] XDATDMA
+0x1
+Enable the data ready event transmit interrupt.
+MCASP_XINTCTL[5] XDATA
+0x1
+Optional: Enable the transmit error event interrupts.
+MCASP_XINTCTL[2] XCKFAIL
+MCASP_XINTCTL[1] XSYNCERR
+MCASP_XINTCTL[0] XUNDRN
+0x1
+0x1
+0x1
+Optional: Enable the start of frame interrupt.
+Optional: Enable the last slot data interrupt (useful for
+DIT user data/ channel status next S/PDIF frame info
+update).
+MCASP_XINTCTL[7] XSTAFRM
+MCASP_XINTCTL[4] XLAST
+0x1
+0x1
+IFwrite transfer is through the MCASP DATA port
+(MCASP_XFMT[3] XBUSEL is set to 0b0).
+Software test condition (setting is done in step4 of the
+MCASP Transmitters Global Initialization - see Table
+12-12)
+Enable the DATA port error based interrupt.
+MCASP_XINTCTL[3] XDMAERR
+0x1
+ELSE
+Disable the DATA port error based interrupt.
+MCASP_XINTCTL[3] XDMAERR
+0x0
+ENDIF
+DIT/TDM - Transmission Startup Procedure
+See Figure 12-28.
+These registers are for MCASP DIT-/TDM- transmission startup procedure: MCASP_GBLCTL, MCASP_XSTAT.
+12.1.1.5.2.1.3 Main Sequence ±MCASP DIT- /TDM - Mode DMA Transmission Method
+Table 12-30 shows the configuration of the Ļ using the DMA method for transmission. Possible interrupt error
+event servicing is also considered. shows the initial setup for DMA - based transmission.
+Note
+Because of the DATA port burst access capability with the DMA method, it is strongly recommended
+that DMA transfers are initiated through the MCASP DATA port.
+Table 12-30. MCASP DMA Transmission Model with Interrupt Events Servicing
+Step
+Register/Bit Field/Programming Model
+Value
+Recommended: Select DATA port to access the
+transmit buffers.
+MCASP_XFMT[3] XBUSEL
+0x0
+Enable the Tx DMA requests generation.
+MCASP_XEVTCTL[0] XDATDMA
+0x0
+Enable the Tx DMA error event, because of MCASP
+DATA port usage.
+MCASP_XINTCTL[3] XDMAERR
+0x1
+Optional: Enable the transmit error event interrupts.
+MCASP_XINTCTL[2] XCKFAIL
+MCASP_XINTCTL[1] XSYNCERR
+MCASP_XINTCTL[0] XUNDRN
+0x1
+0x1
+0x1
+Optional: Enable the start of frame interrupt.
+Optional: Enable the last slot data interrupt.
+MCASP_XINTCTL[7] XSTAFRM
+MCASP_XINTCTL[4] XLAST
+0x1
+0x1
+Disable the data ready event transmit interrupt, as
+DMA is used to service this request.
+MCASP_XINTCTL[5] XDATA
+0x0
+DMA startup transmission procedure. This procedure
+is identical than the one shown in Figure 12-28. The
+only difference is that DMA automatically services all
+the XINT events raised by the MCASP, and no CPU
+data processing intervention is required. The CPU is
+involved only in error handling shown in Figure 12-31.
+See Figure 12-28.
+=== Page 1089 ===
+12.1.1.5.2.2 MCASP Reception Modes
+12.1.1.5.2.2.1 Main Sequence ± MCASP Polling Reception Method
+Figure 12-29 shows the MCASP polling reception method.
+Note
+The MCASP polling reception model considers thedevice CPUs as the accessor of audio data from
+the MCASP receive buffers.
+Start
+Clear the receivers status logic
+MCASP_RSTAT[8-0]  = 0xFF
+Release receive  state-machine (RSM)
+from RESET
+MCASP_GBLCTL[3] RSMRST = 0b1
+Flush receivers  buffers to an empty state
+MCASP_GBLCTL[2] RSRCLR = 0b1
+Is RSM
+released from reset
+MCASP_GBLCTL[3]
+RSMRST = 0b1?
+No
+Release frame sync generator
+from RESET
+MCASP_GBLCTL[4] RFRST = 0b1
+Yes
+Is frame sync
+generator active
+MCASP_GBLCTL[4]
+RFRST = 0b1?
+Yes
+A
+Is there a receiver
+buffer full event
+MCASP_RSTAT[5]
+RDATA = 0x1?
+No
+No
+Yes
+Error handling
+End
+Are receivers activated
+MCASP_GBLCTL[2]
+RSRCLR = 0b1?
+Yes
+A
+B
+B
+Yes
+Clear the RLAST bit :
+MCASP_RSTAT[4]
+RLAST = 0b1
+Advance CPU data pointer
+to first active slot word
+of the next frame to be
+stored in memory
+mcasp-028
+Read the   MCASP_RXBUFn [31-0]
+last  (active only)  slot  data
+for receiving
+serializers n
+for which
+MCASP_SRCTLn[5]
+RRDY = 0b1
+software
+time-out ?
+No
+No
+software
+time-out
+Yes
+C
+C
+Is  external (ACLKR) /
+internal (AUXCLK)
+functional clock
+present ?
+Apply software reset via
+MCASP_GBLCTL[4-0]=0x0 and
+reinitialize MCASP Rx config. reg.
+Yes
+Ensure func. clock
+is applied
+No
+software
+time-out ?
+No
+software
+time-out ?
+C
+No
+No
+Yes
+Yes
+Is that
+Rx request event :
+MCASP_RSTAT[4]
+RLAST=0b1 ?
+LAST slot
+No
+Is this
+scheduled
+to be received
+by application
+LAST
+frame
+Yes
+No
+Yes
+Advance CPU data pointer
+to next  active slot
+word of the
+current frame to be
+stored in memory
+Read the MCASP_RXBUFn [31-0]
+active slot  data
+for receiving
+serializers n
+for which
+MCASP_SRCTLn[5]
+RRDY = 0b1
+B
+Figure 12-29. MCASP Polling Reception Method
+These registers are for MCASP reception polling method: MCASP_RSTAT, MCASP_XGBLCTL,
+MCASP_RBUFn, MCASP_SRCTLn (n = 0 to 15).
+=== Page 1090 ===
+Table 12-31 summarizes the subprocess call for the polling mode.
+Table 12-31. Subprocess Call Summary for Main Sequence ± MCASP Reception Polling Method
+Subprocess Name
+Cross-Reference
+Error handling
+Figure 12-34
+12.1.1.5.2.2.2 Main Sequence ± MCASP TDM - Interrupt Reception Method
+Figure 12-30 shows the initial setup for interrupt-based reception.
+=== Page 1091 ===
+Start
+Clear the receivers status logic
+MCASP_RSTAT[8-0]  = 0xFF
+Release receive state-machine(RSM)
+from RESET
+MCASP_GBLCTL[3] RSMRST = 0b1
+Flush Receiver buffers to an empty state
+MCASP_GBLCTL[2] RSRCLR = 0b1
+Is RSM
+released from reset
+MCASP_GBLCTL[3]
+RSMRST = 0b1?
+No
+Yes
+Are transmitters activated
+MCASP_GBLCTL[2]
+RSRCLR = 0b1?
+Yes
+A
+mcasp-032
+Verify that  the receiver
+buffers are already read in ISR:
+MCASP_RSTAT[5]
+RDATA = 0b0?
+No
+Yes
+software
+time-out ?
+No
+No
+software
+time-out
+Yes
+B
+B
+Is  external (ACLKR) /
+internal (AUXCLK)
+functional clock
+present ?
+Apply software reset via
+MCASP_GBLCTL[4-0]=0x0 and
+reinitialize MCASP Rx config. regs
+Yes
+Ensure func. clock
+is applied
+No
+No
+Yes
+A
+Release frame sync generator
+from RESET
+MCASP_GBLCTL[4] RFRST = 0b1
+Is frame sync
+generator active
+MCASP_GBLCTL[4]
+= 0b1?
+RFRST
+Yes
+software
+time-out ?
+B
+No
+No
+Yes
+End
+Figure 12-30. Subsequence ± TDM - Reception Startup Procedure
+=== Page 1092 ===
+Table 12-32 shows the configuration of the MCASP using an interrupt method for TDM- reception.
+Table 12-32. MCASP TDM- Interrupt Reception Model
+Step
+Register/Bit Field/Programming Model
+Value
+Disable Rx DMA requests generation.
+MCASP_PIDTCTL[0] RDATDMA
+0x1
+Enable the data ready event receive interrupt.
+MCASP_RINTCTL[5] RDATA
+0x1
+Optional: Enable the receive error event interrupts.
+MCASP_RINTCTL[2] RCKFAIL
+MCASP_RINTCTL[1] RSYNCERR
+MCASP_RINTCTL[0] ROVRN
+0x1
+0x1
+0x1
+Optional: Enable the start of frame interrupt.
+Optional: Enable the last slot data interrupt
+MCASP_RINTCTL[7] RSTAFRM
+MCASP_RINTCTL[4] RLAST
+0x1
+0x1
+IF read transfer is through the MCASP DATA port
+(MCASP_RFMT[3] RBUSEL is set to 0b0).
+Software test condition (setting is done in step4 of the
+MCASP Receivers Global Initialization for TDM-Mode
+Operation - see Table 12-18 )
+Enable the DATA port error based interrupt.
+MCASP_RINTCTL[3] RDMAERR
+0x1
+ELSE
+Disable the DATA port error based interrupt.
+MCASP_RINTCTL[3] RDMAERR
+0x0
+ENDIF
+TDM - Transmission Startup Procedure
+See Figure 12-30.
+These registers are for MCASP TDM- interrupt reception model: MCASP_XGBLCTL, MCASP_RSTAT.
+12.1.1.5.2.2.3 Main Sequence ± MCASP TDM - Mode DMA Reception Method
+Table 12-33 shows the configuration of the MCASP using the DMA method for reception. Possible interrupt error
+event servicing is also considered. shows the initial setup for DMA - based transmission.
+Note
+Because of the DATA port burst access capability with the DMA method, it is strongly recommended
+that DMA transfers are initiated through the MCASP DATA port.
+Table 12-33. MCASP DMA Reception Model with Interrupt Events Servicing
+Step
+Register/Bit Field/Programming Model
+Value
+Recommended: Select DATA port to access the
+transmit buffers.
+MCASP_RFMT[3] RBUSEL
+0x0
+Enable the Rx DMA requests generation.
+MCASP_PIDTCTL[0] RDATDMA
+0x0
+Enable the Rx DMA error event, because of MCASP
+DATA port usage.
+MCASP_RINTCTL[3] RDMAERR
+0x1
+Optional: Enable the receive error event interrupts.
+MCASP_RINTCTL[2] RCKFAIL
+MCASP_RINTCTL[1] RSYNCERR
+MCASP_RINTCTL[0] ROVRN
+0x1
+0x1
+0x1
+Optional: Enable the start of frame interrupt.
+Optional: Enable the last slot data interrupt.
+MCASP_RINTCTL[7] RSTAFRM
+MCASP_RINTCTL[4] RLAST
+0x1
+0x1
+Disable the data ready event receive interrupt, as DMA
+is used to service this request.
+MCASP_RINTCTL[5] RDATA
+0x0
+DMA startup reception procedure. This procedure is
+identical than the one shown in Figure 12-30. The
+only difference is that DMA automatically services all
+the RINT events raised by the MCASP, and no CPU
+data processing intervention is required. The CPU is
+involved only in error handling shown in Figure 12-32.
+See Figure 12-30.
+=== Page 1093 ===
+12.1.1.5.2.3 MCASP Event Servicing
+12.1.1.5.2.3.1 MCASP DIT-/TDM- Transmit Interrupt Events Servicing
+Figure 12-31 shows the flow of DIT-/TDM- mode transmit interrupt events servicing for the MCASP module.
+Start
+Write active slot data
+for transmit
+channels
+subsequently
+using  only
+MCASP_TXBUF0
+DATA port
+physical address
+Yes
+Tx error handling
+No
+Is there empty  buffers
+MCASP_XSTAT[5]
+XDATA = 0x1?
+Yes
+Is that
+the last data in frame
+MCASP_XSTAT[4]
+XLAST = 0x1?
+Yes
+No
+Clear the last slot
+status flag:
+MCASP_XSTAT[4]
+XLAST = 0x1
+End
+Start of frame
+event and
+odd / even
+slot processing
+No
+Is there
+an error condition
+MCASP_XSTAT[8]
+XERR = 0x1?
+mcasp-029
+Is CPU transfer through
+the DATA port :
+MCASP_XFMT[3]
+XBUSEL=0b0 ?
+Explicitly write
+active slot data to different
+Tx buffers
+CFG port addresses:
+MCASP_TXBUFn = 0x-
+(n=0 to 3)
+Set a global flag
+LAST_SLOT_WRITTEN=0b1
+to notify about
+LAST slot event
+( analyzed and
+in main routine)
+re-initialized to 0b0
+Yes
+No
+Figure 12-31. MCASP Transmit Interrupt Events Servicing
+=== Page 1094 ===
+12.1.1.5.2.3.2 MCASP TDM- Receive Interrupt Events Servicing
+Figure 12-32 shows the flow of DIT-/TDM- mode transmit interrupt events servicing for the MCASP module.
+Start
+Read active slot data
+for receive
+channels
+subsequently
+using  only
+MCASP_RXBUF0
+DATA port
+physical address
+Yes
+Rx error handling
+No
+Is there empty  buffers
+MCASP_RSTAT[5]
+RDATA = 0x1?
+Yes
+Is that
+the last data in frame
+MCASP_RSTAT[4]
+RLAST = 0x1?
+Yes
+No
+Clear the last slot
+status flag:
+MCASP_RSTAT[4]
+RLAST = 0x1
+End
+Start of frame
+event and
+odd / even
+slot processing
+No
+Is there
+an error condition
+MCASP_RSTAT[8]
+RERR = 0x1?
+mcasp-033
+Is CPU transfer through
+the DATA port :
+MCASP_RFMT[3]
+RBUSEL=0b0 ?
+Explicitly read
+active slot data from
+different Rx buffers
+CFG port addresses:
+MCASP_RXBUFn = 0x-
+Set a global flag
+LAST_SLOT_READ=0b1
+to notify about
+LAST slot event
+( analyzed and
+in main routine)
+re-initialized to 0b0
+Yes
+No
+Figure 12-32. MCASP Receive Interrupt Events Servicing
+These registers are for MCASP receive interrupt events servicing: MCASP_RSTAT, MCASP_RBUFn,
+MCASP_RFMT (n = 0 to 15).
+=== Page 1095 ===
+Table 12-34 lists the subprocess call summary for receive interrupt events servicing.
+Table 12-34. Subprocess Call Summary for Receive Interrupt Events Servicing
+Subprocess Name
+Cross-Reference
+MCASP receive error handling
+Figure 12-34
+Start of frame handling
+Section 12.1.1.4.12.2, Receive Data Ready Event and Interrupt
+12.1.1.5.2.3.3 Subsequence ± MCASP DIT-/TDM -Modes Transmit Error Handling
+Figure 12-33 shows the transmit error handling schema for the MCASP, which can be implemented as part of the
+Tx interrupt service routine or as part of the Tx polling sequence.
+Start
+No
+Is a clock failure
+detected
+MCASP_XSTAT[2]
+XCKFAIL = 0x1?
+Yes
+End
+Is transmit
+underrun
+condition detected
+MCASP_XSTAT[0]
+XUNDRN = 0x1?
+Is DATA port
+Tx access  error
+detected
+MCASP_XSTAT[7]
+XDMAERR = 0x1?
+No
+Clear frame sync
+error flag, setting
+MCASP_XSTAT[1]
+XSYNCERR = 0x1
+Yes
+Clear clock failure flag,
+setting
+MCASP_XSTAT[2]
+XCKFAIL = 0x1
+Clear underrun error flag,
+setting
+MCASP_XSTAT[0]
+XUNDRN = 0x1
+Yes
+No
+Clear DATA port
+error flag, setting
+MCASP_XSTAT[7]
+XDMAERR = 0x1
+mcasp-030
+Perform Tx underrun
+error handling
+Perform unexpected
+Tx frame sync error
+handling
+Perform Tx clock
+failure handling
+Perform
+Tx DATA port error
+handling
+Figure 12-33. MCASP Transmit Error Handling
+=== Page 1096 ===
+Note
+•
+For more information about transmit clock failure handling, see Section 12.1.1.4.15.6.2, Transmit
+Clock Failure Check and Recovery.
+•
+For more information about transmit buffer underrun handling, see Section 12.1.1.4.15.1, Buffer
+Underrun Error -Transmitter.
+•
+For more information about DATA port Tx error handling, see Section 12.1.1.4.15.3, DATA Port
+Error - Transmitter.
+•
+For more information about unexpected Tx frame sync error handling, see Section 12.1.1.4.15.5,
+Unexpected Frame Sync Error.
+12.1.1.5.2.3.4 Subsequence ± MCASP Receive Error Handling
+Figure 12-34 shows the receive error handling schema for the MCASP, which can ONLY be implemented as part
+of the Rx polling sequence.
+Start
+No
+Is a clock failure
+detected
+MCASP_RSTAT[2]
+RCKFAIL = 0x1?
+Yes
+End
+Is receive
+overrun
+condition detected
+MCASP_RSTAT[0]
+ROVRN = 0x1?
+Is DATA port
+Rx access  error
+detected
+MCASP_RSTAT[7]
+RDMAERR = 0x1?
+No
+Clear frame sync
+error flag, setting
+MCASP_RSTAT[1]
+RSYNCERR = 0x1
+Yes
+Clear clock failure flag,
+setting
+MCASP_RSTAT[2]
+RCKFAIL = 0x1
+Clear underrun error flag,
+setting
+MCASP_RSTAT[0]
+ROVRN = 0x1
+Yes
+No
+Clear DATA port
+error flag, setting
+MCASP_RSTAT[7]
+RDMAERR = 0x1
+mcasp-031
+Perform Rx overrun
+error handling
+Perform unexpected
+Rx frame sync error
+handling
+Perform Rx clock
+failure handling
+Perform
+Rx DATA port error
+handling
+Figure 12-34. MCASP Receive Error Handling
+This register is for MCASP receive error handling: MCASP_RSTAT.
+=== Page 1097 ===
+Note
+•
+For more information about receive clock failure handling, see Section 12.1.1.4.15.6.3, Receive
+Clock Failure Check and Recovery.
+•
+For more information about receive buffer overrun handling, see Section 12.1.1.4.15.2, Buffer
+Overrun Error - Receiver.
+•
+For more information about DATA port Rx error handling, see Section 12.1.1.4.15.4, DATA Port
+Error - Receiver.
+•
+For more information about unexpected Rx frame sync error handling, see Section 12.1.1.4.15.5,
+Unexpected Frame Sync Error.
+=== Page 1098 ===

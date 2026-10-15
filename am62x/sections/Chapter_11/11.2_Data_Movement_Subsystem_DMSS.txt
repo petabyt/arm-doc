@@ -1,0 +1,1335 @@
+11.2 Data Movement Subsystem (DMSS)
+This chapter describes the Data Movement Subsystem (DMSS) module in the device.
+=== Page 929 ===
+11.2.1 Data Movement Subsystem (DMSS)
+This chapter describes the features and functions of the Data Movement Subsystem (DMSS) hardware modules
+in the device.
+11.2.1.1 DMSS Overview
+The DMSS module on AM62x provides data movement (DMA) and bridges between the CBA switched
+interconnect and the packet streaming fabric (network on chip) on the device.
+The Data Movement Subsystem (DMSS) consists of DMA/Queue Management components and Peripherals:
+• Packet DMA
+• Block Copy DMA
+• Ring Accelerator
+• Packet Streaming Interface (PSILSS)
+• Infrastructure components such as CBASS, secure proxy, and an interrupt aggregator
+Figure 11-4. DMSS Top-Level Block Diagram
+=== Page 930 ===
+Table 11-61. DMSS Allocation Within Device Domains
+Module Instance
+Domain
+MCU
+MAIN
+DMSS0
+-
+✓(DMSS)
+Note
+Some features may not be available. See Module Integration for more information.
+11.2.1.2 DMSS Functional Description
+See Section Chapter 11, DMSS Architecture, for the TI AM62x Data Movement Architecture (DMA) specification.
+See the following sections for the respective module description:
+•
+PKTDMA - Section 11.1.1.4
+•
+BCDMA - Section 11.1.1.5
+•
+Ring Accelerator - Section 11.1.1.1
+•
+Infrastructure Components:
+•
+CBASS - Chapter 3
+•
+Secure Proxy - Section 11.1.1.2
+•
+Interrupt Aggregator - Section 11.1.1.3
+11.2.1.3 DMSS Interrupt Configuration
+This section describes the actions needed to configure interrupts within the DMSS.
+Table 11-62. DMSS Parameters
+Parameter
+Value DMSS
+Description
+RA_RING_CNT
+20
+Number of total rings supported (specific to
+each ring accelerator)
+IA_SEVI
+1536
+Interrupt Aggregator Source Event Input
+(SEVI) count (specific to each interrupt
+aggregator)
+IS_VINTR
+184
+Interrupt Aggregator Virtual Interrupt (VINTR)
+count (specific to each interrupt aggregator)
+EO
+See Table 10-98, Global
+Event Map
+Event offset
+Table DMSS Software Variables lists software-configurable variables used in the examples and descriptions.
+Table 11-63. DMSS Software Variables
+Variable
+Valid Range
+Description
+R#
+0 ± RA_RING_CNT-1
+Ring number
+E#
+0 ± (destination module
+specific)
+Event number
+GE#
+= EO + E#
+Global event number
+SB#
+0 ± IA_SEVI-1
+Interrupt aggregator status bit number
+VI#
+0 ± IA_VINTR-1
+Virtual interrupt number
+=== Page 931 ===
+11.2.1.3.1 DMSS Event and Interrupt Flow
+Figure DMSS Interrupt Flow illustrates the event and interrupt flow within the DMSS and output interrupts to a
+CPU.
+Figure 11-5. DMSS Interrupt Flow
+11.2.1.3.1.1 DMSS Interrupt Description
+This section describes the interrupt-related information that flows within DMSS and how this information is
+configured or generated.
+1.
+Ring Number (R#)
+•
+Data is read from and written to a specific Ring Accelerator ring using direct ring-mode, or secure proxy
+access
+•
+The Ring Accelerator has specific ring number ranges for specific purposes. The R# must match the
+intended purpose of the ring (see Table 10-578, RINGACC Ring Mapping)
+2.
+Global Event and Event Numbers (GE# and E#)
+•
+GE# = EO + E#
+•
+EO determines the destination module for the event. The PSILSS will route the GE# to the destination
+module per the DMSS event mapping, removing EO in the process. The destination module sees only
+E#. See Global Event Map in Module Integration for details.
+•
+For the INTAGGR module, E# ranges from 0 to (IA_SEVI - 1)
+3.
+Virtual Interrupt (VI#)
+•
+The INTAGGR maps E# (via software configuration) to any SB#
+•
+ranges from 0 to (IA_SEVI - 1)
+•
+Each VI# (0 ± (IA_VINTR-1)) is driven by a group of 64 contiguous SB# numbers (VI# driven by SB#'s
+VI#×64 ± (VI#×64)+63)
+=== Page 932 ===
+11.2.2 Ring Accelerator (RINGACC)
+This chapter describes the RINGACC module, part of the DMSS.
+Note
+Not all of the RINGACC Functions specified in the document are supported in the device. Updates will
+be included in the next revision to reflect only supported modes of operation.
+11.2.2.1 RINGACC Overview
+The Ring Accelerator (RINGACC or RA) provides hardware acceleration to enable straightforward passing of
+work between a producer and a consumer.
+Table 11-64. RINGACC Allocation Within Device Domains
+Module Instance
+Domain
+MCU
+MAIN
+DMSS0_RINGACC0
+-
+✓(DMSS)
+Figure 11-6. RINGACC Overview
+11.2.2.1.1 RINGACC Features
+•
+Ring Accelerator implementation
+•
+Supports up to 32 independent memory mapped ring structure
+•
+Supports various modes for each ring based on usage and compatibility
+•
+Provides single word deep shared incoming Transfer Response FIFO
+•
+Optionally supports dynamic clock gating
+•
+Provides bit wide source VBUSM read/write target interface for accesses from DMA controller entities
+•
+Provides 2 word deep command FIFO
+•
+Provides 2 word deep write data FIFO
+=== Page 933 ===
+•
+Provides 2 word deep read data FIFO
+•
+Provides 2 word deep write status FIFO
+•
+Provides bit wide destination VBUSM read/write initiator interface for accesses to ring structures in
+memory
+•
+Supports up to 16 outstanding writes
+•
+Supports up to 16 outstanding reads
+•
+Provides 2 word deep command FIFO
+•
+Provides 2 word deep write data FIFO
+•
+Provides 2 word deep read data FIFO
+•
+Provides 2 word deep write status FIFO
+•
+Source interface provides an array of 32x512-byte long address windows (four for each ring) which are
+packed into a single contiguous address range.
+•
+Read and write addresses which target a specific window are mangled to redirect the read or write
+transaction to an effective address calculated from the base address for the ring plus current ring
+offset.
+•
+Each read or write access presented on VBUSM target interface is modified and bridged onto the
+VBUSM initiator interface.
+Note
+Some features may not be available. See Module Integration for more information.
+11.2.2.1.2 RINGACC Parameters
+Table RINGACC Configuration Parameters shows the RINGACC configuration parameters in this SoC
+Table 11-65. RINGACC Configuration Parameters
+Module Instance
+Parameters
+Ring Count
+Number of Monitors
+Proxy Target Base
+DMSS0_RINGACC0
+32
+0
+0x4e000000
+=== Page 934 ===
+11.2.2.2 RINGACC Functional Description
+The Ring Accelerator (RINGACC) converts constant-address read and write accesses to equivalent read or write
+accesses to a circular data structure in memory. The RINGACC eliminates the need for each DMA controller
+which needs to access ring elements from having to know the current state of the ring (base address, current
+offset). The DMA controller performs a read or write access to a specific address range (which maps to the
+source interface on the RINGACC) and the RINGACC replaces the address for the transaction with a new
+address which corresponds to the head or tail element of the ring (head for reads, tail for writes). Since the
+RINGACC maintains the state, multiple DMA controllers or channels are allowed to coherently share the same
+rings as applicable. The RINGACC serves a very similar function to the Queue Manager in the earlier SoCs. The
+RINGACC uses less memory and is able to place data which is destined towards software into cached memory
+directly.
+11.2.2.2.1 Block Diagram
+Figure Ring Accelerator Block-Diagram shows ring accelerator's main internal components.
+Figure 11-7. Ring Accelerator Block-Diagram
+11.2.2.2.1.1 Configuration Registers
+The Configuration Registers block is responsible for providing memory mapped registers for configuration of the
+RINGACC functions. The configuration registers are divided into:
+•
+Static configuration fields , which are typically initialized and then left at specified values for long time periods
+(or until a reset occurs)
+•
+Real-time (RT) registers , which are modified frequently during runtime. Configuration registers are listed and
+described in RINGACC Registers.
+=== Page 935 ===
+11.2.2.2.1.2 Source Command FIFO
+The Source Command FIFO buffers VBUSM command phases which are accepted from the VBUSM source
+interface.
+11.2.2.2.1.3 Source Write Data FIFO
+The Source Write Data FIFO buffers VBUSM write data phases which are accepted from the VBUSM source
+interface.
+11.2.2.2.1.4 Source Read Data FIFO
+The Source Read Data FIFO buffers VBUSM read data phases which have been returned from the VBUSM
+destination interface (via the main state machine) and which are to be output on the VBUSM source interface.
+11.2.2.2.1.5 Source Write Status FIFO
+The Source Write Status FIFO buffers VBUSM write status data phases which have been returned from the
+VBUSM destination interface and which are to be output on the VBUSM source interface.
+11.2.2.2.1.6 Main State Machine
+The Main State Machine (MSM) block implements all of the control logic which is necessary to accept a
+command from the source interface, perform a lookup into the ring state RAM, determine the effective address
+for the destination interface transaction, modify the address (and byte count for reads) for the transaction,
+and place that modified transaction into the outgoing destination FIFOs. The MSM block is also responsible
+for updating the ring index and occupancy values and for producing output status to indicate changes to the
+ring state. The MSM also modifies the ring state whenever the read data or write status for a previous ring
+transaction return and forwards those responses back to the originating initiator.
+11.2.2.2.1.7 Destination Command FIFO
+The Destination Command FIFO stores VBUSM transaction commands which are output from the MSM as
+modified versions of transactions that were popped from the Source Command FIFO. The Destination command
+FIFO allocates a new command ID for each read or write command that is pushed to the FIFO. Read IDs are
+allocated from a scoreboard maintained in the Destination Read Data FIFO. Write IDs are allocated from a
+scoreboard maintained in the Destination Write Status FIFO. When a new command is allocated, the Destination
+Command FIFO also pushes the original cid and crouteid values from the source side transaction into a
+scoreboard in either the Destination Read Data or Destination Write Status FIFOs depending on the applicable
+transaction direction. The read interface of the Destination Command FIFO directly drives commands onto the
+destination VBUSM command interface.
+11.2.2.2.1.8 Destination Write Data FIFO
+The Destination Write Data FIFO stores write data phases for write commands that are passing through the
+RINGACC towards memory. The write interface of the Destination Write Data FIFO is directly connected to
+the read interface of the Source Write Data FIFO and the read interface directly drives write data onto the
+destination VBUSM write data interface.
+11.2.2.2.1.9 Destination Read Data FIFO
+The Destination Read Data FIFO provides a read command translation scoreboard and also stores read data
+phases that are passing through the RINGACC towards the originating DMA controller. The write interface of the
+Destination Read Data FIFO is directly connected to the destination VBUSM read data interface. As read data
+passes through the Destination Read Data FIFO, the rid and rrouteid are changed back to their original values
+using information which was stored in read command translation scoreboard.
+11.2.2.2.1.10 Destination Write Status FIFO
+The Destination Write Status FIFO provides a write command translation scoreboard and also stores write status
+phases that are passing through the RINGACC towards the originating DMA controller. The write interface of the
+Destination Writes Status FIFO is directly connected to the destination VBUSM write status interface. As write
+=== Page 936 ===
+status words pass through the Destination Write Status FIFO, the sid and srouteid are changed back to their
+original values using information which was stored in the write command translation scoreboard.
+11.2.2.2.2 RINGACC Functional Operation
+11.2.2.2.2.1 Queue Modes
+Each ring or queue can be in one of four modes that determines how it must be accessed and the compatibility it
+has with hardware and software.
+11.2.2.2.2.1.1 Ring Mode
+Ring mode is used when software owns one side of the ring, and hardware or another software owns the
+other side. This mode allows the software that owns a side of the ring to control that side including accessing
+the memory directly rather than going through hardware, and software updates the hardware on any changes
+through the Doorbell registers. These doorbell accesses indicate when software has pushed or popped entries,
+allowing the entity on the other side of the ring to know when there are elements ready. The ring mode has
+limitations that the exposed side of the ring is completely under software control, and any atomicity needed must
+also be performed by software, which is why the exposed side of a ring is usually owned by a single thread of
+software. This limitation also means that any hardware configuration that would normally access the same ring
+for both pushes and pops cannot use ring mode as hardware cannot access the exposed side of the ring, such
+as free queues that are normally read by hardware but could also be pushed by hardware on an error.
+When software is popping from the ring, it must guarantee that it never pops more elements through the Doorbell
+register (RINGRT[a]_RT_DB) than what is valid in the Ring Occupancy (RINGRT[a]_RT_OCC) register, which
+holds how many elements are ready for software consumption. There could be some elements which have
+data written to memory but have not received status back from memory and those are not considered ready to
+pop yet as the ring status has not fully updated. Therefore, just reading from memory to determine the number
+of elements to pop is not sufficient. If software attempts to pop more than the RINGRT[a]_RT_OCC register
+value, then the occupancies could go negative resulting in missed down events and spurious interrupts. An
+optimization for software is to read the RINGRT[a]_RT_OCC register less frequently and keep a local copy
+which guarantees the maximum number of allowed pops. When the software copy of RINGRT[a]_RT_OCC
+reaches 0, or periodically, the software can read the register to refresh the value. This must reduce the
+frequency of register reads instead of reading the register for every software pop.
+11.2.2.2.2.1.2 Messaging Mode
+Messaging mode requires that all accesses to the queue must go through RINGACC so that all accesses to the
+memory are controlled and ordered. RINGACC then controls the entire state of the queue, and software has no
+directly control, such as through doorbells and cannot access the storage memory directly. This is particularly
+useful when more than one software or hardware entity can be the producer and/or consumer at the same time.
+Software must access the data through bus accesses to the RINGACC. As with the earlier example, if there are
+free queues that need the hardware to both push and pop, then they must be configured as at least messaging
+mode (or a later mode) and not ring mode.
+11.2.2.2.2.1.3 Credentials Mode
+Credentials mode adds per element credentials storage to messaging mode. This allows multiple producers with
+their own credentials to have those credentials stored with the element. This allows the consumer to inherit
+the credentials of each element rather than a single set for the entire queue, such as for DMA TR credential
+inheritance. This mode requires each operation to use two elements of storage since the credentials are stored
+in the second element, so the element count must be scaled appropriately. The credentials field is located in the
+same location as all modes, the word just before the first word of the message.
+11.2.2.2.2.1.4 Peek Support
+All modes except ring mode allow the peek operations so that software can view the next element without
+actually popping it from the queue. This is done by reading from a different offset from the normal pop operation.
+All the same fields are read but the element is not actually popped off of the queue. This is useful for algorithms
+=== Page 937 ===
+that need to know about the overall queue and head element to make decisions but have not yet decided to pop
+from the queue.
+11.2.2.2.2.1.5 Index Register Operation
+In ring mode, the Index (RINGRT[a]_RT_INDX) register follows the software control of the ring through
+the doorbell registers, while the hardware index (RINGRT[a]_RT_HWINDX) register follows the hardware
+access of the ring through bus transactions. It works for a ring in either direction as the doorbell register
+(RINGRT[a]_RT_DB) update indicates whether elements were produced or consumed. But in the other queue
+modes, there is no simple manner to determine which index is for software or hardware since they both use bus
+transactions which the module cannot differentiate. So for these other queue modes, the index register is always
+the read index, and the hardware index register is the write index.
+11.2.2.2.2.2 VBUSM Target Ring Operations
+Each ring contains four memory spaces on the VBUSM target bus for access, each of which is 512 bytes long,
+with a total of 4 kB per ring. Each ring space starts immediately after the preceding ring. The allocation per ring
+is as in Table 11-66.
+Table 11-66. Ring Memory Partition
+Offset
+Operation
+Supported Ring Modes
+0x0 - 0x1FF
+Reads pop from head. Writes push to head.
+Read supported in all modes, write supported
+in all modes except Ring mode
+0x200 - 0x3FF
+Writes push to tail. Reads pop from tail.
+Write supported in all modes, read supported
+in all modes except Ring mode
+0x400 - 0x5FF
+Reads peek from head. Writes ignored.
+All modes except for Ring mode.
+0x600 - 0x7FF
+Reads peek from tail. Writes ignored.
+All modes except for Ring mode.
+0x800 - 0xFFF
+Reserved
+Reserved
+Within each 512-byte (0x200) space, the message data is right justified so that the last byte is always the 511-th
+byte. The element size of the ring defines which words are valid. The word just before the first valid message
+word is the credentials field. Access must not be made before the credentials register (CRED[a]_CRED).
+11.2.2.2.2.3 VBUSM Initiator Interface Command ID Selection
+The RINGACC keeps a transaction command scoreboard for reads and writes. Each scoreboard tracks which
+command indexes are currently outstanding from the RINGACC and which are free to use. When a read or write
+is requested by the Main State Machine, the scoreboard corresponding to the specified direction (read/write) is
+queried starting at index 0 and extending up to the maximum index for that scoreboard. The lowest index that
+is found and which is not currently allocated is selected and is directly used as the command ID (cid) for the
+outgoing transaction on the destination interface. 15 is the maximum index value for each scoreboard. Entries
+are freed for re-use in a write scoreboard when write status responses are received which account for all of the
+outstanding write data. Entries are freed for re-use in the read scoreboard only when all data has been returned
+for the read.
+11.2.2.2.2.4 Ring Push Operation (VBUSM Write to Source Interface)
+The following sequence will occur for each VBUSM write which is sent to the source interface:
+1.
+RINGACC extracts ring number from incoming write transaction address
+2.
+RINGACC looks up ring state using ring number
+3.
+RINGACC calculates effective write address using ring base + ring_index
+4.
+RINGACC re-evaluates pending bit for ring
+5.
+RINGACC increments HW index and HW occupancy for ring
+6.
+RINGACC allocates cid from scoreboard and places original crouteid, cid, and ring number into scoreboard
+7.
+RINGACC pushes altered caddress, cid and unaltered remainder of command attributes to output FIFO
+(note routeid is not included)
+=== Page 938 ===
+At a later time when write status returns:
+1.
+RINGACC recovers original cid, crouteid, and ring number from scoreboard
+2.
+RINGACC increments SW index and occupancy for ring
+3.
+RINGACC pushes restored srouteid, sid, and unaltered write status to output write status FIFO
+11.2.2.2.2.5 Ring Pop Operation (VBUSM Read from Source Interface)
+The following sequence will occur for each VBUSM read which is sent to the source interface:
+1.
+RINGACC extracts ring number from incoming read transaction address
+2.
+RINGACC looks up ring state using ring number
+3.
+RINGACC calculates effective read address using ring base + ring_index
+4.
+RINGACC increments HW index and decrements HW occupancy for ring
+5.
+RINGACC re-evaluates pending bit for ring
+6.
+RINGACC munges cid to add indicator in 4 MSBs to reconstitute routeid for returning read data
+7.
+RINGACC pushes altered caddress, cid and unaltered remainder of command attributes to output FIFO
+(note routeid is not included)
+At a later time when read data returns:
+1.
+RINGACC recovers original cid, crouteid, and ring number from scoreboard
+2.
+RINGACC increments SW index and decrements SW occupancy for ring
+3.
+RINGACC pushes restored rrouteid, rid, and unaltered read data, status, and other control signals to output
+read FIFO
+11.2.2.2.2.6 Host Doorbell Access
+The following sequence will occur for each VBUSP write to the doorbell register (RINGRT[a]_RT_DB) for a ring:
+1.
+RINGACC extracts ring number from config address
+2.
+RINGACC looks up ring state using ring number
+3.
+RINGACC adds doorbell ring value to both HW and SW occupancies for ring
+4.
+RINGACC re-evaluates pending bit for ring
+11.2.2.2.2.7 Queue Push Operation (VBUSM Write to Source Interface)
+The following sequence will occur for each VBUSM write which is sent to the source interface:
+1.
+RINGACC extracts ring number from incoming write transaction address
+2.
+RINGACC looks up ring state using ring number
+3.
+RINGACC calculates effective write address using ring base + ring_index
+4.
+RINGACC re-evaluates pending bit for ring
+5.
+RINGACC increments WR index and RD and WR occupancy for ring
+6.
+RINGACC allocates cid from scoreboard and places original crouteid, cid, and ring number into scoreboard
+7.
+RINGACC pushes altered caddress, cid and unaltered remainder of command attributes to output FIFO
+(note routeid is not included)
+At a later time when write status returns:
+1.
+RINGACC recovers original cid, crouteid, and ring number from scoreboard
+2.
+RA pushes restored srouteid, sid, and unaltered write status to output write status FIFO
+11.2.2.2.2.8 Queue Pop Operation (VBUSM Read from Source Interface)
+The following sequence will occur for each VBUSM read which is sent to the source interface:
+•
+RINGACC extracts ring # from incoming read transaction address
+•
+RINGACC looks up ring state using ring number
+•
+RINGACC calculates effective read address using ring base + ring_index
+•
+RINGACC increments RD index and decrements RD and WR occupancy for ring
+•
+RINGACC re-evaluates pending bit for ring
+•
+RINGACC munges cid to add indicator in 4 MSBs to reconstitute routeid for returning read data
+=== Page 939 ===
+•
+RINGACC pushes altered caddress, cid and unaltered remainder of command attributes to output FIFO (note
+routeid is not included)
+1.
+At a later time when read data returns:
+•
+RINGACC recovers original cid, crouteid, and ring number from scoreboard
+•
+RINGACC pushes restored rrouteid, rid, and unaltered read data, status, and other control signals to output
+read FIFO
+11.2.2.2.2.9 Mismatched Element Size Handling
+When less data is written than defined by the element size for the ring for RING or MESSAGE modes, only the
+written data is stored in the memory and any remaining bytes maintain their old values. The index and occ are
+still incremented normally, and any special fields that are unwritten are assumed to be 0 (such as the length for
+QM mode rings).
+Writing less data for CREDENTIALS mode is illegal, as those types need the full data to append the additional
+words to the correct offsets in memory.
+When more data is written than defined by the element size for the ring, it will be an error and the write will
+be ignored and no index or occ increments occur. The only exception is for writes to an 8 byte element size
+ring, where the additional fields up to another 8 bytes are allowed but not written (for old Queue Manager
+compatibility).
+When less data is read than defined by the element size for the ring, only the read data is fetched from memory,
+and any remaining bytes are lost. The index and occ are still incremented normally.
+When more data is read than defined by the element size for the ring, it will be an error and the read will not
+affect the ring, the read data will be 0s, and no index or occ decrements occur. Access beyond the credentials
+word should not be attempted and can result in unpredictable behavior.
+All accesses must be for multiples of 32 bit words, and partial bytes are not supported for all ring modes.
+11.2.2.2.3 Events
+The module outputs events about queue levels that can be used by an external module for statistics or
+interrupts.
+Each queue has:
+•
+an up event when the queue goes from 0 elements to 1 or more elements
+•
+and a down event when the queue goes from 1 or more elements to 0 elements. The event number is
+programmable per queue in the RING[a]_EVT register. This event occurs when the state machine updates
+the final occupancy for the queue. In ring mode this is when the response from the memory access returns,
+while in other queue modes this is when the operation is processed.
+An event number programmed to 0xFFFF indicates to not produce an event for that ring when an event is not
+necessary. The register event number fields reset to 0xFFFF, so they must be programmed to a valid value
+before events will be generated. This applies to the monitor event number fields as well.
+11.2.2.2.4 Bus Error Handling
+If a bus error is detected on a response to a ring memory transaction, an error event is triggered to alert
+software. Since the ring contents may be corrupted as the push or pop was not completed correctly, software
+should consider resetting the ring and any software or hardware elements using the ring. A log register
+(RINGACC_ERROR_LOG) captures the ring that had the error and whether it was from a push or pop, and
+an error up event is sent to the programmed event number. After an error is logged, another will not be captured
+until the first is read out. When read, if an error is pending an error down event is sent to clear any interrupt,
+and then the next bus error log can be captured. A read of the RINGACC_ERROR_LOG register when there is
+no error log pending will not produce any down events. The event that is triggered is also programmable. Only
+=== Page 940 ===
+legal push and pop operations will capture this error, and not for any peek, emudbg read, flush command, or any
+operations that is illegal and causes the resulting memory access to be flushed.
+11.2.2.2.5 Monitors
+Monitors can be configured that allow various functions to be tracked of programmed queues. Each monitor
+is programmed to monitor a particular queue, the function to provide, and the data source to operate on. The
+supported functions are: to check the queue against programmed thresholds, to keep track of watermarks of the
+queue, to keep track of starvation occurrences (a read of an empty queue), or statistics capture. The supported
+data sources are: the queue element count, the head element size value, or the accumulated size value. Each
+monitor can also be programmed to produce an event should it have a triggering condition.
+11.2.2.2.5.1 Threshold Monitor
+A threshold monitor uses a programmed low threshold value and a programmed high threshold value to track the
+data source in the queue and cause an interrupt or status when a threshold is broken, either below the low value
+or above the high value. This is useful for software to replenish empty buffers when a queue has too few, or for a
+queue to accumulate enough elements so that software must start processing them, or for debug. The threshold
+being broken will cause the up or down event.
+11.2.2.2.5.2 Watermark Monitor
+A watermark monitor tracks the low and high values of the data source since the last read of the monitor. After
+initial setup or clearing, the watermark values will load the current value of the data source as the low and high.
+Then for successive operations if the resulting data source of the queue is below the low watermark, or above
+the high watermark, the associated watermark will be updated. When the monitor value registers are read, the
+value is cleared and starts tracking again using the current data source value. This can be useful for tracking
+low and high values of queue element counts or sizes for data tracking, debug or future optimizations, such as
+allocating items to a queue or buffer sizes based on counts.
+11.2.2.2.5.3 Starvation Monitor
+A starvation monitor tracks the number of starvation events (a read to an empty queue) that occurred on the
+queue. The data source is ignored, and the starvation count is always incremented whenever there is a read to
+the queue and the queue is empty. The count is cleared when the monitor value is read. This can be useful to
+trigger if any starvation event occurs, or to track how many of these events occur in a timeframe, and can be
+used for future optimizations or debug.
+11.2.2.2.5.4 Statistics Monitor
+The statistics monitor can track some simple statistics on the queue operations. The data source is ignored. The
+first value is the count of the number of writes to the queue, and the second value is the count of the number of
+reads from the queue. The counts are cleared when the monitor values are read. This can be useful to track the
+activity on a queue, and can be used for future optimizations or debug.
+11.2.2.2.5.5 Overflow
+RINGACC provides an overflow function where a push to a full ring will result in a push to a special overflow ring,
+rather than just losing the pushed data. The overflow ring is defined through RINGACC_OVERFLOW register,
+and that ring must be defined with a large enough element size to cover the element size of any other ring, as
+well as enough elements to hold enough overflow data (as an overflow to the overflow ring will be lost). When
+there is a push to a full ring, there will be two elements written to the overflow ring, first the push data, and then
+the ring number that was full. A supervisor entity can own the overflow ring and perform what actions are needed
+from the overflow data. The size of the overflow ring must be an even number since two elements will be pushed
+for each overflow event. The overflow ring must be configured in ring or message modes.
+An overflow queue value of 0xFFFF will disable the overflow function and will not record queue overflows.
+(SR2.0)
+=== Page 941 ===
+11.2.2.2.5.6 Ring Update Port
+To enhance performance for DMAs, the RINGACC provides a bus that indicates when ring updates occur,
+allowing the DMA to track their own rings and detect updates before the responses arrive. The bus will go valid
+whenever there is an update to the state of a ring, which can be from a push, pop, or doorbell write. It will not go
+valid for a peek, an emudbg pop, or a push to a full ring, as those do not update the ring state. When the bus is
+valid, the other signals are valid and indicate whether the operation was a push or a pop, whether the resulting
+state of the ring is empty, the ring number, and the number of elements updated to the ring (the push determines
+whether it is subtracted or added to the current count). One special case is a pop from an empty ring, which
+indicates an update but the element count is 0 since no items were actually popped, but a DMA using the cnt
+to add or subtract must handle this correctly by default. The bus will go valid once the operation command has
+been completed, and not after the response has been receivied, even for ring mode rings, allowing the DMA to
+see the update as soon as it is known by the RINGACC even before it is known to software.
+11.2.2.2.5.7 Tracing
+This module provides a trace output of all operations so that the traffic can be viewed at a later time. The trace
+uses a simple write-only 32-bit VBUSP bus, with a defined packet header. The msgtype field defines the type of
+operation, and the message data is simply the data involved in the operation. It is likely the trace output will be
+read slower than new operations could provide data, so there will be a trace buffer able to hold two complete
+messages plus trace headers. If a new operation starts while the trace buffer does not have enough space, then
+that trace message will not be sent. And RINGACC_TRACE_CTL register controls whether to enable the trace
+output, whether to trace a single queue or all queues, and whether to include the message data in the trace
+output.
+Table 11-67 shows the trace message for a push.
+Table 11-67. Trace Message for a Push
+Word
+Bits
+Data
+Comment
+1
+31:16
+0x0
+Time to be replaced by trace
+hardware
+1
+15:9
+0x1
+Msgtype for push
+1
+8:0
+0x009
+Standard Trace Header
+2
+31
+push_to_head
+Push to head flag, 0 = to tail, 1 =
+to head
+2
+30:16
+0x0
+Unused
+2
+15:0
+queue
+Queue for push
+3-N
+31:0
+message data
+Optional message data for push,
+length dependent on message
+size
+Table 11-68 shows the trace message for a pop.
+Table 11-68. Trace Message for a Pop
+Word
+Bits
+Data
+Comment
+1
+31:16
+0x0
+Time to be replaced by trace
+hardware
+1
+15:9
+0x2
+Msgtype for pop
+1
+8:0
+0x009
+Standard Trace Header
+2
+31
+empty
+empty pop, 0 = valid message, 1
+= empty
+2
+30:16
+0x0
+unused
+=== Page 942 ===
+Table 11-68. Trace Message for a Pop (continued)
+Word
+Bits
+Data
+Comment
+2
+15:0
+queue
+queue for pop
+3-N
+31:0
+message data
+Optional message Data for pop,
+length dependent on message
+size
+Table 11-69 shows the trace message for a peek
+Table 11-69. Trace Message for a Peek
+Word
+Bits
+Data
+Comment
+1
+31:16
+0x0
+Time to be replaced by trace
+hardware
+1
+15:9
+0x3
+Msgtype for peek
+1
+8:0
+0x009
+Standard Trace Header
+2
+31
+empty
+empty peek, 0 = valid message, 1
+= empty
+2
+30:16
+0x0
+unused
+2
+15:0
+queue
+queue for peek
+3-N
+31:0
+message data
+Optional message Data for peek,
+length dependent on message
+size
+=== Page 943 ===
+11.2.3 Secure Proxy (SEC_PROXY)
+This chapter describes the Secure Proxy (SEC_PROXY) module in the DMSS.
+11.2.3.1 Secure Proxy Overview
+The Secure Proxy module provides proxy buffers for hosts that need to create large data bursts but can only
+perform small accesses.
+11.2.3.1.1 Secure Proxy Features
+Secure Proxy supports the following features:
+•
+Provides proxy function to store large data bursts that a host can only access in smaller amounts
+•
+Supports a configurable number of threads, where each has their own independent proxy function
+•
+Keeps the large data burst coherent until the complete data has been accessed
+•
+Allows for interleaved access between multiple hosts or tasks using multiple proxy threads
+•
+Supports a configurable target resource. The target has a configurable number of channels, size of each
+channel and base address
+•
+Supports a programmable fixed queue for each proxy thread
+•
+Supports multiple producers all writing to the same queue
+•
+Supports a max message count for outbound proxy threads limiting the number of messages a thread can
+produce
+•
+Supports programmable thresholds for when to generate events
+•
+Optionally supports dynamic clock gating
+Table 11-70. Secure Proxy Allocation Within Device Domains
+Module Instance
+Domain
+MCU
+MAIN
+DMSS0_SEC_PROXY0
+-
+✓(DMSS)
+11.2.3.1.2 Secure Proxy Parameters
+Table Secure Proxy Configuration Parameters shows the Secure Proxy configuration parameters set during SoC
+design.
+Table 11-71. Secure Proxy Configuration Parameters
+Module Instance
+Parameters
+Proxies(1)
+Message Size(2)
+Target
+Channels(3)
+Sizes(4)
+DMSS0_SEC_PROX
+Y0
+76
+64
+DMSS0_RINGACC
+20
+4096
+(1)
+Number of proxy threads supported. Can be read off from the SEC_PROXY_CONFIG read-only register
+(2)
+Number of bytes for message. Can be read off from the SEC_PROXY_CONFIG read-only register
+(3)
+Number of channels for the target
+(4)
+Number of bytes per channel supported for the target
+Note
+Some features may not be available. See Module Integration for more information.
+=== Page 944 ===
+11.2.3.2 Secure Proxy Functional Description
+This module provides proxy functions for hosts that need to create large data bursts but can only perform small
+accesses. Examples of this need are:
+•
+large messages (for power control, security control, or IPC)
+•
+data descriptors that are more than a pointer
+•
+DMA Transfer Requests (TR)
+All of these require larger data sets, from 12 to 128 bytes, and the storage hardware requires the entire data on
+the bus in a single burst. Unfortunately, many CPUs cannot produce bursts to device memory, such as registers,
+and the largest CPU access is typically 8 bytes. So the proxy provides the ability to access the hardware with a
+single burst, and at the same time allows the CPU to access the same data in smaller accesses. The proxy itself
+does not contain the resources, but will front other hardware that do contain the resources. The proxy will access
+this other hardware with the entire data in a single burst, once the host has completed the data.
+Figure Secure Proxy Block Diagram describes Secure Proxy major building block
+Figure 11-8. Secure Proxy Block Diagram
+11.2.3.2.1 Targets
+11.2.3.2.1.1 Ring Accelerator
+The RINGACC provides four distinct offsets to use per ring/queue shown in Table RINGACC Offset per Ring/
+Queue, totaling 4 KB space per ring/queue.
+Secure Proxy always writes to tail, which is the offsets from 0x200 to 0x3FF. Secure Proxy always reads from
+the head, which is the offsets from 0x000 to 0x1FF. The latter two offsets in RINGACC are not used by this
+proxy. And if the proxy message size is less than 512 bytes, then it always accesses the upper bytes of those
+regions, so that the message always ends on the last byte of each region, byte 511.
+=== Page 945 ===
+Table 11-72. RINGACC Offsets per Ring/Queue
+Offset
+Operation
+0x0 - 0x1FF
+Reads pop from head. Writes push to head.
+0x200 - 0x3FF
+Writes push to tail. Reads pop from tail.
+0x400 - 0x5FF
+Reads peek from head. Writes ignored.
+0x600 - 0x7FF
+Reads peek from tail. Writes ignored.
+0x800 - 0xFFF
+Reserved.
+This means that target writes will use the following calculation:
+target base address + (queue × 4KB) + 0x400 - msg_size (17), and burst until offset 0x3FF.
+And target reads will use the following calculation:
+target base address + (queue × 4KB) + 0x200 - msg_size (18), and burst until offset 0x1FF.
+11.2.3.2.2 Buffers
+The proxy does not store all the buffers internally. It is programmed with a buffer base address
+(SEC_PROXY_BUFFER_L, SEC_PROXY_BUFFER_H), and all accesses to the buffer are made through the
+output VBUSM port using that base. The external buffer must be enough to store one msg_size per proxy
+thread. The proxy only includes a small temporary buffer to save one entire message when accessing the target.
+Otherwise all host accesses are made to the external buffer. This buffer storage must be considered private for
+the proxy hardware, so any other access can cause unpredictable results.
+11.2.3.2.3 Proxy Credits
+To support outbound proxy limits, the proxy will use internal credits for tracking resource usage.
+SEC_PROXY_THREAD[a]_CTL register sets the max credits each outbound proxy thread contains. When a
+proxy thread sends a message, the current credit count (SEC_PROXY_THREAD[a]_STATUS) decrements by 1.
+If the current credit count is 0, then the proxy thread is not allowed to send any more messages, and they just
+remain inside the proxy (so that the host can come back later when a credit has become available and quickly
+send the same message). When a message that was send by this proxy thread is read by an inbound proxy
+thread then the credit is returned to this proxy thread and the current credit count increments by 1.
+For inbound proxy threads, the credits are used to track pending messages. When an outbound proxy thread
+sends a message that is read by this proxy thread, then the current credit count of this proxy thread is
+incremented by 1. A current credit count that is non zero indicates a message is pending and can be read.
+When the proxy thread completes the read of a message the current credit count is decremented by 1. If the
+current credit count is zero, then the proxy thread will read an empty message where all the data is 0s. The
+credit count saturates at 255, so if there can be more messages in the system for that proxy thread than 255
+then multiple proxy threads should be used, or the count can become mismatched after a saturate.
+11.2.3.2.4 Proxy Private Word
+To support tracking of credits from each proxy thread, the proxy will extract the first word from the total message
+size for private tracking usage. This will include saving the proxy thread ID used within the proxy. This is
+necessary so that when a proxy reads a new message from the target it can inspect this word and return the
+credit to the source proxy thread. This allows the outbound proxy threads to have a set number of message
+credits, which decrement when a new message is written, and increment when a message from that proxy
+thread is read, thus keeping the credits in the system coherent. Any data written to this first word of the message
+will be ignored, so software should not write to the first word of messages through the proxy. Consumer software
+can use the first word to identify the source proxy thread of the message (SEC_PROXY_DATA_j).
+=== Page 946 ===
+11.2.3.2.5 Completion Byte
+The proxy completes a message when the completion byte is accessed. This completion byte is the final byte in
+the full size of the message. This byte can be written by any size access, whether byte, 32-bit, or 64-bit word.
+The write of a message is not complete until this final byte of the message is written, and only then will the
+message be sent to the target. The read of a message is not complete until this final byte of the message is read
+by the host, and only then will reading a new message be allowed. Even if the final byte of the message is not
+needed, it must be accessed to complete the message inside the proxy hardware.
+11.2.3.2.6 Proxy Thread Sizes
+There are a configurable number of proxy threads in the module. Each thread has its own address space to the
+module and determining which proxy thread is being accessed is simply based on the address bits above the
+final size of each proxy thread space. Since each proxy thread will be programmed to a single resource, the
+only space requirement is that for using 4 KB to match typically used MMU page sizes. Only the first N bytes,
+matching the target channel size, is usable.
+11.2.3.2.7 Proxy Thread Interleaving
+Each proxy thread must have a single owner, as each proxy thread only has a single buffer to work on the
+current data. If there are multiple owners in the system, they must each use their own proxy thread. Then they
+will have their own buffer and each can access a different resource at the same time. Each proxy thread is
+completely independent and kept coherent regardless of accesses to other proxy threads or regardless of the
+order of accesses. So the proxy support interleaving of multiple hosts' accesses.
+11.2.3.2.8 Proxy States
+Each proxy thread uses a simple state machine to track the currently usage by that host. This state machine is
+used to track when a proxy thread is in use or not, but also for error detection. The proxy thread always starts in
+idle state, when there is no currently activity. There is a write state for when the proxy thread has been written
+and contains data that has yet to be written to a resource. There is a read state for when the proxy thread has
+read data from a resource and that entire data has not been fully read by the host. When a proxy thread access
+completes, final write or final read, then the state will go back to idle. The following sections show the utilization
+of these states.
+11.2.3.2.9 Proxy Host Access
+A proxy thread begins in an idle state, where there is no data in the buffer. In this state the proxy thread will
+accept an access to the resource.
+11.2.3.2.10 Proxy Host Writes
+The first write to an idle proxy thread puts the proxy thread into write mode for the selected channel. Further
+legal writes are stored in the buffer for the enabled bytes and offset within the buffer. A write to a previously
+written location will overwrite the previous data. The buffer is not cleared initially, so if a byte is not written, the
+message will include previous buffer data. When there is a legal write to the last byte of the resource, then
+the entire data is written by the proxy to the target and channel as a single write burst. The proxy will wait for
+the write status from the target write before it sends the write status for this final byte host write. This allows
+the host to use the write status to guarantee the entire write data from the proxy has landed at the target. The
+proxy thread is then put back into idle state. A write completion when there are no credits available results in the
+message not being written to the resource and the proxy thread remains in write mode (so that the message can
+be quickly completed when a credit becomes available).
+11.2.3.2.11 Proxy Host Reads
+When in idle state, the first read to the proxy thread will put the proxy into read state, and the proxy will read
+the target and channel requested in a single burst of the target's channel size. When the data is returned it is
+stored in the buffer and the accessed part is returned to the host. Further legal reads are allowed and return
+the accessed data in the buffer. When there is a legal read to the last byte of the resource, the accessed data
+is returned, and the proxy thread is put back into idle state. If an initial read is made and there are no pending
+messages, the proxy thread will return an empty message, where the data is all 0s.
+=== Page 947 ===
+11.2.3.2.12 Buffer Accesses
+Each read or write will actually trigger a read or write to the external buffer space allocated for that proxy thread,
+where the real message data is stored. In addition, when a write message completes, the external buffer will be
+read for the entire message for that proxy thread so that it can then be written to the target. Similarly, after a read
+causes a read from the target to get a new message, the entire message is written to the external buffer to store
+the message to the buffer.
+11.2.3.2.13 Target Access
+After the write has completed and the external buffer read for the entire message, the entire message is then
+written to the target as a single burst. Similarly, for a read that needs a new message, the target is read for a full
+message as a single burst.
+11.2.3.2.14 Error State
+If an error is detected in a proxy thread, the proxy will put that proxy thread into error state, and the current buffer
+will be lost. A status bit will be set that indicates the proxy thread is in error. All accesses to that proxy thread will
+be ignored until the status bit is cleared. Once cleared the proxy thread is put back into idle state. Errors are an
+access to an offset beyond the length of the message, or a mismatch in the direction of access against what was
+programmed such as reading an outbound thread or writing an inbound thread.
+11.2.3.2.15 Permission Inheritance
+The proxy will automatically inherit the permissions from the access and pass these to the target upon the target
+burst access. The exact transactions that are inherited from are the final byte write or the first read, and these
+exact permissions are used on the output bus transaction that accesses the target.
+11.2.3.2.16 Resource Association
+Each proxy thread has a register (SEC_PROXY_THREAD[a]_CTL) to define the resource within the target that
+the proxy thread is mapped to. The host has no ability to access any other resource in the target. This allows the
+setup of the proxy to determine the resources that all the hosts use.
+11.2.3.2.17 Direction
+Each proxy thread has a register (SEC_PROXY_THREAD[a]_CTL) to define the direction for access. It can
+either be an outbound proxy thread for writing messages to resources. Or it can be an inbound proxy thread
+for reading messages from resources. The host must match the direction programmed or it will result in a proxy
+thread error.
+11.2.3.2.18 Threshold Events
+Each proxy thread can produce events based on the state of the resource it uses. For outbound proxy threads,
+a threshold can be set so that an event is produced when there are now at least N messages available to write.
+For inbound proxy threads, a threshold can be set so that an event is produced when there are now at least
+N messages available to read. These threshold values are programmed in SEC_PROXY_EVT_MAP_j, allowing
+the host to determine how often it gets events. Programming the count values while the threshold is set to 0 will
+not trigger events, but if the threshold is not 0 then programming the counts will trigger events based on whether
+the threshold is reached or not. No event is generated if the event is programmed to 0xFFFF.
+11.2.3.2.19 Error Events
+Each proxy thread can produce an event when it has detected an error. This error occurs when the host violates
+the programmed setup of the proxy thread or accesses beyond the message size. There is a separate status bit
+per proxy thread for these errors. No event is generated if the event is programmed to 0xFFFF.
+11.2.3.2.20 Bus Error and Credits
+If a target read for a message returns a bus error, this indicates the read was bad and the data is corrupt and
+usually 0s. Because the private word in contained in the message, if the private word is corrupted then the
+source proxy thread is not valid and the credit return will not be correct. Since the data is usually 0, this means
+the credit would be returned to proxy thread 0 incorrectly most of the time. And the credit will be lost for the
+=== Page 948 ===
+actual source proxy thread of the message that was not read correctly. The hardware has no way to correct for
+this, as the message from the target is corrupt so it does not know the correct owner of the credit. If software
+detects that a read message is corrupt, it can attempt to correct the situation by resetting the affected proxy
+threads using that queue, to restore their credit counts back to the default. Software may also want to reset
+proxy thread 0 since it may be getting extra credits.
+11.2.3.2.21 Debug
+When the transaction has the emudbg set for a read, all side effects will not occur. This means that the read
+will not cause a target read since that would affect the target, and instead current buffer will be read even if the
+previous message has completed.
+=== Page 949 ===
+11.2.4 Interrupt Aggregator (INTAGGR)
+This chapter describes the INTAGGR module, part of DMSS
+11.2.4.1 INTAGGR Overview
+The Interrupt Aggregator (INTAGGR or INTA) provides a centralized machine which handles the termination
+of system events to that they can be coherently processed by the host(s) in the system. The main function
+of the module is to convert between 'global events' (assertion and de-assertion events transmitted on the
+event-transport-lane (ETL) bus) and 'local events' (level sensitive signals on output, and level or edge sensitive
+signals on input).
+Table 11-73. INTAGGR Allocation Within Device Domains
+Module Instance
+Parameters
+MCU
+MAIN
+DMSS0_INTAGGR0
+-
+✓(DMSS)
+11.2.4.1.1 INTAGGR Features
+The DMSS0_INTAGGR0 supports the following features:
+•
+64-bit VBUSP target using 64-bit registers
+•
+Provides a set of TI Interrupt Architecture compliant interrupt status and mask register sets which are used to
+pass specific event status to one or more Host blocks.
+•
+Maps a collection of DMA Messaged Events which are input through an Event Transport Lane into specific
+bit locations in one or more interrupt cause registers
+•
+Mapping is performed based on a programmable table which provides a single location for each ordinal
+input event number (0 through sevt_cnt-1)
+•
+Table specifies a specific bit in a specific cause register that the event should set or clear depending on
+the type of event (up vs down)
+•
+Tracks a single 'event up' / 'event down' condition. There is no event counting. (The 'cnt' field of the
+ETL is ignored.)
+•
+Tracked status interrupts are presented to the user through a standard interrupt register interface.
+•
+Provides separate 'enable set' and 'enable clear' registers.
+•
+Provides both masked and unmasked interrupt status.
+•
+Interrupt status bits can be manually cleared using 'write 1 to clear'.
+•
+Provides an optional set of Unmapped Event (UNMAP) which can take an 'unmapped' event from the ingress
+ETL and generate a Global event on the egress Event Transport Lane (ETL) interface.
+•
+Each ingress event can generate an egress Global event on the egress ETL, controllable through a
+mapping register.
+•
+Each mapping register has the option of alternatively directly setting an interrupt status bit.
+•
+Provides an optional set of Global Event Input (GEVI) counters which can count events which were delivered
+via an ingress Event Transport Lane (ETL).
+•
+Each counted event provides an MMR by which the count can be read and an MMR by which a specified
+amount can be decremented by the host.
+•
+Each counted event generates an egress Global event on a zero to non-zero and non-zero to zero
+transition, controllable through a mapping register.
+•
+Each mapping register has the option of alternatively directly setting an interrupt status bit.
+•
+Provides an optional set of Global Event Input (GEVI) 'Multicast' registers which can take a Global event from
+an ingress ETL and generate two egress Global events on the egress ETL interface.
+•
+Each mapping register has the option of alternatively directly setting an interrupt status bit.
+=== Page 950 ===
+•
+Provides an optional set of Local Event Input (LEVI) to Global event registers which can be used to convert
+pulsed discrete interrupt inputs or clock synchronous rising edge events into Global events on an egress ETL.
+•
+Each ingress event index provides a configurable 'pulse' or 'rising edge' bit, plus the configurable index of
+the generated Global event.
+•
+Supports dynamic clock gating via
+Note
+Some features may not be available. See Module Integration for more information.
+11.2.4.1.2 INTAGGR Parameters
+Table Interrupt Aggregators Parameters shows the Interrupt Aggregator 0, parameters set during design time.
+Table 11-74. Interrupt Aggregators Parameters
+Module Instance
+Parameters
+VINTR1
+SEVI2
+GEVI3
+LEVI4
+MEVI5
+DMSS0_INTAGGR0
+184
+1536
+256
+32
+128
+(1) VINTR ± Number of Virtual Interrupt outputs. These are connected to the interrupt router inputs. Value can be
+read from INTAGGR_INTCAP register.
+(2) SEVI ± Number of Main (Steerable) Events. Value can be read from INTAGGR_INTCAP register.
+(3) GEVI ± Number of Countable Events. Value can be read from INTAGGR_AUXCAP register.
+(4) LEVI ± Number of Local Event inputs. Value can be read from INTAGGR_AUXCAP register.
+(5) MEVI ± Number of Multicast Events. Value can be read from INTAGGR_AUXCAP register.
+=== Page 951 ===
+11.2.4.2 INTAGGR Functional Description
+The Interrupt Aggregator (INTAGGR) provides a centralized machine which handles the termination of system
+events to that they can be coherently processed by the Host(s) in the system. Both the signaling and content
+of TI system events are incompatible with standard interrupt controllers. The INTAGGR provides mechanisms
+which convert the TI proprietary system events to standard level sensitive pending bits which can be used by all
+downstream interrupt infrastructure. Events can be presented to the INTAGGR in two different forms:
+•
+Events may be active high pulses, or clock synchronous rising edges, which are input on separate orthogonal
+pins. These are called 'Local Events'.
+•
+Local event signals that are used in pulse counting mode must be sourced by the same clock as the
+interrupt aggregator.
+•
+Local event signals that are used in edge counting mode must be sourced by pseudo-synchronous
+sources (and be a slower clock multiple) to the interrupt aggregator clock, and they must remain high for
+at least 1 'slow' clock cycle.
+•
+Events may be messages which are input in time division multiplexed sequential order from an Event
+Transport Lane. These are called 'Global Events'.
+In both cases, these events need to be conditioned to transition them from a transient indicator that something
+occurred to a persistent and reliable indication of the current state of the system. The IA is architected to perform
+this conversion in an efficient and cost effective manner.
+11.2.4.2.1 Submodule Descriptions
+11.2.4.2.1.1 Status/Mask Registers
+The Status and Mask Registers block is responsible for providing persistent storage for the interrupt status and
+mask bits and for formatting those in a way that is compliant to the TI Interrupt Architecture requirements. These
+requirements include the ability to set and clear bits orthogonally and to provide a masked version of the status
+register that corresponds to the supplied bit mask for each register.
+11.2.4.2.1.2 Interrupt Mapping Block
+The Interrupt Mapping Block accepts ordinally numbered events (0-N) and converts those ordinal event numbers
+into a status register number and bit number pair that is then used to manipulate the specified bit in the Status
+Registers block.
+11.2.4.2.1.3 Global Event Input (GEVI) Counters
+The GEVI Counters block is responsible for accepting an Event Transport Lane events and summing the total
+message counts for each received event index. The module creates global egress events for zero to non-zero
+count up' events and non-zero to zero 'count down' events. The egress global event index is configured via
+GEVI[a]_MCMAP register, so count status egress events can optionally be fed back into the INT_AGGR, via the
+ETL switch fabric.
+11.2.4.2.1.4 Local Event Input (LEVI) to Global Event Conversion
+The Local to Global event block is responsible for accepting an array of input pins and independently counting
+the number of cycles for which those pins are asserted high, or by counting individual clock synchronous rising
+edge events. The counting mode is configurable on a 'per pin' basis. The events are converted to egress Global
+events on an egress ETL. Global events can optionally be fed back into the INT_AGGR, via the ETL switch
+fabric.
+11.2.4.2.1.5 Global Event Multicast
+The Global event multicast block takes an ingress global event from an ingress ETL, and maps it into two egress
+Global events on two egress ETL interfaces. Global events can optionally be fed back into the INT_AGGR, via
+the ETL switch fabric.
+11.2.4.2.2 General Functionality
+=== Page 952 ===
+11.2.4.2.2.1 Event to Interrupt Bit Steering
+Each time an event message is received on the Main Event Transport Lane interface, the interrupt
+mapping block performs a direct lookup into an SRAM using the event number as the address. The
+SRAM stores a corresponding interrupt status (INTR_STATUSM) register and bit number within that register
+(VINT[a]_STATUS_MSKD) which are to be manipulated anytime a message is received indicating something
+occurred on that specific event. When an up event is received, the specified bit in the [a] Status register will be
+set. When a down event is received, that same bit will be cleared. This block is what allows flexible aggregation
+of various system events into an array of bits in the interrupt status registers. It is intended that this mapping is
+essentially static - set up when a resource is allocated and left untouched until the resource is no longer needed.
+Note that the 'cnt' field of the ETL is ignored and no interrupt counting is performed here. When 'UpDn=1', the
+interrupt flag bit is set, and when 'UpDn=0', the flag bit is cleared.
+11.2.4.2.2.2 Interrupt Status
+The event messages which are generated from the event to interrupt bit steering logic are input to the Interrupt
+Status registers. Each time an event is received, the interrupt status registers machine will assert or de-assert
+the specified bit in the specified register. The assertion and de-assertion in the interrupt status register is
+unaffected by the interrupt enable state. When an up event is received, the corresponding bit is set and when a
+down event is received, the corresponding bit is cleared. Some sources of input events will not include the ability
+to send a down event. In these cases, the interrupt router provides the ability to clear the status bits through
+the Interrupt Source Clear register (VINT[a]_STATUS). The host will write a one to the specific bit in the register
+which is to be cleared and the interrupt status machine will clear the bit internally. It is not intended that the Host
+directly clear bits which are automatically cleared via down events from the source itself.
+11.2.4.2.2.3 Interrupt Masked Status
+Interrupt enable bits are used in conjunction with the interrupt status bits to create the interrupt masked
+status register values. The interrupt masked status register (VINT[a]_STATUS_MSKD) contains the value of
+the interrupt status ANDed with the value of the interrupt enable register (VINT[a]_ENABLE_SET). Each time a
+new event message is received from the event to interrupt bit steering logic or the interrupt enable register is
+modified, the interrupt masked status register is re-evaluated.
+11.2.4.2.2.4 Enabling/Disabling Individual Interrupt Source Bits
+Separate (VINT[a]_ENABLE_SET and VINT[a]_ENABLE_CLR) registers are provided to allow individual
+enable bits to be enabled or disabled without the need for a read-modify-write operation. When the
+VINT[a]_ENABLE_SET register is written, all bits within written bytes which are 1 will cause corresponding
+bits in the internal enable register to be set. When the VINT[a]_ENABLE_CLEAR register is written, all bits within
+written bytes which are 1 will cause corresponding bits in the internal enable register to be cleared.
+11.2.4.2.2.5 Global Event Counting
+When enabled, the INTAGGR will provide a set of counters which will track how many outstanding messages
+have been observed for each ingress event index from the ingress Counted Global Event Transport Lane
+(ETL) interface. For each message received where the 'UpDn' flag is set, the corresponding counter will be
+incremented by value of the 'cnt' field of ingress message. Events where the 'UpDn' flag is cleared are ignored.
+The counter is made visible to software in the GEVI[a]_COUNT register. When software has read the count,
+it can acknowledge that count has been seen and processed by writing back an integer value specifying the
+amount by which the counter should be decremented, and the counter will subtract that value from the current
+count (which may have updated since it was read). The count will saturate at a value of 0xFFFFFFFF. Writing a
+count 'ack' value higher than the one read is not supported and will produce non-deterministic results.
+When a count transitions from zero to a non-zero value, a Global Up 'UpDn=1' event is sent out an egress ETL
+interface. When a count transitions from a non-zero value to zero, a down 'UpDn=0' event will be sent. The index
+of the Global event is mappable on a 'per-counter' basis, using the GEVI[a]_MAP register. The event may be
+mapped such that it then re-enters INTAGGR's 'Event to Interrupt Bit Steering Block' to generate an interrupt to
+the host. The event routing is handled by an external event switch fabric. Note that writing a new egress event
+index via the GEVI[a]_MAP register does not alter the stored event count for the ingress event register index.
+=== Page 953 ===
+11.2.4.2.2.6 Local Event to Global Event Conversion
+When enabled, the INTAGGR will provide a set of Local to Global event conversion registers. Local events may
+be discrete clock synchronous pulses or clock synchronous rising edges. The counting mode is configurable on
+a 'per pin' basis. In pulsed mode, the module will track how many outstanding clock cycle long pulses have been
+observed on each of the provided levi interface pins. For each cycle in which a LEVI input pending bit is asserted
+the corresponding counter will be incremented by 1. In 'rising edge' mode, the number of rising edge transitions
+on the pin is counted.
+The module will generate egress Global events on its egress ETL, with a different global index configured for
+each ingress LEVI pin. The LEVI pins numbers (1-N) are converted to arbitrary global event indices via the
+global event mapping LEVI[a]_MAP registers. The egress Global events can themselves be mapped to re-enter
+the INTAGGR's Global Event Counting block, so that the counts can then be made visible to software in the
+GEVI count registers as described in Section 10.2.7.3.1.3. The event routing is handled by an external event
+switch fabric.
+11.2.4.2.2.7 Global Event Multicast
+In DMSS0_INTAGGR0, the INTAGGR will provide a set of Global event multicast (GEVI[a]_MCMAP) registers.
+These registers allow an ingress Global event on its ingress ETL interface to be mapped into two egress Global
+events on two separate egress ETL interfaces. A set of registers map the ingress Global event index (1-N) into
+two arbitrary egress event indices.
+=== Page 954 ===
+11.2.5 Packet Streaming Interface Link (PSI-L)
+This section describes the Packet Streaming Interface Link (PSI-L) for the device.
+11.2.5.1 PSI-L Overview
+PSI-L is a packet based protocol used to transfer data between several device modules. Each transaction
+is routed based on thread ID value instead of physical address. All PSI-L interfaces are point to point direct
+connections to DMSS0. All switching functions among the PSI-L based interfaces are done inside DMSS0.
+The PSI-L also has an event interface referred to as ETL, which is purely used to transfer event information.
+Figure 11-9. PSI-L Overview
+=== Page 955 ===
+11.2.5.2 PSI-L Functional Description
+11.2.5.2.1 PSI-L Introduction
+The PSI-L is used to transfer words of packet data and control information between two peer entities via direct
+connection. There are credits used for flow control to guarantee that blocking does not occur between threads.
+Multiple packet transfers can be ongoing simultaneously across a PSI-L interface each on a separate logical
+thread but all sharing a single data path through time division multiplexing. Each packet which is transferred is
+accompanied by a destination thread ID which indicates the logical destination thread to which the packet is
+being sent.
+There is low level hardware handshake between PSI-L initiator and target used for transferring data. As it
+is blocking by nature, a higher level protocol is also used in which credits are maintained for each thread
+connection. Moments of non-readiness are allowed on the interface but there is no possibility that one thread
+can block another for an indefinite time since a thread must have credit for the destination before it is allowed to
+use the interface.
+Figure PSI-L Connection illustrates the point to point PSI-L connection.
+Figure 11-10. PSI-L Connection
+PSI-L is intended to be a versatile interface which can carry various types of communications. The following
+table describes several types of threads which have been defined.
+Table 11-75. Types of PSI-L Threads
+Type
+Description
+Example Endpoints
+Queue Management (QM) Messaging
+Provides transport for queue push, pop, and
+divert messages to support distributed queue
+based work passing
+Centralized queue manager or message
+manager and distributed DMA clients
+Direct IO
+Allows for tunneling CBASS compatible bus
+transactions through a PSI interconnect
+Module which has no CBASS initiator to a
+remote proxy block
+DMA Control Transport
+Provides transport for DMA transfer
+descriptions from a source thread to a
+destination thread
+DMA channel controller to DMA transfer
+controller
+DMA Data Transport
+Provides transport for packed data from a
+source thread to a destination thread
+Packet oriented module like networking
+adapters to or from centralized DMA
+Each thread on PSI-L is established between a single thread initiator and a single thread target using a
+connection oriented transfer mechanism. A thread initiator and a thread target are "paired" to create a logical
+connection between them referred to as a thread. Pairing is accomplished using a Pair Configuration Message
+which is valid in all thread types. Pairing can only occur between a thread initiator and a thread target of the
+same type.
+=== Page 956 ===
+11.2.5.2.2 PSI-L Operation
+The PSI-L allows multiple independent streams of packet data (threads) to share a single interface using data
+phase granularity time division multiplexing. This time division multiplexing is accomplished by dividing each
+stream into single data transfers. In this way a stream is comprised of a sequence of strongly ordered data
+transfers but packet transfers between different streams are allowed to be interleaved. Each data phase is
+qualified with a type identifier which indicates whether the data is packet info, direct IO write or read info,
+timestamp, software info, control data, payload data, or status.
+11.2.5.2.3 Event Transport
+PSI-L provides a mechanism by which events can be transported within one or more optional subinterfaces on
+a link. These sub-interfaces are referred to as event transport lanes (ETLs) and are independent of any PSI-L
+packet or message transfers which may be ongoing on the other interfaces within the PSI-L. A maximum of one
+event can be transferred on each event transport lane in each clock cycle. The event transport protocol is a
+simple request-ready type of hardware handshake.
+11.2.5.2.4 Threads
+A thread is a complete flow-controlled stream of communication. The PSI-L thread space is divided into a
+32K contiguous region representing all of the source threads (0x0000 - 0x7FFF) and a 32K contiguous region
+representing all of the destination threads (0x8000 - 0x8FFF).
+Source threads are responsible for sending request transactions, accepting response transactions, and sending
+data transfer transactions. Destination threads are responsible for accepting request transactions, sending
+response transactions, and accepting data transfer transactions. A given thread generally performs only a single
+class of transactions (see Table PSI-L Defined Threads). Both source and destination threads may act as
+initiators for transfers on one of the PSI-L write sub-interfaces but in this case source threads are actually
+initiating data transfers while destination threads are only responding to a previous request issued by a source
+request. Source threads only transfer to destination threads and destination threads only transfer to source
+threads. Transfers between same thread types do not occur.
+The following types of message transfers always originate from source threads and terminate in destination
+threads:
+•
+Configuration write message
+•
+Configuration read message
+•
+QM push message
+•
+QM pop message
+•
+QM divert message
+•
+Direct read operation message
+•
+Direct write operation message
+•
+DMA transfer request message
+•
+DMA data message
+The following types of message transfers always originate in destination threads and terminate in source
+threads:
+•
+Configuration write response message
+•
+Configuration read response message
+•
+QM push response message
+•
+QM pop response message
+•
+QM divert response message
+•
+DMA transfer response message
+11.2.5.2.5 Arbitration Protocol
+On each cycle, an arbiter built into the initiator side of each interface decides on which thread to transfer data
+in the next clock cycle. Both forward (from source threads) and reverse (from destination threads) direction
+=== Page 957 ===
+transfers can occur across the same physical interface so the arbiter must ensure that sustained blocking of any
+thread can occur.
+The decision about which thread to allow using the interface is based on the following factors:
+1.
+Whether data is ready at the source to be sent
+2.
+Whether credit exists for the thread such that it is guaranteed there is a place for the data to land in the
+destination endpoint. For reverse direction transfers (response messages), it is assumed that credit always
+exists.
+3.
+The relative priority of the traffic that the thread is carrying for the given packet duration
+4.
+Whether the transfer is for a forward or reverse direction thread (requests versus responses).
+No thread can be considered for inclusion in arbitration unless both data is available and credit exists in the
+destination endpoint. For each thread which can be considered in the current arbitration cycle, the arbiter should
+then pick the thread with the highest priority. Reverse transfers should be considered higher priority than forward
+transfers.
+11.2.5.2.6 Thread Configuration
+Each source thread has programmable registers for configuring the pairing with a corresponding destination
+thread and for enabling data flow. Each destination thread has programmable registers for reporting the buffering
+capability of the thread and for enabling data flow. These registers are accessed using configuration read and
+write messages from a configuration host.
+Each configuration write message sent from a configuration host is acknowledged with a configuration write
+response message from the addressed endpoint. Each configuration read message sent from a configuration
+host is acknowledged with a configuration read response message from the addressed endpoint.
+11.2.5.2.6.1 Thread Pairing
+Depending on the type of traffic that each source thread carries it may or may not have a fixed pairing with a
+destination thread.
+11.2.5.2.6.1.1 Configuration Transaction Pairing
+Configuration write and read transactions are only initiated by a special module called configuration proxy
+(PSILCFG_PROXY). Each configuration proxy in the system uses a single source thread which can initiate
+configuration write and read transactions to the configuration registers of every other source and destination
+thread in the PSI-L system. The PSILCFG_PROXY registers are described in DMASS_PSILCFG_0 Registers.
+Each source thread routes to a single target thread and this pairing is specified by programming a required
+pairing register set for each thread. A source has no ability to change what target thread it talks to. If a source
+must be able to talk to different targets (or target threads), then it can either have multiple threads or a streaming
+switch that can be programmed to route the transfers appropriately based on specific packet fields.
+11.2.5.2.6.2 Configuration Registers Region
+The configuration registers region contains static configuration information including the settings for linking a
+thread source to a thread destination. These registers are described in PSIL Configuration Registers . The
+thread ID mapping is shown in the PSI-L System Thread Map in Module Integration.
+=== Page 958 ===

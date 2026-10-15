@@ -1,0 +1,75 @@
+Chapter 13 SDMMC_BUFFER
+13.1 Overview
+The SDMMC_BUFFER is a data buffer, which transfer data from system DMA to chip external
+through the SDMMC IOs. The following features are supported by SDMMC_BUFFER
+⚫
+Support 4 bits data out
+⚫
+Support 1 bit clock out
+⚫
+Support DMA hardware handshaking interface
+⚫
+Support AHB Slave interface
+⚫
+Support 32x32 fifo
+
+13.2 Block Diagram
+This section provides a description of SDMMC_BUFFER components.
+⚫
+AHB slave interface
+⚫
+DATA FIFO
+⚫
+DATA IO interface
+
+SDMMC_BUFFER
+AHB_SLV
+
+DATA_FIFO
+(32X32)
+
+DATA_IO
+
+Fig. 13-1 SDMMC_BUFFER Architecture
+
+13.3 Function Description
+The main block of SDMMC_BUFFER is a 32x32 FIFO, when SDMMC_BUFFER is enable, the
+DMA handshaking interface is asserted to the system DMA, then the system DMA write data
+to SDMMC_BUFFER. If the FIFO in SDMMC_BUFFER is not empty, the FIFO data will be
+transfer to IO
+
+13.4 Interface Description
+The following table is the interface mapping of between SDMMC_BUF and SDMMC IP.
+Table 13-1 SDMMC_BUFFER interface mapping
+SDMMC_BUFFER
+SDMMC
+sdmmc_cclk
+sdmmc_cclk
+sdmmc_cdata0
+sdmmc_cdata0
+sdmmc_cdata1
+sdmmc_cdata1
+sdmmc_cdata2
+sdmmc_cdata2
+sdmmc_cdata3
+sdmmc_cdata3
+
+13.5 Application Notes
+The configuration sequence of enable SDMMC_BUFFER is described as below.
+⚫
+Set iomux to select sdmmc clock and data io
+⚫
+Enable IO mux to SDMMC_BUFFER by setting SYS_GRF_SOC_CON10[0]
+⚫
+Configure write FIFO threshold by setting SYS_GRF_SOC_CON10[7:3]
+⚫
+Enable SDMMC buffer by setting SYS_GRF_SOC_CON10[1]
+⚫
+Configure DMA to enable hardware handshaking
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1371
+
+RK3588 TRM-Part1
+

@@ -1,0 +1,5269 @@
+Chapter 3 Mobile Storage Host Controller
+3.1 Overview
+
+The Mobile Storage Host Controller is designed to support Secure Digital memory (SD-max
+version 3.01) with 1 bits or 4 bits data width, Multimedia Card(MMC-max version 4.51) with
+1 bits or 4 bits or 8 bits data width.
+The Host Controller is instantiated for SDMMC, SDIO. The interface difference between these
+instances is shown in “Interface Description”.
+The Host Controller supports following features:
+⚫ Bus Interface Features:
+◼ Support AMBA AHB interface for master and slave
+◼ Supports internal DMA interface(IDMAC)
+◆ Supports 16/32-bit data transfers
+◆ Single engine used for Transmit and Receive, which are mutually exclusive
+◆ Dual-buffer and chained descriptor linked list
+◆ Each descriptor can transfer up to 4KB of data in chained mode and 8KB of data
+in dual-buffer mode
+◆ Programmable burst size for optimal host bus utilization
+◼ Support combined single FIFO for both transmit and receive operations
+◼ Support FIFO size of 256x32
+◼ Support FIFO over-run and under-run prevention by stopping card clock
+⚫ Card Interface Features:
+◼ Support Secure Digital memory protocol commands
+◼ Support Secure Digital I/O protocol commands
+◼ Support Multimedia Card protocol commands
+◼ Support Command Completion Signal and interrupts to host
+◼ Support CRC generation and error detection
+◼ Support programmable baud rate
+◼ Support power management and power switch
+◼ Support card detection
+◼ Support write protection
+◼ Support hardware reset
+◼ Support SDIO interrupts in 1-bit and 4-bit modes
+◼ Support 4-bit mode in SDIO3.0
+◼ Support SDIO suspend and resume operation
+◼ Support SDIO read wait
+◼ Support block size of 1 to 65,535 bytes
+◼ Support 1-bit, 4-bit modes
+⚫ Clock Interface Features:
+◼ Support 0/90/180/270-degree phase shift operation for sample clock
+(cclk_in_sample) and drive clock(cclk_in_drv) relative to function clock(cclk_in)
+respectively
+◼ Support phase tuning using delay line for sample clock(cclk_in_sample) and drive
+clock(cclk_in_drv) relative to function clock (cclk_in) respectively. The max number
+of delay element number is 256
+
+3.2 Block Diagram
+
+The Host Controller consists of the following main functional blocks.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+578
+
+RK3588 TRM-Part2
+TOP
+AHB Master/Slave Interface/Interrupt
+
+cclkin
+
+cclk_in
+
+CLKGEN
+
+cclk_in_drv
+cclk_in_sample
+
+CLKGEN Configuration
+
+BUFFER
+
+CONTROLLER
+
+SD/MMC Device
+
+FIFO Interface
+
+CONTROLLER
+
+Host
+Interface
+Unit
+
+AHB
+Master
+Interface
+FIFO
+Interface
+
+Internal
+DMA
+Control
+
+Registers
+
+Power,
+Card
+detect,
+Debounce
+Control
+
+FIFO
+Control
+
+MUX/
+De-MUX
+Unit
+Command
+Path
+Control
+Data
+Path
+Control
+
+⚫
+
+⚫
+⚫
+
+write
+protect
+
+socket
+
+card
+protect
+
+cclk
+ccmd
+cdata
+
+Card
+s
+
+cclk_in_drv
+
+Clock
+Control
+
+⚫
+
+Power
+Switches
+
+SDIO
+Interrupt
+Control
+
+Output Hold Register
+
+AHB
+Slave
+Interface
+
+Interrupt
+Control
+
+Regulators
+
+CIU
+
+Synchronizer
+
+Interrupt
+
+BIU
+
+Input Sample Register
+
+clk
+
+cclk_in_sample
+cclk_in
+
+Fig. 3-1 Mobile Storage Host Control Block Diagram
+Clock Generate Unit (CLKGEN): Generates card interface clock cclk_in/
+cclk_sample/cclk_drv based on cclkin and configuration information.
+◼ cclkin: original clock
+◼ cclk_in: functional clock
+◼ cclk_sample: sample clock
+◼ cclk_drv: driver clock
+Asynchronous dual-port memory (BUFFER): Use a two-clock synchronous read and
+synchronous write dual-port RAM. One of the ports is connected to the host clock, and
+the other port is connected to the card clock.
+Bus Interface Unit (BIU): Provides AMBA AHB interfaces for register and data read/write.
+Card Interface Unit (CIU): Takes care of the SD/MMC protocols and provides clock
+management.
+
+3.3 Function Description
+3.3.1 Bus Interface Unit
+
+The Bus Interface Unit provides the following functions:
+⚫ Host interface
+⚫ Interrupt control
+⚫ Register access
+⚫ External FIFO access
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+579
+
+RK3588 TRM-Part2
+⚫
+
+Power control and card detection
+
+3.3.1.1
+
+Host Interface Unit
+
+The Host Interface Unit is an AHB slave interface, which provides the interface between the
+SD/MMC card and the host bus.
+
+3.3.1.2
+
+Register Unit
+
+3.3.1.3
+
+Interrupt Controller Unit
+
+The register unit is part of the bus interface unit; it provides read and write access to the
+registers.
+All registers reside in the Bus Interface Unit clock domain. When a command is sent to a
+card by setting the start_bit, which is bit[31] of the SDMMC_CMD register, all relevant
+registers needed for the CIU operation are transferred to the CIU block. During this time,
+the registers that are transferred from the BIU to the CIU should not be written. The
+software should wait for the hardware to clear the start bit before writing to these registers
+again. The register unit has a hardware locking feature to prevent illegal writes to registers.
+The lock is necessary in order to avoid metastability violations, both because the host and
+card clock domains are different and to prevent illegal software operations.
+Once a command start is issued by setting the start_bit of the SDMMC_CMD register, the
+following registers cannot be reprogrammed until the command is accepted by the card
+interface unit:
+⚫ SDMMC_CMD – Command
+⚫ SDMMC_CMDARG – Command Argument
+⚫ SDMMC_BYTCNT – Byte Count
+⚫ SDMMC_BLKSIZ – Block Size
+⚫ SDMMC_CLKDIV – Clock Divider
+⚫ SDMMC_CLKENA – Clock Enable
+⚫ SDMMC_CLKSRC – Clock Source
+⚫ SDMMC_TMOUT – Timeout
+⚫ SDMMC_CTYPE – Card Type
+The hardware resets the start_bit once the CIU accepts the command. If a host write to any
+of these registers is attempted during this locked time, then the write is ignored and the
+hardware lock error bit is set in the raw interrupt status register. Additionally, if the interrupt
+is enabled and not masked for a hardware lock error, then an interrupt is sent to the host.
+When the Card Interface Unit is in an idle state, it typically takes the following number of
+clocks for the command handshake, where clk is the BIU clock and cclk_in is the CIU clock:
+3 (clk) + 3 (cclk_in)
+Once a command is accepted, you can send another command to the CIU-which has a onedeep command queue-under the following conditions:
+⚫ If the previous command was not a data transfer command, the new command is sent
+to the SD/MMC card once the previous command completes.
+⚫ If the previous command is a data transfer command and if wait_prvdata_complete
+(bit[13]) of the SDMMC_CMD register is set for the new command, the new command is
+sent to the SD/MMC card only when the data transfer completes.
+⚫ If the wait_prvdata_complete is 0, then the new command is sent to the SD/MMC card
+as soon as the previous command is sent. Typically, you should use this only to stop or
+abort a previous data transfer or query the card status in the middle of a data transfer.
+The interrupt controller unit generates an interrupt that depends on the controller raw
+interrupt status, the interrupt-mask register, and the global interrupt-enable register bit.
+Once an interrupt condition is detected, it sets the corresponding interrupt bit in the raw
+interrupt status register SDMMC_RINTSTS. The raw interrupt status bit stays on until the
+software clears the bit by writing a 1 to the interrupt bit; a 0 leaves the bit untouched.
+The interrupt port is an active-high, level-sensitive interrupt. The interrupt port is active only
+when any bit in the raw interrupt status register is active, the corresponding interrupt mask
+bit is 1, and the global interrupt enable bit is 1. The interrupt port is registered in order to
+avoid any combinational glitches.
+The int_enable is reset to 0 on power-on, and the interrupt mask bits are set to 32’h0, which
+masks all the interrupts.
+Notes:
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+580
+
+RK3588 TRM-Part2
+Before enabling the interrupt, it is always recommended that you write 32’hffff_ffff to the raw interrupt
+status register in order to clear any pending unserviced interrupts. When clearing interrupts during normal
+operation, ensure that you clear only the interrupt bits that you serviced.
+The SDIO Interrupts, Receive FIFO Data Request (RXDR), and Transmit FIFO Data Request (TXDR) are set
+by level-sensitive interrupt sources. Therefore, the interrupt source should be first cleared before you can
+clear the interrupt bit of the Raw Interrupt register. For example, on seeing the Receive FIFO Data Request
+(RXDR) interrupt, the FIFO should be emptied so that the “FIFO count greater than the RX-Watermark”
+condition, which triggers the interrupt, becomes inactive. The rest of the interrupts are triggered by a single
+clock-pulse-width source.
+
+Bits
+24
+16
+15
+
+14
+
+13
+
+12
+
+11
+
+10
+
+Table 3-1 Bits in Interrupt Status Register
+Description
+Interrupt from SDIO card. In MMC-Ver3.3-only mode,
+sdio_interrupt
+these bits are always 0.
+Card no-busy
+If card exit busy status, the interrupt happened.
+Error in end-bit during read operation, or no data CRC
+received during write operation.
+End Bit Error (read) /
+For MMC CMD19, there may be no CRC status
+Write no CRC (EBE)
+returned by the card. Hence, EBE is set for CMD19.
+The application should not treat this as an error.
+Stop/abort commands automatically sent by card unit
+and not initiated by host; similar to Command Done
+(CD) interrupt.
+Auto Command Done
+Recommendation:
+(ACD)
+Software typically need not enable this for non CE-ATA
+accesses; Data Transfer Over (DTO) interrupt that
+comes after this interrupt determines whether data
+transfer has correctly competed.
+Error in data start bit when data is read from a card.
+In 4-bit mode, if DAT[0] line indicates start bit-that is,
+0-and any of the other data bits do not have start bit,
+then this error is set.
+Start Bit Error (SBE)
+Busy Complete Interrupt when data is written to the
+card. This interrupt is generated after completion of
+busy driven by the card after the last data block is
+written into the card.
+During hardware-lock period, write attempted to one
+of locked registers.
+When software sets the start_cmd bit in the
+Hardware Locked write
+SDMMC_CMD register, the Host Controller tries to load
+Error (HLE)
+the command. If the command buffer is already filled
+with a command, this error is raised. The software
+then has to reload the command.
+Host tried to push data when FIFO was full, or host
+tried to read data when FIFO was empty. Typically this
+should not happen, except due to error in software.
+FIFO Underrun/ Overrun Card unit never pushes data into FIFO when FIFO is
+Error (FRUN)
+full, and pop data when FIFO is empty.
+If IDMAC is enabled, FIFO under-run/over-run can
+occur due to a programming error on MSIZE and
+watermark values in SDMMC_FIFOTH register.
+To avoid data loss, card clock out is stopped if FIFO is
+empty when writing to card, or FIFO is full when
+reading from card. Whenever card clock is stopped to
+Data Starvation by Host avoid data loss, data-starvation timeout counter is
+Timeout (HTO)
+started with data-timeout value. This interrupt is set if
+host does not fill data into FIFO during write to card,
+or does not read from FIFO during read from card
+before timeout period.
+Interrupt
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+581
+
+RK3588 TRM-Part2
+Bits
+
+Interrupt
+
+9
+
+Data Read Timeout
+(DRTO)
+
+8
+
+Response Timeout (RTO)
+
+7
+
+Data CRC Error (DCRC)
+
+6
+
+Response CRC Error
+(RCRC)
+
+5
+
+Receive FIFO Data
+Request (RXDR)
+
+4
+
+Transmit FIFO Data
+Request (TXDR)
+
+3
+
+Data Transfer Over (DTO)
+
+Description
+Even after timeout, card clock stays in stopped state,
+with CIU state machines waiting. It is responsibility of
+host to push or pop data into FIFO upon interrupt,
+which automatically restarts cclk_out and card state
+machines.
+Even if host wants to send stop/abort command, it still
+needs to ensure it has to push or pop FIFO so that
+clock starts in order for stop/abort command to send
+on command signal along with data that is sent or
+received on data line.
+In Normal functioning mode: Data read timeout
+(DRTO)
+Data timeout occurred. Data Transfer Over (DTO) also
+set if data timeout occurs.
+In Boot Mode: Boot Data Start (BDS)
+When set, indicates that Host Controller has started to
+receive boot data from the card. A write to this
+register with a value of 1 clears this interrupt.
+In normal functioning mode: Response timeout (RTO)
+Response timeout occurred. Command Done (CD) also
+set if response timeout occurs. If command involves
+data transfer and when response times out, no data
+transfer is attempted by Host Controller.
+In Boot Mode: Boot Ack Received (BAR)
+When expect_boot_ack is set, on reception of a boot
+acknowledge pattern—0-1-0—this interrupt is
+asserted. A write to this register with a value of 1
+clears this interrupt.
+Received Data CRC does not match with locallygenerated CRC in CIU.
+Can also occur if the Write CRC status is incorrectly
+sampled by the Host.
+Response CRC does not match with locally-generated
+CRC in CIU.
+Interrupt set during read operation from card when
+FIFO level is greater than Receive-Threshold level.
+Recommendation:
+In DMA modes, this interrupt should not be enabled.
+In non-DMA mode: pop RX_WMark + 1 data from
+FIFO.
+Interrupt set during write operation to card when FIFO
+level reaches less than or equal to Transmit-Threshold
+level.
+Recommendation:
+In DMA modes, this interrupt should not be enabled.
+In non-DMA mode:
+if (pending_bytes > (FIFO_DEPTH - TX_WMark))
+push (FIFO_DEPTH - TX_WMark) data into FIFO
+else
+push pending_bytes data into FIFO
+Indicates Data transfer completed. Though on
+detection of errors-Start Bit Error, Data CRC error,
+and so on, DTO may or may not be set; the
+application must issue CMD12, which ensures that
+DTO is set.
+Recommendation:
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+582
+
+RK3588 TRM-Part2
+Bits
+
+Interrupt
+
+2
+
+Command Done(CD)
+
+1
+
+Response Error (RE)
+
+0
+
+Card-Detect (CDT)
+
+3.3.1.4
+
+Description
+In non-DMA mode, when data is read from card, on
+seeing interrupt, host should read any pending data
+from FIFO. In DMA mode, DMA controllers guarantee
+FIFO is flushed before interrupt.
+DTO bit is set at the end of the last data block, even if
+the device asserts MMC busy after the last data block.
+Command sent to card and got response from card,
+even if Response Error or CRC error occurs.
+Error in received response set if one of following
+occurs:
+⚫ Transmission bit != 0
+⚫ Command index mismatch
+⚫ End-bit != 1
+When one or more cards inserted or removed, this
+interrupt occurs.
+Software should read card-detect register to
+determine current card status.
+Recommendation: After power-on and before enabling
+interrupts, software should read card detect register
+and store it in memory. When interrupt occurs, it
+should read card detect register and compare it with
+value stored in memory to determine which card(s)
+were removed/inserted. Before exiting ISR, software
+should update memory with new card-detect value.
+
+FIFO Controller Unit
+
+The FIFO controller interfaces the external FIFO to the host interface and the card controller
+unit. When FIFO overrun and under-run conditions occur, the card clock stops in order to
+avoid data loss.
+The FIFO uses a two-clock synchronous read and synchronous write dual-port RAM. One of
+the ports is connected to the host clock(clk), and the second port is connected to the card
+clock(cclk_in).
+Notes: The FIFO controller does not support simultaneous read/write access from the same port. For
+debugging purposes, the software may try to write into the FIFO and read back the data; results are
+indeterminate, since the design does not support read/write access from the same port.
+
+3.3.1.5
+
+Card Detection Unit
+
+The register unit has registers that control the power. Power to each card can be selectively
+turned on or off.
+The card detection unit looks for any changes in the card-detect signals for card insertion or
+card removal. It filters out the debounce associated with mechanical insertion or removal,
+and generates one interrupt to the host. You can program the debounce filter value.
+
+Fig. 3-2 SD/MMC Card-Detect Signal
+
+3.3.2 Card Interface Unit
+
+The Card Interface Unit (CIU) interfaces with the Bus Interface Unit (BIU) and the external
+devices. The host writes command parameters to the BIU control registers, and these
+parameters are then passed to the CIU. Depending on control register values, the CIU
+generates SD/MMC command and data traffic on a selected card bus according to SD/MMC
+protocol. The Host Controller accordingly controls the command and data path.
+The following software restrictions should be met for proper CIU operation:
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+583
+
+RK3588 TRM-Part2
+Only one data transfer command can be issued at a time.
+During an open-ended card write operation, if the card clock is stopped because the
+FIFO is empty, the software must first fill the data into the FIFO and start the card clock.
+It can then issue only a stop/abort command to the card.
+⚫ When issuing card reset commands (CMD0, CMD15 or CMD52_reset) while a card data
+transfer is in progress, the software must set the stop_abort_cmd bit in the
+SDMMC_CMD register so that the Host Controller can stop the data transfer after issuing
+the card reset command.
+⚫ When the data end bit error is set in the SDMMC_RINTSTS register, the Host Controller
+does not guarantee SDIO interrupts. The software should ignore the SDIO interrupts and
+issue the stop/abort command to the card, so that the card stops sending the read data.
+⚫ If the card clock is stopped because the FIFO is full during a card read, the software
+should read at least two FIFO locations to start the card clock.
+The CIU block consists of the following primary functional blocks:
+⚫ Command path
+⚫ Data path
+⚫ SDIO interrupt control
+⚫ Clock control
+⚫ Error detection
+⚫
+⚫
+
+3.3.2.1
+
+Command Path
+
+The command path performs the following functions:
+⚫ Loads clock parameters
+⚫ Loads card command parameters
+⚫ Sends commands to card bus (ccmd_out line)
+⚫ Receives responses from card bus (ccmd_in line)
+⚫ Sends responses to BIU
+⚫ Drives the P-bit on command line
+A new command is issued to the Host Controller by programming the BIU registers and
+setting the start_cmd bit in the SDMMC_CMD register. The BIU asserts start_cmd, which
+indicates that a new command is issued to the SD/MMC device. The command path loads
+this new command (command, command argument, timeout) and sends acknowledge to the
+BIU by asserting cmd_taken.
+Once the new command is loaded, the command path state machine sends a command to
+the device bus-including the internally generated CRC7-and receives a response, if any. The
+state machine then sends the received response and signals to the BIU that the command is
+done, and then waits for eight clocks before loading a new command.
+Load Command Parameters
+One of the following commands or responses is loaded in the command path:
+⚫ New command from BIU – When start_cmd is asserted, then the start_cmd bit is set in
+the SDMMC_CMD register.
+⚫ Internally generated auto-stop command – When the data path ends, the stop command
+request is loaded.
+⚫ IRQ response with RCA 0x000 – When the command path is waiting for an IRQ response
+from the MMC card and a “send irq response” request is signaled by the BIU, then the
+send_irq_response bit is set in the SDMMC_CTRL register.
+Loading a new command from the BIU in the command path depends on the following
+SDMMC_CMD register bit settings:
+⚫ update_clock_registers_only – If this bit is set in the SDMMC_CMD register, the
+command path updates only the clock enable, clock divider, and clock source registers.
+If this bit is not set, the command path loads the command, command argument, and
+timeout registers; it then starts processing the new command.
+⚫ wait_prvdata_complete – If this bit is set, the command path loads the new command
+under one of the following conditions:
+◼ Immediately, if the data path is free (that is, there is no data transfer in progress),
+or if an open-ended data transfer is in progress (byte_count = 0).
+◼ After completion of the current data transfer, if a predefined data transfer is in
+progress.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+584
+
+RK3588 TRM-Part2
+Send Command and Receive Response
+Once a new command is loaded in the command path, update_clock_registers_only bit is
+unset – the command path state machine sends out a command on the device bus; the
+command path state machine is illustrated in following figure.
+
+Fig. 3-3 Host Controller Command Path State Machine
+The command path state machine performs the following functions, according to
+SDMMC_CMD register bit values:
+⚫ send_initialization – Initialization sequence of 80 clocks is sent before sending the
+command.
+⚫ response_expected – Response is expected for the command. After the command is sent
+out, the command path state machine receives a 48-bit or 136-bit response and sends it
+to the BIU. If the start bit of the card response is not received within the number of
+clocks programmed in the timeout register, then the response timeout and command
+done bit is set in the Raw Interrupt Status register as a signal to the BIU. If the
+response-expected bit is not set, the command path sends out a command and signals a
+response done to the BIU; that is, the command done bit is set in the Raw Interrupt
+Status register.
+⚫ response_length – If this bit is set, a 136-bit response is received; if it is not set, a 48bit response is received.
+⚫ check_response_crc – If this bit is set, the command path compares CRC7 received in
+the response with the internally-generated CRC7. If the two do not match, the response
+CRC error is signaled to the BIU; that is, the response CRC error bit is set in the Raw
+Interrupt Status register SDMMC_RINTSTS.
+Send Response to BIU
+If the response_expected bit is set in the SDMMC_CMD register, the received response is
+sent to the BIU. The Response0 register is updated for a short response, and the Response3,
+Response2, Response1, and Response0 registers are updated on a long response, after
+which the Command Done bit is set. If the response is for an auto_stop command sent by
+the CIU, the response is saved in the Response1 register, after which the Auto Command
+Done bit is set.
+Additionally, the command path checks for the following:
+⚫ Transmission bit = 0
+⚫ Command index matches command index of the sent command
+⚫ End bit = 1 in received card response
+The command index is not checked for a 136-bit response or if the check_response_crc bit is
+unset. For a 136-bit response and reserved CRC 48-bit responses, the command index is
+reserved-that is, 111111.
+Polling Command Completion Signal
+The device generates the Command Completion Signal in order to notify the host controller
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+585
+
+RK3588 TRM-Part2
+of the normal command completion or command termination.
+Command Completion Signal Detection and Interrupt to Host Processor
+If the ccs_expected bit is set in the SDMMC_CMD register, the Command Completion Signal
+(CCS) from the device is indicated by setting the Data Transfer Over (DTO) bit in the
+SDMMC_RINTSTS register. The Host Controller generates a Data Transfer Over (DTO)
+interrupt if this interrupt is not masked.
+Command Completion Signal Timeout
+If the command expects a CCS from the device—if the ccs_expected bit is set in the
+SDMMC_CMD register—the command state machine waits for the CCS and remains in a
+wait_CCSS state. If the device fails to send out the CCS, the host software should
+implement a timeout mechanism to free the command and data path. The host controller
+does not implement a hardware timer; it is the responsibility of the host software to
+maintain a software timer.
+In the event of a CCS timeout, the host should issue a CCSD by setting the send_ccsd bit in
+the CTRL register. The host controller command state machine sends the CCSD to the device
+and exits to an idle state. After sending the CCSD, the host should also send a CMD12 to the
+device in order to abort the outstanding command.
+Send Command Completion Signal Disable
+If the send_ccsd bit is set in the SDMMC_CTRL register, the host sends a Command
+Completion Signal Disable (CCSD) pattern on the CMD line. The host can send the CCSD
+while waiting for the CCS or after a CCS timeout happens.
+After sending the CCSD pattern, the host sets the Command Done (CD) bit in
+SDMMC_RINTSTS and also generates an interrupt to the host if the Command Done
+interrupt is not masked.
+
+3.3.2.2
+
+Data Path
+
+The data path block pops the data FIFO and transmits data on cdata_out during a write data
+transfer, or it receives data on cdata_in and pushes it into the FIFO during a read data
+transfer. The data path loads new data parameters—that is, data expected, read/write data
+transfer, stream/block transfer, block size, byte count, card type, timeout registers—
+whenever a data transfer command is not in progress.
+If the data_expected bit is set in the SDMMC_CMD register, the new command is a data
+transfer command and the data path starts one of the following:
+⚫ Transmit data if the read/write bit = 1
+⚫ Data receive if read/write bit = 0
+Data Transmit
+The data transmit state machine, illustrated in following figure, starts data transmission two
+clocks after a response for the data write command is received; this occurs even if the
+command path detects a response error or response CRC error. If a response is not received
+from the card because of a response timeout, data is not transmitted. Depending upon the
+value of the transfer_mode bit in the SDMMC_CMD register, the data transmit state machine
+puts data on the card data bus in a stream or in block(s).
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+586
+
+RK3588 TRM-Part2
+
+Fig. 3-4 Host Controller Data Transmit State Machine
+Stream Data Transmit
+If the transfer_mode bit in the SDMMC_CMD register is set to 1, it is a stream-write data
+transfer. The data path pops the FIFO from the BIU and transmits in a stream to the card
+data bus. If the FIFO becomes empty, the card clock is stopped and restarted once data is
+available in the FIFO.
+If the byte_count register is programmed to 0, it is an open-ended stream-write data
+transfer. During this data transfer, the data path continuously transmits data in a stream
+until the host software issues a stop command. A stream data transfer is terminated when
+the end bit of the stop command and end bit of the data match over two clocks.
+If the byte_count register is programmed with a non-zero value and the send_auto_stop bit
+is set in the SDMMC_CMD register, the stop command is internally generated and loaded in
+the command path when the end bit of the stop command occurs after the last byte of the
+stream write transfer matches.
+This data transfer can also terminate if the host issues a stop command before all the data
+bytes are transferred to the card bus.
+Single Block Data
+If the transfer_mode bit in the SDMMC_CMD register is set to 0 and the byte_count register
+value is equal to the value of the block_size register, a single-block write-data transfer
+occurs. The data transmit state machine sends data in a single block, where the number of
+bytes equals the block size, including the internally-generated CRC16.
+If the SDMMC_CTYPE register bit for the selected card – indicated by the card_num value in
+the SDMMC_CMD register – is set for a 1-bit, 4-bit, or 8-bit data transfer, the data is
+transmitted on 1, 4, or 8 data lines, respectively, and CRC16 is separately generated and
+transmitted for 1, 4, or 8 data lines, respectively.
+After a single data block is transmitted, the data transmit state machine receives the CRC
+status from the card and signals a data transfer to the BIU; this happens when the datatransfer-over bit is set in the SDMMC_RINTSTS register.
+If a negative CRC status is received from the card, the data path signals a data CRC error to
+the BIU by setting the data CRC error bit in the SDMMC_RINTSTS register.
+Additionally, if the start bit of the CRC status is not received by two clocks after the end of
+the data block, a CRC status start bit error is signaled to the BIU by setting the write-noCRC bit in the SDMMC_RINTSTS register.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+587
+
+RK3588 TRM-Part2
+Multiple Block Data
+A multiple-block write-data transfer occurs if the transfer_mode bit in the SDMMC_CMD
+register is set to 0 and the value in the byte_count register is not equal to the value of the
+block_size register. The data transmit state machine sends data in blocks, where the number
+of bytes in a block equals the block size, including the internally-generated CRC16.
+If the SDMMC_CTYPE register bit for the selected card – indicated by the card_num value in
+the SDMMC_CMD register – is set to 1-bit, 4-bit, or 8-bit data transfer, the data is
+transmitted on 1, 4, or 8 data lines, respectively, and CRC16 is separately generated and
+transmitted on 1, 4, or 8 data lines, respectively.
+After one data block is transmitted, the data transmit state machine receives the CRC status
+from the card. If the remaining byte_count becomes 0, the data path signals to the BIU that
+the data transfer is done; this happens when the data-transfer-over bit is set in the
+SDMMC_RINTSTS register.
+If the remaining data bytes are greater than 0, the data path state machine starts to
+transmit another data block.
+If a negative CRC status is received from the card, the data path signals a data CRC error to
+the BIU by setting the data CRC error bit in the SDMMC_RINTSTS register, and continues
+further data transmission until all the bytes are transmitted.
+Additionally, if the CRC status start bit is not received by two clocks after the end of a data
+block, a CRC status start bit error is signaled to the BIU by setting the write-no-CRC bit in
+the SDMMC_RINTSTS register; further data transfer is terminated.
+If the send_auto_stop bit is set in the SDMMC_CMD register, the stop command is internally
+generated during the transfer of the last data block, where no extra bytes are transferred to
+the card. The end bit of the stop command may not exactly match the end bit of the CRC
+status in the last data block.
+If the block size is less than 4, 16, or 32 for card data widths of 1 bit, 4 bits, or 8 bits,
+respectively, the data transmit state machine terminates the data transfer when all the data
+is transferred, at which time the internally generated stop command is loaded in the
+command path.
+If the byte_count is 0 – the block size must be greater than 0 – it is an open-ended block
+transfer. The data transmit state machine for this type of data transfer continues the blockwrite data transfer until the host software issues a stop or abort command.
+Data Receive
+The data-receive state machine, illustrated in following figure, receives data two clock cycles
+after the end bit of a data read command, even if the command path detects a response
+error or response CRC error. If a response is not received from the card because a response
+timeout occurs, the BIU does not receive a signal that the data transfer is complete; this
+happens if the command sent by the Host Controller is an illegal operation for the card,
+which keeps the card from starting a read data transfer.
+If data is not received before the data timeout, the data path signals a data timeout to the
+BIU and an end to the data transfer done. Based on the value of the transfer_mode bit in
+the SDMMC_CMD register, the data-receive state machine gets data from the card data bus
+in a stream or block(s).
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+588
+
+RK3588 TRM-Part2
+
+Fig. 3-5 Host Controller Data Receive State Machine
+Stream Data Read
+A stream-read data transfer occurs if the transfer_mode bit in the SDMMC_CMD register
+equals 1, at which time the data path receives data from the card and pushes it to the FIFO.
+If the FIFO becomes full, the card clock stops and restarts once the FIFO is no longer full.
+An open-ended stream-read data transfer occurs if the byte_count register equals 0. During
+this type of data transfer, the data path continuously receives data in a stream until the host
+software issues a stop command. A stream data transfer terminates two clock cycles after
+the end bit of the stop command.
+If the byte_count register contains a non-zero value and the send_auto_stop bit is set in the
+SDMMC_CMD register, a stop command is internally generated and loaded into the command
+path, where the end bit of the stop command occurs after the last byte of the stream data
+transfer is received. This data transfer can terminate if the host issues a stop or abort
+command before all the data bytes are received from the card.
+Single-Block Data Read
+A single-block read-data transfer occurs if the transfer_mode bit in the SDMMC_CMD
+register is set to 0 and the value of the byte_count register is equal to the value of the
+block_size register. When a start bit is received before the data times out, data bytes equal
+to the block size and CRC16 are received and checked with the internally-generated CRC16.
+If the SDMMC_CTYPE register bit for the selected card – indicated by the card_num value in
+the SDMMC_CMD register – is set to a 1-bit, 4-bit, or 8-bit data transfer, data is received
+from 1, 4, or 8 data lines, respectively, and CRC16 is separately generated and checked for
+1, 4, or 8 data lines, respectively. If there is a CRC16 mismatch, the data path signals a data
+CRC error to the BIU. If the received end bit is not 1, the BIU receives an end-bit error.
+Multiple-Block Data Read
+If the transfer_mode bit in the SDMMC_CMD register is set to 0 and the value of the
+byte_count register is not equal to the value of the block_size register, it is a multiple-block
+read-data transfer. The data-receive state machine receives data in blocks, where the
+number of bytes in a block is equal to the block size, including the internally-generated
+CRC16.
+If the SDMMC_CTYPE register bit for the selected card – indicated by the card_num value in
+the SDMMC_CMD register – is set to a 1-bit, 4-bit, or 8-bit data transfer, data is received
+from 1, 4, or 8 data lines, respectively, and CRC16 is separately generated and checked for
+1, 4, or 8 data lines, respectively.
+After a data block is received, if the remaining byte_count becomes 0, the data path signals
+a data transfer to the BIU.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+589
+
+RK3588 TRM-Part2
+If the remaining data bytes are greater than 0, the data path state machine causes another
+data block to be received. If CRC16 of a received data block does not match the internallygenerated CRC16, a data CRC error to the BIU and data reception continue further data
+transmission until all bytes are transmitted.
+Additionally, if the end of a received data block is not 1, data on the data path signals
+terminate the bit error to the CIU and the data-receive state machine terminates data
+reception, waits for data timeout, and signals to the BIU that the data transfer is complete.
+If the send_auto_stop bit is set in the SDMMC_CMD register, the stop command is internally
+generated when the last data block is transferred, where no extra bytes are transferred from
+the card; the end bit of the stop command may not exactly match the end bit of the last
+data block.
+If the requested block size for data transfers to cards is less than 4, 16, or 32 bytes for 1bit, 4-bit, or 8-bit data transfer modes, respectively, the data-transmit state machine
+terminates the data transfer when all data is transferred, at which point the internallygenerated stop command is loaded in the command path. Data received from the card after
+that are then ignored by the data path.
+If the byte_count is 0—the block size must be greater than 0—it is an open-ended block
+transfer. For this type of data transfer, the data-receive state machine continues the blockread data transfer until the host software issues a stop or abort command.
+Auto-Stop
+The Host Controller internally generates a stop command and is loaded in the command
+path when the send_auto_stop bit is set in the SDMMC_CMD register.
+The software should set the send_auto_stop bit according to details listed in following table.
+Table 3-2 Auto-Stop Generation
+Card
+Byte send_auto_stop
+Transfer type
+Comments
+type
+Count
+bit set
+MMC
+Stream read
+0
+No
+Open-ended stream
+Auto-stop after all bytes
+MMC
+Stream read
+>0
+Yes
+transfer
+MMC
+Stream write
+0
+No
+Open-ended stream
+Auto-stop after all bytes
+MMC
+Stream write
+>0
+Yes
+transfer
+MMC
+Single-block read
+>0
+No
+Byte count =0 is illegal
+MMC
+Single-block write
+>0
+No
+Byte count =0 is illegal
+MMC
+Multiple-block read 0
+No
+Open-ended multiple block
+Yes○
+1
+MMC
+Multiple-block read >0
+Pre-defined multiple block
+Multiple-block
+MMC
+0
+No
+Open-ended multiple block
+write
+Multiple-block
+Yes○
+1
+MMC
+>0
+Pre-defined multiple block
+write
+SDMEM
+Single-block read
+>0
+No
+Byte count =0 is illegal
+SDMEM
+Single-block write
+>0
+No
+Byte count =0 illegal
+SDMEM
+Multiple-block read 0
+No
+Open-ended multiple block
+Auto-stop after all bytes
+SDMEM
+Multiple-block read >0
+Yes
+transfer
+Multiple-block
+SDMEM
+0
+No
+Open-ended multiple block
+write
+Multiple-block
+Auto-stop after all bytes
+SDMEM
+>0
+Yes
+write
+transfer
+SDIO
+Single-block read
+>0
+No
+Byte count =0 is illegal
+SDIO
+Single-block write
+>0
+No
+Byte count =0 illegal
+SDIO
+Multiple-block read 0
+No
+Open-ended multiple block
+SDIO
+Multiple-block read >0
+No
+Pre-defined multiple block
+Multiple-block
+SDIO
+0
+No
+Open-ended multiple block
+write
+SDIO
+Multiple-block
+>0
+No
+Pre-defined multiple block
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+590
+
+RK3588 TRM-Part2
+Card
+type
+
+Transfer type
+
+Byte
+Count
+
+send_auto_stop
+bit set
+
+Comments
+
+write
+○
+1 :The condition under which the transfer mode is set to block transfer and byte_count is equal to block size
+is treated as a single-block data transfer command for both MMC and SD cards. If byte_count =
+n*block_size (n = 2, 3, …), the condition is treated as a predefined multiple-block data transfer command.
+In the case of an MMC card, the host software can perform a predefined data transfer in two ways: 1) Issue
+the CMD23 command before issuing CMD18/CMD25 commands to the card – in this case, issue
+MD18/CMD25 commands without setting the send_auto_stop bit. 2) Issue CMD18/CMD25 commands
+without issuing CMD23 command to the card, with the send_auto_stop bit set. In this case, the multipleblock data transfer is terminated by an internally-generated auto-stop command after the programmed byte
+count.
+
+The following list conditions for the auto-stop command.
+⚫ Stream read for MMC card with byte count greater than 0 – The Host Controller
+generates an internal stop command and loads it into the command path so that the end
+bit of the stop command is sent out when the last byte of data is read from the card and
+no extra data byte is received. If the byte count is less than 6 (48 bits), a few extra data
+bytes are received from the card before the end bit of the stop command is sent.
+⚫ Stream write for MMC card with byte count greater than 0 - The Host Controller
+generates an internal stop command and loads it into the command path so that the end
+bit of the stop command is sent when the last byte of data is transmitted on the card
+bus and no extra data byte is transmitted. If the byte count is less than 6 (48 bits), the
+data path transmits the data last in order to meet the above condition.
+⚫ Multiple-block read memory for SD card with byte count greater than 0 – If the block
+size is less than 4 (single-bit data bus), 16 (4-bit data bus), or 32 (8-bit data bus), the
+auto-stop command is loaded in the command path after all the bytes are read.
+Otherwise, the top command is loaded in the command path so that the end bit of the
+stop command is sent after the last data block is received.
+⚫ Multiple-block write memory for SD card with byte count greater than 0 – If the block
+size is less than 3 (single-bit data bus), 12 (4-bit data bus), or 24 (8-bit data bus), the
+auto-stop command is loaded in the command path after all data blocks are transmitted.
+Otherwise, the stop command is loaded in the command path so that the end bit of the
+stop command is sent after the end bit of the CRC status is received.
+⚫ Precaution for host software during auto-stop – Whenever an auto-stop command is
+issued, the host software should not issue a new command to the SD/MMC device until
+the auto-stop is sent by the Host Controller and the data transfer is complete. If the
+host issues a new command during a data transfer with the auto-stop in progress, an
+auto-stop command may be sent after the new command is sent and its response is
+received; this can delay sending the stop command, which transfers extra data bytes.
+For a stream write, extra data bytes are erroneous data that can corrupt the card data.
+If the host wants to terminate the data transfer before the data transfer is complete, it
+can issue a stop or abort command, in which case the Host Controller does not generate
+an auto-stop command.
+
+3.3.2.3
+
+Non-Data Transfer Commands that Use Data Path
+
+Some non-data transfer commands (non-read/write commands) also use the data path.
+Following table lists the commands and register programming requirements for them.
+Table 3-3 Non-data Transfer Commands and Requirements
+Base Address
+CMD
+CMD
+CMD
+ACMD
+ACMD
+ACMD
+[12:8]
+27
+30
+42
+13
+22
+51
+SDMMC_CMD register programming
+cmd_index
+6’h1B 6’h1E
+6’h2A
+6’h0D
+6’h16
+6’h33
+response_expect
+1
+1
+1
+1
+1
+1
+rResponse_length
+0
+0
+0
+0
+0
+0
+check_response_crc
+1
+1
+1
+1
+1
+1
+data_expected
+1
+1
+1
+1
+1
+1
+read/write
+1
+0
+1
+0
+0
+0
+transfer_mode
+0
+0
+0
+0
+0
+0
+send_auto_stop
+0
+0
+0
+0
+0
+0
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+591
+
+RK3588 TRM-Part2
+Base Address
+CMD
+CMD
+CMD
+[12:8]
+27
+30
+42
+wait_prevdata_complete 0
+0
+0
+stop_abort_cmd
+0
+0
+0
+Command Argument register programming
+32-bit
+write
+stuff
+protect
+stuff bits
+bits
+data
+address
+Block Size register programming
+Num_bytes○
+1
+16
+4
+Byte Count register programming
+Num_bytes○
+1
+16
+4
+
+ACMD
+13
+0
+0
+
+ACMD
+22
+0
+0
+
+ACMD
+51
+0
+0
+
+stuff
+bits
+
+stuff bits
+
+stuff
+bits
+
+64
+
+4
+
+8
+
+64
+
+4
+
+8
+
+○
+1 : Num_bytes = No. of bytes specified as per the lock card data structure (Refer to the SD specification
+and the MMC specification)
+
+3.3.2.4
+
+SDIO Interrupt Control
+
+Interrupts for SD cards are reported to the BIU by asserting an interrupt signal for two clock
+cycles. SDIO cards signal an interrupt by asserting cdata_in low during the interrupt period;
+an interrupt period for the selected card is determined by the interrupt control state
+machine. An interrupt period is always valid for non-active or non-selected cards, and 1-bit
+data mode for the selected card. An interrupt period for a wide-bus active or selected card is
+valid for the following conditions:
+⚫ Card is idle
+⚫ Non-data transfer command in progress
+⚫ Third clock after end bit of data block between two data blocks
+⚫ From two clocks after end bit of last data until end bit of next data transfer command
+Bear in mind that, in the following situations, the controller does not sample the SDIO
+interrupt of the selected card when the card data width is 4 bits. Since the SDIO interrupt is
+level-triggered, it is sampled in a further interrupt period and the host does not lose any
+SDIO interrupt from the card.
+⚫ Read/Write Resume – The CIU treats the resume command as a normal data transfer
+command. SDIO interrupts during the resume command are handled similarly to other
+data commands. According to the SDIO specification, for the normal data command the
+interrupt period ends after the command end bit of the data command; for the resume
+command, it ends after the response end bit. In the case of the resume command, the
+Controller stops the interrupt sampling period after the resume command end bit,
+instead of stopping after the response end bit of the resume command.
+⚫ Suspend during read transfer – If the read data transfer is suspended by the host, the
+host sets the abort_read_data bit in the controller to reset the data state machine. In
+the CIU, the SDIO interrupts are handled such that the interrupt sampling starts after
+the abort_read_data bit is set by the host. In this case the controller does not sample
+SDIO interrupts between the period from response of the suspend command to setting
+the abort_read_data bit, and starts sampling after setting the abort_read_data bit.
+
+3.3.2.5
+
+Clock Control
+
+The clock control block provides different clock frequencies required for SD/MMC cards. The
+cclk_in signal is the source clock (cclk_in >= card max operating frequency) for clock divider
+of the clock control block. This source clock (cclk_in) is used to generate different card clock
+frequencies (cclk_out). The card clock can have different clock frequencies, since the card
+can be a low-speed card or a full-speed card. The Host Controller provides one clock signal
+(cclk_out).
+The clock frequency of a card depends on the following clock control registers:
+⚫ Clock Divider register – Internal clock dividers are used to generate different clock
+frequencies required for card. The division factor for each clock divider can be
+programmed by writing to the Clock Divider register. A value of 0 represents a clockdivider bypass, a value of 1 represents a divide by 2.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+592
+
+RK3588 TRM-Part2
+Clock Control register – cclk_out can be enabled or disabled for each card under the
+following conditions:
+◼ clk_enable – cclk_out for a card is enabled if the clk_enable bit for a card in the
+Clock Control register is programmed (set to 1) or disabled (set to 0).
+◼ Low-power mode – Low-power mode of a card can be enabled by setting the lowpower mode bit of the Clock Control register to 1. If low-power mode is enabled to
+save card power, the cclk_out is disabled when the card is idle for at least 8 card
+clock cycles. It is enabled when a new command is loaded and the command path
+goes to a non-idle state.
+Additionally, cclk_out is disabled when an internal FIFO is full – card read (no more data can
+be received from card) – or when the FIFO is empty – card write (no data is available for
+transmission). This helps to avoid FIFO overrun and underrun conditions. It is used by the
+command and data path to qualify cclk_in for driving outputs and sampling inputs at the
+programmed clock frequency for the selected card, according to the Clock Divider and Clock
+Source register values.
+Under the following conditions, the card clock is stopped or disabled, along with the active
+clk_en, for the selected card:
+⚫ Clock can be disabled by writing to Clock Enable register (clk_en bit = 1).
+⚫ If low-power mode is selected and card is idle, or not selected for 8 clocks.
+⚫ FIFO is full and data path cannot accept more data from the card and data transfer is
+incomplete –to avoid FIFO overrun.
+⚫ FIFO is empty and data path cannot transmit more data to the card and data transfer is
+incomplete – to avoid FIFO underrun.
+⚫
+
+3.3.2.6
+⚫
+
+⚫
+
+⚫
+
+Error Detection
+
+Response
+◼ Response timeout – Response expected with response start bit is not received within
+programmed number of clocks in timeout register.
+◼ Response CRC error – Response is expected and check response CRC requested;
+response CRC7 does not match with the internally-generated CRC7.
+◼ Response error – Response transmission bit is not 0, command index does not
+match with the command index of the send command, or response end bit is not 1.
+Data transmit
+◼ No CRC status – During a write data transfer, if the CRC status start bit is not
+received two clocks after the end bit of the data block is sent out, the data path
+does the following:
+◆ Signals no CRC status error to the BIU
+◆ Terminates further data transfer
+◆ Signals data transfer done to the BIU
+◼ Negative CRC – If the CRC status received after the write data block is negative
+(that is, not 010), a data CRC error is signaled to the BIU and further data transfer
+is continued.
+◼ Data starvation due to empty FIFO – If the FIFO becomes empty during a write data
+transmission, or if the card clock is stopped and the FIFO remains empty for data
+timeout clocks, then a data-starvation error is signaled to the BIU and the data path
+continues to wait for data in the FIFO.
+Data receive
+◼ Data timeout – During a read-data transfer, if the data start bit is not received
+before the number of clocks that were programmed in the timeout register, the data
+path does the following:
+◆ Signals data-timeout error to the BIU
+◆ Terminates further data transfer
+◆ Signals data transfer done to BIU
+◼ Data start bit error – During a 4-bit or 8-bit read-data transfer, if the all-bit data line
+does not have a start bit, the data path signals a data start bit error to the BIU and
+waits for a data timeout, after which it signals that the data transfer is done.
+◼ Data CRC error – During a read-data-block transfer, if the CRC16 received does not
+match with the internally generated CRC16, the data path signals a data CRC error
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+593
+
+RK3588 TRM-Part2
+◼
+
+◼
+
+to the BIU and continues further data transfer.
+Data end-bit error – During a read-data transfer, if the end bit of the received data is
+not 1, the data path signals an end-bit error to the BIU, terminates further data
+transfer, and signals to the BIU that the data transfer is done.
+Data starvation due to FIFO full – During a read data transmission and when the
+FIFO becomes full, the card clock is stopped. If the FIFO remains full for data
+timeout clocks, a data starvation error is signaled to the BIU (Data Starvation by
+Host Timeout bit is set in SDMMC_RINTSTS register) and the data path continues to
+wait for the FIFO to start to empty.
+
+3.3.3 Internal Direct Memory Access Controller (IDMAC)
+
+The Internal Direct Memory Access Controller (IDMAC) has a Control and Status Register
+(CSR) and a single Transmit/Receive engine, which transfers data from host memory to the
+device port and vice versa. The controller utilizes a descriptor to efficiently move data from
+source to destination with minimal Host CPU intervention. You can program the controller to
+interrupt the Host CPU in situations such as data Transmit and Receive transfer completion
+from the card, as well as other normal or error conditions.
+The IDMAC and the Host driver communicate through a single data structure. CSR addresses
+0x80 to 0x98 are reserved for host programming.
+The IDMAC transfers the data received from the card to the Data Buffer in the Host memory,
+and it transfers Transmit data from the Data Buffer in the Host memory to the FIFO.
+Descriptors that reside in the Host memory act as pointers to these buffers.
+A data buffer resides in physical memory space of the Host and consists of complete data or
+partial data. Buffers contain only data, while buffer status is maintained in the descriptor.
+Data chaining refers to data that spans multiple data buffers. However, a single descriptor
+cannot span multiple data.
+A single descriptor is used for both reception and transmission. The base address of the list
+is written into Descriptor List Base Address Register (SDMMC_DBADDR @0x88). A descriptor
+list is forward linked. The Last Descriptor can point back to the first entry in order to create
+a ring structure. The descriptor list resides in the physical memory address space of the
+Host. Each descriptor can point to a maximum of two data buffers.
+
+3.3.3.1
+
+IDMAC CSR Access
+
+3.3.3.2
+
+Descriptors
+
+When an IDMAC is introduced, an additional CSR space resides in the IDMAC that controls
+the IDMAC functionality. The host accesses the new CSR space in addition to the existing
+control register set in the BIU. The IDMAC CSR primarily contains descriptor information. For
+a write operation to the CSR, the respective CSR logic of the IDMAC and BIU decodes the
+address before accepting. For a read operation from the CSR, the appropriate CSR read path
+is enabled.
+You can enable or disable the IDMAC operation by programming bit[25] in the SDMMC_CTRL
+register of the BIU. This allows the data transfer by accessing the slave interface on the
+AMBA bus if the IDMAC is present but disabled. When IDMAC is enabled, the FIFO cannot be
+accessed through the slave interface.
+⚫ Descriptor structures
+The IDMAC uses these types of descriptor structures:
+◼ Dual-Buffer Structure – The distance between two descriptors is determined by the
+Skip Length value programmed in the Descriptor Skip Length (DSL) field of the Bus
+Mode Register (SDMMC_BMOD @0x80).
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+594
+
+RK3588 TRM-Part2
+Data Buffer 1
+Descriptor A
+Data Buffer 2
+Data Buffer 1
+Descriptor B
+Data Buffer 2
+Data Buffer 1
+Descriptor C
+Data Buffer 2
+
+◼
+
+Fig. 3-6 Dual-Buffer Descriptor Structure
+Chain Structure – Each descriptor points to a unique buffer and the next descriptor.
+Data Buffer
+Descriptor A
+
+Data Buffer
+Descriptor B
+
+Data Buffer
+Descriptor C
+
+Fig. 3-7 Chain Descriptor Structure
+⚫ Descriptor formats
+Following figure illustrates the internal formats of a descriptor. The descriptor addresses
+must be aligned to the bus width used for 32-bit AHB data buses. Each descriptor contains
+16 bytes of control and status information. DES0 is a notation used to denote the [31:0]
+bits, DES1 to denote [63:32] bits, DES2 to denote [95:64] bits, DES3 to denote [127:96]
+bits.
+Descriptor format
+for 32-bit bus width
+31
+
+0
+DES 0
+DES 1
+DES 2
+DES 3
+
+Fig. 3-8 Descriptor Formats for 32-bit AHB Address Bus Width
+The DES0 element in the IDMAC contains control and status information.
+Table 3-4 Bits in IDMAC DES0 Element
+Bit
+Name
+Description
+When set, this bit indicates that the descriptor is owned by the
+IDMAC.
+31
+OWN
+When this bit is reset, it indicates that the descriptor is owned
+by the Host.
+The IDMAC clears this bit when it completes the data transfer.
+These error bits indicate the status of the transaction to or from
+Card
+Error
+the card.
+30
+Summary
+These bits are also present in SDMMC_RINTSTS Indicates the
+(CES)
+logical OR of the following bits:
+◼
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+595
+
+RK3588 TRM-Part2
+Bit
+
+Name
+
+29:6
+
+Reserved
+
+5
+
+End of Ring
+(ER)
+
+4
+
+Second
+Address
+Chained
+(CH)
+
+3
+
+First Descriptor
+(FS)
+
+2
+
+Last Descriptor
+(LD)
+
+Description
+⚫ EBE: End Bit Error
+⚫ RTO: Response Time out
+⚫ RCRC: Response CRC
+⚫ SBE: Start Bit Error
+⚫ DRTO: Data Read Timeout
+⚫ DCRC: Data CRC for Receive
+⚫ RE: Response Error
+When set, this bit indicates that the descriptor list reached its
+final descriptor. The IDMAC returns to the base address of the
+list, creating a Descriptor Ring. This is meaningful for only a
+dual-buffer descriptor structure.
+When set, this bit indicates that the second address in the
+descriptor is the Next Descriptor address rather than the
+second buffer address. When this bit is set, BS2 (DES1[25:13])
+should be all zeros.
+When set, this bit indicates that this descriptor contains the
+first buffer of the data. If the size of the first buffer is 0, next
+Descriptor contains the beginning of the data.
+This bit is associated with the last block of a DMA transfer.
+When set, the bit indicates that the buffers pointed to by this
+descriptor are the last buffers of the data. After this descriptor
+is completed, the remaining byte count is 0. In other words,
+after the descriptor with the LD bit set is completed, the
+remaining byte count should be 0.
+
+Disable
+When set, this bit will prevent the setting of the TI/RI bit of the
+Interrupt
+on
+1
+IDMAC Status Register (IDSTS) for the data that ends in the
+Completion
+buffer pointed to by this descriptor.
+(DIC)
+0
+Reserved
+◼ The DES1 element contains the buffer size.
+Table 3-5 Bits in IDMAC DES1 Element
+Bit
+Name
+Description
+31:26
+Reserved
+These bits indicate the second data buffer byte size. The buffer
+size must be a multiple of 2, 4, or 8, depending upon the bus
+widths—16, 32, and 64 respectively. In the case where the
+Buffer 2 Size
+buffer size is not a multiple of 2, 4, or 8, the resulting behavior
+25:13
+(BS2)
+is undefined. If this field is 0, the DMA ignores this buffer and
+proceeds to the next buffer in case of a dual-buffer structure.
+This field is not valid for chain structure; that is, if DES0[4] is
+set.
+Indicates the data buffer byte size, which must be a multiple
+of 2, 4, or 8 bytes, depending upon the bus widths—16, 32,
+and 64, respectively. In the case where the buffer size is not a
+Buffer 1 Size
+12:0
+multiple of 2, 4, or 8, the resulting behavior is undefined. This
+(BS1)
+field should not be zero.
+Note: If there is only one buffer to be programmed, you need
+to use only the Buffer 1, and not Buffer 2.
+◼ The DES2 element contains the address pointer to the data buffer.
+Table 3-6 Bits in IDMAC DES2 Element
+Bit
+Name
+Description
+31:26
+Reserved
+Buffer 2 Size
+These bits indicate the second data buffer byte size. The buffer
+25:13
+(BS2)
+size must be a multiple of 2, 4, or 8, depending upon the bus
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+596
+
+RK3588 TRM-Part2
+Bit
+
+Description
+widths—16, 32, and 64 respectively. In the case where the
+buffer size is not a multiple of 2, 4, or 8, the resulting behavior
+is undefined. If this field is 0, the DMA ignores this buffer and
+proceeds to the next buffer in case of a dual-buffer structure.
+This field is not valid for chain structure; that is, if DES0[4] is
+set.
+Indicates the data buffer byte size, which must be a multiple
+of 2, 4, or 8 bytes, depending upon the bus widths—16, 32,
+and 64, respectively. In the case where the buffer size is not a
+Buffer 1 Size
+12:0
+multiple of 2, 4, or 8, the resulting behavior is undefined. This
+(BS1)
+field should not be zero.
+Note: If there is only one buffer to be programmed, you need
+to use only the Buffer 1, and not Buffer 2.
+◼ The DES3 element contains the address pointer to the next descriptor if the present
+descriptor is not the last descriptor in a chained descriptor structure or the second
+buffer address for a dual-buffer structure.
+Table 3-7 Bits in IDMAC DES3 Element
+Bit
+Name
+Description
+These bits indicate the physical address of the second buffer
+Buffer Address when the dual-buffer structure is used. If the Second Address
+Pointer 2/ Next Chained (DES0[4]) bit is set, then this address contains the
+31:0
+Descriptor
+pointer to the physical memory where the Next Descriptor is
+Address
+present.
+(BAP2)
+If this is not the last descriptor, then the Next Descriptor
+address pointer must be bus-width aligned.
+
+3.3.3.3
+
+Name
+
+Initialization
+
+IDMAC initialization occurs as follows:
+1) Write to IDMAC Bus Mode Register—SDMMC_BMOD to set Host bus access parameters.
+2) Write to IDMAC Interrupt Enable Register—SDMMC_IDINTEN to mask unnecessary
+interrupt causes.
+3) The software driver creates either the Transmit or the Receive descriptor list. Then it
+writes to IDMAC Descriptor List Base Address Register (SDMMC_DBADDR), providing the
+IDMAC with the starting address of the list.
+4) The IDMAC engine attempts to acquire descriptors from the descriptor lists.
+⚫ Host Bus Burst Access
+The IDMAC attempts to execute fixed-length burst transfers on the AHB Master interface if
+configured using the FB bit of the IDMAC Bus Mode register. The maximum burst length is
+indicated and limited by the PBL field. The descriptors are always accessed in the maximum
+possible burst-size for the 16-bytes to be read— 16*8/bus-width.
+The IDMAC initiates a data transfer only when sufficient space to accommodate the
+configured burst is available in the FIFO or the number of bytes to the end of data, when
+less than the configured burst-length.
+The IDMAC indicates the start address and the number of transfers required to the AHB
+Master Interface. When the AHB Interface is configured for fixed-length bursts, then it
+transfers data using the best combination of INCR4/8/16 and SINGLE transactions.
+Otherwise, in no fixed-length bursts, it transfers data using INCR (undefined length) and
+SINGLE transactions.
+⚫ Host Data Buffer Alignment
+The Transmit and Receive data buffers in host memory must be aligned, depending on the
+data width.
+⚫ Buffer Size Calculations
+The driver knows the amount of data to transmit or receive. For transmitting to the card, the
+IDMAC transfers the exact number of bytes to the FIFO, indicated by the buffer size field of
+DES1.
+If a descriptor is not marked as last-LS bit of DES0-then the corresponding buffer(s) of the
+descriptor are full, and the amount of valid data in a buffer is accurately indicated by its
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+597
+
+RK3588 TRM-Part2
+buffer size field. If a descriptor is marked as last, then the buffer cannot be full, as indicated
+by the buffer size in DES1. The driver is aware of the number of locations that are valid in
+this case.
+⚫ Transmission
+IDMAC transmission occurs as follows:
+1) The Host sets up the elements (DES0-DES3) for transmission and sets the OWN bit
+(DES0[31]). The Host also prepares the data buffer.
+2) The Host programs the write data command in the SDMMC_CMD register in BIU.
+3) The Host will also program the required transmit threshold level (TX_WMark field in
+SDMMC_FIFOTH register).
+4) The IDMAC determines that a write data transfer needs to be done as a consequence of
+step 2.
+5) The IDMAC engine fetches the descriptor and checks the OWN bit. If the OWN bit is not
+set, it means that the host owns the descriptor. In this case the IDMAC enters suspend
+state and asserts the Descriptor Unable interrupt in the SDMMC_IDSTS register. In such
+a case, the host needs to release the IDMAC by writing any value to the poll demand
+register.
+6) It will then wait for Command Done (CD) bit and no errors from BIU which indicates that
+a transfer can be done.
+7) The IDMAC engine will now wait for a DMA interface request from BIU. This request will
+be generated based on the programmed transmit threshold value. For the last bytes of
+data which can’t be accessed using a burst, SINGLE transfers are performed on AHB
+Master Interface.
+8) The IDMAC fetches the Transmit data from the data buffer in the Host memory and
+transfers to the FIFO for transmission to card.
+9) When data spans across multiple descriptors, the IDMAC will fetch the next descriptor
+and continue with its operation with the next descriptor. The Last Descriptor bit in the
+descriptor indicates whether the data spans multiple descriptors or not.
+10) When data transmission is complete, status information is updated in SDMMC_IDSTS
+register by setting Transmit Interrupt, if enabled. Also, the OWN bit is cleared by the
+IDMAC by performing a write transaction to DES0.
+⚫ Reception
+IDMAC reception occurs as follows:
+1) The Host sets up the element (DES0-DES3) for reception, sets the OWN (DES0[31]).
+2) The Host programs the read data command in the SDMMC_CMD register in BIU.
+3) The Host will program the required receive threshold level (RX_WMark field in FIFOTH
+register).
+4) The IDMAC determines that a read data transfer needs to be done as a consequence of
+step 2.
+5) The IDMAC engine fetches the descriptor and checks the OWN bit. If the OWN bit is not
+set, it means that the host owns the descriptor. In this case the DMA enters suspend
+state and asserts the Descriptor Unable interrupt in the SDMMC_IDSTS register. In such
+a case, the host needs to release the IDMAC by writing any value to the poll demand
+register.
+6) It will then wait for Command Done (CD) bit and no errors from BIU which indicates that
+a transfer can be done.
+7) The IDMAC engine will now wait for a DMA interface request from BIU. This request will
+be generated based on the programmed receive threshold value. For the last bytes of
+data which can’t be accessed using a burst, SINGLE transfers are performed on AHB.
+8) The IDMAC fetches the data from the FIFO and transfer to Host memory.
+9) When data spans across multiple descriptors, the IDMAC will fetch the next descriptor
+and continue with its operation with the next descriptor. The Last Descriptor bit in the
+descriptor indicates whether the data spans multiple descriptors or not.
+10) When data reception is complete, status information is updated in SDMMC_IDSTS
+register by setting Receive Interrupt, if enabled. Also, the OWN bit is cleared by the
+IDMAC by performing a write transaction to DES0.
+⚫ Interrupts
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+598
+
+RK3588 TRM-Part2
+Interrupts can be generated as a result of various events. SDMMC_IDSTS register contains
+all the bits that might cause an interrupt. SDMMC_IDINTEN register contains an Enable bit
+for each of the events that can cause an interrupt.
+There are two groups of summary interrupts-Normal and Abnormal-as outlined in
+SDMMC_IDSTS register. Interrupts are cleared by writing a 1 to the corresponding bit
+position. When all the enabled interrupts within a group are cleared, the corresponding
+summary bit is cleared. When both the summary bits are cleared, the interrupt signal
+dmac_intr_o is de-asserted.
+Interrupts are not queued and if the interrupt event occurs before the driver has responded
+to it, no additional interrupts are generated. For example, Receive Interrupt—
+SDMMC_IDSTS[1] indicates that one or more data was transferred to the Host buffer.
+An interrupt is generated only once for simultaneous, multiple events. The driver must scan
+SDMMC_IDSTS register for the interrupt cause.
+
+3.3.4 Variable Delay/Clock Generation Unit
+
+Variable delay mechanism for the cclk_in_drv is useful in order to meet a range of hold-time
+requirements across modes. Variable delay mechanism for the cclk_in_sample is mandatory
+and is required to achieve the correct sampling point for data.
+The Clock Generation Unit (CLKGEN) includes Phase Shift Unit and Delay Line Unit.
+The Phase Shift Unit can shift cclk_in_sample/cclk_in_drv by 0/90/180/270-degree relative
+to cclk_in. The Delay Line Unit can shift cclk_in_sample/cclk_in_drv step by step in the unit
+of delay element. The delay value range is 25ps~56ps for every delay element; the max
+delay element number is 256.
+The architecture is as follows.
+cclkin
+
+0
+0
+
+Phase Shift
+
+Delay Line
+
+init_state
+drv_degree
+sample_degree
+
+drv_delaynum/
+sample_delaynum
+
+cclk_in
+cclk_in_drv
+cclk_in_sample
+
+1
+1
+
+drv_sel/
+sample_sel
+
+Fig. 3-9 Clock Generation Unit
+
+3.4 Register Description
+3.4.1 Registers Summary
+Name
+SDMMC_CTRL
+SDMMC_PWREN
+SDMMC_CLKDIV
+SDMMC_CLKSRC
+SDMMC_CLKENA
+SDMMC_TMOUT
+SDMMC_CTYPE
+SDMMC_BLKSIZ
+SDMMC_BYTCNT
+SDMMC_INTMASK
+SDMMC_CMDARG
+SDMMC_CMD
+SDMMC_RESP0
+SDMMC_RESP1
+SDMMC_RESP2
+SDMMC_RESP3
+
+Offset
+0x0000
+0x0004
+0x0008
+0x000c
+0x0010
+0x0014
+0x0018
+0x001c
+0x0020
+0x0024
+0x0028
+0x002c
+0x0030
+0x0034
+0x0038
+0x003c
+
+SDMMC_MINTSTS
+
+0x0040
+
+SDMMC_RINTSTS
+
+0x0044
+
+Size Reset Value
+Description
+W
+0x00000000 Control register
+W
+0x00000000 Power enable register
+W
+0x00000000 Clock divider register
+W
+0x00000000 SD clock source register
+W
+0x00000000 Clock enable register
+W
+0xFFFFFF40
+Timeout register
+W
+0x00000000 Card type register
+W
+0x00000200 Block size register
+W
+0x00000200 Byte count register
+W
+0x00000000 Interrupt mask register
+W
+0x00000000 Command argument register
+W
+0x20000000 Command register
+W
+0x00000000 Response register 0
+W
+0x00000000 Response register 1
+W
+0x00000000 Response register 2
+W
+0x00000000 Response register 3
+Masked interrupt status
+W
+0x00000000
+register
+W
+0x00000000 Raw interrupt status register
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+599
+
+RK3588 TRM-Part2
+Name
+SDMMC_STATUS
+SDMMC_FIFOTH
+SDMMC_CDETECT
+SDMMC_WRTPRT
+
+Offset
+0x0048
+0x004c
+0x0050
+0x0054
+
+SDMMC_TCBCNT
+
+0x005c
+
+SDMMC_TBBCNT
+
+0x0060
+
+SDMMC_DEBNCE
+SDMMC_USRID
+SDMMC_VERID
+SDMMC_HCON
+SDMMC_UHSREG
+SDMMC_RSTN
+SDMMC_BMOD
+SDMMC_PLDMND
+
+0x0064
+0x0068
+0x006c
+0x0070
+0x0074
+0x0078
+0x0080
+0x0084
+
+SDMMC_DBADDR
+
+0x0088
+
+SDMMC_IDSTS
+
+0x008c
+
+SDMMC_IDINTEN
+
+0x0090
+
+SDMMC_DSCADDR
+
+0x0094
+
+SDMMC_BUFADDR
+
+0x0098
+
+SDMMC_CARDTHRCTL
+0x0100
+SDMMC_BACKEND_POWE
+0x0104
+R
+
+Size Reset Value
+Description
+W
+0x00000106 Status register
+W
+0x00FF0000 FIFO threshold register
+W
+0x00000001 Card detect register
+W
+0x00000000 Write protect register
+Transferred card byte count
+W
+0x00000000
+register
+Transferred host to FIFO byte
+W
+0x00000000
+count register
+W
+0x00FFFFFF
+Debounce count register
+W
+0x00000000 User ID register
+W
+0x5342270A Version ID register
+W
+0x04C434C1 Hardware configuration register
+W
+0x00000000 UHS-1 control register
+W
+0x00000001 Hardware reset register
+W
+0x00000000 Bus mode register
+W
+0x00000000 Poll demand register
+Descriptor list base address
+W
+0x00000000
+register
+W
+0x00000000 Internal DMAC status register
+Internal DMAC interrupt enable
+W
+0x00000000
+register
+Current host descriptor address
+W
+0x00000000
+register
+Current buffer descriptor
+W
+0x00000000
+address register
+W
+0x00000000 Card threshold control register
+W
+
+0x00000000
+
+SDMMC_EMMCDDR_REG
+
+0x010c
+
+W
+
+0x00000000
+
+SDMMC_RDYINT_GEN
+
+0x0120
+
+W
+
+0x00FF0000
+
+SDMMC_FIFO_BASE
+
+0x0200
+
+W
+
+0x00000000
+
+Back-end power register
+eMMC4.5 DDR start bit
+detection control register
+Card ready interrupt generation
+control register
+FIFO base address register
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access
+
+3.4.2 Detail Register Description
+
+SDMMC_CTRL
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+31:26 RO 0x00
+reserved
+use_internal_dmac
+Present only for the Internal DMAC configuration; else, it is
+reserved.
+25
+RW 0x0
+1'b0: The host performs data transfers through the slave
+interface
+1'b1: Internal DMAC used for data transfer
+24:12 RO 0x0000
+reserved
+ceata_device_interrupt_status
+1'b0: Interrupts not enabled in CE-ATA device
+1'b1: Interrupts are enabled in CE-ATA device
+11
+RW 0x0
+Software should appropriately write to this bit after power-on
+reset or any other reset to CE-ATA device. After reset, usually
+CE-ATA device interrupt is disabled. If the host enables CE-ATA
+device interrupt, then software should set this bit.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+600
+
+RK3588 TRM-Part2
+Bit Attr Reset Value
+
+10
+
+RW 0x0
+
+9
+
+RW 0x0
+
+8
+
+RW 0x0
+
+7
+
+RW 0x0
+
+6
+
+RW 0x0
+
+Description
+send_auto_stop_ccsd
+1'b0: Clear bit if Host Controller does not reset the bit
+1'b1: Send internally generated STOP after sending CCSD to CEATA device
+NOTE: Always set send_auto_stop_ccsd and send_ccsd bits
+together send_auto_stop_ccsd should not be set independent of
+send_ccsd.
+When set, the Host Controller automatically sends internallygenerated STOP command (CMD12) to CE-ATA device. After
+sending internally-generated STOP command, Auto Command
+Done (ACD) bit in SDMMC_RINTSTS is set and generates
+interrupt to host if Auto Command Done interrupt is not masked.
+After sending the CCSD, the Host Controller automatically clears
+send_auto_stop_ccsd bit.
+send_ccsd
+1'b0: Clear bit if Host Controller does not reset the bit
+1'b1: Send Command Completion Signal Disable (CCSD) to CEATA device
+When set, the Host Controller sends CCSD to CE-ATA device.
+Software sets this bit only if current command is expecting CCS
+(that is, RW_BLK) and interrupts are enabled in CE-ATA device.
+Once the CCSD pattern is sent to device, the Host Controller
+automatically clears send_ccsd bit. It also sets Command Done
+(CD) bit in SDMMC_RINTSTS register and generates interrupt to
+host if Command Done interrupt is not masked.
+NOTE: Once send_ccsd bit is set, it takes two card clock cycles to
+drive the CCSD on the CMD line. Due to this, during the
+boundary conditions it may happen that CCSD is sent to the CEATA device, even if the device signalled CCS.
+abort_read_data
+1'b0: No change
+1'b1: After suspend command is issued during read-transfer,
+software polls card to find when suspend happened. Once
+suspend occurs, software sets bit to reset data state-machine,
+which is waiting for next block of data. Bit automatically clears
+once data state machine resets to idle.
+Used in SDIO card suspend sequence.
+send_irq_response
+1'b0: No change
+1'b1: Send auto IRQ response
+Bit automatically clears once response is sent.
+To wait for MMC card interrupts, software issues CMD40, and the
+Host Controller waits for interrupt response from MMC card. In
+meantime, if software wants the Controller to exit waiting for
+interrupt state, it can set this bit, at which time the Host
+Controller command state-machine sends CMD40 response on
+bus and returns to idle state.
+read_wait
+1'b0: Clear read wait
+1'b1: Assert read wait
+For sending read-wait to SDIO cards.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+601
+
+RK3588 TRM-Part2
+Bit Attr Reset Value
+
+5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+3
+
+RO
+
+2
+
+WO 0x0
+
+1
+
+WO 0x0
+
+0
+
+WO 0x0
+
+0x0
+
+Description
+dma_enable
+1'b0: Disable DMA transfer mode
+1'b1: Enable DMA transfer mode
+Even when DMA mode is enabled, host can still push/pop data
+into or from FIFO; this should not happen during the normal
+operation. If there is simultaneous FIFO access from host/DMA,
+the data coherency is lost. Also, there is no arbitration inside the
+controller to prioritize simultaneous host/DMA access.
+int_enable
+Global interrupt enable/disable bit.
+1'b0: Disable interrupts
+1'b1: Enable interrupts
+The int port is 1 only when this bit is 1 and one or more
+unmasked interrupts are set.
+reserved
+dma_reset
+1'b0: No change
+1'b1: Reset internal DMA interface control logic
+To reset DMA interface, firmware should set bit to 1.
+This bit is auto-cleared after two AHB clocks.
+fifo_reset
+1'b0: No change
+1'b1: Reset to data FIFO to reset FIFO pointers
+To reset FIFO, firmware should set bit to 1.
+This bit is auto-cleared after completion of reset operation.
+controller_reset
+1'b0: No change
+1'b1: Reset Host Controller
+To reset Host Controller, firmware should set bit to 1. This bit is
+auto-cleared after two AHB and two cclk_in clock cycles.
+This resets:
+a. BIU/CIU interface
+b. CIU and state machines
+c. abort_read_data, send_irq_response, and read_wait bits of
+SDMMC_CTRL register
+d. start_cmd bit of SDMMC_CMD register
+Does not affect any registers or DMA interface, or FIFO or
+controller interrupts.
+
+SDMMC_PWREN
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+power_enable
+Power on/off switch for the card.
+Once power is turned on, firmware should wait for
+0
+RW 0x0
+regulator/switch ramp-up time before trying to initialize card.
+1'b0: Power off
+1'b1: Power on
+Bit values output to card_power_en port.
+SDMMC_CLKDIV
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+602
+
+RK3588 TRM-Part2
+Bit Attr Reset Value
+7:0
+
+RW 0x00
+
+Description
+clk_divider0
+Clock divider-0 value. Clock division is 2*n.
+For example, value of 0 means divide by 2*0 = 0 (no division,
+bypass), value of 1 means divide by 2*1 = 2, and so on.
+The recommended value is 0 or 1.
+
+SDMMC_CLKSRC
+Address: Operational Base + offset (0x000c)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+clk_source
+Clock divider source.
+1:0
+RW 0x0
+2'b00: Clock divider 0
+The cclk_out is always from clock divider 0, and this register is
+not implemented.
+SDMMC_CLKENA
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+Description
+31:17 RO 0x0000
+reserved
+cclk_low_power
+Low-power control for SD card clock and MMC card clock
+supported.
+1'b0: Non-low-power mode
+16
+RW 0x0
+1'b1: Low-power mode
+Stop clock when card in IDLE (should be normally set to only
+MMC and SD memory cards; for SDIO cards, if interrupts must
+be detected, clock should not be stopped).
+15:1 RO 0x0000
+reserved
+cclk_enable
+Clock-enable control for SD card clock and MMC card clock
+0
+RW 0x0
+supported.
+1'b0: Clock disabled
+1'b1: Clock enabled
+SDMMC_TMOUT
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+Description
+data_timeout
+Value for card data read timeout; same value also used for data
+starvation by host timeout.
+31:8 RW 0xffffff
+Value is in number of card output clock.
+Note: The software timer should be used if the timeout value is
+in the order of 100 ms. In this case, read data timeout interrupt
+needs to be disabled.
+response_timeout
+7:0
+RW 0x40
+Response timeout value.
+Value is in number of card output clock cclk_out.
+SDMMC_CTYPE
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+31:17 RO 0x0000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+603
+
+RK3588 TRM-Part2
+Bit Attr Reset Value
+16
+
+RW 0x0
+
+15:1 RO
+0
+
+0x0000
+
+RW 0x0
+
+Description
+card_width_8
+Indicates if card is 8-bit.
+1'b0: Non 8-bit mode
+1'b1: 8-bit mode
+reserved
+card_width
+Indicates if card is 1-bit or 4-bit.
+1'b0: 1-bit mode
+1'b1: 4-bit mode
+
+SDMMC_BLKSIZ
+Address: Operational Base + offset (0x001c)
+Bit Attr Reset Value
+31:16 RO 0x0000
+reserved
+block_size
+15:0 RW 0x0200
+Block size
+
+Description
+
+SDMMC_BYTCNT
+Address: Operational Base + offset (0x0020)
+Bit Attr Reset Value
+Description
+byte_count
+Number of bytes to be transferred; should be integer multiple of
+block size for block transfers.
+31:0 RW 0x00000200
+For undefined number of byte transfers, byte count should be set
+to 0. When byte count is set to 0, it is responsibility of host to
+explicitly send stop/abort command to terminate data transfer.
+SDMMC_INTMASK
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+Description
+31:25 RO 0x00
+reserved
+sdio_int_mask
+24
+RW 0x0
+1'b0: SDIO interrupt not masked
+1'b1: SDIO interrupt masked
+23:17 RO 0x00
+reserved
+data_nobusy_int_mask
+16
+RW 0x0
+1'b0: Data no busy interrupt not masked
+1'b1: Data no busy interrupt masked
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+604
+
+RK3588 TRM-Part2
+Bit Attr Reset Value
+
+15:0 RW
+
+0x0000
+
+Description
+int_mask
+Bits used to mask unwanted interrupts. Value of 0 masks
+interrupt; value of 1 enables interrupt.
+bit 15: End-bit error (read)/Write no CRC (EBE)
+bit 14: Auto command done (ACD)
+bit 13: Start-bit error (SBE)
+bit 12: Hardware locked write error (HLE)
+bit 11: FIFO underrun/overrun error (FRUN)
+bit 10: Data starvation-by-host timeout (HTO) /Volt_switch_int
+bit 9: Data read timeout (DRTO)
+bit 8: Response timeout (RTO)
+bit 7: Data CRC error (DCRC)
+bit 6: Response CRC error (RCRC)
+bit 5: Receive FIFO data request (RXDR)
+bit 4: Transmit FIFO data request (TXDR)
+bit 3: Data transfer over (DTO)
+bit 2: Command done (CD)
+bit 1: Response error (RE)
+bit 0: Card detect (CD)
+
+SDMMC_CMDARG
+Address: Operational Base + offset (0x0028)
+Bit Attr Reset Value
+Description
+cmd_arg
+31:0 RW 0x00000000
+Value indicates command argument to be passed to card.
+SDMMC_CMD
+Address: Operational Base + offset (0x002c)
+Bit Attr Reset Value
+Description
+start_cmd
+Start command.
+Once command is taken by CIU, bit is cleared.
+When bit is set, host should not attempt to write to any
+31
+RW 0x0
+command registers. If write is attempted, hardware lock error is
+set in raw interrupt register.
+Once command is sent and response is received from SD/MMC
+cards, Command Done bit is set in raw interrupt register.
+30
+RO 0x0
+reserved
+use_hold_reg
+Use hold register.
+29
+RW 0x1
+1'b0: CMD and DATA sent to card bypassing hold register
+1'b1: CMD and DATA sent to card through the hold register
+volt_switch
+Voltage switch bit.
+28
+RW 0x0
+1'b0: No voltage switching
+1'b1: Voltage switching enabled; must be set for CMD11 only.
+boot_mode
+Boot mode selection.
+27
+RW 0x0
+1'b0: Mandatory boot operation
+1'b1: Alternate boot operation
+disable_boot
+Disable boot.
+26
+RW 0x0
+When software sets this bit along with start_cmd, CIU terminates
+the boot operation. Do not set disable_boot and enable_boot
+together.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+605
+
+RK3588 TRM-Part2
+Bit Attr Reset Value
+25
+
+RW
+
+0x0
+
+24
+
+RW
+
+0x0
+
+23
+
+RW
+
+0x0
+
+22
+
+RW
+
+0x0
+
+21
+
+RW
+
+0x0
+
+20:16 RO
+
+0x00
+
+Description
+expect_boot_ack
+Expect boot acknowledge.
+When software sets this bit along with enable_boot, CIU expects
+a boot acknowledge start pattern of 0-1-0 from the selected
+card.
+enable_boot
+Enable boot.
+This bit should be set only for mandatory boot mode. When
+Software sets this bit along with start_cmd, CIU starts the boot
+sequence for the corresponding card by asserting the CMD line
+low. Do not set disable_boot and enable_boot together.
+ccs_expected
+1'b0: Interrupts are not enabled in CE-ATA device or command
+does not expect CCS from device
+1'b1: Interrupts are enabled in CE-ATA device and RW_BLK
+command expects command completion signal from CE-ATA
+device
+If the command expects command completion signal (CCS) from
+the CE-ATA device, the software should set this control bit.
+The Host Controller sets data transfer over (DTO) bit in
+SDMMC_RINTSTS register and generates interrupt to host if data
+transfer over interrupt is not masked.
+read_ceata_device
+1'b0: Host is not performing read access towards CE-ATA device
+1'b1: Host is performing read access towards CE-ATA device
+Software should set this bit to indicate that CE-ATA device is
+being accessed for read transfer. This bit is used to disable read
+data timeout indication while performing CE-ATA read transfers.
+Maximum value of I/O transmission delay can be no less than 10
+seconds. The Host Controller should not indicate read data
+timeout while waiting for data from CE-ATA device.
+update_clock_regs_only
+1'b0: Normal command sequence
+1'b1: Do not send commands, just update clock register value
+into card clock domain.
+Following register values transferred into card clock domain:
+SDMMC_CLKDIV, SDMMC_CLRSRC, SDMMC_CLKENA.
+Changes card clocks (change frequency, truncate off or on, and
+set low-frequency mode); provided in order to change clock
+frequency or stop clock without having to send command to
+cards.
+During normal command sequence, when
+update_clock_regs_only = 0, following control registers are
+transferred from BIU to CIU: SDMMC_CMD, SDMMC_CMDARG,
+SDMMC_TMOUT, SDMMC_CTYPE, SDMMC_BLKSIZ,
+SDMMC_BYTCNT. CIU uses new register values for new command
+sequence to card.
+When bit is set, there are no Command Done interrupts because
+no command is sent to SD_MMC_CEATA cards.
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+606
+
+RK3588 TRM-Part2
+Bit Attr Reset Value
+
+15
+
+RW
+
+0x0
+
+14
+
+RW
+
+0x0
+
+13
+
+RW
+
+0x0
+
+12
+
+RW
+
+0x0
+
+11
+
+RW
+
+0x0
+
+10
+
+RW
+
+0x0
+
+9
+
+RW
+
+0x0
+
+Description
+send_initialization
+1'b0: Do not send initialization sequence (80 clocks of 1) before
+sending this command
+1'b1: Send initialization sequence before sending this command
+After power on, 80 clocks must be sent to card for initialization
+before sending any commands to card. Bit should be set while
+sending first command to card so that controller will initialize
+clocks before sending command to card. This bit should not be
+set for either of the boot modes (alternate or mandatory).
+stop_abort_cmd
+1'b0: Neither stop nor abort command to stop current data
+transfer in progress. If abort is sent to function-number currently
+selected or not in data-transfer mode, then bit should be set to
+0.
+1'b1: Stop or abort command intended to stop current data
+transfer in progress.
+When open-ended or predefined data transfer is in progress, and
+host issues stop or abort command to stop data transfer, bit
+should be set so that command/data state-machines of CIU can
+return correctly to idle state. This is also applicable for Boot
+mode transfers. To Abort boot mode, this bit should be set along
+with SDMMC_CMD[26]=disable_boot.
+wait_prvdata_complete
+1'b0: Send command at once, even if previous data transfer has
+not completed
+1'b1: Wait for previous data transfer completion before sending
+command
+The wait_prvdata_complete=0 option typically used to query
+status of card during data transfer or to stop current data
+transfer; card_number should be same as in previous command.
+send_auto_stop
+1'b0: No stop command sent at end of data transfer
+1'b1: Send stop command at end of data transfer
+When set, the Host Controller sends stop command to card at
+end of data transfer.
+a. When send_auto_stop bit should be set, since some data
+transfers do not need explicit stop commands
+b. Open-ended transfers that software should explicitly send to
+stop command
+Additionally, when "resume" is sent to resume-suspended
+memory access of SD-Combo card, bit should be set correctly if
+suspended data transfer needs send_auto_stop.
+Don't care if no data expected from card.
+transfer_mode
+1'b0: Block data transfer command
+1'b1: Stream data transfer command
+Don't care if no data expected.
+wr
+1'b0: Read from card
+1'b1: Write to card
+Don't care if no data expected from card.
+data_expected
+1'b0: No data transfer expected (read/write)
+1'b1: Data transfer expected (read/write)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+607
+
+RK3588 TRM-Part2
+Bit Attr Reset Value
+
+8
+
+RW
+
+0x0
+
+7
+
+RW
+
+0x0
+
+6
+
+RW
+
+0x0
+
+5:0
+
+RW
+
+0x00
+
+Description
+check_response_crc
+1'b0: Do not check response CRC
+1'b1: Check response CRC
+Some of command responses do not return valid CRC bits.
+Software should disable CRC checks for those commands in
+order to disable CRC checking by controller.
+response_length
+1'b0: Short response expected from card
+1'b1: Long response expected from card
+response_expect
+1'b0: No response expected from card
+1'b1: Response expected from card
+cmd_index
+Command index
+
+SDMMC_RESP0
+Address: Operational Base + offset (0x0030)
+Bit Attr Reset Value
+response0
+31:0 RO 0x00000000
+Bit[31:0] of response
+
+Description
+
+SDMMC_RESP1
+Address: Operational Base + offset (0x0034)
+Bit Attr Reset Value
+Description
+response1
+Register represents bit[63:32] of long response.
+When CIU sends auto-stop command, then response is saved in
+31:0 RO 0x00000000 register. Response for previous command sent by host is still
+preserved in response 0 register. Additional auto-stop issued
+only for data transfer commands, and response type is always
+"short" for them.
+SDMMC_RESP2
+Address: Operational Base + offset (0x0038)
+Bit Attr Reset Value
+Description
+response2
+31:0 RO 0x00000000
+Bit[95:64] of long response.
+SDMMC_RESP3
+Address: Operational Base + offset (0x003c)
+Bit Attr Reset Value
+Description
+response3
+31:0 RO 0x00000000
+Bit[127:96] of long response.
+SDMMC_MINTSTS
+Address: Operational Base + offset (0x0040)
+Bit Attr Reset Value
+Description
+31:25 RO 0x00
+reserved
+sdio_interrupt
+24
+RO 0x0
+SDIO interrupt status when sdio_int_mask is set.
+23:17 RO 0x00
+reserved
+data_nobusy_int_status
+16
+RW 0x0
+Data no busy interrupt status when data_nobusy_int_mask is set
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+608
+
+RK3588 TRM-Part2
+Bit Attr Reset Value
+
+15:0 RO
+
+0x0000
+
+Description
+int_status
+Interrupt enabled only if corresponding bit in interrupt mask
+register is set.
+bit 15: End-bit error (read)/Write no CRC (EBE)
+bit 14: Auto command done (ACD)
+bit 13: Start-bit error (SBE)
+bit 12: Hardware locked write error (HLE)
+bit 11: FIFO underrun/overrun error (FRUN)
+bit 10: Data starvation-by-host timeout (HTO) /Volt_switch_int
+bit 9: Data read timeout (DRTO)
+bit 8: Response timeout (RTO)
+bit 7: Data CRC error (DCRC)
+bit 6: Response CRC error (RCRC)
+bit 5: Receive FIFO data request (RXDR)
+bit 4: Transmit FIFO data request (TXDR)
+bit 3: Data transfer over (DTO)
+bit 2: Command done (CD)
+bit 1: Response error (RE)
+bit 0: Card detect (CD)
+
+SDMMC_RINTSTS
+Address: Operational Base + offset (0x0044)
+Bit Attr Reset Value
+Description
+31:25 RO 0x00
+reserved
+sdio_interrupt
+24
+WO 0x0
+Raw SDIO interrupt status.
+Write value of 1 clears this bit, and value of 0 leaves bit intact.
+23:17 RO 0x00
+reserved
+data_nobusy_int_status
+16
+WO 0x0
+Raw data no busy interrupt status.
+Write value of 1 clears this bit, and value of 0 leaves bit intact.
+int_status
+Raw interrupt status.
+Writes to bits clear status bit. Write value of 1 clears status bit,
+and value of 0 leaves bit intact.
+bit 15: End-bit error (read)/Write no CRC (EBE)
+bit 14: Auto command done (ACD)
+bit 13: Start-bit error (SBE)
+bit 12: Hardware locked write error (HLE)
+bit 11: FIFO underrun/overrun error (FRUN)
+bit 10: Data starvation-by-host timeout (HTO) /Volt_switch_int
+15:0 WO 0x0000
+bit 9: Data read timeout (DRTO)
+bit 8: Response timeout (RTO)
+bit 7: Data CRC error (DCRC)
+bit 6: Response CRC error (RCRC)
+bit 5: Receive FIFO data request (RXDR)
+bit 4: Transmit FIFO data request (TXDR)
+bit 3: Data transfer over (DTO)
+bit 2: Command done (CD)
+bit 1: Response error (RE)
+bit 0: Card detect (CD)
+SDMMC_STATUS
+Address: Operational Base + offset (0x0048)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+609
+
+RK3588 TRM-Part2
+Bit Attr Reset Value
+31
+
+RO
+
+0x0
+
+30
+
+RO
+
+0x0
+
+29:17 RO
+
+0x0000
+
+16:11 RO
+
+0x00
+
+10
+
+RO
+
+0x0
+
+9
+
+RO
+
+0x0
+
+8
+
+RO
+
+0x1
+
+7:4
+
+RO
+
+0x0
+
+3
+
+RO
+
+0x0
+
+2
+
+RO
+
+0x1
+
+Description
+dma_req
+DMA request signal state
+dma_ack
+DMA acknowledge signal state
+fifo_count
+Number of filled locations in FIFO
+response_index
+Index of previous response, including any auto-stop sent by
+core.
+data_state_mc_busy
+Data transmit or receive state-machine is busy.
+data_busy
+Inverted version of raw selected card_data[0].
+1'b0: Card data not busy
+1'b1: Card data busy
+data_3_status
+Raw selected card_data[3]; checks whether card is present.
+1'b0: Card not present
+1'b1: Card present
+command_fsm_states
+Command FSM states:
+4'h0: Idle
+4'h1: Send init sequence
+4'h2: Tx cmd start bit
+4'h3: Tx cmd tx bit
+4'h4: Tx cmd index + arg
+4'h5: Tx cmd crc7
+4'h6: Tx cmd end bit
+4'h7: Tx resp start bit
+4'h8: Rx resp IRQ response
+4'h9: Rx resp tx bit
+4'ha: Rx resp cmd idx
+4'hb: Rx resp data
+4'hc: Rx resp crc7
+4'hd: Rx resp end bit
+4'he: Cmd path wait NCC
+4'hf: Wait; CMD-to-response turnaround
+The command FSM state is represented using 19 bits.
+The SDMMC_STATUS register[7:4] has 4 bits to represent the
+command FSM states. Using these 4 bits, only 16 states can be
+represented. Thus three states cannot be represented in the
+SDMMC_STATUS[7:4] register. The three states that are not
+represented in the SDMMC_STATUS register[7:4] are:
+Bit 16: Wait for CCS
+Bit 17: Send CCSD
+Bit 18: Boot Mode
+Due to this, while command FSM is in "Wait for CCS state" or
+"Send CCSD" or "Boot Mode", the SDMMC_STATUS register
+indicates status as 0 for the bit field [7:4].
+fifo_full
+FIFO is full status
+fifo_empty
+FIFO is empty status
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+610
+
+RK3588 TRM-Part2
+Bit Attr Reset Value
+1
+
+RO
+
+0x1
+
+0
+
+RO
+
+0x0
+
+Description
+fifo_tx_watermark
+FIFO reached Transmit watermark level; not qualified with data
+transfer.
+fifo_rx_watermark
+FIFO reached Receive watermark level; not qualified with data
+transfer.
+
+SDMMC_FIFOTH
+Address: Operational Base + offset (0x004c)
+Bit Attr Reset Value
+Description
+31
+RO 0x0
+reserved
+dma_mutiple_transaction_size
+Burst size of multiple transaction; should be programmed same
+as DMA controller multiple-transaction-size SRC/DEST_MSIZE.
+3'b000: 1 transfers
+3'b001: 4 transfers
+3'b010: 8 transfers
+30:28 RW 0x0
+3'b011: 16 transfers
+3'b100: 32 transfers
+3'b101: 64 transfers
+3'b110: 128 transfers
+3'b111: 256 transfers
+The unit for transfer is 32bits.
+rx_wmark
+FIFO threshold watermark level when receiving data to card.
+When FIFO data count reaches greater than this number,
+DMA/FIFO request is raised. During end of packet, request is
+generated regardless of threshold programming in order to
+complete any remaining data.
+In non-DMA mode, when receiver FIFO threshold (RXDR)
+interrupt is enabled, then interrupt is generated instead of DMA
+request. During end of packet, interrupt is not generated if
+threshold programming is larger than any remaining data. It is
+responsibility of host to read remaining bytes on seeing Data
+Transfer Done interrupt.
+27:16 RW 0x0ff
+In DMA mode, at end of packet, even if remaining bytes are less
+than threshold, DMA request does single transfers to flush out
+any remaining bytes before Data Transfer Done interrupt is set.
+12 bits-1 bit less than FIFO-count of status register, which is 13
+bits.
+Limitation: rx_wmark <= FIFO_DEPTH-2
+Recommended: (FIFO_DEPTH/2) - 1; (means greater than
+(FIFO_DEPTH/2) - 1)
+NOTE: In DMA mode during CCS time-out, the DMA does not
+generate the request at the end of packet, even if remaining
+bytes are less than threshold. In this case, there will be some
+data left in the FIFO. It is the responsibility of the application to
+reset the FIFO after the CCS timeout.
+15:12 RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+611
+
+RK3588 TRM-Part2
+Bit Attr Reset Value
+
+11:0 RW 0x000
+
+Description
+tx_wmark
+FIFO threshold watermark level when transmitting data to card.
+When FIFO data count is less than or equal to this number,
+DMA/FIFO request is raised. If Interrupt is enabled, then
+interrupt occurs. During end of packet, request or interrupt is
+generated, regardless of threshold programming.
+In non-DMA mode, when transmit FIFO threshold (TXDR)
+interrupt is enabled, then interrupt is generated instead of DMA
+request. During end of packet, on last interrupt, host is
+responsible for filling FIFO with only required remaining bytes
+(not before FIFO is full or after CIU completes data transfers,
+because FIFO may not be empty).
+In DMA mode, at end of packet, if last transfer is less than burst
+size, DMA controller does single cycles until required bytes are
+transferred.
+12 bits -1 bit less than FIFO-count of status register, which is 13
+bits.
+Limitation: tx_wmark >= 1;
+Recommended: FIFO_DEPTH/2; (means less than or equal to
+FIFO_DEPTH/2)
+
+SDMMC_CDETECT
+Address: Operational Base + offset (0x0050)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+card_detect_n
+Value on card_detect_n input port.
+0
+RO 0x1
+1'b0: Represents presence of card
+1'b1: Represents absence of card
+SDMMC_WRTPRT
+Address: Operational Base + offset (0x0054)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+write_protect
+0
+RW 0x0
+Value on card_write_prt input port. 1 represents write
+protection.
+SDMMC_TCBCNT
+Address: Operational Base + offset (0x005c)
+Bit Attr Reset Value
+Description
+trans_card_byte_count
+31:0 RO 0x00000000
+Number of bytes transferred by CIU unit to card.
+SDMMC_TBBCNT
+Address: Operational Base + offset (0x0060)
+Bit Attr Reset Value
+Description
+trans_fifo_byte_count
+31:0 RO 0x00000000 Number of bytes transferred between host/DMA memory and
+BIU FIFO.
+SDMMC_DEBNCE
+Address: Operational Base + offset (0x0064)
+Bit Attr Reset Value
+31:24 RO 0x00
+reserved
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+612
+
+RK3588 TRM-Part2
+Bit Attr Reset Value
+23:0 RW
+
+0xffffff
+
+Description
+debounce_count
+Number of host clock used by debounce filter logic; typical
+debounce time is 5-25 ms.
+
+SDMMC_USRID
+Address: Operational Base + offset (0x0068)
+Bit Attr Reset Value
+Description
+usrid
+31:0 RW 0x00000000
+User identification register
+SDMMC_VERID
+Address: Operational Base + offset (0x006c)
+Bit Attr Reset Value
+Description
+verid
+31:0 RO 0x5342270a
+Version identification register
+SDMMC_HCON
+Address: Operational Base + offset (0x0070)
+Bit Attr Reset Value
+Description
+31:27 RO 0x00
+reserved
+area_optimized
+26
+RO 0x1
+1'b0: No area optimization
+1'b1: Area optimization
+num_clk_div
+25:24 RO 0x0
+divider number-1.
+set_clk_false_path
+23
+RO 0x1
+1'b0: No false path
+1'b1: False path set
+impl_hold_reg
+22
+RO 0x1
+1'b0: No hold register
+1'b1: Hold register
+fifo_ram_inside
+21
+RO 0x0
+1'b0: Outside
+1'b1: Inside
+ge_dma_data_width
+3'b000: 16 bits
+20:18 RO 0x1
+3'b001: 32 bits
+3'b010: 64 bits
+Others: Reserved
+dma_interface
+2'b00: None
+17:16 RO 0x0
+2'b01: INT_DMA
+2'b10: GENERIC_DMA
+2'b11: NON-INT-DMA
+h_addr_width
+6'h8: 9 bits
+6'h9: 10 bits
+15:10 RO 0x1f
+……
+6'h1f: 32 bits
+Others: Reserved
+h_data_width
+3'b000: 16 bits
+9:7
+RO 0x1
+3'b001: 32 bits
+3'b010: 64 bits
+Others: Reserved
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+613
+
+RK3588 TRM-Part2
+Bit Attr Reset Value
+6
+
+RO
+
+0x1
+
+5:1
+
+RO
+
+0x00
+
+0
+
+RO
+
+0x1
+
+Description
+h_bus_type
+1'b0: APB
+1'b1: AHB
+card_num
+Card number -1.
+card_type
+Card type.
+1'b0: MMC_ONLY
+1'b1: SD_MMC
+
+SDMMC_UHSREG
+Address: Operational Base + offset (0x0074)
+Bit Attr Reset Value
+Description
+31:17 RO 0x0000
+reserved
+ddr_reg
+DDR mode. These bits indicate DDR mode of operation to the
+16
+RW 0x0
+core for the data transfer.
+1'b0: Non-DDR mode
+1'b1: DDR mode
+15:0 RO 0x0000
+reserved
+SDMMC_RSTN
+Address: Operational Base + offset (0x0078)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+card_reset
+Hardware reset.
+1'b0: Active mode
+0
+RW 0x1
+1'b1: Reset
+These bits cause the cards to enter pre-idle state, which requires
+them to be re-initialized.
+SDMMC_BMOD
+Address: Operational Base + offset (0x0080)
+Bit Attr Reset Value
+31:11 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+614
+
+RK3588 TRM-Part2
+Bit Attr Reset Value
+
+10:8 RO
+
+0x0
+
+7
+
+RW 0x0
+
+6:2
+
+RW 0x00
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+pbl
+Programmable burst length. These bits indicate the maximum
+number of beats to be performed in one IDMAC transaction. The
+IDMAC will always attempt to burst as specified in PBL each time
+it starts a Burst transfer on the host bus. The permissible values
+are 1, 4, 8, 16, 32, 64, 128 and 256. This value is the mirror of
+MSIZE of SDMMC_FIFOTH register. In order to change this value,
+write the required value to SDMMC_FIFOTH register. This is an
+encode value as follows.
+3'b000: 1 transfers
+3'b001: 4 transfers
+3'b010: 8 transfers
+3'b011: 16 transfers
+3'b100: 32 transfers
+3'b101: 64 transfers
+3'b110: 128 transfers
+3'b111: 256 transfers
+Transfer unit is 32 bits.
+PBL is a read-only value and is applicable only for data access; it
+does not apply to descriptor accesses.
+de
+IDMAC enable.
+When set, the IDMAC is enabled.
+dsl
+Descriptor skip length.
+Specifies the number of word to skip between two unchained
+descriptors. This is applicable only for dual buffer structure.
+fb
+Fixed burst.
+Controls whether the AHB Master interface performs fixed burst
+transfers or not. When set, the AHB will use only SINGLE,
+INCR4, INCR8 or INCR16 during start of normal burst transfers.
+When reset, the AHB will use SINGLE and INCR burst transfer
+operations.
+swr
+Software reset.
+When set, the DMA Controller resets all its internal registers.
+It is automatically cleared after 1 clock cycle.
+
+SDMMC_PLDMND
+Address: Operational Base + offset (0x0084)
+Bit Attr Reset Value
+Description
+pd
+Poll demand. If the OWN bit of a descriptor is not set, the FSM
+31:0 WO 0x00000000 goes to the suspend state. The host needs to write any value
+into this register for the IDMAC FSM to resume normal descriptor
+fetch operation.
+SDMMC_DBADDR
+Address: Operational Base + offset (0x0088)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+615
+
+RK3588 TRM-Part2
+Bit Attr Reset Value
+31:0 RW 0x00000000
+
+Description
+sbl
+Start of descriptor list. Contains the base address of the first
+descriptor.
+The LSB bits[1:0] are ignored and taken as all-zero by the
+IDMAC internally. Hence these LSB bits are read-only.
+
+SDMMC_IDSTS
+Address: Operational Base + offset (0x008c)
+Bit Attr Reset Value
+Description
+31:17 RO 0x0000
+reserved
+fsm
+DMAC FSM present state.
+4'h0: DMA_IDLE
+4'h1: DMA_SUSPEND
+4'h2: DESC_RD
+4'h3: DESC_CHK
+16:13 RO 0x0
+4'h4: DMA_RD_REQ_WAI
+4'h5: DMA_WR_REQ_WAI
+4'h6: DMA_RD
+4'h7: DMA_WR
+4'h8: DESC_CLOSE
+Others: Reserved
+eb
+Error bits. Indicates the type of error that caused a bus error.
+Valid only with fatal bus.
+12:10 RO 0x0
+3'h1: Host abort received during transmission
+3'h2: Host abort received during reception
+Others: Reserved
+ais
+Abnormal interrupt summary. Logical OR of the following:
+SDMMC_IDSTS[2] fatal bus interrupt
+SDMMC_IDSTS[4] du bit interrupt
+9
+RW 0x0
+Only unmasked bits affect this bit.
+This is a sticky bit and must be cleared each time a
+corresponding bit that causes ais to be set is cleared.
+Writing a 1 clears this bit.
+nis
+Normal interrupt summary. Logical OR of the following:
+SDMMC_IDSTS[0] transmit interrupt
+SDMMC_IDSTS[1] receive interrupt
+8
+RW 0x0
+Only unmasked bits affect this bit.
+This is a sticky bit and must be cleared each time a
+corresponding bit that causes nis to be set is cleared.
+Writing a 1 clears this bit.
+7:6
+RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+616
+
+RK3588 TRM-Part2
+Bit Attr Reset Value
+
+5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+3
+
+RO
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+0x0
+
+Description
+ces
+Card error summary. Indicates the status of the transaction
+to/from the card; also present in SDMMC_RINTSTS. Indicates the
+logical OR of the following bits:
+EBE: End Bit Error
+RTO: Response Timeout/Boot Ack Timeout
+RCRC: Response CRC
+SBE: Start Bit Error
+DRTO: Data Read Timeout/BDS timeout
+DCRC: Data CRC for Receive
+RE: Response Error
+Writing a 1 clears this bit.
+The abort condition of the IDMAC depends on the setting of this
+CES bit. If the CES bit is enabled, then the IDMAC aborts on a
+"response error"; however, it will not abort if the CES bit is
+cleared.
+dui
+Descriptor unavailable interrupt. This bit is set when the
+descriptor is unavailable due to OWN bit = 0 (DES0[31] =0).
+Writing a 1 clears this bit.
+reserved
+fbe
+Fatal bus error interrupt. Indicates that a bus error occurred
+(SDMMC_IDSTS[12:10]).
+When this bit is set, the DMA disables all its bus accesses.
+Writing a 1 clears this bit.
+ri
+Receive interrupt.
+Indicates the completion of data reception for a descriptor.
+Writing a 1 clears this bit.
+ti
+Transmit interrupt.
+Indicates that data transmission is finished for a descriptor.
+Writing 1 clears this bit.
+
+SDMMC_IDINTEN
+Address: Operational Base + offset (0x0090)
+Bit Attr Reset Value
+Description
+31:10 RO 0x000000
+reserved
+ai
+Abnormal interrupt summary enable.
+When set, an abnormal interrupt is enabled.
+9
+RW 0x0
+This bit enables the following bits:
+SDMMC_IDINTEN[2] fatal bus error interrupt
+SDMMC_IDINTEN[4] du interrupt
+ni
+Normal interrupt summary enable.
+When set, a normal interrupt is enabled. When reset, a normal
+8
+RW 0x0
+interrupt is disabled.
+This bit enables the following bits:
+SDMMC_IDINTEN[0] transmit interrupt
+SDMMC_IDINTEN[1] receive interrupt
+7:6
+RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+617
+
+RK3588 TRM-Part2
+Bit Attr Reset Value
+5
+
+RW
+
+0x0
+
+4
+
+RW
+
+0x0
+
+3
+
+RO
+
+0x0
+
+2
+
+RW
+
+0x0
+
+1
+
+RW
+
+0x0
+
+0
+
+RW
+
+0x0
+
+Description
+ces
+Card error summary interrupt enable.
+When set, it enables the card interrupt summary.
+du
+Descriptor unavailable interrupt.
+When set along with abnormal interrupt summary enable, the du
+interrupt is enabled.
+reserved
+fbe
+Fatal bus error enable.
+When set with abnormal interrupt summary enable, the fatal bus
+error interrupt is enabled.
+When reset, fatal bus error enable interrupt is disabled.
+ri
+Receive interrupt enable.
+When set with normal interrupt summary enable, receive
+interrupt is enabled.
+When reset, receive interrupt is disabled.
+ti
+Transmit interrupt enable.
+When set with normal interrupt summary enable, transmit
+interrupt is enabled.
+When reset, transmit interrupt is disabled.
+
+SDMMC_DSCADDR
+Address: Operational Base + offset (0x0094)
+Bit Attr Reset Value
+Description
+hda
+Host descriptor address pointer.
+31:0 RW 0x00000000 This register points to the start address of the current descriptor
+read by the IDMAC. Cleared on reset. Pointer updated by IDMAC
+during operation.
+SDMMC_BUFADDR
+Address: Operational Base + offset (0x0098)
+Bit Attr Reset Value
+Description
+hba
+Host buffer address pointer.
+31:0 RW 0x00000000 This register points to the current data buffer address being
+accessed by the IDMAC. Cleared on Reset. Pointer updated by
+IDMAC during operation.
+SDMMC_CARDTHRCTL
+Address: Operational Base + offset (0x0100)
+Bit Attr Reset Value
+31:28 RO 0x0
+reserved
+card_rd_thres
+27:16 RW 0x000
+Card read threshold size
+15:2 RO 0x0000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+618
+
+RK3588 TRM-Part2
+Bit Attr Reset Value
+
+1
+
+RW
+
+0x0
+
+0
+
+RW
+
+0x0
+
+Description
+busy_clr_int_en
+Busy clear interrupt.
+1'b0: Busy clear interrupt disabled
+1'b1: Busy clear interrupt enabled
+Note: The application can disable this feature if it does not want
+to wait for a busy clear interrupt. For example, in a multi-card
+scenario, the application can switch to the other card without
+waiting for a busy to be completed. In such cases, the
+application can use the polling method to determine the status of
+busy. By default this feature is disabled and backwardcompatible to the legacy drivers where polling is used.
+card_rd_thres_en
+Card read threshold enable.
+1'b0: Card read threshold disabled
+1'b1: Card read threshold enabled. The host initiates read
+transfer only if zcard_rd_thres amount of space is available in
+receive FIFO.
+
+SDMMC_BACKEND_POWER
+Address: Operational Base + offset (0x0104)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+back_end_power
+Back end power.
+0
+RW 0x0
+1'b0: Off; Reset
+1'b1: Back-end power supplied to card application
+SDMMC_EMMCDDR_REG
+Address: Operational Base + offset (0x010c)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+half_start_bit
+Control for start bit detection mechanism inside Host Controller
+based on duration of start bit.
+For eMMC 4.5, start bit can be:
+0
+RW 0x0
+1'b0: Full cycle (half_start_bit=0)
+1'b1: Less than one full cycle (half_start_bit=1)
+Set half_start_bit=1 for eMMC 4.5 and above; set to 0 for SD
+applications.
+SDMMC_RDYINT_GEN
+Address: Operational Base + offset (0x0120)
+Bit Attr Reset Value
+Description
+31:25 RO 0x00
+reserved
+rdyint_cnt_finish
+24
+RO 0x0
+Counter finish indication.
+When high, it indicates that the rdyint counter is finished.
+rdyint_cnt_status
+23:16 RO 0xff
+Couner status, reflect internal counter value.
+15:9 RO 0x00
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+619
+
+RK3588 TRM-Part2
+Bit Attr Reset Value
+
+8
+
+RW
+
+0x0
+
+7:0
+
+RW
+
+0x00
+
+Description
+rdyint_gen_working
+Working indication for rdyint generator.
+When high, Host Controller start to count and generate one
+rdyint trigger. After the rdyint trigger is generated, this bit will be
+set to 0 by Host Controller. So software should set it to 1 before
+detecting next interrupt.
+rdyint_gen_maxval
+Max counter value to detect cdata_in0 high value for generating
+rdyint, based on internal clock frequency.
+
+SDMMC_FIFO_BASE
+Address: Operational Base + offset (0x0200)
+Bit Attr Reset Value
+fifo_base_addr
+31:0 RW 0x00000000
+FIFO base address
+
+Description
+
+3.5 Interface Description
+3.5.1 SDMMC Interface Description
+
+Table 3-8 SDMMC Interface Description
+
+Module Pin
+
+Dir.
+
+PAD Name
+SDMMC_CLK/PDM1_CLK0_M0/TEST_CLKOUT_M0/MCU_
+JTAG_TMS_M0/CAN0_RX_M1/UART5_TX_M0/GPIO4_D5
+_d
+SDMMC_CMD/PDM1_CLK1_M0/MCU_JTAG_TCK_M0/CA
+N0_TX_M1/UART5_RX_M0/PWM7_IR_M1/GPIO4_D4_u
+SDMMC_D0/PDM1_SDI3_M0/JTAG_TCK_M1/I2C3_SCL_
+M4/UART2_TX_M1/PWM8_M1/GPIO4_D0_u
+SDMMC_D1/PDM1_SDI2_M0/JTAG_TMS_M1/I2C3_SDA
+_M4/UART2_RX_M1/PWM9_M1/GPIO4_D1_u
+SDMMC_D2/PDM1_SDI1_M0/JTAG_TCK_M0/I2C8_SCL_
+M0/UART5_CTSN_M0/GPIO4_D2_u
+SDMMC_D3/PDM1_SDI0_M0/JTAG_TMS_M0/I2C8_SDA
+_M0/UART5_RTSN_M0/PWM10_M1/GPIO4_D3_u
+
+sdmmc_cclk
+
+O
+
+sdmmc_ccmd
+
+I/O
+
+sdmmc_cdata0
+
+I/O
+
+sdmmc_cdata1
+
+I/O
+
+sdmmc_cdata2
+
+I/O
+
+sdmmc_cdata3
+
+I/O
+
+sdmmc_cdetn
+
+I
+
+SDMMC_DET/GPIO0_A4_u
+
+sdmmc_pwr
+
+O
+
+SPI2_CLK_M2/SDMMC_PWREN/PMU_DEBUG/GPIO0_A5
+_d
+
+IOMUX Setting
+BUS_IOC_GPIO4D_IOMUX_SEL_H[7:4]
+=4’h1
+BUS_IOC_GPIO4D_IOMUX_SEL_H[3:0]
+=4’h1
+BUS_IOC_GPIO4D_IOMUX_SEL_L[3:0]=
+4’h1
+BUS_IOC_GPIO4D_IOMUX_SEL_L[7:4]=
+4’h1
+BUS_IOC_GPIO4D_IOMUX_SEL_L[11:8]
+=4’h1
+BUS_IOC_GPIO4D_IOMUX_SEL_L[15:12
+]=4’h1
+PMU1_IOC_GPIO0A_IOMUX_SEL_H[3:0]
+=4’h1
+PMU1_IOC_GPIO0A_IOMUX_SEL_H[7:4]
+=4’h2
+
+Notes: I=input, O=output, I/O=input/output, bidirectional
+
+3.5.2 SDIO Interface Description
+
+Table 3-9 SDIO M0 Interface Description
+
+Module Pin
+
+Dir.
+
+sdio_cclk
+
+O
+
+sdio_ccmd
+
+I/O
+
+sdio_cdata0
+
+I/O
+
+sdio_cdata1
+
+I/O
+
+sdio_cdata2
+
+I/O
+
+sdio_cdata3
+
+I/O
+
+PAD Name
+GMAC0_TXCLK/SDIO_CLK_M0/FSPI_CLK_M1/I2C3_SDA
+_M3/GPIO2_B3_d
+GMAC0_TXD3/SDIO_CMD_M0/I2C3_SCL_M3/GPIO2_B2
+_u
+GMAC0_RXD2/SDIO_D0_M0/FSPI_D0_M1/UART6_RX_
+M0/GPIO2_A6_u
+GMAC0_RXD3/SDIO_D1_M0/FSPI_D1_M1/UART6_TX_
+M0/GPIO2_A7_u
+GMAC0_RXCLK/SDIO_D2_M0/FSPI_D2_M1/I2C8_SCL_
+M1/UART6_RTSN_M0/GPIO2_B0_u
+GMAC0_TXD2/SDIO_D3_M0/FSPI_D3_M1/I2C8_SDA_M
+1/UART6_CTSN_M0/GPIO2_B1_u
+
+IOMUX Setting
+BUS_IOC_GPIO2B_IOMUX_SEL_L[15:12
+]=4’h2
+BUS_IOC_GPIO2B_IOMUX_SEL_L[11:8]
+=4’h2
+BUS_IOC_GPIO2A_IOMUX_SEL_H[11:8]
+=4’h2
+BUS_IOC_GPIO2A_IOMUX_SEL_H[15:1
+2]=4’h2
+BUS_IOC_GPIO2B_IOMUX_SEL_L[3:0]=
+4’h2
+BUS_IOC_GPIO2B_IOMUX_SEL_L[7:4]=
+4’h2
+
+Notes: I=input, O=output, I/O=input/output, bidirectional
+
+Table 3-10 SDIO M1 Interface Description
+Module Pin
+
+Dir.
+
+sdio_cclk
+
+O
+
+sdio_ccmd
+
+I/O
+
+sdio_cdata0
+
+I/O
+
+sdio_cdata1
+
+I/O
+
+PAD Name
+GMAC1_RXCLK/SDIO_CLK_M1/MIPI_CAMERA0_CLK_M1
+/FSPI_CLK_M2/I2C4_SDA_M0/UART8_CTSN_M1/GPIO3
+_A5_d
+GMAC1_TXCLK/SDIO_CMD_M1/I2S3_SDI/AUDDSM_RP/
+UART8_RTSN_M1/SPI4_CS1_M1/GPIO3_A4_d
+GMAC1_TXD2/SDIO_D0_M1/I2S3_MCLK/FSPI_D0_M2/I
+2C6_SDA_M4/PWM10_M0/SPI4_MISO_M1/GPIO3_A0_u
+GMAC1_TXD3/SDIO_D1_M1/I2S3_SCLK/AUDDSM_LN/F
+SPI_D1_M2/I2C6_SCL_M4/PWM11_IR_M0/SPI4_MOSI_
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+IOMUX Setting
+BUS_IOC_GPIO3A_IOMUX_SEL_H[7:4]
+=4’h2
+BUS_IOC_GPIO3A_IOMUX_SEL_H[3:0]
+=4’h2
+BUS_IOC_GPIO3A_IOMUX_SEL_L[3:0]=
+4’h2
+BUS_IOC_GPIO3A_IOMUX_SEL_L[7:4]=
+4’h2
+
+620
+
+RK3588 TRM-Part2
+Module Pin
+
+Dir.
+
+sdio_cdata2
+
+I/O
+
+sdio_cdata3
+
+I/O
+
+PAD Name
+M1/GPIO3_A1_u
+GMAC1_RXD2/SDIO_D2_M1/I2S3_LRCK/AUDDSM_LP/F
+SPI_D2_M2/UART8_TX_M1/SPI4_CLK_M1/GPIO3_A2_u
+GMAC1_RXD3/SDIO_D3_M1/I2S3_SDO/AUDDSM_RN/F
+SPI_D3_M2/UART8_RX_M1/SPI4_CS0_M1/GPIO3_A3_u
+
+IOMUX Setting
+BUS_IOC_GPIO3A_IOMUX_SEL_L[11:8]
+=4’h2
+BUS_IOC_GPIO3A_IOMUX_SEL_L[15:12
+]=4’h2
+
+Notes: I=input, O=output, I/O=input/output, bidirectional
+
+3.6 Application Notes
+3.6.1 Software/Hardware Restriction
+
+Before issuing a new data transfer command, the software should ensure that the card is
+not busy due to any previous data transfer command. Before changing the card clock
+frequency, the software must ensure that there are no data or command transfers in
+progress.
+To avoid glitches in the card clock outputs, the software should use the following steps when
+changing the card clock frequency:
+1) Before disable the clocks, ensure that the card is not busy due to any previous data
+command. To determine this, check for 0 in bit9 of SDMMC_STATUS register.
+2) Update the Clock Enable register to disable clock. To ensure completion of any previous
+command before this update, send a command to the CIU to update the clock registers
+by setting:
+⚫ start_cmd bit
+⚫ “update clock registers only” bits
+⚫ “wait_previous data complete” bit
+Wait for the CIU to take the command by polling for 0 on the start_cmd bit.
+3) Set the start_cmd bit to update the Clock Divider and/or Clock Source register, and send
+a command to the CIU in order to update the clock registers; wait for the CIU to take
+the command.
+4) Set start_cmd to update the Clock Enable register in order to enable the required clocks
+and send a command to the CIU to update the clock registers; wait for the CIU to take
+the command.
+In non-DMA mode, while reading from a card, the Data Transfer Over (SDMMC_RINTSTS[3])
+interrupt occurs as soon as the data transfer from the card is over. There still could be some
+data left in the FIFO, and the RX_WMark interrupt may or may not occur, depending on the
+remaining bytes in the FIFO. Software should read any remaining bytes upon seeing the
+Data Transfer Over (DTO) interrupt. While using the external DMA interface for reading from
+a card, the DTO interrupt occurs only after all the data is flushed to memory by the DMA
+interface unit.
+While writing to a card in external DMA mode, if an undefined-length transfer is selected by
+setting the Byte Count Register to 0, the DMA logic will likely request more data than it will
+send to the card, since it has no way of knowing at which point the software will stop the
+transfer. The DMA request stops as soon as the DTO is set by the CIU.
+If the software issues a controller_reset command by setting control register bit[0] to 1, all
+the CIU state machines are reset; the FIFO is not cleared. The DMA sends all remaining
+bytes to the host. In addition to a card-reset, if a FIFO reset is also issued, then:
+⚫ Any pending DMA transfer on the bus completes correctly
+⚫ DMA data read is ignored
+⚫ Write data is unknown(x)
+Additionally, if dma_reset is also issued, any pending DMA transfer is abruptly terminated.
+When the DMA is used, the DMA controller channel should also be reset and reprogrammed.
+If any of the previous data commands do not properly terminate, then the software should
+issue the FIFO reset in order to remove any residual data, if any, in the FIFO. After asserting
+the FIFO reset, you should wait until this bit is cleared.
+One data-transfer requirement between the FIFO and host is that the number of transfers
+should be a multiple of the FIFO data width (32bits). For example, you want to write only 15
+bytes to an SD/MMC card (SDMMC_BYTCNT), the host should write 16 bytes to the FIFO or
+program the DMA to do 16-byte transfers. The software can still program the Byte Count
+register to only 15, at which point only 15 bytes will be transferred to the card. Similarly,
+when 15 bytes are read from a card, the host should still read all 16 bytes from the FIFO.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+621
+
+RK3588 TRM-Part2
+It is recommended that you not change the FIFO threshold register in the middle of data
+transfers.
+
+3.6.2 Programming Sequence
+3.6.2.1 Initialization
+
+Following figure illustrates the initialization flow.
+Assert Reset – active-low
+(for at least two clocks of clk or cclk_in, whichever is slower)
+Configure control register
+Enable power to card
+Set interrupt masks
+Enumerate_Card_Stack
+Change clock source assignment, if required
+Set other IP parameters
+Other software-specific initialization
+
+Fig. 3-10 Host Controller Initialization Sequence
+Once the power and clocks are stable, reset_n should be asserted(active-low) for at least
+two cycles of clk or cclk_in, whichever is slower. The reset initializes the registers, ports,
+FIFO-pointers, DMA interface controls, and state-machines in the design. After power-on
+reset, the software should do the following:
+1) Configure control register – For MMC mode, enable the open-drain pullup by setting
+enable_OD_pullup(bit24) in the SDMMC_CTRL register.
+2) Enable power to cards – Before enabling the power, confirm that the voltage setting to
+the voltage regulators is correct. Enable power to the connected cards by setting the
+corresponding bit to 1 in the Power Enable register. Wait for the power ramp-up time.
+3) Set masks for interrupts by clearing appropriate bits in the Interrupt Mask register. Set
+the global int_enable bit of the SDMMC_CTRL register. It is recommended that you write
+0xffff_ffff to the Raw Interrupt register in order to clear any pending interrupts before
+setting the int_enable bit.
+4) Enumerate card stack – Each card is enumerated according to card type; for details,
+refer to “Enumerated Card Stack”. For enumeration, you should restrict the clock
+frequency to 400KHz.
+5) Changing clock source assignment – set the card frequency using the clock-divider and
+clock-source registers; for details, refer to “Clock Programming”. MMC cards operate at a
+maximum of 20MHz (at maximum of 52MHz in high-speed mode). SD mode operates at
+a maximum of 25MHz (at maximum of 50MHz in high-speed mode).
+6) Set other parameters, which normally do not need to be changed with every command,
+with a typical value such as timeout values in cclk_out according to SD/MMC
+specifications.
+⚫ ResponseTimeOut = 0x64
+⚫ DataTimeOut = highest of one of the following:
+⚫ (10*((TAAC*Fop)+(100*NSAC))
+⚫ Host FIFO read/write latency from FIFO empty/full
+⚫ Set the debounce value to 25ms(default:0x0fffff) in host clock cycle units in the
+SDMMC_DEBNCE register.
+⚫ FIFO threshold value in bytes in the SDMMC_FIFOTH register.
+
+3.6.2.2
+
+Enumerated Card Stack
+
+The card stack does the following:
+⚫ Enumerates all connected cards
+⚫ Sets the RCA for the connected cards
+⚫ Reads card-specific information
+⚫ Stores card-specific information locally
+Enumeration depends on the operating mode of the SD/MMC card; the card type is first
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+622
+
+RK3588 TRM-Part2
+identified and the appropriate card enumeration routine is called.
+1) Check if the card is connected.
+2) Clear the card type register to set the card width as a single bit. For the given card
+number, clear the corresponding bits in the card_type register. Clear the register bit for a
+1-bit, 4-bit bus width. For example, for card number=1, clear bit 0 and bit 16 of the
+card_type register.
+3) Set clock frequency to FOD=400KHz, maximum – Program clock divider0 (bits 0-7 in the
+SDMMC_CLKDIV register) value to one-half of the cclk_in frequency divided by 400KHz.
+For example, if cclk_in is 20MHz, then the value is 20, 000/(2*400)=25.
+4) Identify the card type; that is, SD, MMC, or SDIO.
+a. Send CMD5 first. If a response is received, then the card is SDIO
+b. If not, send CMD8 with the following Argument
+Bit[31:12] = 20’h0 //reserved bits
+Bit[11:8] = 4’b0001 //VHS value
+Bit[7:0] = 8’b10101010 //Preferred Check Pattern by SD2.0
+c. If Response is received the card supports High Capacity SD2.0 then send ACMD41
+with the following Argument
+Bit[31] = 1’b0; //Reserved bits
+Bit[30] = 1’b1; //High Capacity Status
+Bit[29:24] = 6’h0; //Reserved bits
+Bit[23:0] = Supported Voltage Range
+d. If Response is received for ACMD41 then the card is SD. Otherwise the card is MMC.
+e. If response is not received for initial CMD8 then card does not support High Capacity
+SD2.0, then issue CMD0 followed by ACMD41 with the following Argument
+Bit[31] = 1’b0; //Reserved bits
+Bit[30] = 1’b0; //High Capacity Status
+Bit[29:24] = 6’h0; //Reserved bits
+Bit[23:0] = Supported Voltage Range
+5) Enumerate the card according to the card type.
+6) Use a clock source with a frequency = Fod (that is, 400KHz) and use the following
+enumeration command sequence:
+⚫ SD card – Send CMD0, CMD8, ACMD41, CMD2, CMD3.
+⚫ MMC – Send CMD0, CMD1, CMD2, CMD3.
+
+3.6.2.3
+
+Clock Programming
+
+The Host Controller supports one clock source. The clock to an individual card can be
+enabled or disabled. Registers that support this are:
+⚫ SDMMC_CLKDIV – Programs individual clock source frequency. SDMMC_CLKDIV limited
+to 0 or 1 is recommended.
+⚫ SDMMC_CLKSRC – Assign clock source for each card.
+⚫ SDMMC_CLKENA – Enables or disables clock for individual card and enables low-power
+mode, which automatically stops the clock to a card when the card is idle for more than
+8 clocks.
+The Host Controller loads each of these registers only when the start_cmd bit and the
+update_clk_regs_only bit in the SDMMC_CMD register are set. When a command is
+successfully loaded, the Host Controller clears this bit, unless the Host Controller already has
+another command in the queue, at which point it gives an HLE(Hardware Locked Error).
+Software should look for the start_cmd and the update_clk_regs_only bits, and should also
+set the wait_prvdata_complete bit to ensure that clock parameters do not change during
+data transfer. Note that even though start_cmd is set for updating clock registers, the Host
+Controller does not raise a command_done signal upon command completion.
+The following shows how to program these registers:
+1) Confirm that no card is engaged in any transaction; if there is a transaction, wait until it
+finishes.
+2) Stop all clocks by writing 0 to the SDMMC_CLKENA register. Set the start_cmd,
+Update_clk_regs_only, and wait_prvdata_complete bits in the SDMMC_CMD register.
+Wait until start_cmd is cleared or an HLE is set; in case of an HLE, repeat the command.
+3) Program the SDMMC_CLKDIV and SDMMC_CLKSRC registers, as required. Set the
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+623
+
+RK3588 TRM-Part2
+start_cmd, Update_clk_regs_only, and wait_prvdata_complete bits in the SDMMC_CMD
+register. Wait until start_cmd is cleared or an HLE is set; in case of an HLE, repeat the
+command.
+4) Re-enable all clocks by programming the SDMMC_CLKENA register. Set the start_cmd,
+update_clk_regs_only, and wait_prvdata_complete bits in the SDMMC_CMD register.
+Wait until start_cmd is cleared or an HLE is set; in case of an HLE, repeat the command.
+
+3.6.2.4
+
+No-Data Command With or Without Response Sequence
+
+To send any non-data command, the software needs to program the SDMMC_CMD register
+@0x2C and the SDMMC_CMDARG register @0x28 with appropriate parameters. Using these
+two registers, the Host Controller forms the command and sends it to the command bus.
+The Host Controller reflects the errors in the command response through the error bits of
+the SDMMC_RINTSTS register.
+When a response is received – either erroneous or valid – the Host Controller sets the
+command_done bit in the SDMMC_RINTSTS register. A short response is copied in Response
+Register0, while along response is copied to all four response registers @0x30, 0x34, 0x38,
+and 0x3C. The Response3 register bit 31 represents the MSB, and the Response0 register bit
+0 represents the LSB of a long response.
+For basic commands or non-data commands, follow these steps:
+1) Program the Command register @0x28 with the appropriate command argument
+parameter.
+2) Program the Command register @0x2C with the settings in following table.
+Table 3-11 Command Settings for No-Data Command
+Parameter
+Value
+Description
+Default
+start_cmd
+1
+Choose value based on speed
+mode being used;ref to
+use_hold_reg
+1
+“use_hold_reg” on
+SDMMC_CMD register
+No clock parameters update
+update_clk_regs_only
+0
+command
+data_expected
+0
+No data command
+Actual card number(one
+card number
+0
+controller only connect one
+card, the num is No. 0)
+cmd_index
+command-index
+Can be 1, but only for card
+send_initialization
+0
+reset commands, such as
+CMD0
+Can be 1 for commands to
+stop_abort_cmd
+0
+stop data transfer, such as
+CMD12
+Can be 1 for R2(long)
+response_length
+0
+response
+Can be 0 for commands with
+no response; for example,
+response_expect
+1
+CMD0, CMD4, CMD15, and so
+on
+User-selectable
+Before sending command on
+command line, host should
+wait for completion of any
+wait_prvdata_complete
+1
+data command in process, if
+any (recommended to always
+set this bit, unless the current
+command is to query status
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+624
+
+RK3588 TRM-Part2
+Parameter
+
+Value
+
+Description
+or stop data transfer when
+transfer is in progress)
+If host should crosscheck CRC
+check_response_crc
+1
+of response received
+3) Wait for command acceptance by host. The following happens when the command is
+loaded into the Host Controller:
+⚫ Host Controller accepts the command for execution and clears the start_cmd bit in the
+SDMMC_CMD register, unless one command is in process, at which point the Host
+Controller can load and keep the second command in the buffer.
+⚫ If the Host Controller is unable to load the command – that is, a command is already in
+progress, a second command is in the buffer, and a third command is attempted – then
+it generates an HLE (hardware-locked error).
+4) Check if there is an HLE.
+5) Wait for command execution to complete. After receiving either a response from a card
+or response timeout, the Host Controller sets the command_done bit in the
+SDMMC_RINTSTS register. Software can either poll for this bit or respond to a generated
+interrupt.
+6) Check if response_timeout error, response_CRC error, or response error is set. This can
+be done either by responding to an interrupt raised by these errors or by polling bits 1,
+6, and 8 from the SDMMC_RINTSTS register @0x44. If no response error is received,
+then the response is valid. If required, the software can copy the response from the
+response registers @0x30-0x3C.
+Software should not modify clock parameters while a command is being executed.
+
+3.6.2.5
+
+Data Transfer Commands
+
+3.6.2.6
+
+Single-Block or Multiple-Block Read
+
+Data transfer commands transfer data between the memory card and the Host Controller. To
+send a data command, the Host Controller needs a command argument, total data size, and
+block size. Software can receive or send data through the FIFO.
+Before a data transfer command, software should confirm that the card is not busy and is in
+a transfer state, which can be done using the CMD13 and CMD7 commands, respectively.
+For the data transfer commands, it is important that the same bus width that is programmed
+in the card should be set in the card type register @0x18.
+The Host Controller generates an interrupt for different conditions during data transfer,
+which are reflected in the SDMMC_RINTSTS register @0x44 as:
+1) Data_Transfer_Over (bit 3) – When data transfer is over or terminated. If there is a
+response timeout error, then the Host Controller does not attempt any data transfer and
+the “Data Transfer Over” bit is never set.
+2) Transmit_FIFO_Data_request (bit 4) – FIFO threshold for transmitting data was reached;
+software is expected to write data, if available, in FIFO.
+3) Receive_FIFO_Data_request (bit 5) – FIFO threshold for receiving data was reached;
+software is expected to read data from FIFO.
+4) Data starvation by Host timeout (bit 10) – FIFO is empty during transmission or is full
+during reception. Unless software writes data for empty condition or reads data for full
+condition, the Host Controller cannot continue with data transfer. The clock to the card
+has been stopped.
+5) Data read timeout error (bit 9) – Card has not sent data within the timeout period.
+6) Data CRC error (bit 7) – CRC error occurred during data reception.
+7) Start bit error (bit 13) – Start bit was not received during data reception.
+8) End bit error (bit 15) – End bit was not received during data reception or for a write
+operation; a CRC error is indicated by the card.
+Conditions 6), 7), and 8) indicate that the received data may have errors. If there was a
+response timeout, then no data transfer occurred.
+Steps involved in a single-block or multiple-block read are:
+1) Write the data size in bytes in the SDMMC_BYTCNT register @0x20.
+2) Write the block size in bytes in the SDMMC_BLKSIZ register @0x1C. The Host Controller
+expects data from the card in blocks of size SDMMC_BLKSIZ each.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+625
+
+RK3588 TRM-Part2
+3) Program the SDMMC_CMDARG register @0x28 with the data address of the beginning of
+a data read.
+4) Program the Command register with the parameters listed in following table. For SD and
+MMC cards, use CMD17 for a single-block read and CMD18 for a multiple-block read. For
+SDIO cards, use CMD53 for both single-block and multiple-block transfers.
+Table 3-12 Command Setting for Single or Multiple-Block Read
+Parameter
+Value
+Description
+Default
+start_cmd
+1
+Choose value based on speed
+mode being used;ref to
+use_hold_reg
+1
+“use_hold_reg” on
+SDMMC_CMD register
+No clock parameters update
+update_clk_regs_only
+0
+command
+Actual card number(one
+card number
+0
+controller only connect one
+card, the num is No.0)
+Can be 1, but only for card
+send_initialization
+0
+reset commands, such as
+CMD0
+Can be 1 for commands to
+stop_abort_cmd
+0
+stop data transfer, such as
+CMD12
+send_auto_stop
+0/1
+transfer_mode
+0
+Block transfer
+read_write
+0
+Read from card
+data_expected
+1
+Data command
+Can be 1 for R2(long)
+response_length
+0
+response
+Can be 0 for commands with
+no response; for example,
+response_expect
+1
+CMD0, CMD4, CMD15, and so
+on
+User-selectable
+cmd_index
+command-index
+0: Sends command
+immediately
+wait_prvdata_complete
+1
+1: Sends command after
+previous data transfer ends
+0: Host Controller should not
+check response CRC
+check_response_crc
+1
+1: Host Controller should
+check response CRC
+After writing to the SDMMC_CMD register, the Host Controller starts executing the
+command; when the command is sent to the bus, the command_done interrupt is
+generated.
+⚫ Software should look for data error interrupts; that is, bits 7, 9, 13, and 15 of the
+SDMMC_RINTSTS register. If required, software can terminate the data transfer by
+sending a STOP command.
+⚫ Software should look for Receive_FIFO_Data_request and/or data starvation by host
+timeout conditions. In both cases, the software should read data from the FIFO and
+make space in the FIFO for receiving more data.
+⚫ When a Data_Transfer_Over interrupt is received, the software should read the
+remaining data from the FIFO.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+626
+
+RK3588 TRM-Part2
+
+3.6.2.7
+
+Single-Block or Multiple-Block Write
+
+Steps involved in a single-block or multiple-block write are:
+1) Write the data size in bytes in the SDMMC_BYTCNT register @0x20.
+2) Write the block size in bytes in the SDMMC_BLKSIZ register @0x1C; the Host Controller
+sends data in blocks of size SDMMC_BLKSIZ each.
+3) Program SDMMC_CMDARG register @0x28 with the data address to which data should
+be written.
+4) Write data in the FIFO; it is usually best to start filling data the full depth of the FIFO.
+5) Program the Command register with the parameters listed in following table.
+Table 3-13 Command Settings for Single or Multiple-Block Write
+Parameter
+Value
+Description
+Default
+start_cmd
+1
+Choose value based on speed
+mode being used;ref to
+use_hold_reg
+1
+“use_hold_reg” on
+SDMMC_CMD register
+No clock parameters update
+update_clk_regs_only
+0
+command
+Actual card number(one
+card number
+0
+controller only connect one
+card, the num is No. 0)
+Can be 1, but only for card
+send_initialization
+0
+reset commands, such as
+CMD0
+Can be 1 for commands to
+stop_abort_cmd
+0
+stop data transfer, such as
+CMD12
+send_auto_stop
+0/1
+transfer_mode
+0
+Block transfer
+read_write
+1
+Write to card
+data_expected
+1
+Data command
+Can be 1 for R2(long)
+response_length
+0
+response
+Can be 0 for commands with
+no response; for example,
+response_expect
+1
+CMD0, CMD4, CMD15, and so
+on
+User-selectable
+cmd_index
+command-index
+0: Sends command
+immediately
+wait_prvdata_complete
+1
+1: Sends command after
+previous data transfer ends
+0: Host Controller should not
+check response CRC
+check_response_crc
+1
+1: Host Controller should
+check response CRC
+After writing to the SDMMC_CMD register, Host Controller starts executing a command;
+when the command is sent to the bus, a command_done interrupt is generated.
+⚫ Software should look for data error interrupts; that is, for bits 7, 9, and 15 of the
+SDMMC_RINTSTS register. If required, software can terminate the data transfer by
+sending the STOP command.
+⚫ Software should look for Transmit_FIFO_Data_Request and/or timeout conditions from
+data starvation by the host. In both cases, the software should write data into the FIFO.
+⚫ When a Data_Transfer_Over interrupt is received, the data command is over. For an
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+627
+
+RK3588 TRM-Part2
+open-ended block transfer, if the byte count is 0, the software must send the STOP
+command. If the byte count is not 0, then upon completion of a transfer of a given
+number of bytes, the Host Controller should send the STOP command, if necessary.
+Completion of the AUTO-STOP command is reflected by the Auto_command_done
+interrupt – bit 14 of the SDMMC_RINTSTS register. A response to AUTO_STOP is stored
+in SDMMC_RESP1 @0x34.
+
+3.6.2.8
+
+Stream Read
+
+3.6.2.9
+
+Stream Write
+
+A stream read is like the block read mentioned in “Single-Block or Multiple-Block Read”,
+except for the following bits in the Command register:
+transfer_mode = 1; //Stream transfer
+cmd_index = CMD20;
+A stream transfer is allowed for only a single-bit bus width.
+A stream write is exactly like the block write mentioned in “Single-Block or Multiple-Block
+Write”, except for the following bits in the Command register:
+transfer_mode = 1;//Stream transfer
+cmd_index = CMD11;
+In a stream transfer, if the byte count is 0, then the software must send the STOP
+command. If the byte count is not 0, then when a given number of bytes completes a
+transfer, the Host Controller sends the STOP command. Completion of this AUTO_STOP
+command is reflected by the Auto_command_done interrupt. A response to an AUTO_STOP
+is stored in the SDMMC_RESP1 register@0x34.
+A stream transfer is allowed for only a single-bit bus width.
+
+3.6.2.10 Sending Stop or Abort in Middle of Transfer
+
+The STOP command can terminate a data transfer between a memory card and the
+Controller, while the ABORT command can terminate an I/O data transfer for only the
+SDIO_IOONLY and SDIO_COMBO cards.
+⚫ Send STOP command – Can be sent on the command line while a data transfer is in
+progress; this command can be sent at any time during a data transfer.
+You can also use an additional setting for this command in order to set the Command
+register bits (5-0) to CMD12 and set bit 14 (stop_abort_cmd) to 1. If stop_abort_cmd is not
+set to 1, the Controller does not know that the user stopped a data transfer. Reset bit 13 of
+the Command register (wait_prvdata_complete) to 0 in order to make the Controller send
+the command at once, even though there is a data transfer in progress.
+⚫ Send ABORT command – Can be used with only an SDIO_IOONLY or SDIO_COMBO card.
+To abort the function that is transferring data, program the function number in ASx bits
+(CCCR register of card, address 0x06, bits (0-2) using CMD52.
+
+3.6.2.11 Read_Wait Sequence
+
+Read_wait is used with only the SDIO card and can temporarily stall the data transfer—
+either from function or memory—and allow the host to send commands to any function
+within the SDIO device. The host can stall this transfer for as long as required. The Host
+Controller provides the facility to signal this stall transfer to the card. The steps for doing
+this are:
+1) Check if the card supports the read_wait facility; read SRW (bit 2) of the CCCR register
+@0x08. If this bit is 1, then all functions in the card support the read_wait facility. Use
+CMD52 to read this bit.
+2) If the card supports the read_wait signal, then assert it by setting the read_wait (bit 6)
+in the SDMMC_CTRL register @0x00.
+3) Clear the read_wait bit in the SDMMC_CTRL register.
+
+3.6.2.12 Controller/DMA/FIFO Reset Usage
+⚫
+
+⚫
+
+Controller reset – Resets the controller by setting the controller_reset bit (bit 0) in the
+SDMMC_CTRL register; this resets the CIU and state machines, and also resets the BIUto-CIU interface. Since this reset bit is self-clearing, after issuing the reset, wait until
+this bit is cleared.
+FIFO reset - Resets the FIFO by setting the fifo_reset bit (bit 1) in the SDMMC_CTRL
+register; this resets the FIFO pointers and counters of the FIFO. Since this reset bit is
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+628
+
+RK3588 TRM-Part2
+self-clearing, after issuing the reset, wait until this bit is cleared.
+In external DMA transfer mode, even when the FIFO pointers are reset, if there is a DMA
+transfer in progress, it could push or pop data to or from the FIFO; the DMA itself completes
+correctly. In order to clear the FIFO, the software should issue an additional FIFO reset and
+clear any FIFO under-run or overrun errors in the SDMMC_RAWINTS register caused by the
+DMA transfers after the FIFO was reset.
+
+3.6.2.13 Card Read Threshold
+
+When an application needs to perform a Single or Multiple Block Read command, the
+application must program the SDMMC_CARDTHRCTL register with the appropriate Card Read
+Threshold size (CardRdThreshold) and set the Card Read Threshold Enable
+(CardRdThrEnable) bit to 1'b1. This additional programming ensures that the Host controller
+sends a Read Command only if there is space equal to the Card Read Threshold available in
+the Rx FIFO. This in turn ensures that the card clock is not stopped in the middle a block of
+data being transmitted from the card. The Card Read Threshold can be set to the block size
+of the transfer, which guarantees that there is a minimum of one block size of space in the
+RxFIFO before the controller enables the card clock. The Card Read Threshold is required
+when the Round Trip Delay is greater than 0.5cclk_in period.
+
+3.6.2.14 Error Handling
+
+The Host Controller implements error checking; errors are reflected in the SDMMC_RAWINTS
+register@0x44 and can be communicated to the software through an interrupt, or the
+software can poll for these bits. Upon power-on, interrupts are disabled (int_enable in the
+SDMMC_CTRL register is 0), and all the interrupts are masked (bits 0-31 of the
+SDMMC_INTMASK register; default is 0).
+Error handling:
+⚫ Response and data timeout errors – For response timeout, software can retry the
+command. For data timeout, the Host Controller has not received the data start bit –
+either for the first block or the intermediate block – within the timeout period, so
+software can either retry the whole data transfer again or retry from a specified block
+onwards. By reading the contents of the SDMMC_TCBCNT later, the software can decide
+how many bytes remain to be copied.
+⚫ Response errors – Set when an error is received during response reception. In this case,
+the response that copied in the response registers is invalid. Software can retry the
+command.
+⚫ Data errors – Set when error in data reception are observed; for example, data CRC,
+start bit not found, end bit not found, and so on. These errors could be set for any blockfirst block, intermediate block, or last block. On receipt of an error, the software can
+issue a STOP or ABORT command and retry the command for either whole data or
+partial data.
+⚫ Hardware locked error – Set when the Host Controller cannot load a command issued by
+software. When software sets the start_cmd bit in the SDMMC_CMD register, the Host
+Controller tries to load the command. If the command buffer is already filled with a
+command, this error is raised. The software then has to reload the command.
+⚫ FIFO under-run/overrun error – If the FIFO is full and software tries to write data in the
+FIFO, then an overrun error is set. Conversely, if the FIFO is empty and the software
+tries to read data from the FIFO, an under-run error is set. Before reading or writing
+data in the FIFO, the software should read the fifo_empty or fifo_full bits in the Status
+register.
+⚫ Data starvation by host timeout – Raised when the Host Controller is waiting for
+software intervention to transfer the data to or from the FIFO, but the software does not
+transfer within the stipulated timeout period. Under this condition and when a read
+transfer is in process, the software should read data from the FIFO and create space for
+further data reception. When a transmit operation is in process, the software should fill
+data in the FIFO in order to start transferring data to the card.
+⚫ CRC Error on Command – If a CRC error is detected for a command, the CE-ATA device
+does not send a response, and a response timeout is expected from the Host Controller.
+The ATA layer is notified that an MMC transport layer error occurred.
+Notes: During a multiple-block data transfer, if a negative CRC status is received from the device, the data
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+629
+
+RK3588 TRM-Part2
+path signals a data CRC error to the BIU by setting the data CRC error bit in the SDMMC_RINTSTS register.
+It then continues further data transmission until all the bytes are transmitted.
+
+3.6.3 Voltage Switching
+The Host Controller supports SD 3.0 Ultra High Speed (UHS-1) and is capable of voltage
+switching in SD-mode, which can be applied to SD High-Capacity (SDHC) and SD Extended
+Capacity (SDXC) cards. UHS-1 supports only 4-bit mode.
+However, whether the IO voltage of 1.8v supported or not is depended on the SoC design.
+SD 3.0 UHS-1 supports the following transfer speed modes for UHS-50 and/or UHS-104
+cards:
+⚫ DS – default-speed up to 25MHz, 3.3V signaling
+⚫ HS – high-speed up to 50MHz, 3.3V signaling
+⚫ SDR12 – SDR up to SDR 25MHz, 1.8V signaling
+⚫ SDR25 – SDR up to 50MHz, 1.8V signaling
+⚫ SDR50 – SDR up to 100MHz, 1.8V signaling
+⚫ DDR50 – DDR up to 50MHz, 1.8V signaling
+Voltage selection can be done in only SD mode. The first CMD0 selects the bus mode-either
+SD mode or SPI mode. The card must be in SD mode in order for 1.8V signaling mode to
+apply, during which time the card cannot be switched to SPI mode or 3.3V signaling without
+a power cycle.
+If the System BIOS in an embedded system already knows that it is connected to an SD 3.0
+card, then the driver programs the Controller to initiate ACMD41. The software knows from
+the response of ACMD41 whether or not the card supports voltage switching to 1.8V.
+⚫ If bit 32 of ACMD41 response is 1'b1: card supports voltage switching and next
+command-CMD11-invokes voltage switching sequence. After CMD11 is started, the
+software must program the IO voltage selection register based on the soc architecture.
+⚫ If bit 32 of ACMD41 response is 1'b0: card does not support voltage switching and
+CMD11 should not be started.
+If the card and host controller accept voltage switching, then they support UHS-1 modes of
+data transfer. After the voltage switch to 1.8V, SDR12 is the default speed.
+Since the UHS-1 can be used in only 4-bit mode, the software must start ACMD6 and
+change the card data width to 4-bit mode; ACMD6 is driven in any of the UHS-1 speeds. If
+the host wants to select the DDR mode of data transfer, then the software must program the
+SDMMC_DDR_REG register in the CSR space with the appropriate card number.
+To choose from any of the SDR or DDR modes, appropriate values should be programmed in
+the SDMMC_CLKDIV register.
+
+3.6.3.1
+
+Voltage Switch Operation
+
+The Voltage Switch operation must be performed in SD mode only.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+630
+
+RK3588 TRM-Part2
+
+Fig. 3-11 Voltage Switching Command Flow Diagram
+The following outlines the steps for the voltage switch programming sequence
+1) Software Driver starts CMD0, which selects the bus mode as SD.
+2) After the bus is in SD card mode, CMD8 is started in order to verify if the card is
+compatible with the SD Memory Card Specification, Version 2. 00. CMD8 determines if
+the card is capable of working within the host supply voltage specified in the VHS
+(19:16) field of the CMD; the card supports the current host voltage if a response to
+CMD8 is received.
+3) ACMD 41 is started. The response to this command informs the software if the card
+supports voltage switching; bits 38, 36, and 32 are checked by the card argument of
+ACMD41; refer to following figure.
+
+⚫
+⚫
+⚫
+
+Fig. 3-12 ACMD41 Argument
+Bit 30 informs the card if host supports SDHC/SDXC or not; this bit should be set to
+1'b1.
+Bit 28 can be either 1 or 0.
+Bit 24 should be set to 1'b1, indicating that the host is capable of voltage switching;
+refer to following figure.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+631
+
+RK3588 TRM-Part2
+
+Fig. 3-13 ACMD41 Response(R3)
+Bit 30 – If set to 1'b1, card supports SDHC/SDXC; if set to 1'b0, card supports only
+SDSC
+⚫ Bit 24 – If set to 1'b1, card supports voltage switching and is ready for the switch
+⚫ Bit 31 – If set to 1'b1, initialization is over; if set to 1'b0, means initialization in process
+4) If the card supports voltage switching, then the software must perform the steps
+discussed for either the “Voltage Switch Normal Scenario” or the “Voltage Switch Error
+Scenario”.
+⚫
+
+3.6.3.2
+
+Voltage Switch Normal Scenario
+
+Fig. 3-14 Voltage Switch Normal Scenario
+1) The host programs SDMMC_CLKENA—cclk_low_power register—with zero (0) for the
+corresponding card, which makes the host controller move to high-power mode. The
+application should start a timer with a recommended value of 2ms; this value of 2 ms is
+determined as below: Total cycles required for CMD11 = 48 cycles
+Total cycles required for RESP R1 = 48 cycles
+Maximum clock delay between MCD11 end to start of RESP1 = 60 cycles
+Total = 48+48 + 60 = 160
+Minimum frequency during enumeration is 100 KHz; that is, 10us
+Total time = 160 * 10us = 1600us = 1. 6ms ~ 2ms
+2) The host issues CMD11 to start the voltage switch sequence. Set bit 28 to 1'b1 in CMD
+when setting CMD11; for more information on setting bits, refer to “Boot Operation”.
+3) The card returns R1 response; the host controller does not generate cmd_done interrupt
+on receiving R1 response.
+4) The card drives CMD and DAT [3:0] to low immediately after the response. The host
+controller generates interrupt (VOLT_SWITCH_INT) once the CMD or DAT [3:0] line goes
+low. The application should wait for this interrupt. If the 2ms timer expires without an
+interrupt (CMD/DAT lines going low), do a power cycle.
+Note: Before doing a power cycle, switch off the card clock by programming SDMMC_CLKENA register
+
+Proceed to step (5) on getting an interrupt (VOLT_SWITCH_INT).
+
+Note: This interrupt must be cleared once this interrupt is received. Additionally, this interrupt should not be
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+632
+
+RK3588 TRM-Part2
+masked during the voltage switch sequence.
+
+If the timer expires without interrupt (CMD/DAT lines going low), perform a power cycle.
+Proceed to step (5) on interrupt.
+1) Program the SDMMC_CLKENA register, with 0 for the corresponding card; the host stops
+supplying SDCLK.
+2) Program Voltage register to the required values for the corresponding card. The
+application should start a timer > 5ms.
+3) After the 5ms timer expires, the host voltage regulator is stable. Program
+SDMMC_CLKENA register, with 1 for the corresponding card; the host starts providing
+SDCLK at 1. 8V; this can be at zero time after Voltage register has been programmed.
+When the SDMMC_CLKENA register is programmed, the application should start another
+timer > 1ms.
+4) By detecting SDCLK, the card drives CMD to high at 1. 8V for at least one clock and then
+stops driving (tri-state); CMD is triggered by the rising edge of SDCLK (SDR timing).
+5) If switching to 1. 8V signaling is completed successfully, the card drives DAT [3:0] to
+high at 1. 8V for at least one clock and then stops driving (tri-state); DAT [3:0] is
+triggered by the rising edge of SDCLK (SDR timing). DAT[3:0] must be high within 1ms
+from the start of SDCLK.
+6) The host controller generates a voltage switch interrupt (VOLT_SWITCH_INT) and a
+command done (CD) interrupt once the CMD and DAT[3:0] lines go high. The application
+should wait for this interrupt to confirm CMD and DAT lines going high before the 1ms
+timer is done.
+If the timer expires without the voltage switch interrupt (VOLT_SWITCH_INT), a power cycle
+should be performed. Program the SDMMC_CLKENA register to stop the clock for the
+corresponding card number. Wait for the cmd_done (CD) interrupt. Proceed for normal
+operation on interrupt. After the sequence is completed, the host and the card start
+communication in SDR12 timing.
+
+3.6.3.3
+
+Voltage Switch Error Scenario
+
+Fig. 3-15 Voltage Switch Error Scenario
+1) If the interrupt (VOLT_SWITCH_INT) does not come, then the 2 ms timer should time
+out and a power cycle should be initiated.
+Note: Before performing a power cycle, switch off the card clock by programming SDMMC_CLKENA register;
+no cmd_done (CD) interrupt is generated.
+
+Additionally, if the card detects a voltage error at any point in between steps (5) and (7) in
+the card keeps driving DAT[3:0] to low until card power off.
+2) CMD can be low or tri-state.
+3) The host controller generates a voltage switch interrupt once the CMD and DAT[3:0]
+lines go high. The application should check for an interrupt to confirm CMD and DAT
+lines going high before the 1 ms timer is done.
+If the 1 ms timer expires without interrupt (VOLT_SWITCH_INT) and cmd_done (CD), a
+power cycle should be performed. Program the SDMMC_CLKENA register to stop SDCLK of
+the corresponding card. Wait for the cmd_done interrupt. Proceed for normal operation on
+interrupt.
+4) If DAT[3:0] is low, the host drives SDCLK to low and then stops supplying the card
+power.
+
+Note: The card checks voltages of its own regulator output and host signals to ensure they are less than 2.
+5V. Errors are indicated by (1) and (2).
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+633
+
+RK3588 TRM-Part2
+⚫
+⚫
+
+If voltage switching is accepted by the card, the default speed is SDR12.
+Command Done is given:
+◼ If voltage switching is properly done, CMD and DAT line goes high.
+◼ If switching is not complete, the 1ms timer expires, and the card clock is switched
+off.
+
+Note: No other CMD should be driven before the voltage switching operation is completed and Command
+Done is received.
+
+The application should use CMD6 to check and select the particular function; the
+function appropriate-speed should be selected.
+After the function switches, the application should program the correct value in the CLKDIV
+register, depending on the function chosen. Additionally, if Function 0x4 of the Access mode
+is chosen—that is, DDR50, then the application should also program 1'b1 in DDR_REG for
+the card number that has been selected for DDR50 mode.
+⚫
+
+3.6.4 DDR Operation
+3.6.4.1 4-bit DDR Programming Sequence
+
+DDR programming should be done only after the voltage switch operation has completed.
+The following outlines the steps for the DDR programming sequence:
+1) Once the voltage switch operation is complete, the user must program voltage selection
+register to the required values for the corresponding card.
+⚫ To start a card to work in DDR mode, the application must program a bit of the newly
+defined SDMMC_UHSREG[16] register with a value of 1'b1.
+⚫ The bit that the user programs depends on which card is to be accessed in DDR mode.
+2) To move back to SDR mode, a power cycle should be run on the card—putting the card
+in SDR12 mode—and only then should SDMMC_UHSREG[16]be set back to 1'b0 for the
+appropriate card.
+
+3.6.4.2
+
+8-bit DDR Programming Sequence
+
+3.6.4.3
+
+eMMC4.5 DDR START Bit
+
+The following outlines the steps for the 8-bit DDR programming sequence:
+1) The cclk_in signal should be twice the speed of the required cclk_out. Thus, if the
+cclk_out signal is required to be 50 MHz, the cclk_in signal should be 100 MHz.
+2) The SDMMC_CLKDIV register should always be programmed with a value higher than
+zero (0); that is, a clock divider should always be used for 8-bit DDR mode.
+3) The application must program the SDMMC_UHSREG[16] register (ddr_reg bits) by
+assigning it with a value of 1 for the bit corresponding to the card number; this causes
+the selected card to start working in DDR mode.
+4) Depending on the card number, the SDMMC_CTYPE [16] bits should be set in order to
+make the host work in the 8-bit mode.
+The eMMC4.5 changes the START bit definition in the following manner:
+1) Receiver samples the START bit on the rising edge.
+2) On the next rising edge after sampling the START bit, the receiver must sample the
+data.
+3) Removes requirement of the START bit and END bit to be high for one full cycle.
+
+Notes: The Host Controller does not support a START bit duration higher than one clock cycle. START bit
+durations of one or less than one clock cycle are supported and can be defined at the time of startup by
+programming the EMMC_DDR_REG register.
+
+3.6.4.4
+
+Reset Command/Moving From DDR50 to SDR12
+
+To reset the mode of operation from DDR50 to SDR12, the following sequence of operations
+has to be done by the application:
+1) Issue CMD0.
+2) When CMD0 is received, the card changes from DDR50 to SDR12.
+3) Program the SDMMC_CLKDIV register with an appropriate value.
+4) Set ddr_reg to 0.
+Note: The Voltage register should not be programmed to 0 while switching from DDR50 to SDR12, since the
+card is still operating in 1.8V mode after receiving CMD0.
+
+3.6.5 H/W Reset Operation
+
+When the RST_n signal goes low, the card enters a pre-idle state from any state other than
+the inactive state.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+634
+
+RK3588 TRM-Part2
+The following outlines the steps for the H/W reset programming sequence:
+1) Program CMD12 to end any transfer in process.
+2) Wait for DTO, even if no response is sent back by the card.
+3) Set the following resets:
+⚫ DMA reset–SDMMC_CTRL [2] bit
+⚫ FIFO reset–SDMMC_CTRL [1] bit
+Note: The above steps are required only if a transfer is in process.
+
+4) Program the SDMMC_RSTN register with a value of 0; this can be done at any time
+when the card is connected to the controller. This programming asserts the RST_n signal
+and resets the card.
+5) Wait for minimum of 1 μs or cclk_in period, whichever is greater
+6) After a minimum of 1 μs, the application should program a value of 0 into the
+SDMMC_RSTN register. This de-asserts the RST_n signal and takes the card out of reset.
+7) The application can program a new CMD only after a minimum of 200 μs after the deassertion of the RST_n signal, as per the MMC 4.41 standard.
+Note: For backward compatibility, the RST_n signal is temporarily disabled in the card by default. The host
+may need to set the signal as either permanently enabled or permanently disabled before it uses the card.
+
+3.6.6 FBE Scenarios
+
+An FBE occurs due to an AHB error response on the AHB bus. This is a system error, so the
+software driver should not perform any further programming to the Host. The only recovery
+mechanism from such scenarios is to do one of the following:
+⚫ Issue a hard reset by asserting the reset_n signal
+⚫ Do a program controller reset by writing to the SDMMC_CTRL[0] bit
+
+3.6.6.1
+
+FIFO Overflow and Underflow
+
+3.6.6.2
+
+Programming of PBL and Watermark Levels
+
+During normal data transfer conditions, FIFO overflow and underflow will not occur. However
+if there is a programming error, then FIFO overflow/underflow can result. For example,
+consider the following scenarios.
+⚫ For transmit: PBL=4, Tx watermark = 1. For the above programming values, if the FIFO
+has only one location empty, it issues a dma_req to IDMAC FSM. Due to PBL value=4,
+the IDMAC FSM performs 4 pushes into the FIFO. This will result in a FIFO overflow
+interrupt.
+⚫ For receive: PBL=4, Rx watermark = 1. For the above programming values, if the FIFO
+has only one location filled, it issues a dma_req to IDMAC FSM. Due to PBL value=4, the
+IDMAC FSM performs 4 pops to the FIFO. This will result in a FIFO underflow interrupt.
+The driver should ensure that the number of bytes to be transferred as indicated in the
+descriptor should be a multiple of 4bytes with respect to H_DATA_WIDTH=32. For example,
+if the SDMMC_BYTCNT=13, the number of bytes indicated in the descriptor should be 16 for
+H_DATA_WIDTH=32.
+The DMAC performs data transfers depending on the programmed PBL and threshold values.
+Table 3-14 PBL and Watermark Levels
+PBL (Number of transfers)
+Tx/Rx Watermark Value
+1
+Greater than or equal to 1
+4
+Greater than or equal to 4
+8
+Greater than or equal to 8
+16
+Greater than or equal to 16
+32
+Greater than or equal to 32
+64
+Greater than or equal to 64
+128
+Greater than or equal to 128
+256
+Greater than or equal to 256
+
+3.6.7 Variable Delay Usage
+
+The delay time of every element is in the range of 36ps~68ps, varying with different voltage
+and temperature.
+The control signals for variable delay element usage are shown as follows.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+635
+
+RK3588 TRM-Part2
+
+3.6.7.1
+
+SDMMC Variable Delay Usage
+
+Signal Name
+
+init_state
+
+drv_degree[1:
+0]
+
+drv_delaynum
+[7:0]
+
+drv_sel
+
+sample_degre
+e[1:0]
+
+sample_delay
+num[7:0]
+
+sample_sel
+
+3.6.7.2
+
+Table 3-15 Configuration for SDMMC Variable Delay Usage
+Source
+Default
+Description
+Enable initialization for clock
+source.
+1’b0: Disable
+CRU_SDMMC_CON0[0]
+0
+1’b1: Enable
+When init_state=1, the host clocks
+including drive clock and sample
+clock are inactive.
+Phase selection for drive clock.
+2’h0: 0-degree
+2’h1: 90-degree
+2’h2: 180-degree
+CRU_SDMMC_CON0[2:1]
+2
+2’h3: 270-degree
+It can be modified when
+init_state=1 and should be stable
+when init_state=0.
+Delay element number
+configuration for drive clock.
+CRU_SDMMC_CON0[10:3
+0
+It can be modified when
+]
+init_state=1 and should be stable
+when init_state=0.
+Selection for drive clock:
+1’b0: Select clock delayed by
+phase shift
+1’b1: Select clock delayed by
+CRU_SDMMC_CON0[11]
+0
+phase shift and delay line
+It can be modified when
+init_state=1 and should be stable
+when init_state=0.
+Phase selection for sample clock.
+2’h0: 0-degree
+2’h1: 90-degree
+2’h2: 180-degree
+CRU_SDMMC_CON1[2:1]
+0
+2’h3: 270-degree
+It can be modified when
+init_state=1 and should be stable
+when init_state=0.
+Delay element number
+configuration for sample clock.
+CRU_SDMMC_CON1[10:3
+0
+It can be modified when
+]
+init_state=1 and should be stable
+when init_state=0.
+Selection for sample clock:
+1’b0: Select clock delayed by
+phase shift
+1’b1: Select clock delayed by
+CRU_SDMMC_CON1[11]
+0
+phase shift and delay line
+It can be modified when
+init_state=1 and should be stable
+when init_state=0.
+
+SDIO Variable Delay Usage
+
+Signal Name
+init_state
+
+Table 3-16 Configuration for SDIO Variable Delay Usage
+Source
+Default
+Description
+CRU_SDIO_CON0[0]
+0
+Enable initialization for clock
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+636
+
+RK3588 TRM-Part2
+Signal Name
+
+Source
+
+Default
+
+Description
+source.
+1’b0: Disable
+1’b1: Enable
+When init_state=1, the host
+clocks including drive clock and
+sample clock are inactive.
+Phase selection for drive clock.
+2’h0: 0-degree
+2’h1: 90-degree
+drv_degree[1:0
+2’h2: 180-degree
+CRU_SDIO_CON0[2:1]
+2
+]
+2’h3: 270-degree
+It can be modified when
+init_state=1 and should be stable
+when init_state=0.
+Delay element number
+configuration for drive clock.
+drv_delaynum
+CRU_SDIO_CON0[10:3]
+0
+It can be modified when
+[7:0]
+init_state=1 and should be stable
+when init_state=0.
+Selection for drive clock:
+1’b0: Select clock delayed by
+phase shift
+1’b1: Select clock delayed by
+drv_sel
+CRU_SDIO_CON0[11]
+0
+phase shift and delay line
+It can be modified when
+init_state=1 and should be stable
+when init_state=0.
+Phase selection for sample clock.
+2’h0: 0-degree
+2’h1: 90-degree
+sample_degree
+2’h2: 180-degree
+CRU_SDIO_CON1[2:1]
+0
+[1:0]
+2’h3: 270-degree
+It can be modified when
+init_state=1 and should be stable
+when init_state=0.
+Delay element number
+configuration for sample clock.
+sample_delaynu
+CRU_SDIO_CON1[10:3]
+0
+It can be modified when
+m[7:0]
+init_state=1 and should be stable
+when init_state=0.
+Selection for sample clock:
+1’b0: Select clock delayed by
+phase shift
+1’b1: Select clock delayed by
+sample_sel
+CRU_SDIO_CON1[11]
+0
+phase shift and delay line
+It can be modified when
+init_state=1 and should be stable
+when init_state=0.
+The following outlines the steps for clock generation sequence:
+1) Assert init_state to soft reset the CLKGEN.
+2) Configure drv_degree/sample_degree.
+3) If fine adjustment required, delay line can be used by configuring
+drv_delaynum/sample_delaynum and drv_sel/sample_sel.
+4) Dis-assert init_state to start CLKGEN.
+
+3.6.8 Variable Delay Tuning
+
+Tuning is defined by SD and MMC cards to determine the correct sampling point required for
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+637
+
+RK3588 TRM-Part2
+the host, especially for the speed modes SDR104 and HS200 where the output delays from
+the cards can be up to 2 UI. Tuning is required for other speed modes-such as DDR50-even
+though the output delay from the card is less than one cycle.
+Command for tuning is different for different cards.
+⚫ SD Memory Card:
+◼ CMD19 – SD card for SDR50 and SDR104 speed modes. Tuning data is defined by
+card specifications.
+◼ CMD6 – SD card for speed modes not supporting CMD19. Tuning data is the 64byte
+SD status.
+⚫ Multimedia Card:
+◼ CMD21 – MMC card for HS200 speed mode. Tuning data is defined by card
+specifications.
+◼ CMD8 – MMC card for speed modes not supporting CMD21. Tuning data is 512 byte
+ExtCSD data.
+The following is the procedure for variable delay tuning:
+1) Set a phase shift of 0-degree on cclk_in_sample.
+2) Send the Tuning command to the card; the card in turn sends an R1 response on the
+CMD line and tuning data on the DAT line.
+3) If the host sees any of the errors—start bit error, data crc error, end bit error, data read
+time-out, response CRC error, response error—then the sampling point is incorrect.
+4) Send CMD12 to bring the host controller state machines to idle.
+⚫ The card may treat CMD12 as an invalid command because the card has successfully
+sent the tuning data, and it cannot send a response.
+⚫ The host controller may generate a response time-out interrupt that must be cleared
+by software.
+5) Repeat steps 2) to 4) by increasing the phase shift value or delay element number on
+cclk_in_sample until the correct sampling point is received such that the host does not
+see any of the errors.
+6) Mark this phase shift value as the starting point of the sampling window.
+7) Repeat steps 2 to 4 by increasing the phase shift value or delay element number on
+cclk_in_sample until the host sees the errors starting to come again or the phase shift
+value reaches 360-degree.
+8) Mark the last successful phase shift value as the ending point of the sampling window.
+A window is established where the tuning block is matched. For example, for a scenario
+where the tuning block is received correctly for a phase shift window of 90-degree and 180degree, then an appropriate sampling point is established as 135-degree. Once a sampling
+point is established, no errors should be visible in the tuning block.
+
+3.6.9 Card Detection Method
+
+There are many methods for SDMMC/SDIO device detection.
+⚫ Method1: Using SDMMC_CDETECT register, which is value on card_detect_n input port.
+0 represents presence of card. This method is available only for SDMMC/SDIO.
+⚫ Method2: Using card detection unit in Host Controller, outputting host interrupt. The
+card detection unit looks for any changes in the card-detect signals for card insertion or
+card removal. It filters out the debounces associated with mechanical insertion or
+removal, and generates one interrupt to the host. You can program the debounce filter
+value in SDMMC_DEBNCE [23:0]. Following figure illustrates the timing for card-detect
+signals. This method is available only for SDMMC/SDIO.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+638
+
+RK3588 TRM-Part2
+debounces
+
+card_detect_n
+card_detect_int_trig
+
+Debounces Counter:
+SDMMC_DEBNCE[23:0]
+
+debounces
+Debounces Counter:
+SDMMC_DEBNCE[23:0]
+
+card_detect_int_clear
+card_detect_int
+Fig. 3-16 Card Detection Method 2
+Method3: Using general card detection unit, outputting detect_dual_edge_int connecting
+to IRQ[308]. Similar to Method2, except that the debounce time is configurable by
+PMU1_GRF_SD_DETECT_CNT; and the insertion/removal detection interrupt can be
+enabled or cleared respectively.
+The detailed register information is:
+Table 3-17 Register for SDMMC Card Detection Method 3
+Signal Name
+Source
+Default
+Description
+Enable SDMMC detect pin rising
+sd_detectn_rise_ed PMU1_GRF_SD_DET
+edge interrupt.
+0
+ge_irq_en
+ECT_CON[0]
+1'b0: Disable
+1'b1: Enable
+0
+Enable SDMMC detect pin falling
+sd_detect_fall_edge PMU1_GRF_SD_DET
+edge interrupt.
+_detect_en
+ECT_CON[1]
+1'b0: Disable
+1'b1: Enable
+SDMMC detect pin rising edge
+sd_detect_rising_ed PMU1_GRF_SD_DET
+status.
+0
+ge_dectect_status
+ECT_STS[0]
+1'b0: Inactive
+1'b1: Active
+SDMMC detect pin falling edge
+sd_detect_fall_edge PMU1_GRF_SD_DET
+status.
+0
+_detect_status
+ECT_STS[1]
+1'b0: Inactive
+1'b1: Active
+Enable clear for SDMMC detect pin
+sd_detect_rising_ed PMU1_GRF_SD_DET
+rising edge interrupt.
+0
+ge_dectect_clr
+ECT_CLR[0]
+1'b0: Disable
+1'b1: Enable
+Enable clear for SDMMC detect pin
+sd_detect_fall_edge PMU1_GRF_SD_DET
+falling edge interrupt.
+0
+_detect_clr
+ECT_CLR[1]
+1'b0: Disable
+1'b1: Enable
+⚫
+
+3.6.10 SDMMC IOMUX With JTAG
+
+The GPIO4d2/GPIO4d3 for sdmmc_cdata2/sdmmc_cdata3 is shared with jtag_tck/jtag_tms.
+The condition of usage for SDMMC or JTAG usage is as follows.
+⚫ If SYS_GRF_SOC_CON6[14] is equal to 1 and SD/MMC card is not detected within
+detection time(defined in SYS_GRF_SOC_CON11, in the unit of XIN24M clock), the
+GPIOs are used for JTAG.
+⚫ Otherwise, the GPIOs’ usage is defined by IOMUX configuration.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+639
+
+RK3588 TRM-Part2
+

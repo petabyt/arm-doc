@@ -1,0 +1,3800 @@
+Chapter 8 Image Enhancement Processor（IEP)
+8.1 Overview
+
+The Image Enhancement Processor (IEP) receives data from system main memory and
+transmits data to system main memory by AXI bus.
+The features of IEP are as follows:
+⚫ Image format
+◼ Input data: YUV420/YUV422; Semi-planar/planar; UV swap
+◼ Output data: YUV420/YUV422; Semi-planar; UV swap; Tile mode
+◼ YUV down sampling conversion from 422 to 420
+◼ Max resolution for dynamic image up to 1920x1080
+⚫ De-interlace
+◼ I5O2: Input 5 Fields Output 2 frames mode
+◼ I5O1T: Input 5 Fields Output 1 Top frame mode
+◼ I5O1B: Input 5 Fields Output 1 Bottom frame mode
+◼ I2O2: Input 2 Fields Output 2 frames mode
+◼ I1O1T: Input 1 Field Output 1 Top frame mode
+◼ I1O1B: Input 1 Field Output 1 Bottom frame mode
+◼ PULLDOWN_REC: Pull-down Recovery mode
+◼ DETECT_ONLY: Detect Only mode
+◼ MVHIST: De-interlace MV Histogram
+◼ MD: Motion Detection
+◼ ME: Motion Estimate
+◼ MC: Motion Compensation
+◼ EEDI: Enhanced Edge based Interpolation
+◼ OSD DETECT: On-Screen Display Detection
+◼ FF DETECT: Frame Field Detection
+◼ FO DETECT: Field Order Detection
+◼ PD DETECT: Pull Down Detection
+◼ CC: Combining Check
+⚫ Interface
+◼ 32bit AHB bus slave
+◼ 128bit AXI bus master
+◼ Combined interrupt output
+
+8.2 Block Diagram
+AHB BUS
+
+IEP
+IEP_REG_FILE
+
+BUF_CTRL
+AMI_
+WR
+
+AXI BUS
+
+MMU
+
+DIL_DMAC
+AMI_
+RD
+
+IN_BUF
+DIL_CORE
+
+OUT_BUF
+
+hclk domain
+
+aclk domain
+
+clk_core domain
+
+Fig. 8-1 IEP block diagram
+The data path in IEP is in the previously diagram. The IEP comprises with:
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1062
+
+RK3588 TRM-Part2
+Deinterlace Core Processing
+There are eight de-interlace modes (refer to feature description above) in the DIL_CORE
+block. Some important functions for deinterlace are in this module such as MD, ME, MC,
+EEDI.
+DMA
+DMA block responses for reading interlaced video data from DDR and writing frame data to
+DDR.
+REG FILE
+All configurable signals will be configured in this block and send to other function modules
+for using. Detect data and MVHIST data will be read back to user in this module by AHB bus.
+
+8.3 Function Description
+8.3.1 Deinterlace
+There are eight deinterlace modes including I5O2, I5O1B, I5O1T, I2O2, I1O1B, I1O1T and
+detect only mode in the deinterlace block.
+I5O2 mode
+The I5O2 mode represents for 5 fields of input images and 2 frames of output images. This
+mode is the most frequently used. The input source images are stored as interlaced mode
+which means top field and bottom field are stored by the method that one top field line
+follows one bottom field or conversely. So, current, next and preview input frame address
+(SRC_ADDR_CURY, SRC_ADDR_NXTY and SRC_ADDR_PREY for Y channel) need to be
+configured. Top frame and bottom frame address (DST_ADDR_TOPY, DST_ADDR_BOTY for Y
+channel) need to be configured for output 2 frames.
+I5O1B/T mode
+The I5O1B and I5O1T mode have the same input images as the I5O2 mode, but only one
+frame output is generated which means only need configure one output frame address(top
+frame address for I5O1T mode and bottom frame address for I5O1B mode).
+I2O2 mode
+The I2O2 mode only need current input source frame, output is the same as I5O2 mode.
+This mode is the fastest and the most bandwidth saving.
+I1O1B/T mode
+The I1O1B and I1O1T mode just need read one filed. The output is same as I5O1B and
+I5O1T mode.
+Bypass mode
+If bypass mode is selected, there are not any deinterlace operations.
+Pulldown Recovery mode
+If the pulldown detection block detects the current source is pulldown interlace video. IEP
+supports pulldown recovery by setting this mode.
+Detect Only mode
+This mode has no output frames for saving power and bandwidth. All of the detection results
+will be read back though AHB bus.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1063
+
+RK3588 TRM-Part2
+
+8.4 Register Description
+8.4.1 Registers Summary
+Slave address can be divided into different length for different usage, which is shown as
+follows.
+Reset
+Name
+Offset Size
+Description
+Value
+Frame start and frame state
+IEP2_FRM_START
+0x0000
+W
+0x00000000
+register
+IEP2_IEP_CONFIG0
+0x0004
+W
+0x00000303 IEP configuration register0
+IEP2_GATING_CTRL
+0x0010
+W
+0x00000800 IEP auto gating register
+IEP2_STATUS
+0x0014
+W
+0x00000000 IEP status
+IEP2_INT_EN
+0x0020
+W
+0x00000011 IEP interrupt enable
+IEP2_INT_CLR
+0x0024
+W
+0x00000000 IEP interrupt clear
+IEP2_INT_STS
+0x0028
+W
+0x00000000 IEP interrupt status
+IEP2_INT_RAW_STS
+0x002C
+W
+0x00000000 IEP interrupt raw status
+IEP2_VIR_SRC_IMG_WID
+0x0030
+W
+0x00000000 Source image virtual width
+TH
+IEP2_VIR_DST_IMG_WID
+0x0034
+W
+0x00000000 Destination image virtual width
+TH
+IEP2_SRC_IMG_SIZE
+0x0038
+W
+0x00000000 Source image size
+Deinterlace configuration
+IEP2_DIL_CONFIG0
+0x0040
+W
+0x00029F01
+register0
+IEP2_IEP_TIMEOUT_CFG 0x0050
+W
+0x0065B9AA Timeout configuration
+IEP2_IEP_VERSION_INFO 0x0054
+W
+0x20000000 IEP version information
+IEP2_DBG_FRM_CNT
+0x0058
+W
+0x00000000 Frame counter
+IEP2_DBG_TIMEOUT_CNT 0x005C
+W
+0x00000000 Timeout counter
+Start address of source current
+IEP2_SRC_ADDR_CURY
+0x0060
+W
+0x00000000
+image(Y), frame address
+Start address of source next
+IEP2_SRC_ADDR_NXTY
+0x0064
+W
+0x00000000
+image(Y), frame address
+Start address of source previous
+IEP2_SRC_ADDR_PREY
+0x0068
+W
+0x00000000
+image(Y), frame address
+Start address of source current
+IEP2_SRC_ADDR_CURUV 0x006C
+W
+0x00000000 image(UV), SP mode UV frame or
+U P mode frame address
+Start address of source current
+IEP2_SRC_ADDR_CURV
+0x0070
+W
+0x00000000 image(V), P mode V frame
+address
+Start address of source next
+IEP2_SRC_ADDR_NXTUV 0x0074
+W
+0x00000000 image(UV), SP mode UV frame or
+U P mode frame address
+Start address of source next
+IEP2_SRC_ADDR_NXTV
+0x0078
+W
+0x00000000 image(V), P mode V frame
+address
+Start address of source previous
+image(UV), SP mode UV frame
+IEP2_SRC_ADDR_PREUV 0x007C
+W
+0x00000000
+address or U P mode frame
+address
+Start address of source previous
+IEP2_SRC_ADDR_PREV
+0x0080
+W
+0x00000000 image(V), P mode V frame
+address
+IEP2_SRC_ADDR_MD
+0x0084
+W
+0x00000000 MD load address base register0
+IEP2_SRC_ADDR_MV
+0x0088
+W
+0x00000000 MV load address base register0
+IEP2_ROI_ADDR
+0x008C
+W
+0x00000000 ROI address register
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1064
+
+RK3588 TRM-Part2
+Name
+
+Offset
+
+Size
+
+Reset
+Value
+0x00000000
+
+IEP2_DST_ADDR_TOPY
+
+0x00B0
+
+W
+
+IEP2_DST_ADDR_BOTY
+
+0x00B4
+
+W
+
+IEP2_DST_ADDR_TOPC
+
+0x00B8
+
+W
+
+IEP2_DST_ADDR_BOTC
+
+0x00BC
+
+W
+
+IEP2_DST_ADDR_MD
+IEP2_DST_ADDR_MV
+IEP2_MD_CONFIG0
+
+0x00C0
+0x00C4
+0x00E0
+
+W
+W
+W
+
+IEP2_DECT_CONFIG0
+
+0x00E4
+
+W
+
+IEP2_OSD_LIMIT_CONFIG 0x00F0
+
+W
+
+IEP2_OSD_LIMIT_AREA0
+IEP2_OSD_LIMIT_AREA1
+IEP2_OSD_CONFIG0
+IEP2_OSD_AREA_CONF0
+IEP2_OSD_AREA_CONF1
+IEP2_OSD_AREA_CONF2
+IEP2_OSD_AREA_CONF3
+IEP2_OSD_AREA_CONF4
+IEP2_OSD_AREA_CONF5
+IEP2_OSD_AREA_CONF6
+IEP2_OSD_AREA_CONF7
+IEP2_ME_CONFIG0
+IEP2_ME_LIMIT_CONFIG
+IEP2_MV_TRU_LIST0
+IEP2_MV_TRU_LIST1
+IEP2_EEDI_CONFIG0
+IEP2_BLE_CONFIG0
+
+0x00F4
+0x00F8
+0x00FC
+0x0100
+0x0104
+0x0108
+0x010C
+0x0110
+0x0114
+0x0118
+0x011C
+0x0120
+0x0124
+0x0128
+0x012C
+0x0130
+0x0134
+
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+
+IEP2_COMB_CONFIG0
+
+0x0138
+
+W
+
+IEP2_DIL_MTN_TAB0
+IEP2_DIL_MTN_TAB1
+IEP2_DIL_MTN_TAB2
+IEP2_DIL_MTN_TAB3
+IEP2_DIL_MTN_TAB4
+IEP2_DIL_MTN_TAB5
+IEP2_DIL_MTN_TAB6
+IEP2_DIL_MTN_TAB7
+IEP2_DIL_MTN_TAB8
+IEP2_DIL_MTN_TAB9
+IEP2_DIL_MTN_TAB10
+IEP2_DIL_MTN_TAB11
+IEP2_DIL_MTN_TAB12
+IEP2_DIL_MTN_TAB13
+IEP2_DIL_MTN_TAB14
+IEP2_DIL_MTN_TAB15
+
+0x0140
+0x0144
+0x0148
+0x014C
+0x0150
+0x0154
+0x0158
+0x015C
+0x0160
+0x0164
+0x0168
+0x016C
+0x0170
+0x0174
+0x0178
+0x017C
+
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+DST top frame luma address
+register
+DST bottom frame luma address
+0x00000000
+register
+DST top frame chroma address
+0x00000000
+register
+DST bottom frame chroma
+0x00000000
+address register
+0x00000000 MD output base address register
+0x00000000 MV output base address register
+0x00000044 Motion Detection configuration
+Frame field detection, pulldown
+0x3C3C001E detection, OSD detection,
+combine detection
+OSD limit area detection
+0x00000000
+configuration
+0x00000000 OSD limit area 0
+0x00000000 OSD limit area 1
+0x00020032 OSD detection configuration
+0x00000000 OSD area 0
+0x00000000 OSD area 1
+0x00000000 OSD area 2
+0x00000000 OSD area 3
+0x00000000 OSD area 4
+0x00000000 OSD area 5
+0x00000000 OSD area 6
+0x00000000 OSD area 7
+0x001443A4 ME search configuration
+0x00001B25 ME search limit
+0x00000000 MV trust list0~3
+0x00000000 MV trust list4~7
+0x0000000C EEDI configuration register0
+0x00000001 BLE configuration register0
+COMB DECT configuration
+0x001004FF
+register0
+0x00000000 DIL_MTN_TAB0 table value
+0x00000000 DIL_MTN_TAB1 table value
+0x00000000 DIL_MTN_TAB2 table value
+0x00000000 DIL_MTN_TAB3 table value
+0x01010000 DIL_MTN_TAB4 table value
+0x06050302 DIL_MTN_TAB5 table value
+0x0F0D0A08 DIL_MTN_TAB6 table value
+0x1C191512 DIL_MTN_TAB7 table value
+0x2B282420 DIL_MTN_TAB8 table value
+0x3634312E DIL_MTN_TAB9 table value
+0x3D3C3A38 DIL_MTN_TAB10 table value
+0x40403F3E DIL_MTN_TAB11 table value
+0x40404040 DIL_MTN_TAB12 table value
+0x40404040 DIL_MTN_TAB13 table value
+0x40404040 DIL_MTN_TAB14 table value
+0x40404040 DIL_MTN_TAB15 table value
+
+1065
+
+RK3588 TRM-Part2
+Name
+
+Offset
+
+Size
+
+Reset
+Value
+0x00000000
+
+Description
+
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+
+Pulldown detection top field
+counter
+Pulldown detection bottom field
+0x00000000
+counter
+Frame field detection current
+0x00000000
+frame top field counter
+Frame field detection current
+0x00000000
+frame bottom field counter
+Frame field detection next frame
+0x00000000
+top field counter
+Frame field detection next frame
+0x00000000
+bottom field counter
+Frame field detection current and
+0x00000000
+next frame blend top field counter
+Frame field detection current and
+0x00000000 next frame blend bottom field
+counter
+Frame field detection current
+0x00000000 frame combine detection none
+zero number
+Frame field detection current
+0x00000000
+frame combine detection number
+0x00000000 OSD area detection number
+Deinterlace output combine
+0x00000000
+detection
+Frame field detection, gradient
+0x00000000
+top field counter
+Frame field detection, gradt
+0x00000000
+bottom field counter
+0x00000000 MC valid counter
+0x00000000 OSD area detection area0 x
+0x00000000 OSD area detection area0 y
+0x00000000 OSD area detection area1 x
+0x00000000 OSD area detection area1 y
+0x00000000 OSD area detection area2 x
+0x00000000 OSD area detection area2 y
+0x00000000 OSD area detection area3 x
+0x00000000 OSD area detection area3 y
+0x00000000 OSD area detection area4 x
+0x00000000 OSD area detection area4 y
+0x00000000 OSD area detection area5 x
+0x00000000 OSD area detection area5 y
+0x00000000 OSD area detection area6 x
+0x00000000 OSD area detection area6 y
+0x00000000 OSD area detection area7 x
+0x00000000 OSD area detection area7 y
+0x00000000 MV histogram
+0x00000000 MV histogram
+0x00000000 MV histogram
+0x00000000 MV histogram
+0x00000000 MV histogram
+0x00000000 MV histogram
+0x00000000 MV histogram
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1066
+
+IEP2_RO_PD_TCNT
+
+0x0400
+
+W
+
+IEP2_RO_PD_BCNT
+
+0x0404
+
+W
+
+IEP2_RO_FF_CUR_TCNT
+
+0x0408
+
+W
+
+IEP2_RO_FF_CUR_BCNT
+
+0x040C
+
+W
+
+IEP2_RO_FF_NXT_TCNT
+
+0x0410
+
+W
+
+IEP2_RO_FF_NXT_BCNT
+
+0x0414
+
+W
+
+IEP2_RO_FF_BLE_TCNT
+
+0x0418
+
+W
+
+IEP2_RO_FF_BLE_BCNT
+
+0x041C
+
+W
+
+IEP2_RO_FF_COMB_NZ
+
+0x0420
+
+W
+
+IEP2_RO_FF_COMB_F
+
+0x0424
+
+W
+
+IEP2_RO_OSD_NUM
+0x0428
+IEP2_RO_OUT_COMB_CN
+0x042C
+T
+IEP2_RO_FF_GRADT_TCN
+0x0430
+T
+IEP2_RO_FF_GRADT_BCN
+0x0434
+T
+IEP2_RO_MC_VLD_CNT
+0x0438
+IEP2_RO_OSD_AREA0_X 0x0440
+IEP2_RO_OSD_AREA0_Y 0x0444
+IEP2_RO_OSD_AREA1_X 0x0448
+IEP2_RO_OSD_AREA1_Y 0x044C
+IEP2_RO_OSD_AREA2_X 0x0450
+IEP2_RO_OSD_AREA2_Y 0x0454
+IEP2_RO_OSD_AREA3_X 0x0458
+IEP2_RO_OSD_AREA3_Y 0x045C
+IEP2_RO_OSD_AREA4_X 0x0460
+IEP2_RO_OSD_AREA4_Y 0x0464
+IEP2_RO_OSD_AREA5_X 0x0468
+IEP2_RO_OSD_AREA5_Y 0x046C
+IEP2_RO_OSD_AREA6_X 0x0470
+IEP2_RO_OSD_AREA6_Y 0x0474
+IEP2_RO_OSD_AREA7_X 0x0478
+IEP2_RO_OSD_AREA7_Y 0x047C
+IEP2_RO_MV_HIST_BIN0 0x0480
+IEP2_RO_MV_HIST_BIN1 0x0484
+IEP2_RO_MV_HIST_BIN2 0x0488
+IEP2_RO_MV_HIST_BIN3 0x048C
+IEP2_RO_MV_HIST_BIN4 0x0490
+IEP2_RO_MV_HIST_BIN5 0x0494
+IEP2_RO_MV_HIST_BIN6 0x0498
+
+W
+W
+W
+W
+
+RK3588 TRM-Part2
+Name
+
+Offset
+
+IEP2_RO_MV_HIST_BIN7 0x049C
+IEP2_RO_MV_HIST_BIN8 0x04A0
+IEP2_RO_MV_HIST_BIN9 0x04A4
+IEP2_RO_MV_HIST_BIN1
+0x04A8
+0
+IEP2_RO_MV_HIST_BIN1
+0x04AC
+1
+IEP2_RO_MV_HIST_BIN1
+0x04B0
+2
+IEP2_RO_MV_HIST_BIN1
+0x04B4
+3
+IEP2_RO_MV_HIST_BIN1
+0x04B8
+4
+IEP2_RO_MV_HIST_BIN1
+0x04BC
+5
+IEP2_RO_MV_HIST_BIN1
+0x04C0
+6
+IEP2_RO_MV_HIST_BIN1
+0x04C4
+7
+IEP2_RO_MV_HIST_BIN1
+0x04C8
+8
+IEP2_RO_MV_HIST_BIN1
+0x04CC
+9
+IEP2_RO_MV_HIST_BIN2
+0x04D0
+0
+IEP2_RO_MV_HIST_BIN2
+0x04D4
+1
+IEP2_RO_MV_HIST_BIN2
+0x04D8
+2
+IEP2_RO_MV_HIST_BIN2
+0x04DC
+3
+IEP2_RO_MV_HIST_BIN2
+0x04E0
+4
+IEP2_RO_MV_HIST_BIN2
+0x04E4
+5
+IEP2_RO_MV_HIST_BIN2
+0x04E8
+6
+IEP2_RO_MV_HIST_BIN2
+0x04EC
+7
+IEP2_PERF_LATENCY_CTR
+0x0600
+L0
+IEP2_PERF_LATENCY_CTR
+0x0604
+L1
+IEP2_PERF_RD_MAX_LAT
+0x0608
+ENCY_NUM
+IEP2_PERF_RD_LATENCY_
+0x060C
+SAMP_NUM
+IEP2_PERF_RD_LATENCY_
+0x0610
+ACC_SUM
+IEP2_PERF_RD_AXI_TOTA
+0x0614
+L_BYTE
+IEP2_PERF_WR_AXI_TOT
+0x0618
+AL_BYTE
+
+W
+W
+W
+
+Reset
+Description
+Value
+0x00000000 MV histogram
+0x00000000 MV histogram
+0x00000000 MV histogram
+
+W
+
+0x00000000 MV histogram
+
+W
+
+0x00000000 MV histogram
+
+W
+
+0x00000000 MV histogram
+
+W
+
+0x00000000 MV histogram
+
+W
+
+0x00000000 MV histogram
+
+W
+
+0x00000000 MV histogram
+
+W
+
+0x00000000 MV histogram
+
+W
+
+0x00000000 MV histogram
+
+W
+
+0x00000000 MV histogram
+
+W
+
+0x00000000 MV histogram
+
+W
+
+0x00000000 MV histogram
+
+W
+
+0x00000000 MV histogram
+
+W
+
+0x00000000 MV histogram
+
+W
+
+0x00000000 MV histogram
+
+W
+
+0x00000000 MV histogram
+
+W
+
+0x00000000 MV histogram
+
+W
+
+0x00000000 MV histogram
+
+W
+
+0x00000000 MV histogram
+
+W
+
+0x00000000
+
+Size
+
+W
+W
+W
+W
+W
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Only exist when this IP has
+axi_performance monitor feature
+Only exist when this IP has
+0x00000000
+axi_performance monitor feature
+Only exist when this IP has
+0x00000000
+axi_performance monitor feature
+Only exist when this IP has
+0x00000000
+axi_performance monitor feature
+Only exist when this IP has
+0x00000000
+axi_performance monitor feature
+Only exist when this IP has
+0x00000000
+axi_performance monitor feature
+Only exist when this IP has
+0x00000000
+axi_performance monitor feature
+
+1067
+
+RK3588 TRM-Part2
+Name
+
+Offset
+
+IEP2_PERF_WORKING_CN
+0x061C
+T
+IEP2_MMU_DTE_ADDR
+0x0800
+IEP2_MMU_STATUS
+0x0804
+IEP2_MMU_CMD
+0x0808
+IEP2_MMU_PAGE_FAULT_
+0x080C
+ADDR
+IEP2_MMU_ZAP_ONE_LIN
+0x0810
+E
+IEP2_MMU_INT_RAWSTAT 0x0814
+IEP2_MMU_INT_CLEAR
+0x0818
+IEP2_MMU_INT_MASK
+0x081C
+IEP2_MMU_INT_STATUS 0x0820
+IEP2_MMU_AUTO_GATING 0x0824
+IEP2_MMU_ID
+0x0828
+
+Size
+
+Reset
+Value
+
+W
+
+0x00000000
+
+Description
+
+W
+W
+W
+
+Only exist when this IP has
+axi_performance monitor feature
+0x00000000 MMU DTE address
+0x00000018 MMU status
+0x00000000 MMU command
+
+W
+
+0x00000000 Page fault address
+
+W
+
+0x00000000 MMU zap one line
+
+W
+W
+W
+W
+W
+W
+
+0x00000000 MMU interruption raw status
+0x00000000 MMU interruption clear
+0x00000000 MMU interruption mask
+0x00000000 MMU interruption status
+0x00000001 MMU auto gating configure
+0x00000000 MMU ID
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+8.4.2 Detail Registers Description
+IEP2_FRM_START
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+sw_iep_frm_en
+0
+RW 0x0
+Frame start, Write 1, frame work enable, frame end self clear
+IEP2_IEP_CONFIG0
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+31:23 RO 0x000
+reserved
+sw_iep_init_dis
+22
+RW 0x0
+1'b1: Frame start not initial
+1'b0: Frame start initial
+W1
+sys_iep_sreset_p
+21
+0x0
+C
+Write 1 to global reset iep, auto clear
+sw_iep_rst_protect_dis
+DMA bus error, default protect soft reset
+20
+RW 0x0
+1'b0: Protect reset
+1'b1: Direct reset
+19:17 RO 0x0
+reserved
+sw_iep_debug_data_en
+16
+RW 0x0
+If assert this bit, the debug signals will have data(just for power
+saving)
+15:14 RO 0x0
+reserved
+sw_iep_dst_yuv_swap
+2'b00: SP UV
+13:12 RW 0x0
+2'b01: SP VU
+2'b10, 2'b11: Reserved
+11:10 RO 0x0
+reserved
+sw_iep_dst_fmt
+2'b00, 2'b01: Reserved
+9:8
+RW 0x3
+2'b10: YUV422
+2'b11: YUV420
+7:6
+RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1068
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+5:4
+
+RW 0x0
+
+3:2
+
+RO
+
+1:0
+
+RW 0x3
+
+0x0
+
+Description
+sw_iep_src_yuv_swap
+2'b00: SP UV
+2'b01: SP VU
+2'b10, 2'b11: P
+reserved
+sw_iep_src_fmt
+2'b00,2'b01: Reserved
+2'b10: YUV422
+2'b11: YUV420
+
+IEP2_GATING_CTRL
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+sw_reg_clk_on
+11
+RW 0x1
+Reg clk is auto gating, if write 1, clk always on, not gating, also
+control by sw_iep_clk_on.
+sw_dma_clk_on
+10
+RW 0x0
+Aclk is auto gating, if write 1, clk always on, not gating, also
+control by sw_iep_clk_on.
+sw_ram_clk_on
+All ram clk always on
+9
+RW 0x0
+1'b0: Clk gating
+1'b1: Clk always on
+sw_ctrl_clk_on
+8
+RW 0x0
+CTRL clk is auto gating, if write 1, clk always on, not gating, also
+control by sw_iep_clk_on
+sw_out_clk_on
+7
+RW 0x0
+OUT clk is auto gating, if write 1, clk always on, not gating, also
+control by sw_iep_clk_on
+sw_ble_clk_on
+6
+RW 0x0
+BLE clk is auto gating, if write 1, clk always on, not gating, also
+control by sw_iep_clk_on
+sw_eedi_clk_on
+5
+RW 0x0
+EEDI clk is auto gating, if write 1, clk always on, not gating, also
+control by sw_iep_clk_on
+sw_mc_clk_on
+4
+RW 0x0
+MC clk is auto gating, if write 1, clk always on, not gating, also
+control by sw_iep_clk_on
+sw_me_clk_on
+3
+RW 0x0
+ME clk is auto gating, if write 1, clk always on, not gating, also
+control by sw_iep_clk_on
+sw_dect_clk_on
+2
+RW 0x0
+DECT clk is auto gating, if write 1, clk always on, not gating, also
+control by sw_iep_clk_on
+sw_md_clk_on
+1
+RW 0x0
+MD clk is auto gating, if write 1, clk always on, not gating, also
+control by sw_iep_clk_on
+sw_iep_clk_on
+0
+RW 0x0
+IEP clk is auto gating, if write 1, clk always on, not gating
+IEP2_STATUS
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+31:1 RO 0x00000000 reserved
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1069
+
+RK3588 TRM-Part2
+Bit
+0
+
+Attr Reset Value
+W1
+C
+
+0x0
+
+Description
+ro_arst_finish_done
+IEP protect safety reset success status, write 1 clear or frame
+start clear.
+
+IEP2_INT_EN
+Address: Operational Base + offset (0x0020)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+sw_iep_timeout_int_en
+5
+RW 0x0
+Timeout interruption enable
+sw_iep_bus_error_en
+4
+RW 0x1
+Bus error interruption enable
+3:2
+RO 0x0
+reserved
+sw_iep_osd_max_en
+Frame process OSD detection done interrupt
+1
+RW 0x0
+1'b0: Inactive
+1'b1: Active
+sw_iep_frm_done_en
+Frame process done interrupt
+0
+RW 0x1
+1'b0: Inactive
+1'b1: Active
+IEP2_INT_CLR
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+W1
+sw_iep_timeout_int_clr
+5
+0x0
+C
+Time out interruption clear
+W1
+sw_iep_bus_error_clr
+4
+0x0
+C
+Bus error interruption clear
+3:2
+RO 0x0
+reserved
+W1
+sw_iep_osd_max_clr
+1
+0x0
+C
+OSD max interruption clear
+W1
+sw_iep_frm_done_clr
+0
+0x0
+C
+Frame process done interrupt clear
+IEP2_INT_STS
+Address: Operational Base + offset (0x0028)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+ro_timeout_sts
+5
+RO 0x0
+Timeout error interruption status
+ro_bus_error_sts
+4
+RO 0x0
+Bus error interruption status
+3:2
+RO 0x0
+reserved
+ro_osd_max_sts
+1
+RO 0x0
+Frame process OSD detection done interrupt status
+ro_frm_done_sts
+0
+RO 0x0
+Frame process done interrupt status
+IEP2_INT_RAW_STS
+Address: Operational Base + offset (0x002C)
+Bit Attr Reset Value
+31:6 RO 0x0000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1070
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+5
+
+RO
+
+0x0
+
+4
+
+RO
+
+0x0
+
+3:2
+
+RO
+
+0x0
+
+1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+ro_timeout_raw
+Timeout interruption raw status
+ro_bus_error_raw
+Bus error interruption raw status
+reserved
+ro_osd_max_raw
+OSD max interruption raw status
+ro_frm_done_raw
+Frame done interruption raw status
+
+IEP2_VIR_SRC_IMG_WIDTH
+Address: Operational Base + offset (0x0030)
+Bit Attr Reset Value
+Description
+sw_iep_src_vir_uv_stride
+31:16 RW 0x0000
+Source uv virtual image width(word align)
+sw_iep_src_vir_y_stride
+15:0 RW 0x0000
+Source y virtual image width(word align)
+IEP2_VIR_DST_IMG_WIDTH
+Address: Operational Base + offset (0x0034)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+sw_iep_dst_vir_stride
+15:0 RW 0x0000
+Destination virtual image width(word align)
+IEP2_SRC_IMG_SIZE
+Address: Operational Base + offset (0x0038)
+Bit Attr Reset Value
+Description
+31:27 RO 0x00
+reserved
+sw_iep_src_pic_height
+26:16 RW 0x000
+Source and destination image height(pixel align and need minus
+1, for example 1080 need configuration 1079)
+15:11 RO 0x00
+reserved
+sw_iep_src_pic_width
+10:0 RW 0x000
+Source and destination image width(pixel align and need minus
+1, for example 1920 need configuration 1919)
+IEP2_DIL_CONFIG0
+Address: Operational Base + offset (0x0040)
+Bit Attr Reset Value
+Description
+31:18 RO 0x0000
+reserved
+sw_dil_mv_hist_en
+Deinterlace MV histogram enable.
+17
+RW 0x1
+1'b1: Deinterlace need MV histogram
+1'b0: MV histogram not work
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1071
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+16
+
+RW 0x0
+
+15
+
+RW 0x1
+
+14:13 RO
+
+0x0
+
+12
+
+RW 0x1
+
+11
+
+RW 0x1
+
+10
+
+RW 0x1
+
+9
+
+RW 0x1
+
+8
+
+RW 0x1
+
+7:6
+
+RO
+
+5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+0x0
+
+Description
+sw_dil_roi_en
+Deinterlace ROI function enable bit
+1'b1: Deinterlace use ROI mode
+1'b0: ROI not work
+When ROI mode enable,each tile has 4bit for ROI mode
+4'b0000: Normal mode
+4'b0001: Bypass mode
+4'b0010: EEDI only mode
+4'b0011: Ma only mode
+4'b0100: Ma mc mode(no cc)
+4'b0101: Mc EEDI mode
+4'b0110:4'b0111:Reserved
+4'b1xxx: Mc only mode(MC's MV will be appointed by global MV
+based on roi[2:0] )
+sw_dil_comb_en
+Deinterlace output result combine dectection, if is combine block
+back to original data, else select deinterlace result.
+1'b1: Output data combine detection enable
+1'b0: Output data not combine detection
+reserved
+sw_dil_memc_en
+Deinterlace use ME, MC result.
+1'b1: ME, MC work enable
+1'b0: ME, MC not work enable
+sw_dil_osd_en
+On screen display detection enable.
+1'b1: OSD detection enable
+1'b0: OSD not detection(下同)
+sw_dil_pd_en
+Pulldown detection enable.
+1'b1: Pulldown detection enable
+1'b0: Pulldown not dect
+sw_dil_ff_en
+Frame field detection work enable.
+1'b1: Frame field detection enable
+1'b0: Frame field not dect
+sw_dil_md_pre_en
+1'b1: MD use previous frame data enable
+1'b0: MD only use current frame data to calculate
+reserved
+sw_dil_field_order
+Field display order.
+1'b0: TFF, top field display first
+1'b1: BFF, bottom field display first
+sw_dil_out_mode
+Output deinterlace result to DDR, line mode or tile mode.
+1'b0: LINE mode
+1'b1: TILE mode
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1072
+
+RK3588 TRM-Part2
+Bit
+
+3:0
+
+Attr Reset Value
+
+RW 0x1
+
+Description
+sw_dil_mode
+4'b0000: DIL disable
+4'b0001: I5O2 mode
+4'b0010: I5O1T mode
+4'b0011: I5O1B mode
+4'b0100: I2O2 mode
+4'b0101: I1O1T mode
+4'b0110: I1O1B mode
+4'b0111: Pulldown recovery mode
+4'b1000: Bypass mode
+4'b1001: Dectect only mode
+Other: Reserved
+
+IEP2_IEP_TIMEOUT_CFG
+Address: Operational Base + offset (0x0050)
+Bit Attr Reset Value
+Description
+sw_iep_timeout_en
+31
+RW 0x0
+IEP timeout enable
+sw_iep_timeout_cnt
+30:0 RW 0x0065b9aa When sw_iep_timeout_en ==1, timeout_cnt ==
+sw_iep_timeout_cnt, IEP timeout
+IEP2_IEP_VERSION_INFO
+Address: Operational Base + offset (0x0054)
+Bit Attr Reset Value
+Description
+major
+31:28 RO 0x2
+Used for IP structure version information
+minor
+27:20 RO 0x00
+Big feature change under same structure
+svnbuild
+19:0 RO 0x00000
+RTL current SVN number
+IEP2_DBG_FRM_CNT
+Address: Operational Base + offset (0x0058)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+dbg_frm_cnt
+W1
+15:0
+0x0000
+Self increase one after a frame operation is finished. Write
+C
+arbitrary value to clear to zero.
+IEP2_DBG_TIMEOUT_CNT
+Address: Operational Base + offset (0x005C)
+Bit Attr Reset Value
+Description
+31
+RO 0x0
+reserved
+dbg_timeout_cnt
+30:0 RO 0x00000000 When sw_iep_timeout_en==1, frame counter, frame start auto
+clear
+IEP2_SRC_ADDR_CURY
+Address: Operational Base + offset (0x0060)
+Bit Attr Reset Value
+Description
+sw_iep_src_addr_cury
+31:0 RW 0x00000000
+Current frame luma address, frame address
+IEP2_SRC_ADDR_NXTY
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1073
+
+RK3588 TRM-Part2
+Address: Operational Base + offset (0x0064)
+Bit Attr Reset Value
+Description
+sw_iep_src_addr_nxty
+31:0 RW 0x00000000
+Next frame luma addr, frame address
+IEP2_SRC_ADDR_PREY
+Address: Operational Base + offset (0x0068)
+Bit Attr Reset Value
+Description
+sw_iep_src_addr_prey
+31:0 RW 0x00000000
+Start address of source previous image(Y), frame address
+IEP2_SRC_ADDR_CURUV
+Address: Operational Base + offset (0x006C)
+Bit Attr Reset Value
+Description
+sw_iep_src_addr_curuv
+31:0 RW 0x00000000 Start address of source current image(UV), SP mode UV frame
+address or U P mode frame address.
+IEP2_SRC_ADDR_CURV
+Address: Operational Base + offset (0x0070)
+Bit Attr Reset Value
+Description
+sw_iep_src_addr_curv
+31:0 RW 0x00000000 Start address of source current image(V), P mode V frame
+address
+IEP2_SRC_ADDR_NXTUV
+Address: Operational Base + offset (0x0074)
+Bit Attr Reset Value
+Description
+sw_iep_src_addr_nxtuv
+31:0 RW 0x00000000 Start address of source next image(UV), SP mode UV frame
+address or U P mode frame address.
+IEP2_SRC_ADDR_NXTV
+Address: Operational Base + offset (0x0078)
+Bit Attr Reset Value
+Description
+sw_iep_src_addr_nxtv
+31:0 RW 0x00000000
+Start address of source next image(V), P mode V frame address
+IEP2_SRC_ADDR_PREUV
+Address: Operational Base + offset (0x007C)
+Bit Attr Reset Value
+Description
+sw_iep_src_addr_preuv
+31:0 RW 0x00000000 Start address of source previous image(UV), SP mode UV frame
+address or U P mode frame address.
+IEP2_SRC_ADDR_PREV
+Address: Operational Base + offset (0x0080)
+Bit Attr Reset Value
+Description
+sw_iep_src_addr_prev
+31:0 RW 0x00000000 Start address of source previous image(V), P mode V frame
+address.
+IEP2_SRC_ADDR_MD
+Address: Operational Base + offset (0x0084)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1074
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+sw_iep_src_addr_md
+Md address, save previous frame MD gradient
+
+IEP2_SRC_ADDR_MV
+Address: Operational Base + offset (0x0088)
+Bit Attr Reset Value
+Description
+sw_iep_src_addr_mv
+31:0 RW 0x00000000
+Md addr, save previous frame MV
+IEP2_ROI_ADDR
+Address: Operational Base + offset (0x008C)
+Bit Attr Reset Value
+sw_iep_addr_roi
+31:0 RW 0x00000000
+ROI address base
+
+Description
+
+IEP2_DST_ADDR_TOPY
+Address: Operational Base + offset (0x00B0)
+Bit Attr Reset Value
+Description
+sw_iep_dst_addr_topy
+31:0 RW 0x00000000
+DST top frame luma start address
+IEP2_DST_ADDR_BOTY
+Address: Operational Base + offset (0x00B4)
+Bit Attr Reset Value
+Description
+sw_iep_dst_addr_boty
+31:0 RW 0x00000000
+Dst bottom frame luma start address
+IEP2_DST_ADDR_TOPC
+Address: Operational Base + offset (0x00B8)
+Bit Attr Reset Value
+Description
+sw_iep_dst_addr_topc
+31:0 RW 0x00000000
+DST top frame chroma start address, UV save together
+IEP2_DST_ADDR_BOTC
+Address: Operational Base + offset (0x00BC)
+Bit Attr Reset Value
+Description
+sw_iep_dst_addr_botc
+31:0 RW 0x00000000
+Dst bottom frame chroma start addr, uv save together
+IEP2_DST_ADDR_MD
+Address: Operational Base + offset (0x00C0)
+Bit Attr Reset Value
+Description
+sw_iep_dst_addr_md
+31:0 RW 0x00000000 MD addr, save previous frame md gradt, and also save current
+frame md grad
+IEP2_DST_ADDR_MV
+Address: Operational Base + offset (0x00C4)
+Bit Attr Reset Value
+Description
+sw_iep_dst_addr_mv
+31:0 RW 0x00000000 Output MV addr, save previous frame MV and also save current
+frame MV
+IEP2_MD_CONFIG0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1075
+
+RK3588 TRM-Part2
+Address: Operational Base + offset (0x00E0)
+Bit Attr Reset Value
+Description
+31:10 RO 0x000000
+reserved
+sw_md_theta
+9:8
+RW 0x0
+GRADtc = CLIP(GRADtf -sw_md_theta, 0, 255);
+sw_md_r
+7:4
+RW 0x4
+Gradtf *md_r*63/(gradtf*md_r*63 + gradv)
+sw_md_lambda
+3:0
+RW 0x4
+Current grad * md_lambda/8 + pre grad*(8-md_lambda)/8,
+value range from 0~8
+IEP2_DECT_CONFIG0
+Address: Operational Base + offset (0x00E4)
+Bit Attr Reset Value
+Description
+sw_osd_gradv_thr
+31:24 RW 0x3c
+Origial data grad compare with gradv thr, if more than gradv_thr,
+may be OSD area
+sw_osd_gradh_thr
+23:16 RW 0x3c
+Origial data grad compare with gradh thr, if more than gradh_thr,
+may be OSD area
+15:12 RO 0x0
+reserved
+sw_osd_area_num
+11:8 RW 0x0
+OSD area number, frame field dect, pulldown not detection this
+area, combine detection also use this value, 0~8
+sw_dect_resi_thr
+7:0
+RW 0x1e
+For resi to bin, frame field, pulldown, OSD detection use this
+value
+IEP2_OSD_LIMIT_CONFIG
+Address: Operational Base + offset (0x00F0)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+sw_osd_pos_limit_num
+4
+RW 0x0
+OSD constrain area detection number, real value =
+OSD_pos_num + 1
+3:1
+RO 0x0
+reserved
+sw_osd_pos_limit_en
+0
+RW 0x0
+OSD area constrain detection enable
+IEP2_OSD_LIMIT_AREA0
+Address: Operational Base + offset (0x00F4)
+Bit Attr Reset Value
+Description
+sw_osd_limit_area0
+OSD constrain area 0
+[6:0]: OSD constrain area0 x start, 16pixel number
+31:0 RW 0x00000000
+[13:7]: OSD constrain area0 x end, 16pixel number
+[22:14]: OSD constrain area0 y start, 4 pixel number
+[31:23]: OSD constrain area0 y end, 4 pixel number
+IEP2_OSD_LIMIT_AREA1
+Address: Operational Base + offset (0x00F8)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1076
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+sw_osd_limit_area1
+OSD limite area 1
+[6:0]: OSD constrain area0 x start, 16pixel number
+[13:7]: OSD constrain area0 x end, 16pixel number
+[22:14]: OSD constrain area0 y start, 4 pixel number
+[31:23]: OSD constrain area0 y end, 4 pixel number
+
+IEP2_OSD_CONFIG0
+Address: Operational Base + offset (0x00FC)
+Bit Attr Reset Value
+Description
+31:25 RO 0x00
+reserved
+sw_osd_line_num
+24:16 RW 0x002
+Dectecting line number should more than OSD_line_num * 4, this
+lines may be OSD area
+15:11 RO 0x00
+reserved
+sw_osd_pec_thr
+10:0 RW 0x032
+A line should more than OSD_per_thr, this line may be OSD area
+IEP2_OSD_AREA_CONF0
+Address: Operational Base + offset (0x0100)
+Bit Attr Reset Value
+Description
+sw_osd_y_end0
+31:23 RW 0x000
+OSD area y end, 4 pixel number
+sw_osd_y_sta0
+22:14 RW 0x000
+OSD area y start, 4 pixel number
+sw_osd_x_end0
+13:7 RW 0x00
+OSD area x end, 16pixel number
+sw_osd_x_sta0
+6:0
+RW 0x00
+OSD area x start, 16pixel number
+IEP2_OSD_AREA_CONF1
+Address: Operational Base + offset (0x0104)
+Bit Attr Reset Value
+Description
+sw_osd_y_end1
+31:23 RW 0x000
+OSD area y end, 4 pixel number
+sw_osd_y_sta1
+22:14 RW 0x000
+OSD area y start, 4 pixel number
+sw_osd_x_end1
+13:7 RW 0x00
+OSD area x end, 16pixel number
+sw_osd_x_sta1
+6:0
+RW 0x00
+OSD area x start, 16pixel number
+IEP2_OSD_AREA_CONF2
+Address: Operational Base + offset (0x0108)
+Bit Attr Reset Value
+Description
+sw_osd_y_end2
+31:23 RW 0x000
+OSD area y end, 4 pixel number
+sw_osd_y_sta2
+22:14 RW 0x000
+OSD area y start, 4 pixel number
+sw_osd_x_end2
+13:7 RW 0x00
+OSD area x end, 16pixel number
+sw_osd_x_sta2
+6:0
+RW 0x00
+OSD area x start, 16pixel number
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1077
+
+RK3588 TRM-Part2
+IEP2_OSD_AREA_CONF3
+Address: Operational Base + offset (0x010C)
+Bit Attr Reset Value
+Description
+sw_osd_y_end3
+31:23 RW 0x000
+OSD area y end, 4 pixel number
+sw_osd_y_sta3
+22:14 RW 0x000
+OSD area y start, 4 pixel number
+sw_osd_x_end3
+13:7 RW 0x00
+OSD area x end, 16pixel number
+sw_osd_x_sta3
+6:0
+RW 0x00
+OSD area x start, 16pixel number
+IEP2_OSD_AREA_CONF4
+Address: Operational Base + offset (0x0110)
+Bit Attr Reset Value
+Description
+sw_osd_y_end4
+31:23 RW 0x000
+OSD area y end, 4 pixel number
+sw_osd_y_sta4
+22:14 RW 0x000
+OSD area y start, 4 pixel number
+sw_osd_x_end4
+13:7 RW 0x00
+OSD area x end, 16pixel number
+sw_osd_x_sta4
+6:0
+RW 0x00
+OSD area x start, 16pixel number
+IEP2_OSD_AREA_CONF5
+Address: Operational Base + offset (0x0114)
+Bit Attr Reset Value
+Description
+sw_osd_y_end5
+31:23 RW 0x000
+OSD area y end, 4 pixel number
+sw_osd_y_sta5
+22:14 RW 0x000
+OSD area y start, 4 pixel number
+sw_osd_x_end5
+13:7 RW 0x00
+OSD area x end, 16pixel number
+sw_osd_x_sta5
+6:0
+RW 0x00
+OSD area x start, 16pixel number
+IEP2_OSD_AREA_CONF6
+Address: Operational Base + offset (0x0118)
+Bit Attr Reset Value
+Description
+sw_osd_y_end6
+31:23 RW 0x000
+OSD area y end, 4 pixel number
+sw_osd_y_sta6
+22:14 RW 0x000
+OSD area y start, 4 pixel number
+sw_osd_x_end6
+13:7 RW 0x00
+OSD area x end, 16pixel number
+sw_osd_x_sta6
+6:0
+RW 0x00
+OSD area x start, 16pixel number
+IEP2_OSD_AREA_CONF7
+Address: Operational Base + offset (0x011C)
+Bit Attr Reset Value
+Description
+sw_osd_y_end7
+31:23 RW 0x000
+OSD area y end, 4 pixel number
+sw_osd_y_sta7
+22:14 RW 0x000
+OSD area y start, 4 pixel number
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1078
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+13:7
+
+RW 0x00
+
+6:0
+
+RW 0x00
+
+Description
+sw_osd_x_end7
+OSD area x end, 16pixel number
+sw_osd_x_sta7
+OSD area x start, 16pixel number
+
+IEP2_ME_CONFIG0
+Address: Operational Base + offset (0x0120)
+Bit Attr Reset Value
+Description
+31:24 RO 0x00
+reserved
+sw_me_thr_offset
+23:16 RW 0x14
+me_thr = me_thr(from md module) - sw_me_thr_offset. This
+signal is signed from(-128 ~ 127)
+sw_mv_similar_num_thr0
+15:12 RW 0x4
+MV similar check result = MV_similar_invld_num <
+sw_mv_similar_num_thr0
+sw_mv_similar_thr
+11:8 RW 0x3
+Surround MV similar = |cur_MV - surround_MV| <
+sw_mv_similar_thr
+sw_mv_bonus
+7:4
+RW 0xa
+MVc calc MV, the same MV range value
+sw_me_pena
+3:0
+RW 0x4
+Balance resi and grad, grad*me_pena/8, me_pena value range
+from 0~8
+IEP2_ME_LIMIT_CONFIG
+Address: Operational Base + offset (0x0124)
+Bit Attr Reset Value
+Description
+31:14 RO 0x00000
+reserved
+sw_mv_right_limt
+13:8 RW 0x1b
+MV right range limit, from 0~27, default 27
+7:6
+RO 0x0
+reserved
+sw_mv_left_limt
+5:0
+RW 0x25
+MV left range limite, from -27~0, default-27
+IEP2_MV_TRU_LIST0
+Address: Operational Base + offset (0x0128)
+Bit Attr Reset Value
+sw_mv_tru_list3_mv
+31:26 RW 0x00
+MV trust list MV3
+25
+RO 0x0
+reserved
+sw_mv_tru_list3_vld
+24
+RW 0x0
+MV trust list MV3 valid
+sw_mv_tru_list2_mv
+23:18 RW 0x00
+MV trust list MV2
+17
+RO 0x0
+reserved
+sw_mv_tru_list2_vld
+16
+RW 0x0
+MV trust list MV2 valid
+sw_mv_tru_list1_mv
+15:10 RW 0x00
+MV trust list MV1
+9
+RO 0x0
+reserved
+sw_mv_tru_list1_vld
+8
+RW 0x0
+MV trust list MV1 valid
+sw_mv_tru_list0_mv
+7:2
+RW 0x00
+MV trust list MV0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1079
+
+RK3588 TRM-Part2
+Bit
+1
+0
+
+Attr Reset Value
+RO 0x0
+reserved
+sw_mv_tru_list0_vld
+RW 0x0
+MV trust list MV0 valid
+
+IEP2_MV_TRU_LIST1
+Address: Operational Base + offset (0x012C)
+Bit Attr Reset Value
+sw_mv_tru_list7_mv
+31:26 RW 0x00
+MV trust list MV7
+25
+RO 0x0
+reserved
+sw_mv_tru_list7_vld
+24
+RW 0x0
+MV trust list MV7 valid
+sw_mv_tru_list6_mv
+23:18 RW 0x00
+MV trust list MV6
+17
+RO 0x0
+reserved
+sw_mv_tru_list6_vld
+16
+RW 0x0
+MV trust list MV6 valid
+sw_mv_tru_list5_mv
+15:10 RW 0x00
+MV trust list MV5
+9
+RO 0x0
+reserved
+sw_mv_tru_list5_vld
+8
+RW 0x0
+MV trust list MV5 valid
+sw_mv_tru_list4_mv
+7:2
+RW 0x00
+MV trust list MV4
+1
+RO 0x0
+reserved
+sw_mv_tru_list4_vld
+0
+RW 0x0
+MV trust list MV4 valid
+IEP2_EEDI_CONFIG0
+Address: Operational Base + offset (0x0130)
+Bit Attr Reset Value
+31:5 RO 0x0000000
+reserved
+sw_eedi_thr0
+4:0
+RW 0x0c
+EEDI thr0
+
+Description
+
+Description
+
+Description
+
+IEP2_BLE_CONFIG0
+Address: Operational Base + offset (0x0134)
+Bit Attr Reset Value
+Description
+31:3 RO 0x00000000 reserved
+sw_ble_backtoma_num
+2:0
+RW 0x1
+Left and right column of frame will back to MA, give up MC
+IEP2_COMB_CONFIG0
+Address: Operational Base + offset (0x0138)
+Bit Attr Reset Value
+Description
+31:28 RO 0x0
+reserved
+sw_comb_cnt_thr
+27:24 RW 0x0
+Top or bottom frame combine detection compare with original
+combine dect
+23:22 RO 0x0
+reserved
+sw_comb_feature_thr
+21:16 RW 0x10
+Top or bottom frame combine detection compare with original
+combine dect
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1080
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+15:8
+
+RW 0x04
+
+7:0
+
+RW 0xff
+
+Description
+sw_comb_t_thr
+Different line compare use comb_t_thr
+sw_comb_osd_vld
+OSD area detection combine block back to original
+[0] area0,[1]area1....[7]area7
+1'b1: Back to original
+1'b0: Not back to original
+
+IEP2_DIL_MTN_TAB0
+Address: Operational Base + offset (0x0140)
+Bit Attr Reset Value
+Description
+31
+RO 0x0
+reserved
+sw_mtn_sub_tab03
+30:24 RW 0x00
+The MTN table member of number 03
+23
+RO 0x0
+reserved
+sw_mtn_sub_tab02
+22:16 RW 0x00
+The MTN table member of number 02
+15
+RO 0x0
+reserved
+sw_mtn_sub_tab01
+14:8 RW 0x00
+The MTN table member of number 01
+7
+RO 0x0
+reserved
+sw_mtn_sub_tab00
+6:0
+RW 0x00
+The MTN table member of number 00
+IEP2_DIL_MTN_TAB1
+Address: Operational Base + offset (0x0144)
+Bit Attr Reset Value
+Description
+31
+RO 0x0
+reserved
+sw_mtn_sub_tab07
+30:24 RW 0x00
+The MTN table member of number 07
+23
+RO 0x0
+reserved
+sw_mtn_sub_tab06
+22:16 RW 0x00
+The MTN table member of number 06
+15
+RO 0x0
+reserved
+sw_mtn_sub_tab05
+14:8 RW 0x00
+The MTN table member of number 05
+7
+RO 0x0
+reserved
+sw_mtn_sub_tab04
+6:0
+RW 0x00
+The MTN table member of number 04
+IEP2_DIL_MTN_TAB2
+Address: Operational Base + offset (0x0148)
+Bit Attr Reset Value
+Description
+31
+RO 0x0
+reserved
+sw_mtn_sub_tab11
+30:24 RW 0x00
+The MTN table member of number 11
+23
+RO 0x0
+reserved
+sw_mtn_sub_tab10
+22:16 RW 0x00
+The MTN table member of number 10
+15
+RO 0x0
+reserved
+sw_mtn_sub_tab09
+14:8 RW 0x00
+The MTN table member of number 09
+7
+RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1081
+
+RK3588 TRM-Part2
+Bit
+6:0
+
+Attr Reset Value
+RW 0x00
+
+Description
+sw_mtn_sub_tab08
+The MTN table member of number 08
+
+IEP2_DIL_MTN_TAB3
+Address: Operational Base + offset (0x014C)
+Bit Attr Reset Value
+Description
+31
+RO 0x0
+reserved
+sw_mtn_sub_tab15
+30:24 RW 0x00
+The MTN table member of number 15
+23
+RO 0x0
+reserved
+sw_mtn_sub_tab14
+22:16 RW 0x00
+The MTN table member of number 14
+15
+RO 0x0
+reserved
+sw_mtn_sub_tab13
+14:8 RW 0x00
+The MTN table member of number 13
+7
+RO 0x0
+reserved
+sw_mtn_sub_tab12
+6:0
+RW 0x00
+The MTN table member of number 12
+IEP2_DIL_MTN_TAB4
+Address: Operational Base + offset (0x0150)
+Bit Attr Reset Value
+Description
+31
+RO 0x0
+reserved
+sw_mtn_sub_tab19
+30:24 RW 0x01
+The MTN table member of number 19
+23
+RO 0x0
+reserved
+sw_mtn_sub_tab18
+22:16 RW 0x01
+The MTN table member of number 18
+15
+RO 0x0
+reserved
+sw_mtn_sub_tab17
+14:8 RW 0x00
+The MTN table member of number 17
+7
+RO 0x0
+reserved
+sw_mtn_sub_tab16
+6:0
+RW 0x00
+The MTN table member of number 16
+IEP2_DIL_MTN_TAB5
+Address: Operational Base + offset (0x0154)
+Bit Attr Reset Value
+Description
+31
+RO 0x0
+reserved
+sw_mtn_sub_tab23
+30:24 RW 0x06
+The MTN table member of number 23
+23
+RO 0x0
+reserved
+sw_mtn_sub_tab22
+22:16 RW 0x05
+The MTN table member of number 22
+15
+RO 0x0
+reserved
+sw_mtn_sub_tab21
+14:8 RW 0x03
+The MTN table member of number 21
+7
+RO 0x0
+reserved
+sw_mtn_sub_tab20
+6:0
+RW 0x02
+The MTN table member of number 20
+IEP2_DIL_MTN_TAB6
+Address: Operational Base + offset (0x0158)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1082
+
+RK3588 TRM-Part2
+Bit
+31
+
+Attr Reset Value
+Description
+RO 0x0
+reserved
+sw_mtn_sub_tab27
+30:24 RW 0x0f
+The MTN table member of number 27
+23
+RO 0x0
+reserved
+sw_mtn_sub_tab26
+22:16 RW 0x0d
+The MTN table member of number 26
+15
+RO 0x0
+reserved
+sw_mtn_sub_tab25
+14:8 RW 0x0a
+The MTN table member of number 25
+7
+RO 0x0
+reserved
+sw_mtn_sub_tab24
+6:0
+RW 0x08
+The MTN table member of number 24
+IEP2_DIL_MTN_TAB7
+Address: Operational Base + offset (0x015C)
+Bit Attr Reset Value
+Description
+31
+RO 0x0
+reserved
+sw_mtn_sub_tab31
+30:24 RW 0x1c
+The MTN table member of number 31
+23
+RO 0x0
+reserved
+sw_mtn_sub_tab30
+22:16 RW 0x19
+The MTN table member of number 30
+15
+RO 0x0
+reserved
+sw_mtn_sub_tab29
+14:8 RW 0x15
+The MTN table member of number 29
+7
+RO 0x0
+reserved
+sw_mtn_sub_tab28
+6:0
+RW 0x12
+The MTN table member of number 28
+IEP2_DIL_MTN_TAB8
+Address: Operational Base + offset (0x0160)
+Bit Attr Reset Value
+Description
+31
+RO 0x0
+reserved
+sw_mtn_sub_tab35
+30:24 RW 0x2b
+The MTN table member of number 35
+23
+RO 0x0
+reserved
+sw_mtn_sub_tab34
+22:16 RW 0x28
+The MTN table member of number 34
+15
+RO 0x0
+reserved
+sw_mtn_sub_tab33
+14:8 RW 0x24
+The MTN table member of number 33
+7
+RO 0x0
+reserved
+sw_mtn_sub_tab32
+6:0
+RW 0x20
+The MTN table member of number 32
+IEP2_DIL_MTN_TAB9
+Address: Operational Base + offset (0x0164)
+Bit Attr Reset Value
+Description
+31
+RO 0x0
+reserved
+sw_mtn_sub_tab39
+30:24 RW 0x36
+The MTN table member of number 39
+23
+RO 0x0
+reserved
+sw_mtn_sub_tab38
+22:16 RW 0x34
+The MTN table member of number 38
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1083
+
+RK3588 TRM-Part2
+Bit
+15
+14:8
+7
+6:0
+
+Attr Reset Value
+Description
+RO 0x0
+reserved
+sw_mtn_sub_tab37
+RW 0x31
+The MTN table member of number 37
+RO 0x0
+reserved
+sw_mtn_sub_tab36
+RW 0x2e
+The MTN table member of number 36
+
+IEP2_DIL_MTN_TAB10
+Address: Operational Base + offset (0x0168)
+Bit Attr Reset Value
+Description
+31
+RO 0x0
+reserved
+sw_mtn_sub_tab43
+30:24 RW 0x3d
+The MTN table member of number 43
+23
+RO 0x0
+reserved
+sw_mtn_sub_tab42
+22:16 RW 0x3c
+The MTN table member of number 42
+15
+RO 0x0
+reserved
+sw_mtn_sub_tab41
+14:8 RW 0x3a
+The MTN table member of number 41
+7
+RO 0x0
+reserved
+sw_mtn_sub_tab40
+6:0
+RW 0x38
+The MTN table member of number 40
+IEP2_DIL_MTN_TAB11
+Address: Operational Base + offset (0x016C)
+Bit Attr Reset Value
+Description
+31
+RO 0x0
+reserved
+sw_mtn_sub_tab47
+30:24 RW 0x40
+The MTN table member of number 47
+23
+RO 0x0
+reserved
+sw_mtn_sub_tab46
+22:16 RW 0x40
+The MTN table member of number 46
+15
+RO 0x0
+reserved
+sw_mtn_sub_tab45
+14:8 RW 0x3f
+The MTN table member of number 45
+7
+RO 0x0
+reserved
+sw_mtn_sub_tab44
+6:0
+RW 0x3e
+The MTN table member of number 44
+IEP2_DIL_MTN_TAB12
+Address: Operational Base + offset (0x0170)
+Bit Attr Reset Value
+Description
+31
+RO 0x0
+reserved
+sw_mtn_sub_tab51
+30:24 RW 0x40
+The MTN table member of number 51
+23
+RO 0x0
+reserved
+sw_mtn_sub_tab50
+22:16 RW 0x40
+The MTN table member of number 50
+15
+RO 0x0
+reserved
+sw_mtn_sub_tab49
+14:8 RW 0x40
+The MTN table member of number 49
+7
+RO 0x0
+reserved
+sw_mtn_sub_tab48
+6:0
+RW 0x40
+The MTN table member of number 48
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1084
+
+RK3588 TRM-Part2
+
+IEP2_DIL_MTN_TAB13
+Address: Operational Base + offset (0x0174)
+Bit Attr Reset Value
+Description
+31
+RO 0x0
+reserved
+sw_mtn_sub_tab55
+30:24 RW 0x40
+The MTN table member of number 55
+23
+RO 0x0
+reserved
+sw_mtn_sub_tab54
+22:16 RW 0x40
+The MTN table member of number 54
+15
+RO 0x0
+reserved
+sw_mtn_sub_tab53
+14:8 RW 0x40
+The MTN table member of number 53
+7
+RO 0x0
+reserved
+sw_mtn_sub_tab52
+6:0
+RW 0x40
+The MTN table member of number 52
+IEP2_DIL_MTN_TAB14
+Address: Operational Base + offset (0x0178)
+Bit Attr Reset Value
+Description
+31
+RO 0x0
+reserved
+sw_mtn_sub_tab59
+30:24 RW 0x40
+The MTN table member of number 59
+23
+RO 0x0
+reserved
+sw_mtn_sub_tab58
+22:16 RW 0x40
+The MTN table member of number 58
+15
+RO 0x0
+reserved
+sw_mtn_sub_tab57
+14:8 RW 0x40
+The MTN table member of number 57
+7
+RO 0x0
+reserved
+sw_mtn_sub_tab56
+6:0
+RW 0x40
+The MTN table member of number 56
+IEP2_DIL_MTN_TAB15
+Address: Operational Base + offset (0x017C)
+Bit Attr Reset Value
+Description
+31
+RO 0x0
+reserved
+sw_mtn_sub_tab63
+30:24 RW 0x40
+The MTN table member of number 63
+23
+RO 0x0
+reserved
+sw_mtn_sub_tab62
+22:16 RW 0x40
+The MTN table member of number 62
+15
+RO 0x0
+reserved
+sw_mtn_sub_tab61
+14:8 RW 0x40
+The MTN table member of number 61
+7
+RO 0x0
+reserved
+sw_mtn_sub_tab60
+6:0
+RW 0x40
+The MTN table member of number 60
+IEP2_RO_PD_TCNT
+Address: Operational Base + offset (0x0400)
+Bit Attr Reset Value
+Description
+31:20 RO 0x000
+reserved
+ro_dect_pd_tcnt
+19:0 RO 0x00000
+Pulldown detection top field counter
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1085
+
+RK3588 TRM-Part2
+
+IEP2_RO_PD_BCNT
+Address: Operational Base + offset (0x0404)
+Bit Attr Reset Value
+Description
+31:20 RO 0x000
+reserved
+ro_dect_pd_bcnt
+19:0 RO 0x00000
+Pulldown detection bottom field counter
+IEP2_RO_FF_CUR_TCNT
+Address: Operational Base + offset (0x0408)
+Bit Attr Reset Value
+Description
+ro_dect_ff_cur_tcnt
+31:0 RO 0x00000000
+Frame field detection current frame top field counter
+IEP2_RO_FF_CUR_BCNT
+Address: Operational Base + offset (0x040C)
+Bit Attr Reset Value
+Description
+ro_dect_ff_cur_bcnt
+31:0 RO 0x00000000
+Frame field detection current frame bottom field counter
+IEP2_RO_FF_NXT_TCNT
+Address: Operational Base + offset (0x0410)
+Bit Attr Reset Value
+Description
+ro_dect_ff_nxt_tcnt
+31:0 RO 0x00000000
+Frame field detection next frame top field counter
+IEP2_RO_FF_NXT_BCNT
+Address: Operational Base + offset (0x0414)
+Bit Attr Reset Value
+Description
+ro_dect_ff_nxt_bcnt
+31:0 RO 0x00000000
+Frame field detection next frame bottom field counter
+IEP2_RO_FF_BLE_TCNT
+Address: Operational Base + offset (0x0418)
+Bit Attr Reset Value
+Description
+ro_dect_ff_ble_tcnt
+31:0 RO 0x00000000 Frame field detection current and next frame blend top field
+counter
+IEP2_RO_FF_BLE_BCNT
+Address: Operational Base + offset (0x041C)
+Bit Attr Reset Value
+Description
+ro_dect_ff_ble_bcnt
+31:0 RO 0x00000000 Frame field detection current and next frame blend bottom field
+counter
+IEP2_RO_FF_COMB_NZ
+Address: Operational Base + offset (0x0420)
+Bit Attr Reset Value
+Description
+31:21 RO 0x000
+reserved
+ro_dect_ff_nz
+20:0 RO 0x000000
+Frame field detection current frame none zero number
+IEP2_RO_FF_COMB_F
+Address: Operational Base + offset (0x0424)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1086
+
+RK3588 TRM-Part2
+Bit Attr Reset Value
+Description
+31:21 RO 0x000
+reserved
+ro_dect_ff_comb_f
+20:0 RO 0x000000
+Frame field detection current frame combine detection number
+IEP2_RO_OSD_NUM
+Address: Operational Base + offset (0x0428)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+ro_dect_osd_cnt
+3:0
+RO 0x0
+OSD area detection number
+IEP2_RO_OUT_COMB_CNT
+Address: Operational Base + offset (0x042C)
+Bit Attr Reset Value
+Description
+ro_out_osd_comb_cnt
+31:16 RO 0x0000
+Top frame and bottom frame OSD area combine number
+ro_out_comb_cnt
+15:0 RO 0x0000
+Top frame and bottom frame combine number
+IEP2_RO_FF_GRADT_TCNT
+Address: Operational Base + offset (0x0430)
+Bit Attr Reset Value
+Description
+31:28 RO 0x0
+reserved
+ro_ff_gradt_tcnt
+27:0 RO 0x0000000
+Frame field detection,gradt top field counter
+IEP2_RO_FF_GRADT_BCNT
+Address: Operational Base + offset (0x0434)
+Bit Attr Reset Value
+Description
+31:28 RO 0x0
+reserved
+ro_ff_gradt_bcnt
+27:0 RO 0x0000000
+Frame field detection,gradt bottom field counter
+IEP2_RO_MC_VLD_CNT
+Address: Operational Base + offset (0x0438)
+Bit Attr Reset Value
+Description
+31:15 RO 0x00000
+reserved
+ro_mc_vld_cnt
+14:0 RO 0x0000
+OSD area detection number
+IEP2_RO_OSD_AREA0_X
+Address: Operational Base + offset (0x0440)
+Bit Attr Reset Value
+31:27 RO 0x00
+reserved
+ro_x_end0
+26:16 RO 0x000
+1 pixel
+15:11 RO 0x00
+reserved
+ro_x_sta0
+10:0 RO 0x000
+1 pixel
+IEP2_RO_OSD_AREA0_Y
+Address: Operational Base + offset (0x0444)
+Bit Attr Reset Value
+31:27 RO 0x00
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+Description
+
+1087
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+26:16 RO
+
+0x000
+
+15:11 RO
+
+0x00
+
+10:0
+
+0x000
+
+RO
+
+Description
+ro_y_end0
+1 pixel
+reserved
+ro_y_sta0
+1 pixel
+
+IEP2_RO_OSD_AREA1_X
+Address: Operational Base + offset (0x0448)
+Bit Attr Reset Value
+31:27 RO 0x00
+reserved
+ro_x_end1
+26:16 RO 0x000
+1 pixel
+15:11 RO 0x00
+reserved
+ro_x_sta1
+10:0 RO 0x000
+1 pixel
+IEP2_RO_OSD_AREA1_Y
+Address: Operational Base + offset (0x044C)
+Bit Attr Reset Value
+31:27 RO 0x00
+reserved
+ro_y_end1
+26:16 RO 0x000
+1 pixel
+15:11 RO 0x00
+reserved
+ro_y_sta1
+10:0 RO 0x000
+1 pixel
+IEP2_RO_OSD_AREA2_X
+Address: Operational Base + offset (0x0450)
+Bit Attr Reset Value
+31:27 RO 0x00
+reserved
+ro_x_end2
+26:16 RO 0x000
+1 pixel
+15:11 RO 0x00
+reserved
+ro_x_sta2
+10:0 RO 0x000
+1 pixel
+IEP2_RO_OSD_AREA2_Y
+Address: Operational Base + offset (0x0454)
+Bit Attr Reset Value
+31:27 RO 0x00
+reserved
+ro_y_end2
+26:16 RO 0x000
+1 pixel
+15:11 RO 0x00
+reserved
+ro_y_sta2
+10:0 RO 0x000
+1 pixel
+IEP2_RO_OSD_AREA3_X
+Address: Operational Base + offset (0x0458)
+Bit Attr Reset Value
+31:27 RO 0x00
+reserved
+ro_x_end3
+26:16 RO 0x000
+1 pixel
+15:11 RO 0x00
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+Description
+
+Description
+
+Description
+
+Description
+
+1088
+
+RK3588 TRM-Part2
+Bit
+10:0
+
+Attr Reset Value
+RO
+
+0x000
+
+Description
+ro_x_sta3
+1 pixel
+
+IEP2_RO_OSD_AREA3_Y
+Address: Operational Base + offset (0x045C)
+Bit Attr Reset Value
+31:27 RO 0x00
+reserved
+ro_y_end3
+26:16 RO 0x000
+1 pixel
+15:11 RO 0x00
+reserved
+ro_y_sta3
+10:0 RO 0x000
+1 pixel
+IEP2_RO_OSD_AREA4_X
+Address: Operational Base + offset (0x0460)
+Bit Attr Reset Value
+31:27 RO 0x00
+reserved
+ro_x_end4
+26:16 RO 0x000
+1 pixel
+15:11 RO 0x00
+reserved
+ro_x_sta4
+10:0 RO 0x000
+1 pixel
+IEP2_RO_OSD_AREA4_Y
+Address: Operational Base + offset (0x0464)
+Bit Attr Reset Value
+31:27 RO 0x00
+reserved
+ro_y_end4
+26:16 RO 0x000
+1 pixel
+15:11 RO 0x00
+reserved
+ro_y_sta4
+10:0 RO 0x000
+1 pixel
+IEP2_RO_OSD_AREA5_X
+Address: Operational Base + offset (0x0468)
+Bit Attr Reset Value
+31:27 RO 0x00
+reserved
+ro_x_end5
+26:16 RO 0x000
+1 pixel
+15:11 RO 0x00
+reserved
+ro_x_sta5
+10:0 RO 0x000
+1 pixel
+IEP2_RO_OSD_AREA5_Y
+Address: Operational Base + offset (0x046C)
+Bit Attr Reset Value
+31:27 RO 0x00
+reserved
+ro_y_end5
+26:16 RO 0x000
+1 pixel
+15:11 RO 0x00
+reserved
+ro_y_sta5
+10:0 RO 0x000
+1 pixel
+
+Description
+
+Description
+
+Description
+
+Description
+
+Description
+
+IEP2_RO_OSD_AREA6_X
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1089
+
+RK3588 TRM-Part2
+Address: Operational Base + offset (0x0470)
+Bit Attr Reset Value
+31:27 RO 0x00
+reserved
+ro_x_end6
+26:16 RO 0x000
+1 pixel
+15:11 RO 0x00
+reserved
+ro_x_sta6
+10:0 RO 0x000
+1 pixel
+IEP2_RO_OSD_AREA6_Y
+Address: Operational Base + offset (0x0474)
+Bit Attr Reset Value
+31:27 RO 0x00
+reserved
+ro_y_end6
+26:16 RO 0x000
+1 pixel
+15:11 RO 0x00
+reserved
+ro_y_sta6
+10:0 RO 0x000
+1 pixel
+IEP2_RO_OSD_AREA7_X
+Address: Operational Base + offset (0x0478)
+Bit Attr Reset Value
+31:27 RO 0x00
+reserved
+ro_x_end7
+26:16 RO 0x000
+1 pixel
+15:11 RO 0x00
+reserved
+ro_x_sta7
+10:0 RO 0x000
+1 pixel
+IEP2_RO_OSD_AREA7_Y
+Address: Operational Base + offset (0x047C)
+Bit Attr Reset Value
+31:27 RO 0x00
+reserved
+ro_y_end7
+26:16 RO 0x000
+1 pixel
+15:11 RO 0x00
+reserved
+ro_y_sta7
+10:0 RO 0x000
+1 pixel
+IEP2_RO_MV_HIST_BIN0
+Address: Operational Base + offset (0x0480)
+Bit Attr Reset Value
+ro_mv_hist01
+31:16 RO 0x0000
+Mv_histogram01
+ro_mv_hist00
+15:0 RO 0x0000
+Mv_histogram00
+IEP2_RO_MV_HIST_BIN1
+Address: Operational Base + offset (0x0484)
+Bit Attr Reset Value
+ro_mv_hist03
+31:16 RO 0x0000
+Mv_histogram03
+ro_mv_hist02
+15:0 RO 0x0000
+Mv_histogram02
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+Description
+
+Description
+
+Description
+
+Description
+
+Description
+
+1090
+
+RK3588 TRM-Part2
+IEP2_RO_MV_HIST_BIN2
+Address: Operational Base + offset (0x0488)
+Bit Attr Reset Value
+ro_mv_hist05
+31:16 RO 0x0000
+Mv_histogram05
+ro_mv_hist04
+15:0 RO 0x0000
+Mv_histogram04
+IEP2_RO_MV_HIST_BIN3
+Address: Operational Base + offset (0x048C)
+Bit Attr Reset Value
+ro_mv_hist07
+31:16 RO 0x0000
+Mv_histogram07
+ro_mv_hist06
+15:0 RO 0x0000
+Mv_histogram06
+IEP2_RO_MV_HIST_BIN4
+Address: Operational Base + offset (0x0490)
+Bit Attr Reset Value
+ro_mv_hist09
+31:16 RO 0x0000
+Mv_histogram09
+ro_mv_hist08
+15:0 RO 0x0000
+Mv_histogram08
+IEP2_RO_MV_HIST_BIN5
+Address: Operational Base + offset (0x0494)
+Bit Attr Reset Value
+ro_mv_hist11
+31:16 RO 0x0000
+Mv_histogram11
+ro_mv_hist10
+15:0 RO 0x0000
+Mv_histogram10
+IEP2_RO_MV_HIST_BIN6
+Address: Operational Base + offset (0x0498)
+Bit Attr Reset Value
+ro_mv_hist13
+31:16 RO 0x0000
+Mv_histogram13
+ro_mv_hist12
+15:0 RO 0x0000
+Mv_histogram12
+IEP2_RO_MV_HIST_BIN7
+Address: Operational Base + offset (0x049C)
+Bit Attr Reset Value
+ro_mv_hist15
+31:16 RO 0x0000
+Mv_histogram15
+ro_mv_hist14
+15:0 RO 0x0000
+Mv_histogram14
+IEP2_RO_MV_HIST_BIN8
+Address: Operational Base + offset (0x04A0)
+Bit Attr Reset Value
+ro_mv_hist17
+31:16 RO 0x0000
+Mv_histogram17
+ro_mv_hist16
+15:0 RO 0x0000
+Mv_histogram16
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+Description
+
+Description
+
+Description
+
+Description
+
+Description
+
+Description
+
+1091
+
+RK3588 TRM-Part2
+
+IEP2_RO_MV_HIST_BIN9
+Address: Operational Base + offset (0x04A4)
+Bit Attr Reset Value
+ro_mv_hist19
+31:16 RO 0x0000
+Mv_histogram19
+ro_mv_hist18
+15:0 RO 0x0000
+Mv_histogram18
+IEP2_RO_MV_HIST_BIN10
+Address: Operational Base + offset (0x04A8)
+Bit Attr Reset Value
+ro_mv_hist21
+31:16 RO 0x0000
+Mv_histogram21
+ro_mv_hist20
+15:0 RO 0x0000
+Mv_histogram20
+IEP2_RO_MV_HIST_BIN11
+Address: Operational Base + offset (0x04AC)
+Bit Attr Reset Value
+ro_mv_hist23
+31:16 RO 0x0000
+Mv_histogram23
+ro_mv_hist22
+15:0 RO 0x0000
+Mv_histogram22
+IEP2_RO_MV_HIST_BIN12
+Address: Operational Base + offset (0x04B0)
+Bit Attr Reset Value
+ro_mv_hist25
+31:16 RO 0x0000
+Mv_histogram25
+ro_mv_hist24
+15:0 RO 0x0000
+Mv_histogram24
+IEP2_RO_MV_HIST_BIN13
+Address: Operational Base + offset (0x04B4)
+Bit Attr Reset Value
+ro_mv_hist27
+31:16 RO 0x0000
+Mv_histogram27
+ro_mv_hist26
+15:0 RO 0x0000
+Mv_histogram26
+IEP2_RO_MV_HIST_BIN14
+Address: Operational Base + offset (0x04B8)
+Bit Attr Reset Value
+ro_mv_hist29
+31:16 RO 0x0000
+Mv_histogram29
+ro_mv_hist28
+15:0 RO 0x0000
+Mv_histogram28
+IEP2_RO_MV_HIST_BIN15
+Address: Operational Base + offset (0x04BC)
+Bit Attr Reset Value
+ro_mv_hist31
+31:16 RO 0x0000
+Mv_histogram31
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+Description
+
+Description
+
+Description
+
+Description
+
+Description
+
+Description
+
+1092
+
+RK3588 TRM-Part2
+Bit
+15:0
+
+Attr Reset Value
+RO
+
+0x0000
+
+Description
+ro_mv_hist30
+Mv_histogram30
+
+IEP2_RO_MV_HIST_BIN16
+Address: Operational Base + offset (0x04C0)
+Bit Attr Reset Value
+ro_mv_hist33
+31:16 RO 0x0000
+Mv_histogram33
+ro_mv_hist32
+15:0 RO 0x0000
+Mv_histogram32
+IEP2_RO_MV_HIST_BIN17
+Address: Operational Base + offset (0x04C4)
+Bit Attr Reset Value
+ro_mv_hist35
+31:16 RO 0x0000
+Mv_histogram35
+ro_mv_hist34
+15:0 RO 0x0000
+Mv_histogram34
+IEP2_RO_MV_HIST_BIN18
+Address: Operational Base + offset (0x04C8)
+Bit Attr Reset Value
+ro_mv_hist37
+31:16 RO 0x0000
+Mv_histogram37
+ro_mv_hist36
+15:0 RO 0x0000
+Mv_histogram36
+IEP2_RO_MV_HIST_BIN19
+Address: Operational Base + offset (0x04CC)
+Bit Attr Reset Value
+ro_mv_hist39
+31:16 RO 0x0000
+Mv_histogram39
+ro_mv_hist38
+15:0 RO 0x0000
+Mv_histogram38
+IEP2_RO_MV_HIST_BIN20
+Address: Operational Base + offset (0x04D0)
+Bit Attr Reset Value
+ro_mv_hist41
+31:16 RO 0x0000
+Mv_histogram41
+ro_mv_hist40
+15:0 RO 0x0000
+Mv_histogram40
+IEP2_RO_MV_HIST_BIN21
+Address: Operational Base + offset (0x04D4)
+Bit Attr Reset Value
+ro_mv_hist43
+31:16 RO 0x0000
+Mv_histogram43
+ro_mv_hist42
+15:0 RO 0x0000
+Mv_histogram42
+
+Description
+
+Description
+
+Description
+
+Description
+
+Description
+
+Description
+
+IEP2_RO_MV_HIST_BIN22
+Address: Operational Base + offset (0x04D8)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1093
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+31:16 RO
+
+0x0000
+
+15:0
+
+0x0000
+
+RO
+
+Description
+ro_mv_hist45
+Mv_histogram45
+ro_mv_hist44
+Mv_histogram44
+
+IEP2_RO_MV_HIST_BIN23
+Address: Operational Base + offset (0x04DC)
+Bit Attr Reset Value
+ro_mv_hist47
+31:16 RO 0x0000
+Mv_histogram47
+ro_mv_hist46
+15:0 RO 0x0000
+Mv_histogram46
+IEP2_RO_MV_HIST_BIN24
+Address: Operational Base + offset (0x04E0)
+Bit Attr Reset Value
+ro_mv_hist49
+31:16 RO 0x0000
+Mv_histogram49
+ro_mv_hist48
+15:0 RO 0x0000
+Mv_histogram48
+IEP2_RO_MV_HIST_BIN25
+Address: Operational Base + offset (0x04E4)
+Bit Attr Reset Value
+ro_mv_hist51
+31:16 RO 0x0000
+Mv_histogram51
+ro_mv_hist50
+15:0 RO 0x0000
+Mv_histogram50
+IEP2_RO_MV_HIST_BIN26
+Address: Operational Base + offset (0x04E8)
+Bit Attr Reset Value
+ro_mv_hist53
+31:16 RO 0x0000
+Mv_histogram54
+ro_mv_hist52
+15:0 RO 0x0000
+Mv_histogram53
+IEP2_RO_MV_HIST_BIN27
+Address: Operational Base + offset (0x04EC)
+Bit Attr Reset Value
+ro_mv_hist55
+31:16 RO 0x0000
+Mv_histogram55
+ro_mv_hist54
+15:0 RO 0x0000
+Mv_histogram54
+
+Description
+
+Description
+
+Description
+
+Description
+
+Description
+
+IEP2_PERF_LATENCY_CTRL0
+Address: Operational Base + offset (0x0600)
+Bit Attr Reset Value
+Description
+31:20 RO 0x000
+reserved
+sw_rd_latency_thr
+19:8 RW 0x000
+Axi Read latency threshold
+sw_rd_latency_id
+7:4
+RW 0x0
+Axi read channel id for latency AXI_PERF test
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1094
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+sw_axi_cnt_type
+1'b0: AXI transfer test
+1'b1: DDR align transfer test
+sw_axi_perf_frm_type
+1'b0: Clear by software configuration
+1'b1: Clear by frame end or by software configuration
+sw_axi_perf_clr_e
+1'b0: Software clear disable
+1'b1: Software clear enalbe
+Note: user need write 1 to this bit and then write 0 to generate a
+clear pulse.
+sw_axi_perf_work_e
+1'b0: Disable
+1'b1: Enable
+
+IEP2_PERF_LATENCY_CTRL1
+Address: Operational Base + offset (0x0604)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+sw_aw_count_id
+11:8 RW 0x0
+When sw_aw_cnt_id_type=1, only count the id designated by
+sw_aw_count_id
+sw_ar_count_id
+7:4
+RW 0x0
+When sw_ar_cnt_id_type=1, only count the id designated by
+sw_ar_count_id
+sw_aw_cnt_id_type
+3
+RW 0x0
+1'b0: Count all write channels
+1'b1: Count sw_aw_count_id write channel only
+sw_ar_cnt_id_type
+2
+RW 0x0
+1'b0: Count all read channels
+1'b1: Count sw_ar_count_id read channel only
+sw_addr_align_type
+2'b00: 16-Byte align
+1:0
+RW 0x0
+2'b01: 32-Byte align
+2'b10: 64-Byte align
+2'b11: 128-Byte align
+IEP2_PERF_RD_MAX_LATENCY_NUM
+Address: Operational Base + offset (0x0608)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+rd_max_latency_num
+15:0 RO 0x0000
+AXI max read latency(unit: cycles)
+IEP2_PERF_RD_LATENCY_SAMP_NUM
+Address: Operational Base + offset (0x060C)
+Bit Attr Reset Value
+Description
+rd_latency_thr_num
+31:0 RO 0x00000000
+AXI read latency total sample number
+IEP2_PERF_RD_LATENCY_ACC_SUM
+Address: Operational Base + offset (0x0610)
+Bit Attr Reset Value
+Description
+rd_latency_acc_sum
+31:0 RO 0x00000000
+AXI read latency (>sw_rd_latency_thr) total number
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1095
+
+RK3588 TRM-Part2
+
+IEP2_PERF_RD_AXI_TOTAL_BYTE
+Address: Operational Base + offset (0x0614)
+Bit Attr Reset Value
+Description
+perf_rd_axi_total_byte
+31:0 RO 0x00000000
+AXI active total read bytes/DDR align read bytes
+IEP2_PERF_WR_AXI_TOTAL_BYTE
+Address: Operational Base + offset (0x0618)
+Bit Attr Reset Value
+Description
+perf_wr_axi_total_byte
+31:0 RO 0x00000000
+AXI active total write bytes/ddr align write bytes
+IEP2_PERF_WORKING_CNT
+Address: Operational Base + offset (0x061C)
+Bit Attr Reset Value
+perf_working_cnt
+31:0 RO 0x00000000
+RKIP working counter
+
+Description
+
+IEP2_MMU_DTE_ADDR
+Address: Operational Base + offset (0x0800)
+Bit Attr Reset Value
+mmu_dte_addr
+31:0 RW 0x00000000
+MMU dte address
+
+Description
+
+IEP2_MMU_STATUS
+Address: Operational Base + offset (0x0804)
+Bit Attr Reset Value
+Description
+31:11 RO 0x000000
+reserved
+mmu_page_fault_bus_id
+10:6 RW 0x00
+Index of master responsible for the last page fault
+mmu_page_fault_is_write
+The direction of access for last page fault.
+5
+RW 0x0
+1'b0: Read
+1'b1: Write
+mmu_replay_buffer_empty
+4
+RW 0x1
+The MMU replay buffer is empty
+mmu_idle
+The MMU is idle when accesses are being translated and there are
+no unfinished translated access. The MMU_IDLE signal only
+3
+RW 0x1
+reports idle when the MMU processor is idle and accesses are
+active on the external bus.
+Note: The MMU can be idle in page fault mode.
+mmu_stall_active
+2
+RW 0x0
+MMU stall mode currently enabled. The mode is enabled by
+command
+mmu_page_fault_active
+1
+RW 0x0
+MMU page fault mode currently enabled. The mode is enabled by
+command
+mmu_paging_enabled
+0
+RW 0x0
+MMU page enable
+IEP2_MMU_CMD
+Address: Operational Base + offset (0x0808)
+Bit Attr Reset Value
+31:3 RO 0x00000000 reserved
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1096
+
+RK3588 TRM-Part2
+Bit
+
+2:0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+mmu_cmd
+The MMU_ENABLE_STALL command can always be issued. Other
+commands are ignored unless the MMU is idle or stalled.
+3'b000: Enable paging
+3'b001: Disable paging
+3'b010: Turn on stall mode
+3'b011: Turn off stall mode
+3'b100: Zap the entire page table cache
+3'b101: Leave page fault mode
+3'b110: Reset the MMU
+
+IEP2_MMU_PAGE_FAULT_ADDR
+Address: Operational Base + offset (0x080C)
+Bit Attr Reset Value
+Description
+mmu_page_fault_addr
+31:0 RW 0x00000000
+mmu_page_fault_address
+IEP2_MMU_ZAP_ONE_LINE
+Address: Operational Base + offset (0x0810)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+mmu_zap_one_line
+0
+RW 0x0
+Address to be invalidated from the page table cache
+IEP2_MMU_INT_RAWSTAT
+Address: Operational Base + offset (0x0814)
+Bit Attr Reset Value
+31:2 RO 0x00000000 reserved
+read_bus_error
+1
+RW 0x0
+MMU read bus error
+page_fault
+0
+RW 0x0
+Page fault
+
+Description
+
+IEP2_MMU_INT_CLEAR
+Address: Operational Base + offset (0x0818)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+read_bus_error_clear
+Read bus error interrupt clear, and write 1 to this register can
+1
+RW 0x0
+clear
+read bus error interrupt.
+page_fault_clear
+0
+RW 0x0
+Page fault interrupt clear, and write 1 to this register can clear
+page fault interrupt.
+IEP2_MMU_INT_MASK
+Address: Operational Base + offset (0x081C)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+read_bus_error_int_en
+1
+RW 0x0
+MMU read bus error interruption enable
+page_fault_int_en
+0
+RW 0x0
+PAGE fault interruption enable
+IEP2_MMU_INT_STATUS
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1097
+
+RK3588 TRM-Part2
+Address: Operational Base + offset (0x0820)
+Bit Attr Reset Value
+31:2 RO 0x00000000 reserved
+read_bus_error
+1
+RW 0x0
+MMU read bus error
+page_fault
+0
+RW 0x0
+Page fault
+
+Description
+
+IEP2_MMU_AUTO_GATING
+Address: Operational Base + offset (0x0824)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+mmu_auto_gating
+0
+RW 0x1
+When it is 1, the MMU will auto gating itself
+IEP2_MMU_ID
+Address: Operational Base + offset (0x0828)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+mmu_axi_id
+7:4
+RW 0x0
+MMU ID configurable
+3:1
+RO 0x0
+reserved
+reg_load_mmu_en
+0
+RW 0x0
+Just for frame asynchronous using
+
+8.5 Application Notes
+
+Input source definition constraint
+The input source definition must be 16x4 aligned, which means the image width 16 aligned
+and image height 4 aligned.
+Normal configuration flow
+⚫ Set IEP2 related signals based on current video source information and deinterlace mode
+(must open frame done interruption by asserting the sw_iep_frm_done_en signal )
+⚫ Set frame start by setting signal sw_iep_frm_en = 1
+⚫ Wait for IEP2 frame done interruption
+⚫ Read back many kinds of Detection data and MVHIST, analyze these data, get the global
+MV, OSD information etc
+⚫ Configure the MV, OSD information back
+⚫ Set frame start for deinterlace loop
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1098
+
+RK3588 TRM-Part2
+

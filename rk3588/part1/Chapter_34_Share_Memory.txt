@@ -1,0 +1,551 @@
+Chapter 34 Share Memory
+34
+
+34.1 Overview
+The Share Memory is a general memory module which can be accessed by several masters
+at the same time. And it can be programmed through the APB Slave interface.
+The Share Memory supports the following features:
+⚫ Support four AXI Slave interfaces with 256 bits data bus width
+⚫ Support total 1024KB memory comprised of four memory blocks
+⚫ Support shut down and deep sleep mode for each memory block
+⚫ Support auto clock gating
+⚫ Support weighted Round-Robin arbiter
+⚫ Support APB Slave interface for software configuration and status query
+
+34.2 Block Diagram
+The following figure shows the block diagram of Share Memory.
+
+Share Memory
+AXI
+
+Memory
+Block0
+0~3
+AXI Slave0~2
+
+Round-Robin
+Arbiter
+
+APB
+Register File
+
+Memory
+Block1
+Memory
+Block2
+Memory
+Block3
+
+Fig. 34-1 Block Diagram of Share Memory
+
+34.3 Function Description
+34.3.1 Memory Access
+
+There are four memory blocks, and each 256KB block consists of four SRAM banks. That is,
+the valid address range of the Share Memory is 0xFF000000~0xFF0FFFFF, and the base
+address of the Memory Block0~3 is 0xFF000000/0xFF040000/0xFF080000/0xFF0C0000.
+
+34.3.2 Round-Robin Arbiter
+
+In order to program the priority attribute for every AXI Slave interface, you should configure
+the following registers of the internal Round-Robin arbiter: SHAREMEM_RRA_SLT,
+SHAREMEM_RRA_WEIGHT, and SHAREMEM_RRA_SLT_PRI, and then enable the
+configuration by writing 1 to SHAREMEM_CTRL.cfg_load_en.
+
+34.4 Register Description
+This section describes the control/status registers of the design. Software should read and
+write these registers using 32-bits accesses.
+Reset
+Name
+Offset Size
+Description
+Value
+SHAREMEM_RRA_SLT
+0x0000
+W
+0x76543210 RRA slot assignment register
+SHAREMEM_RRA_WEIGHT 0x0008
+W
+0x00000000 RRA arbitration weight register
+SHAREMEM_RRA_SLT_PRI 0x0010
+W
+0x00000000 RRA slot priority register
+SHAREMEM_CTRL
+0x0020
+W
+0x00000000 Global control register
+SHAREMEM_STATUS
+0x0024
+W
+0x00000000 Status register
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1965
+
+RKRK3588 TRM-Part1
+Notes: Size: B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access
+
+34.4.1 Detail Register Description
+
+SHAREMEM_RRA_SLT
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+req_slot7
+Initial assignment to slot 7.
+4'h0: AXIS0 Read requester
+4'h1: AXIS0 Write requester
+4'h2: AXIS1 Read requester
+31:28 RW 0x7
+4'h3: AXIS1 Write requester
+4'h4: AXIS2 Read requester
+4'h5: AXIS2 Write requester
+4'h6: AXIS3 Read requester
+4'h7: AXIS3 Write requester
+Others: Reserved
+req_slot6
+Initial assignment to slot 6.
+4'h0: AXIS0 Read requester
+4'h1: AXIS0 Write requester
+4'h2: AXIS1 Read requester
+27:24 RW 0x6
+4'h3: AXIS1 Write requester
+4'h4: AXIS2 Read requester
+4'h5: AXIS2 Write requester
+4'h6: AXIS3 Read requester
+4'h7: AXIS3 Write requester
+Others: Reserved
+req_slot5
+Initial assignment to slot 5.
+4'h0: AXIS0 Read requester
+4'h1: AXIS0 Write requester
+4'h2: AXIS1 Read requester
+23:20 RW 0x5
+4'h3: AXIS1 Write requester
+4'h4: AXIS2 Read requester
+4'h5: AXIS2 Write requester
+4'h6: AXIS3 Read requester
+4'h7: AXIS3 Write requester
+Others: Reserved
+req_slot4
+Initial assignment to slot 4.
+4'h0: AXIS0 Read requester
+4'h1: AXIS0 Write requester
+4'h2: AXIS1 Read requester
+19:16 RW 0x4
+4'h3: AXIS1 Write requester
+4'h4: AXIS2 Read requester
+4'h5: AXIS2 Write requester
+4'h6: AXIS3 Read requester
+4'h7: AXIS3 Write requester
+Others: Reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1966
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+15:12 RW 0x3
+
+11:8
+
+RW 0x2
+
+7:4
+
+RW 0x1
+
+3:0
+
+RW 0x0
+
+Description
+req_slot3
+Initial assignment to slot 3.
+4'h0: AXIS0 Read requester
+4'h1: AXIS0 Write requester
+4'h2: AXIS1 Read requester
+4'h3: AXIS1 Write requester
+4'h4: AXIS2 Read requester
+4'h5: AXIS2 Write requester
+4'h6: AXIS3 Read requester
+4'h7: AXIS3 Write requester
+Others: Reserved
+req_slot2
+Initial assignment to slot 2.
+4'h0: AXIS0 Read requester
+4'h1: AXIS0 Write requester
+4'h2: AXIS1 Read requester
+4'h3: AXIS1 Write requester
+4'h4: AXIS2 Read requester
+4'h5: AXIS2 Write requester
+4'h6: AXIS3 Read requester
+4'h7: AXIS3 Write requester
+Others: Reserved
+req_slot1
+Initial assignment to slot 1.
+4'h0: AXIS0 Read requester
+4'h1: AXIS0 Write requester
+4'h2: AXIS1 Read requester
+4'h3: AXIS1 Write requester
+4'h4: AXIS2 Read requester
+4'h5: AXIS2 Write requester
+4'h6: AXIS3 Read requester
+4'h7: AXIS3 Write requester
+Others: Reserved
+req_slot0
+Initial assignment to slot 0.
+4'h0: AXIS0 Read requester
+4'h1: AXIS0 Write requester
+4'h2: AXIS1 Read requester
+4'h3: AXIS1 Write requester
+4'h4: AXIS2 Read requester
+4'h5: AXIS2 Write requester
+4'h6: AXIS3 Read requester
+4'h7: AXIS3 Write requester
+Others: Reserved
+
+SHAREMEM_RRA_WEIGHT
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+Description
+31
+RO 0x0
+reserved
+weight_axis3wr
+30:28 RW 0x0
+AXIS3 write port arbitration weight
+27
+RO 0x0
+reserved
+weight_axis3rd
+26:24 RW 0x0
+AXIS3 read port arbitration weight
+23
+RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1967
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+22:20 RW 0x0
+19
+
+RO
+
+0x0
+
+18:16 RW 0x0
+15
+
+RO
+
+0x0
+
+14:12 RW 0x0
+11
+
+RO
+
+0x0
+
+10:8
+
+RW 0x0
+
+7
+
+RO
+
+6:4
+
+RW 0x0
+
+3
+
+RO
+
+2:0
+
+RW 0x0
+
+0x0
+
+0x0
+
+Description
+weight_axis2wr
+AXIS2 write port arbitration weight
+reserved
+weight_axis2rd
+AXIS2 read port arbitration weight
+reserved
+weight_axis1wr
+AXIS1 write port arbitration weight
+reserved
+weight_axis1rd
+AXIS1 read port arbitration weight
+reserved
+weight_axis0wr
+AXIS0 write port arbitration weight
+reserved
+weight_axis0rd
+AXIS0 read port arbitration weight
+
+SHAREMEM_RRA_SLT_PRI
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+rra_firstslot_region3
+11:8 RW 0x0
+The number of the lowest priority slot in the RRA priority region 3
+rra_firstslot_region2
+7:4
+RW 0x0
+The number of the lowest priority slot in the RRA priority region 2
+rra_firstslot_region1
+3:0
+RW 0x0
+The number of the lowest priority slot in the RRA priority region 1
+SHAREMEM_CTRL
+Address: Operational Base + offset (0x0020)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+addr_round_en
+6:2
+RW 0x00
+AXIS0~AXIS3 address round enable, high active.
+[0] for slave0, [1] for slave1 and so on.
+free_run_mode
+Free run mode enable.
+1
+RW 0x0
+1'b0: Low power mode
+1'b1: Free run mode
+R/W
+cfg_load_en
+0
+0x0
+SC
+RRA configuration load enable, high active.
+SHAREMEM_STATUS
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+Description
+31:28 RO 0x0
+reserved
+axislv_addr_round
+R/W
+27:24
+0x0
+AXI slave0~slave3 address round status. [0] for slave0, [1] for
+SC
+slave1 and so on.
+23:20 RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1968
+
+RKRK3588 TRM-Part1
+Bit
+19:16
+
+Attr Reset Value
+R/W
+0x0
+SC
+
+15:12 RO
+
+0x0
+
+11:8
+
+R/W
+0x0
+SC
+
+7:4
+
+RO
+
+0x0
+
+3:0
+
+RO
+
+0x0
+
+Description
+axislv_wresperr
+AXI slave write response error indication. [0] for slave0, [1] for
+slave1 and so on.
+1'b1: Response error
+1'b0: Response ok
+reserved
+axislv_rresperr
+AXI slave read response error indication. [0] for slave0, [1] for
+slave1 and so on.
+1'b1: Response error
+1'b0: Response ok
+reserved
+axislv_active
+AXI slave status. [0] for slave0, [1] for slave1 and so on.
+1'b1: Active
+1'b0: Inactive
+
+34.5 Application Notes
+34.5.1 Power Control Flow
+
+Share Memory supports shutdown and deep sleep mode for each memory block, which can
+be controlled by software.
+1. Enter Shut Down Mode Flow:
+(1)
+Select shut down mode for specified memory block:
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[0] to 1 for block 0
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[1] to 1 for block 1
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[2] to 1 for block 2
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[3] to 1 for block 3
+(2)
+Enable shut down mode for specified memory block:
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[8] to 1 for block 0
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[9] to 1 for block 1
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[10] to 1 for block 2
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[11] to 1 for block 3
+(3)
+Check memory power state:
+Query until PMU_SUBMEM_PWR_GATE_STS bit[0] equals to 1, to make sure block 0 enters
+shut down mode
+Query until PMU_SUBMEM_PWR_GATE_STS bit[1] equals to 1, to make sure block 1 enters
+shut down mode
+Query until PMU_SUBMEM_PWR_GATE_STS bit[2] equals to 1, to make sure block 2 enters
+shut down mode
+Query until PMU_SUBMEM_PWR_GATE_STS bit[3] equals to 1, to make sure block 3 enters
+shut down mode
+2. Exit Shut Down Mode Flow:
+(1)
+Disable shut down mode for specified memory block:
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[8] to 0 for block 0
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[9] to 0 for block 1
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[10] to 0 for block 2
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[11] to 0 for block 3
+(2)
+Deselect shut down mode for specified memory block:
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[0] to 0 for block 0
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[1] to 0 for block 1
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[2] to 0 for block 2
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[3] to 0 for block 3
+(3)
+Check memory power state:
+Query until PMU_SUBMEM_PWR_GATE_STS bit[0] equals to 0, to make sure block 0 exits
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1969
+
+RKRK3588 TRM-Part1
+shut down mode
+Query until PMU_SUBMEM_PWR_GATE_STS bit[1] equals to 0, to make sure block 1 exits
+shut down mode
+Query until PMU_SUBMEM_PWR_GATE_STS bit[2] equals to 0, to make sure block 2 exits
+shut down mode
+Query until PMU_SUBMEM_PWR_GATE_STS bit[3] equals to 0, to make sure block 3 exits
+shut down mode
+3. Enter Deep Sleep Mode Flow:
+(1)
+Select deep sleep mode for specified memory block:
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[4] to 1 for block 0
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[5] to 1 for block 1
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[6] to 1 for block 2
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[7] to 1 for block 3
+(2)
+Enable deep sleep mode for specified memory block:
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[12] to 1 for block 0
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[13] to 1 for block 1
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[14] to 1 for block 2
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[15] to 1 for block 3
+(3)
+Check memory power state:
+Query until PMU_SUBMEM_PWR_GATE_STS bit[0] equals to 1, to make sure block 0
+enters deep sleep mode
+Query until PMU_SUBMEM_PWR_GATE_STS bit[1] equals to 1, to make sure block 1
+enters deep sleep mode
+Query until PMU_SUBMEM_PWR_GATE_STS bit[2] equals to 1, to make sure block 2
+enters deep sleep mode
+Query until PMU_SUBMEM_PWR_GATE_STS bit[3] equals to 1, to make sure block 3
+enters deep sleep mode
+4. Exit Deep Sleep Mode Flow:
+(1)
+Disable deep sleep mode for specified memory block:
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[12] to 0 for block 0
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[13] to 0 for block 1
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[14] to 0 for block 2
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[15] to 0 for block 3
+(2)
+Deselect deep sleep mode for specified memory block:
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[4] to 0 for block 0
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[5] to 0 for block 1
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[6] to 0 for block 2
+Set PMU_SUBMEM_PWR_GATE_SFTCON0 bit[7] to 0 for block 3
+(3)
+Check memory power state:
+Query until PMU_SUBMEM_PWR_GATE_STS bit[0] equals to 0, to make sure block 0
+exits deep sleep mode
+Query until PMU_SUBMEM_PWR_GATE_STS bit[1] equals to 0, to make sure block 1
+exits deep sleep mode
+Query until PMU_SUBMEM_PWR_GATE_STS bit[2] equals to 0, to make sure block 2
+exits deep sleep mode
+Query until PMU_SUBMEM_PWR_GATE_STS bit[3] equals to 0, to make sure block 3
+exits deep sleep mode
+
+34.5.2 Other Notes
+⚫
+⚫
+⚫
+
+If SHAREMEM_CTRL.addr_round_en is set to 1, you can access the Share Memory using
+out-of-bounds address such as 0xFF100000~0xFF1FFFFF as the mirror address of
+0xFF000000~0xFF0FFFFF, and there is no error response.
+If SHAREMEM_CTRL.addr_round_en is set to 0, when the read or write address exceeds
+the address boundary, the AXI bus will respond a read or write error. You can read the
+response status from the register SHAREMEM_STATUS.
+If configure SHAREMEM_CTRL.free_run_mode to 1, internal auto clock gating will be
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1970
+
+RKRK3588 TRM-Part1
+
+⚫
+⚫
+
+turned off.
+The programmable slot0 always has the highest priority in the Memory Block0, which is
+mentioned as the RRA priority region 0.
+The register bit SHAREMEM_CTRL.cfg_load_en is auto clear, so the readvalue is always
+0.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1971
+
+RKRK3588 TRM-Part1
+

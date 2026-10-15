@@ -1,0 +1,2127 @@
+Chapter 26 SAR-ADC
+26
+
+26.1 Overview
+The ADC is an 8-channel single-ended 12-bit Successive Approximation Register (SAR) A/D
+Converter. It uses the supply and ground as its reference which avoid the use of any external
+reference. It converts the analog input signal into 12-bit binary digital codes at maximum
+conversion rate of 1MSPS with 20MHz A/D converter clock. The input range is typically 0V to
+1.8V.
+SAR-ADC controller supports the following features:
+⚫
+Support single mode and series conversion mode.
+⚫
+In single mode, the conversion operates once each software access.
+⚫
+In series conversion, controller samples each channel then loops until software stop
+conversion.
+⚫
+High/low threshold can be set, higher/lower/between high-low-threshold interrupt can
+be enabled
+
+26.2 Block Diagram
+SARADC Controller
+
+APB
+IF&REG
+
+Control
+FSM
+
+SARADC
+PHY
+
+int
+
+Fig. 26-1 SAR-ADC Block Diagram
+SAR-ADC block shows in Fig.1-1. This includes:
+⚫ APB Interface
+⚫ Control FSM
+⚫
+SAR-ADC PHY
+Software can configure SAR-ADC controller by APB interface, then the inter FSM will
+communicate with SAR-ADC PHY for limited timing request.
+
+26.3 Function Description
+SAR-ADC block includes controller and PHY, user cannot directly access SAR-ADC PHY.
+Software access the SAR-ADC through SAR-ADC controller by APB interface. SAR-ADC
+controller will sample the conversion result from SAR-ADC PHY.
+
+26.4 Register Description
+26.4.1 Registers Summary
+Name
+SARADC_CONV_CON
+
+Offset
+0x0000
+
+Size
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Reset
+Description
+Value
+0x00000000 Conversion control
+
+1824
+
+RKRK3588 TRM-Part1
+Name
+
+Offset
+
+Size
+
+SARADC_T_PD_SOC
+SARADC_T_AS_SOC
+
+0x0004
+0x0008
+
+W
+W
+
+SARADC_T_DAS_SOC
+
+0x000C
+
+W
+
+SARADC_T_SEL_SOC
+
+0x0010
+
+W
+
+SARADC_HIGH_COMP0
+
+0x0014
+
+W
+
+SARADC_HIGH_COMP1
+
+0x0018
+
+W
+
+SARADC_HIGH_COMP2
+
+0x001C
+
+W
+
+SARADC_HIGH_COMP3
+
+0x0020
+
+W
+
+SARADC_HIGH_COMP4
+
+0x0024
+
+W
+
+SARADC_HIGH_COMP5
+
+0x0028
+
+W
+
+SARADC_HIGH_COMP7
+
+0x0030
+
+W
+
+SARADC_HIGH_COMP8
+
+0x0034
+
+W
+
+SARADC_HIGH_COMP9
+
+0x0038
+
+W
+
+SARADC_HIGH_COMP10
+
+0x003C
+
+W
+
+SARADC_HIGH_COMP11
+
+0x0040
+
+W
+
+SARADC_HIGH_COMP12
+
+0x0044
+
+W
+
+SARADC_HIGH_COMP13
+
+0x0048
+
+W
+
+SARADC_HIGH_COMP14
+
+0x004C
+
+W
+
+SARADC_HIGH_COMP15
+
+0x0050
+
+W
+
+SARADC_LOW_COMP0
+
+0x0054
+
+W
+
+SARADC_LOW_COMP1
+
+0x0058
+
+W
+
+SARADC_LOW_COMP2
+
+0x005C
+
+W
+
+SARADC_LOW_COMP3
+
+0x0060
+
+W
+
+SARADC_LOW_COMP4
+
+0x0064
+
+W
+
+SARADC_LOW_COMP5
+
+0x0068
+
+W
+
+SARADC_LOW_COMP6
+
+0x006C
+
+W
+
+SARADC_LOW_COMP7
+
+0x0070
+
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Reset
+Description
+Value
+0x00026000 Timing control for PD to SOC
+0x00000005 Timing control for assert SOC
+Timing control from dis-assert
+0x00000007
+SOC to change channel
+Timimg control from change
+0x00000003
+channel sel to assert SOC
+High threshold for ADC output
+0x00000000
+data
+High threshold for ADC output
+0x00000000
+data
+High threshold for ADC output
+0x00000000
+data
+High threshold for ADC output
+0x00000000
+data
+High threshold for ADC output
+0x00000000
+data
+High threshold for ADC output
+0x00000000
+data
+High threshold for ADC output
+0x00000000
+data
+High threshold for ADC output
+0x00000000
+data
+High threshold for ADC output
+0x00000000
+data
+High threshold for ADC output
+0x00000000
+data
+High threshold for ADC output
+0x00000000
+data
+High threshold for ADC output
+0x00000000
+data
+High threshold for ADC output
+0x00000000
+data
+High threshold for ADC output
+0x00000000
+data
+High threshold for ADC output
+0x00000000
+data
+Low threshold for ADC output
+0x00000000
+data
+Low threshold for ADC output
+0x00000000
+data
+Low threshold for ADC output
+0x00000000
+data
+Low threshold for ADC output
+0x00000000
+data
+Low threshold for ADC output
+0x00000000
+data
+Low threshold for ADC output
+0x00000000
+data
+Low threshold for ADC output
+0x00000000
+data
+Low threshold for ADC output
+0x00000000
+data
+
+1825
+
+RKRK3588 TRM-Part1
+Name
+
+Offset
+
+Size
+
+Reset
+Value
+0x00000000
+
+SARADC_LOW_COMP8
+
+0x0074
+
+W
+
+SARADC_LOW_COMP9
+
+0x0078
+
+W
+
+SARADC_LOW_COMP10
+
+0x007C
+
+W
+
+SARADC_LOW_COMP11
+
+0x0080
+
+W
+
+SARADC_LOW_COMP12
+
+0x0084
+
+W
+
+SARADC_LOW_COMP13
+
+0x0088
+
+W
+
+SARADC_LOW_COMP14
+
+0x008C
+
+W
+
+SARADC_LOW_COMP15
+
+0x0090
+
+W
+
+SARADC_DEBOUNCE
+SARADC_HT_INT_EN
+SARADC_LT_INT_EN
+SARADC_MT_INT_EN
+SARADC_END_INT_EN
+SARADC_ST_CON
+SARADC_STATUS
+SARADC_END_INT_ST
+SARADC_HT_INT_ST
+SARADC_LT_INT_ST
+SARADC_MT_INT_ST
+SARADC_DATA0
+SARADC_DATA1
+SARADC_DATA2
+SARADC_DATA3
+SARADC_DATA4
+SARADC_DATA5
+SARADC_DATA6
+SARADC_DATA7
+SARADC_DATA8
+SARADC_DATA9
+SARADC_DATA10
+SARADC_DATA11
+SARADC_DATA12
+SARADC_DATA13
+SARADC_DATA14
+SARADC_DATA15
+
+0x0094
+0x0098
+0x009C
+0x0100
+0x0104
+0x0108
+0x010C
+0x0110
+0x0114
+0x0118
+0x011C
+0x0120
+0x0124
+0x0128
+0x012C
+0x0130
+0x0134
+0x0138
+0x013C
+0x0140
+0x0144
+0x0148
+0x014C
+0x0150
+0x0154
+0x0158
+0x015C
+
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+
+SARADC_AUTO_CH_EN
+
+0x0160
+
+W
+
+Description
+
+Low threshold for ADC output
+data
+Low threshold for ADC output
+0x00000000
+data
+Low threshold for ADC output
+0x00000000
+data
+Low threshold for ADC output
+0x00000000
+data
+Low threshold for ADC output
+0x00000000
+data
+Low threshold for ADC output
+0x00000000
+data
+Low threshold for ADC output
+0x00000000
+data
+Low threshold for ADC output
+0x00000000
+data
+0x00000003 Threshold debounce
+0x00000000 High threshold int enable
+0x00000000 Low threshold int enable
+0x00000000 Middle threshold int enable
+0x00000000 End conversion int enable
+0x0000001C ADC static control
+0x00000002 ADC status
+0x00000000 End conversion int state
+0x00000000 High threshold int state
+0x00000000 Low threshold int state
+0x00000000 Middle threshold int state
+0x00000000 ADC output data
+0x00000000 ADC output data
+0x00000000 ADC output data
+0x00000000 ADC output data
+0x00000000 ADC output data
+0x00000000 ADC output data
+0x00000000 ADC output data
+0x00000000 ADC output data
+0x00000000 ADC output data
+0x00000000 ADC output data
+0x00000000 ADC output data
+0x00000000 ADC output data
+0x00000000 ADC output data
+0x00000000 ADC output data
+0x00000000 ADC output data
+0x00000000 ADC output data
+Channel enable in auto channel
+0x00000000
+mode
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+26.4.2 Detail Register Description
+
+SARADC_CONV_CON
+Address: Operational Base + offset (0x0000)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1826
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:16 WO 0x0000
+15:10 RO
+
+0x00
+
+9
+
+RW 0x0
+
+8
+
+RW 0x0
+
+7
+
+W1
+C
+
+6
+
+RW 0x0
+
+5
+
+RW 0x0
+
+4
+
+W1
+C
+
+3:0
+
+RW 0x0
+
+0x0
+
+0x0
+
+Description
+write_enable
+Write enable for lower 16bits, each bit is individual.
+1'b0: Write access disable
+1'b1: Write access enable
+reserved
+int_lock
+This is used to lock the sample data when interrupt happened.
+1'b1: Enable lock.
+1'b0: Disable lock.
+as_pd_mode
+If this bit is set to 1'b1, each time conversion ends, PD will be
+asserted. Then next time conversion starts, PD will be set to low
+auto automaticly. This is not used in single mode.
+end_conv
+End conversion, this is not used when CONV_CON[5] is set to
+1'b1. If this bit set to 1'b1, PD will set to 1'b1 after the last
+conversion and this bit will be cleared to 1'b0.
+auto_channel_mode
+Auto channel mode.
+If this is enable, channel will be round auto according which is set
+in AUTO_CH_EN.
+single_pd_mode
+Single conversion mode. If this bit is set to 1, conversion only
+operate once, then PD single will be set to 1.
+start_adc
+Enable ADC, if this bit set to one, conversion will start. Then this
+bit will be clear to 0.
+channel_sel
+Channel for SARADC, 8 channels are supported. This fileld is not
+used when CONV_CON[6] is set to 1.
+4'd0: sel channel 0.
+4'd1: sel channel 1.
+4'd2: sel channel 2.
+4'd3: sel channel 3.
+4'd4: sel channel 4.
+4'd5: sel channel 5.
+4'd6: sel channel 6.
+4'd7: sel channel 7.
+
+SARADC_T_PD_SOC
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+31:21 RO 0x000
+reserved
+t_pd_soc
+7:0
+RW 0x13
+Timing control between power up to start-of-conversion.
+SARADC_T_AS_SOC
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+Description
+t_as_soc
+31:0 RW 0x00000005
+Timing control for assert SOC signal.
+SARADC_T_DAS_SOC
+Address: Operational Base + offset (0x000C)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1827
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000007
+
+Description
+t_das_soc
+Timing from dis-assret SOC to channel sel change.
+
+SARADC_T_SEL_SOC
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+t_sel_soc
+15:0 RW 0x0003
+Timing from channel load to SOC assert.
+SARADC_HIGH_COMP0
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+high_comp0
+11:0 RW 0x000
+High threshold for ADC output data for channel 0.
+SARADC_HIGH_COMP1
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+high_comp1
+11:0 RW 0x000
+High threshold for ADC output data for channel 1.
+SARADC_HIGH_COMP2
+Address: Operational Base + offset (0x001C)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+high_comp2
+11:0 RW 0x000
+High threshold for ADC output data for channel 2.
+SARADC_HIGH_COMP3
+Address: Operational Base + offset (0x0020)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+high_comp3
+11:0 RW 0x000
+High threshold for ADC output data for channel 3.
+SARADC_HIGH_COMP4
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+high_comp4
+11:0 RW 0x000
+High threshold for ADC output data for channel 4.
+SARADC_HIGH_COMP5
+Address: Operational Base + offset (0x0028)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+high_comp5
+11:0 RW 0x000
+High threshold for ADC output data for channel 5.
+SARADC_HIGH_COMP7
+Address: Operational Base + offset (0x0030)
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1828
+
+RKRK3588 TRM-Part1
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+high_comp7
+11:0 RW 0x000
+High threshold for ADC output data for channel 7.
+SARADC_HIGH_COMP8
+Address: Operational Base + offset (0x0034)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+high_comp8
+11:0 RW 0x000
+Not used in this application.
+SARADC_HIGH_COMP9
+Address: Operational Base + offset (0x0038)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+high_comp9
+11:0 RW 0x000
+Not used in this application.
+SARADC_HIGH_COMP10
+Address: Operational Base + offset (0x003C)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+high_comp10
+11:0 RW 0x000
+Not used in this application.
+SARADC_HIGH_COMP11
+Address: Operational Base + offset (0x0040)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+high_comp11
+11:0 RW 0x000
+Not used in this application.
+SARADC_HIGH_COMP12
+Address: Operational Base + offset (0x0044)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+high_comp12
+11:0 RW 0x000
+Not used in this application.
+SARADC_HIGH_COMP13
+Address: Operational Base + offset (0x0048)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+high_comp13
+11:0 RW 0x000
+Not used in this application.
+SARADC_HIGH_COMP14
+Address: Operational Base + offset (0x004C)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+high_comp14
+11:0 RW 0x000
+Not used in this application.
+SARADC_HIGH_COMP15
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1829
+
+RKRK3588 TRM-Part1
+Address: Operational Base + offset (0x0050)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+high_comp15
+11:0 RW 0x000
+Not used in this application.
+SARADC_LOW_COMP0
+Address: Operational Base + offset (0x0054)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+low_comp0
+11:0 RW 0x000
+Low threshold for ADC output data for channel 0.
+SARADC_LOW_COMP1
+Address: Operational Base + offset (0x0058)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+low_comp1
+11:0 RW 0x000
+Low threshold for ADC output data for channel 1.
+SARADC_LOW_COMP2
+Address: Operational Base + offset (0x005C)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+low_comp2
+11:0 RW 0x000
+Low threshold for ADC output data for channel 2.
+SARADC_LOW_COMP3
+Address: Operational Base + offset (0x0060)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+low_comp3
+11:0 RW 0x000
+Low threshold for ADC output data for channel 3.
+SARADC_LOW_COMP4
+Address: Operational Base + offset (0x0064)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+low_comp4
+11:0 RW 0x000
+Low threshold for ADC output data for channel 4.
+SARADC_LOW_COMP5
+Address: Operational Base + offset (0x0068)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+low_comp5
+11:0 RW 0x000
+Low threshold for ADC output data for channel 5.
+SARADC_LOW_COMP6
+Address: Operational Base + offset (0x006C)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+low_comp6
+11:0 RW 0x000
+Low threshold for ADC output data for channel 6.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1830
+
+RKRK3588 TRM-Part1
+SARADC_LOW_COMP7
+Address: Operational Base + offset (0x0070)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+low_comp7
+11:0 RW 0x000
+Low threshold for ADC output data for channel 7.
+SARADC_LOW_COMP8
+Address: Operational Base + offset (0x0074)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+low_comp8
+11:0 RW 0x000
+Not used in this application.
+SARADC_LOW_COMP9
+Address: Operational Base + offset (0x0078)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+low_comp9
+11:0 RW 0x000
+Not used in this application.
+SARADC_LOW_COMP10
+Address: Operational Base + offset (0x007C)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+low_comp10
+0
+RW 0x0
+Not used in this application.
+SARADC_LOW_COMP11
+Address: Operational Base + offset (0x0080)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+low_comp11
+11:0 RW 0x000
+Not used in this application.
+SARADC_LOW_COMP12
+Address: Operational Base + offset (0x0084)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+low_comp12
+11:0 RW 0x000
+Not used in this application.
+SARADC_LOW_COMP13
+Address: Operational Base + offset (0x0088)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+low_comp13
+0
+RW 0x0
+Not used in this application.
+SARADC_LOW_COMP14
+Address: Operational Base + offset (0x008C)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+low_comp14
+11:0 RW 0x000
+Not used in this application.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1831
+
+RKRK3588 TRM-Part1
+
+SARADC_LOW_COMP15
+Address: Operational Base + offset (0x0090)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+low_comp15
+11:0 RW 0x000
+Not used in this application.
+SARADC_DEBOUNCE
+Address: Operational Base + offset (0x0094)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+debounce
+7:0
+RW 0x03
+ADC controller will only generate interrupt data is
+higher/lower/between setting threshold for "debounce" times.
+SARADC_HT_INT_EN
+Address: Operational Base + offset (0x0098)
+Bit Attr Reset Value
+Description
+write_enable
+Write enable for lower 16bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+ht_int_en15
+15
+RW 0x0
+Not used in this application.
+ht_int_en14
+14
+RW 0x0
+Not used in this application.
+ht_int_en13
+13
+RW 0x0
+Not used in this application.
+ht_int_en12
+12
+RW 0x0
+Not used in this application.
+ht_int_en11
+11
+RW 0x0
+Not used in this application.
+ht_int_en10
+10
+RW 0x0
+Not used in this application.
+ht_int_en9
+9
+RW 0x0
+Not used in this application.
+ht_int_en8
+8
+RW 0x0
+Not used in this application.
+ht_int_en7
+High threshold interrupt for channel7.
+7
+RW 0x0
+1'b1: Enable ht intr.
+1'b0: Disable ht intr.
+ht_int_en6
+High threshold interrupt for channel6.
+6
+RW 0x0
+1'b1: Enable ht intr.
+1'b0: Disable ht intr.
+ht_int_en5
+High threshold interrupt for channel5.
+5
+RW 0x0
+1'b1: Enable ht intr.
+1'b0: Disable ht intr.
+ht_int_en4
+High threshold interrupt for channel4.
+4
+RW 0x0
+1'b1: Enable ht intr.
+1'b0: Disable ht intr.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1832
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+ht_int_en3
+High threshold interrupt for channel3.
+1'b1: Enable ht intr.
+1'b0: Disable ht intr.
+ht_int_en2
+High threshold interrupt for channel2.
+1'b1: Enable ht intr.
+1'b0: Disable ht intr.
+ht_int_en1
+High threshold interrupt for channel1.
+1'b1: Enable ht intr.
+1'b0: Disable ht intr.
+ht_int_en0
+High threshold interrupt for channel0.
+1'b1: Enable ht intr.
+1'b0: Disable ht intr.
+
+SARADC_LT_INT_EN
+Address: Operational Base + offset (0x009C)
+Bit Attr Reset Value
+Description
+write_enable
+Write enable for lower 16bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+lt_int_en15
+15
+RW 0x0
+Not used in this application.
+lt_int_en14
+14
+RW 0x0
+Not used in this application.
+lt_int_en13
+13
+RW 0x0
+Not used in this application.
+lt_int_en12
+12
+RW 0x0
+Not used in this application.
+lt_int_en11
+11
+RW 0x0
+Not used in this application.
+lt_int_en10
+10
+RW 0x0
+Not used in this application.
+lt_int_en9
+9
+RW 0x0
+Not used in this application.
+lt_int_en8
+8
+RW 0x0
+Not used in this application.
+lt_int_en7
+Low threshold interrupt for channel7.
+7
+RW 0x0
+1'b1: Enable lt intr.
+1'b0: Disable lt intr.
+lt_int_en6
+Low threshold interrupt for channel6.
+6
+RW 0x0
+1'b1: Enable lt intr.
+1'b0: Disable lt intr.
+lt_int_en5
+Low threshold interrupt for channel5.
+5
+RW 0x0
+1'b1: Enable lt intr.
+1'b0: Disable lt intr.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1833
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+4
+
+RW 0x0
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+lt_int_en4
+Low threshold interrupt for channel4.
+1'b1: Enable lt intr.
+1'b0: Disable lt intr.
+lt_int_en3
+Low threshold interrupt for channel3.
+1'b1: Enable lt intr.
+1'b0: Disable lt intr.
+lt_int_en2
+Low threshold interrupt for channel2.
+1'b1: Enable lt intr.
+1'b0: Disable lt intr.
+lt_int_en1
+Low threshold interrupt for channel1.
+1'b1: Enable lt intr.
+1'b0: Disable lt intr.
+lt_int_en0
+Low threshold interrupt for channel0.
+1'b1: Enable lt intr.
+1'b0: Disable lt intr.
+
+SARADC_MT_INT_EN
+Address: Operational Base + offset (0x0100)
+Bit Attr Reset Value
+Description
+write_enable
+Write enable for lower 16bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+mt_int_en15
+15
+RW 0x0
+Not used in this application.
+mt_int_en14
+14
+RW 0x0
+Not used in this application.
+mt_int_en13
+13
+RW 0x0
+Not used in this application.
+mt_int_en12
+12
+RW 0x0
+Not used in this application.
+mt_int_en11
+11
+RW 0x0
+Not used in this application.
+mt_int_en10
+10
+RW 0x0
+Not used in this application.
+mt_int_en9
+9
+RW 0x0
+Not used in this application.
+mt_int_en8
+8
+RW 0x0
+Not used in this application.
+mt_int_en7
+Middle threshold interrupt for channel7.
+7
+RW 0x0
+1'b1: Enable mt intr.
+1'b0: Disable mt intr.
+mt_int_en6
+Middle threshold interrupt for channel6.
+6
+RW 0x0
+1'b1: Enable mt intr.
+1'b0: Disable mt intr.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1834
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+mt_int_en5
+Middle threshold interrupt for channel5.
+1'b1: Enable mt intr.
+1'b0: Disable mt intr.
+mt_int_en4
+Middle threshold interrupt for channel4.
+1'b1: Enable mt intr.
+1'b0: Disable mt intr.
+mt_int_en3
+Middle threshold interrupt for channel3.
+1'b1: Enable mt intr.
+1'b0: Disable mt intr.
+mt_int_en2
+Middle threshold interrupt for channel2.
+1'b1: Enable mt intr.
+1'b0: Disable mt intr.
+mt_int_en1
+Middle threshold interrupt for channel1.
+1'b1: Enable mt intr.
+1'b0: Disable mt intr.
+mt_int_en0
+Middle threshold interrupt for channel0.
+1'b1: Enable mt intr.
+1'b0: Disable mt intr.
+
+SARADC_END_INT_EN
+Address: Operational Base + offset (0x0104)
+Bit Attr Reset Value
+Description
+write_enable
+Write enable for lower 16bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+15:1 RO 0x0000
+reserved
+end_int_en
+0
+RW 0x0
+1'b1: Enable end conversion intr.
+1'b0: Disable end conversion intr.
+SARADC_ST_CON
+Address: Operational Base + offset (0x0108)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+ictrl
+5:3
+RW 0x3
+Control the bias current of the preamplifier in the SAR-ADC
+cctrl
+2:0
+RW 0x4
+Control the capacitance of the capacitor DAC array, which is
+related to the linearity of the SAR-ADC.
+SARADC_STATUS
+Address: Operational Base + offset (0x010C)
+Bit Attr Reset Value
+31:6 RO 0x0000000
+reserved
+sel
+5:2
+RO 0x0
+Adc channel sel.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1835
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+1
+
+RO
+
+0x1
+
+0
+
+RO
+
+0x0
+
+Description
+pd
+1'b1: ADC is power down.
+1'b0: ADC is power up and in conversion.
+conv_st
+Conversion status
+1'b1: ADC controller fsm is busy.
+1'b0: ADC controller fsm is idle.
+
+SARADC_END_INT_ST
+Address: Operational Base + offset (0x0110)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+end_int_st
+W1
+ADC end conversion interrupt status.
+0
+0x0
+C
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+SARADC_HT_INT_ST
+Address: Operational Base + offset (0x0114)
+Bit Attr Reset Value
+Description
+W1
+31:16
+0x0000
+reserved
+C
+W1
+ht_int_st15
+15
+0x0
+C
+Not used in this application.
+W1
+ht_int_st14
+14
+0x0
+C
+Not used in this application.
+W1
+ht_int_st13
+13
+0x0
+C
+Not used in this application.
+W1
+ht_int_st12
+12
+0x0
+C
+Not used in this application.
+W1
+ht_int_st11
+11
+0x0
+C
+Not used in this application.
+W1
+ht_int_st10
+10
+0x0
+C
+Not used in this application.
+W1
+ht_int_st9
+9
+0x0
+C
+Not used in this application.
+W1
+ht_int_st8
+8
+0x0
+C
+Not used in this application.
+ht_int_st7
+W1
+High threshold interrupt state for channel7.
+7
+0x0
+C
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+ht_int_st6
+W1
+High threshold interrupt state for channel6.
+6
+0x0
+C
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+ht_int_st5
+W1
+High threshold interrupt state for channel5.
+5
+0x0
+C
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+ht_int_st4
+W1
+High threshold interrupt state for channel4.
+4
+0x0
+C
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1836
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+3
+
+W1
+C
+
+0x0
+
+2
+
+W1
+C
+
+0x0
+
+1
+
+W1
+C
+
+0x0
+
+0
+
+W1
+C
+
+0x0
+
+Description
+ht_int_st3
+High threshold interrupt state for channel3.
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+ht_int_st2
+High threshold interrupt state for channel2.
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+ht_int_st1
+High threshold interrupt state for channel1.
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+ht_int_st0
+High threshold interrupt state for channel0.
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+
+SARADC_LT_INT_ST
+Address: Operational Base + offset (0x0118)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+W1
+lt_int_st15
+15
+0x0
+C
+Not used in this application.
+W1
+lt_int_st14
+14
+0x0
+C
+Not used in this application.
+W1
+lt_int_st13
+13
+0x0
+C
+Not used in this application.
+W1
+lt_int_st12
+12
+0x0
+C
+Not used in this application.
+W1
+lt_int_st11
+11
+0x0
+C
+Not used in this application.
+W1
+lt_int_st10
+10
+0x0
+C
+Not used in this application.
+W1
+lt_int_st9
+9
+0x0
+C
+Not used in this application.
+W1
+lt_int_st8
+8
+0x0
+C
+Not used in this application.
+lt_int_st7
+W1
+Low threshold interrupt state for channel7.
+7
+0x0
+C
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+lt_int_st6
+W1
+Low threshold interrupt state for channel6.
+6
+0x0
+C
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+lt_int_st5
+W1
+Low threshold interrupt state for channel5.
+5
+0x0
+C
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+lt_int_st4
+W1
+Low threshold interrupt state for channel4.
+4
+0x0
+C
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1837
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+3
+
+W1
+C
+
+0x0
+
+2
+
+W1
+C
+
+0x0
+
+1
+
+W1
+C
+
+0x0
+
+0
+
+W1
+C
+
+0x0
+
+Description
+lt_int_st3
+Low threshold interrupt state for channel3.
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+lt_int_st2
+Low threshold interrupt state for channel2.
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+lt_int_st1
+Low threshold interrupt state for channel1.
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+lt_int_st0
+Low threshold interrupt state for channel0.
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+
+SARADC_MT_INT_ST
+Address: Operational Base + offset (0x011C)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+W1
+mt_int_st15
+15
+0x0
+C
+Not used in this application.
+W1
+mt_int_st14
+14
+0x0
+C
+Not used in this application.
+W1
+mt_int_st13
+13
+0x0
+C
+Not used in this application.
+W1
+mt_int_st12
+12
+0x0
+C
+Not used in this application.
+W1
+mt_int_st11
+11
+0x0
+C
+Not used in this application.
+W1
+mt_int_st10
+10
+0x0
+C
+Not used in this application.
+W1
+mt_int_st9
+9
+0x0
+C
+Not used in this application.
+W1
+mt_int_st8
+8
+0x0
+C
+Not used in this application.
+mt_int_st7
+W1
+Between high and low threshold interrupt state for channel7.
+7
+0x0
+C
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+mt_int_st6
+W1
+Between high and low threshold interrupt state for channel6.
+6
+0x0
+C
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+mt_int_st5
+W1
+Between high and low threshold interrupt state for channel5.
+5
+0x0
+C
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+mt_int_st4
+W1
+Between high and low threshold interrupt state for channel4.
+4
+0x0
+C
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1838
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+3
+
+W1
+C
+
+0x0
+
+2
+
+W1
+C
+
+0x0
+
+1
+
+W1
+C
+
+0x0
+
+0
+
+W1
+C
+
+0x0
+
+Description
+mt_int_st3
+Between high and low threshold interrupt state for channel3.
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+mt_int_st2
+Between high and low threshold interrupt state for channel2.
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+mt_int_st1
+Between high and low threshold interrupt state for channel1.
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+mt_int_st0
+Between high and low threshold interrupt state for channel0.
+1'b1: Interrupt happened.
+1'b0: Interrupt not happened.
+
+SARADC_DATA0
+Address: Operational Base + offset (0x0120)
+Bit Attr Reset Value
+31:12 RO 0x00000
+reserved
+data0
+11:0 RO 0x000
+ADC channel 0 data.
+SARADC_DATA1
+Address: Operational Base + offset (0x0124)
+Bit Attr Reset Value
+31:12 RO 0x00000
+reserved
+data1
+11:0 RO 0x000
+ADC channel 1 data.
+SARADC_DATA2
+Address: Operational Base + offset (0x0128)
+Bit Attr Reset Value
+31:12 RO 0x00000
+reserved
+data2
+11:0 RO 0x000
+ADC channel 2 data.
+SARADC_DATA3
+Address: Operational Base + offset (0x012C)
+Bit Attr Reset Value
+31:12 RO 0x00000
+reserved
+data3
+11:0 RO 0x000
+ADC channel 3 data.
+SARADC_DATA4
+Address: Operational Base + offset (0x0130)
+Bit Attr Reset Value
+31:12 RO 0x00000
+reserved
+data4
+11:0 RO 0x000
+ADC channel 4 data.
+
+Description
+
+Description
+
+Description
+
+Description
+
+Description
+
+SARADC_DATA5
+Address: Operational Base + offset (0x0134)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1839
+
+RKRK3588 TRM-Part1
+Bit Attr Reset Value
+31:12 RO 0x00000
+reserved
+data5
+11:0 RO 0x000
+ADC channel 5 data.
+SARADC_DATA6
+Address: Operational Base + offset (0x0138)
+Bit Attr Reset Value
+31:12 RO 0x00000
+reserved
+data6
+11:0 RO 0x000
+ADC channel 6 data.
+SARADC_DATA7
+Address: Operational Base + offset (0x013C)
+Bit Attr Reset Value
+31:12 RO 0x00000
+reserved
+data7
+11:0 RO 0x000
+ADC channel 7 data.
+
+Description
+
+Description
+
+Description
+
+SARADC_DATA8
+Address: Operational Base + offset (0x0140)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+data8
+11:0 RO 0x000
+Not used in this application.
+SARADC_DATA9
+Address: Operational Base + offset (0x0144)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+data9
+11:0 RO 0x000
+Not used in this application.
+SARADC_DATA10
+Address: Operational Base + offset (0x0148)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+data10
+11:0 RO 0x000
+Not used in this application.
+SARADC_DATA11
+Address: Operational Base + offset (0x014C)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+data11
+11:0 RO 0x000
+Not used in this application.
+SARADC_DATA12
+Address: Operational Base + offset (0x0150)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+data12
+11:0 RO 0x000
+Not used in this application.
+SARADC_DATA13
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1840
+
+RKRK3588 TRM-Part1
+Address: Operational Base + offset (0x0154)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+data13
+11:0 RO 0x000
+Not used in this application.
+SARADC_DATA14
+Address: Operational Base + offset (0x0158)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+data14
+11:0 RO 0x000
+Not used in this application.
+SARADC_DATA15
+Address: Operational Base + offset (0x015C)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+data15
+11:0 RO 0x000
+Not used in this application.
+SARADC_AUTO_CH_EN
+Address: Operational Base + offset (0x0160)
+Bit Attr Reset Value
+Description
+write_enable
+Write enable for lower 16bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+auto_ch15_en
+15
+RW 0x0
+Not used in this application.
+auto_ch14_en
+14
+RW 0x0
+Not used in this application.
+auto_ch13_en
+13
+RW 0x0
+Not used in this application.
+auto_ch12_en
+12
+RW 0x0
+Not used in this application.
+auto_ch11_en
+11
+RW 0x0
+Not used in this application.
+auto_ch10_en
+10
+RW 0x0
+Not used in this application.
+auto_ch9_en
+9
+RW 0x0
+Not used in this application.
+auto_ch8_en
+8
+RW 0x0
+Not used in this application.
+auto_ch7_en
+7
+RW 0x0
+Enable channel 7 in auto channel mode.
+auto_ch6_en
+6
+RW 0x0
+Enable channel 6 in auto channel mode.
+auto_ch5_en
+5
+RW 0x0
+Enable channel 5 in auto channel mode.
+auto_ch4_en
+4
+RW 0x0
+Enable channel 4 in auto channel mode.
+auto_ch3_en
+3
+RW 0x0
+Enable channel 3 in auto channel mode.
+auto_ch2_en
+2
+RW 0x0
+Enable channel 2 in auto channel mode.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1841
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+auto_ch1_en
+Enable channel 1 in auto channel mode.
+auto_ch0_en
+Enable channel 0 in auto channel mode.
+
+26.5 Timing Diagram
+
+Fig. 26-2 SAR-ADC Timing Diagram
+SAR-ADC timing diagram is shown in Fig.1-2. When PD (power down) comes to low, wait 1us
+then assert SOC to start conversion. SOC should hold for 6 clock cycles (CLK), then after 14
+clock cycle EOC pulse with conversion data (DO). CLK is suggested to be 20MHz, if frequency
+could not meet, set frequency close to 20MHz but not over 20MHz.
+Don’t need to care the channel changing, this will be met by internal FSM. Also if software
+want to end conversion by setting register SARADC_CONV_CON, PD may not be asserted
+immediately but wait the latest conversion ends.
+
+26.6 Application Notes
+Steps of ADC conversion in series conversion mode:
+⚫
+Decide which channel should be used and whether auto_channel mode should be set. In
+auto_channel mode channel will be changed from 0-7 then to 0. Please refer to
+SARADC_CONV_CON register.
+⚫
+Set SARADC_CONV_CON[4] to 1’b1, then conversion will start.
+⚫
+If conversion wants to be ended, set SARADC_CONV_CON[7] to 1’b1.
+⚫
+Conversion could be read from SARADC_DATAn (n is from 0-7).
+⚫
+If threshold compare interrupt wants to be used, high/low threshold could be set, and
+interrupt should be set as application.
+⚫
+If auto_channel mode is not set, you could set the channel as application.
+Steps of adc conversion in single mode:
+⚫
+Decide which channel should be used and set SARADC_CONV_CON[3:0].
+⚫
+Set SARADC_CONV_CON[5] to 1’b1.
+⚫
+Set SARADC_CONV_CON[4] to 1’b1, then conversion will start.
+⚫
+Conversion only operates once then ends. PD will be asserted and PD status could be
+got by reading SARADC_STATUS.
+⚫
+Conversion could be read from SARADC_DATAn (n is from 0-7).
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1842
+
+RKRK3588 TRM-Part1
+

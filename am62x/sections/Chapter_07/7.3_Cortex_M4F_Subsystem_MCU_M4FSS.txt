@@ -1,0 +1,549 @@
+7.3 Cortex-M4F Subsystem (MCU_M4FSS)
+This chapter describes the Arm Cortex-M4F based safety processing microcontroller unit (MCU_M4FSS) in the
+device.
+7.3.1 MCU_M4FSS Overview......................................................................................................................................685
+7.3.2 MCU_M4FSS Functional Description...............................................................................................................686
+=== Page 685 ===
+7.3.1 MCU_M4FSS Overview
+The MCU_M4FSS is an Arm Cortex-M4F based subsystem that can run safety processing or be used as a
+general purpose MCU. During the boot process, the MCU_M4FSS will be configured by an initial software
+running on a different core. Following configuration, software will release the safety processor (M4F) out of reset,
+and at this point safety processor code or general purpose code can start execution.
+Note
+The Cortex-M4F processor is a Cortex-M4 processor that includes the optional floating point unit
+(FPU) extension.
+The MCU_M4FSS is designed to meet SIL-2 safety requirements. Safety is enabled for all major subsystem
+components that include ECC / EDC features:
+•
+ECC: I-RAM, D-RAM
+•
+EDC: I-RAM, D-RAM, ECC_AGGR, RAT, CBASS, AHB2VBUSP bridges
+There is one MCU_M4FSS in the device. Table 7-26 shows MCU_M4FSS allocation across device domains.
+Table 7-26. MCU_M4FSS Allocation Across Device Domains
+Module Instance
+Domain
+MCU
+MAIN
+MCU_M4FSS0
+✓
+•
+7.3.1.1 MCU_M4FSS Features
+The MCU_M4FSS supports the following features:
+•
+Arm Cortex-M4F RISC CPU
+•
+Single-core implementation
+•
+Core revision is r0p1
+•
+Armv7-M architecture
+•
+Memory protection unit (MPU)
+•
+Nested vectored interrupt controller (NVIC), to achieve low interrupt latency
+•
+64 external interrupts
+•
+3-bit priority (8 priority levels)
+•
+Bus interfaces
+•
+Three advanced high-performance bus-lite (AHB-Lite) interfaces: ICode, DCode, and system bus
+interfaces
+•
+Private peripheral bus (PPB) based on advanced peripheral bus (APB) interface
+•
+256KB SRAM memory system divided into two banks
+•
+192KB of instruction code (I-RAM)
+•
+64KB of data space (D-RAM)
+•
+Ability to execute code from internal SRAMs or external memories
+•
+External initiators can access internal SRAMs if allowed
+•
+32-bit to 36-bit region-based address translation (RAT)
+•
+Fault detection and correction
+•
+SECDED ECC protection on I-RAM
+•
+SECDED ECC protection on D-RAM
+•
+Fault error interrupt generation
+•
+Standard Arm debug and trace architecture
+Note
+Some features may not be available. See Module Integration for more information.
+=== Page 686 ===
+7.3.2 MCU_M4FSS Functional Description
+7.3.2.1 MCU_M4FSS Block Diagram
+Figure 7-10 shows the MCU_M4FSS block diagram.
+Device
+AHB 2
+VBUSP
+M4F Cluster
+M4F Processor
+(with NVIC)
+MCU_M4FSS (Safety processing subsystem)
+System
+CBASS
+32-bit
+VBUSP
+Debug and Trace
+AHB 2
+VBUSP
+I ode
+C
+AHB 2
+VBUSP
+D ode
+C
+I-RAM
+w/ ECC
+D-RAM
+w/ ECC
+ECC AGGR
+RAT
+Input Interrupts
+Fault Interrupts
+36b VBUSP
+32b VBUSP
+RAT Interrupt
+CFG
+DAP Bus
+Figure 7-10. MCU_M4FSS Block Diagram
+7.3.2.2 MCU_M4FSS Processor
+The M4F is a low-power processor that features low gate count, low interrupt latency, and low-cost debug. It is
+intended for deeply embedded applications that require optimal interrupt response features. Some key features
+of the M4F processor core include:
+•
+A subset of the Thumb instruction set, defined in the Armv7-M architecture
+•
+Banked stack pointer (SP)
+•
+Hardware integer divide instructions, SDIV and UDIV
+•
+Handler and thread modes
+•
+Thumb and debug states
+•
+Support for interruptible-continued instructions LDM, STM, PUSH, and POP for low interrupt latency
+A nested vectored interrupt controller (NVIC) is closely integrated with the processor core, to achieve low latency
+interrupt processing. NVIC features include:
+•
+64 external interrupts
+•
+3-bit priority (8 priority levels)
+•
+Dynamic reprioritization of interrupts
+•
+Priority grouping
+=== Page 687 ===
+•
+This enables selection of preempting interrupt levels and non-preempting interrupt levels
+•
+Support for tail-chaining and late arrival of interrupts
+•
+This enables back-to-back interrupt processing without the overhead of state saving and restoration
+between interrupts
+•
+Processor state automatically saved on interrupt entry, and restored on interrupt exit, with no instruction
+overhead
+The M4F processor also includes:
+•
+Bus interfaces for memory access (ICode, DCode, system) and debug access (PPB APB)
+•
+Memory protection unit (MPU)
+•
+Various debug and trace units
+For more details on the M4F processor, refer to the following documents:
+•
+Arm Cortex-M4 Processor Technical Reference Manual
+•
+Arm Cortex-M4 Devices Generic User Guide
+7.3.2.3 MCU_M4FSS Internal RAMs
+The MCU_M4FSS has a total of 256KB of SRAM divided into two banks: 192KB of I-RAM, and 64KB of D-RAM.
+The I-RAM memory is intended mainly for M4F’s instruction code, and D-RAM for M4F’s data. The M4F allows
+concurrent fetch for instruction code and data via dedicated buses (I-Code and D-Code, respectively).
+The MCU_M4FSS supports unified memory for both banks (I-RAM and D-RAM), which means instruction code
+and data can be placed in any bank. In order to get optimal performance, it is highly recommend that instruction
+code be placed in I-RAM and data be placed in D-RAM; this allows the M4F to fetch in parallel instruction code
+and data from two different physical banks using two independent I-Code and D-Code buses. For instance, the
+D-RAM can be used to store instruction code in case the latter is spanning over the 192KB I-RAM.
+Furthermore, the following applies:
+•
+Both RAMs are organized in 32-bits words
+•
+Both RAMs are initialized during reset - that is, there is no auto-initialization sequencing
+•
+Both RAMs are ECC SECDED protected
+•
+Support for write-back upon single bit correction
+•
+Data fetch is given higher priority over instruction fetch to avoid locking M4F
+7.3.2.4 MCU_M4FSS Interfaces
+7.3.2.4.1 Controller Interfaces
+The MCU_4FSS has three 32-bit advanced high-performance bus-lite (AHB-Lite) interfaces:
+•
+ICode for instructions
+•
+DCode for data
+•
+System bus
+7.3.2.4.2 Peripheral Interfaces
+The MCU4FSS has two peripheral interfaces:
+•
+32-bit VBUSP configuration interface - ECC Aggregator block
+•
+32-bit Debug interface
+7.3.2.5 MCU_M4FSS Power, Clocking and Reset
+See specific integration, power, clocking, and reset chapters.
+7.3.2.6 MCU_M4FSS Memory View
+The M4F processor has a fixed default memory map that provides up to 4GB of addressable memory. The
+predefined memory map allows the built-in peripherals, such as NVIC, MPU, SysTick and debug components,
+to be accessed by simple memory access instructions. Thus, most system features are accessible in program
+code. The M4F design has an internal bus infrastructure optimized for this memory usage.
+=== Page 688 ===
+The MCU_M4FSS memory map is presented in Memory Map. Note that bit-banding is not supported.
+7.3.2.7 MCU_M4FSS RAT
+7.3.2.7.1 RAT Usage
+M4F is a micro controller with 32b address, which is only able to access up to 4GB address space. However,
+Sitara SoC supports 36b address and majority of the memory region beyond lower 4GB are implemented.
+Region based address translation block, called RAT, is introduced to allow R5 core to access full 36b SoC
+memory map.
+Each R5 core has its own RAT block, and only R5 core itself is able to program the RAT.
+Figure 7-11 shows the main R5’s default 32b memory map view when main R5 is out of reset.
+The full RAT functionality is described in Region-based Address Translation (RAT) Module.
+Figure 7-11. R5 Core Default Memory Map View
+=== Page 689 ===
+Figure 7-12. Typical Sitara SoC Memory Map View (36b address)
+=== Page 690 ===
+RAT block enables R5 core to have full access on the SoC memory map including the memory region at and
+above 0x1_0000_0000.
+Figure 7-13 shows how R5 access various end points, including its own ATCM, BTCM, VIM and SoC memory
+and peripherals. R5’s ATCM is by default at address 0x0, and its BTCM is at address 0x4101_0000. R5 uses
+address 0x2FFF_0000 to access its VIM and 0x2FFE_0000 to access the RAT configuration region and all
+the other transactions between address range 0x2000_0000 to 0x2FFF_FFFF are sent to the 32b peripheral
+interface to access the peripherals in SoC. The transactions with the rest of address are sent to RAT block,
+which could go through address remapping function from original R5’s 32b address to 36b SoC address.
+Figure 7-13. R5 Internal Address Decoding
+Table 7-27. MCU R5 Memory Map View
+Starting Address
+End Address
+Region
+Notes
+0x 0000_ 0000
+0x0000_ 7FFF
+ATCM
+ATCM is by default disabled.
+Before it is enabled, its address
+can be remapped to a different
+location through CP15. Access
+from othre masters uses the SoC
+level memory address assigned
+to ATCM.
+0x0000_ 8000
+0x03FF_FFFF
+sent to SoC leve through 64b
+VBUSM initiator
+0x0400_0000
+0x07FD_FFFF
+peripheral region. Sent to SoC
+level to access the SoC level
+peripherals in address range of
+0x2000_0000 to 0x2FFD_FFFF.
+0x07FE_0000
+0x07FE_0FFF
+R5's own RTA configuration
+region
+0x07FF_0000
+0x07FF_3FFF
+R5's own VIM
+0x0800_0000
+0x410F_FFFF
+sent to SoC leve through 64b
+VBUSM initiator. Do not use RAT
+for address remapping.
+0x4101_0000
+0x4101_7FFF
+R5's BTCM
+BTCM by default is enabled.
+And access from SoC level uses
+the SoC level memory address
+assigned to BTCM.
+0x4101_8000
+0x7FFF_FFFF
+sent to SoC leve through 64b
+VBUSM initiator. Do not use RAT
+for address remapping.
+=== Page 691 ===
+Table 7-27. MCU R5 Memory Map View (continued)
+Starting Address
+End Address
+Region
+Notes
+0x8000_0000
+0xFFFF_FFFF
+Could use RAT for address
+remapping if it is needed before
+sent to 64b VBUSM initiator.
+7.3.2.7.2 RAT Function
+RAT block is responsible to do a region based address translation. For each region, user can define the starting
+address and size of the region and remapping the transactions to use a new address range.
+The starting address and region size need to be aligned. For example, if the region size is 16KB, the starting
+address for that region needs to be 16KB aligned. And region size should be minimum 4KB or larger to avoid
+transactions cross the region boundaries.
+Each RAT block supports multiple programmable regions. And it is important that those regions are not
+overlapping with each other.
+RAT block is by default disabled, which means RAT block does not do address remapping. The 32b address
+coming from R5 core is directly sent out to the SoC level. The user can program each RAT remapping
+region individually. For the transactions does not hit any remapping region, RAT block just simply forwards
+the transactions to the SoC level with its original address.
+7.3.2.7.3 How to use RAT Block in R5
+Table 7-28 shows the default R5 memory map view. Without enabling RAT function, all the regions beyond 4GB
+address space will not be accessible by R5.
+Sitara SoC memory map is constructed the way to allow R5 and high level application processor such as A53
+have similar memory map as possible. This methodology enables that R5 and ARM A53 core have a common
+memory map for all the SoC level memories and SoC level peripherals except a few exceptions:
+•
+DDR’s data space beyond 32b address, basically upper DDR data space beyond 2GB
+•
+PCIe data space beyond 32b address
+•
+OSPI data space beyond 32b address
+•
+Debug configuration region
+Table 7-28. R5 Memory map by Default
+R5 Memory Map(32b)
+SoC Memory Map (36b)
+SoC Level peripheral and on-chip SRAM
+0x0 to 0x7FFF_FFFF
+Same address as SoC memory map
+0x0 to 0x7FFF_FFFF
+2GB DDR region
+Same as SoC memory map:
+0x8000_0000 to 0xFFFF_FFFF
+0x80000_0000 to 0xFFFF_FFFF
+Additional DDR region
+Not accessible
+0x8_8000_0000 (30GB)
+Additional 8GB OSP Space
+Not accessible
+0x4_0000_0000 (4GB)
+0x5_0000_0000 (4GB)
+Additional PCIe data space
+Not accessible
+0x6_000_0000
+Debug configuration region
+Not accessible
+0x7_0000_0000
+Even though all the transactions other than going to ATCM/BTCM and transactions between address range
+0x2000_0000 to 0x2FFF_FFFF could use RAT block to remap to different address, it is recommended that only
+use RAT block to remap the R5 transactions with address between 0x8000_0000 to 0xFFFF_FFFF.
+•
+Any transactions from R5 with address between 0x0 to 0x7FFF_FFFF are sent out to SoC directly (unless it
+is targeted to its internal end points such as A/B TCM, its VIM and RAT configuration)
+•
+Only enable RAT to remap the transactions with address between 0x8000_0000 to 0xFFFF_FFFF if R5
+needs to access the following address space:
+•
+PCIe data space at address 0x6_0000_0000
+=== Page 692 ===
+•
+OSPI data space address 0x4_0000_0000 and 0x5_0000_0000
+•
+Debug configuration region at address 0x7_0000_0000
+•
+DDR data space at address 0x8_8000_0000
+=== Page 693 ===
+Figure 7-14. Main R5 RAT Configuration
+=== Page 694 ===
+7.3.2.7.4 Example of Using RAT to Access Full 36b SoC Memory Map
+This section shows an example on how to utilize RAT block to allow R5 to access 36 SoC Memory Map. The
+RAT block inside R5 has up to 8 address remapping regions.
+Assuming R5 needs to access the following region:
+•
+All the SoC level on-chip SRAM
+•
+All the SoC level peripherals
+•
+Access 512MB OSPI region at address 0x4_0000_0000
+•
+Access 1GB DDR region at address 0x9_0000_0000
+•
+Access 512MB DDR region at address 0x8000_0000
+First of all, we need to construct 32b R5 memory map as following and how those memory spaces are mapped
+to SoC level, shown in Table 7-29. Users can define where the OSPI and DDR data space placed inside R5’s
+memory map and how they should be mapped to SoC level address map. Table 7-29 just shows one of the
+many possible ways to construct the memory map.
+Table 7-29. Example of R5 Address Mapping
+R5 Memory Map(32b)
+SoC Memory Map (36b)
+RAT Remapping
+SoC Level peripheral and on-chip
+SRAM
+(This is guaranteed by SoC
+Hardware design. No user
+configuration is needed)
+0x0 to 0x7FFF_FFFF
+Same address as SoC memory
+map
+0x0 to 0x7FFF_FFFF
+Not RAT Remapping
+512MB OSPI data region
+(user defined)
+0x8000_0000 to 0x9FFF_FFFF
+0x4_0000_0000 to
+0x4_1FFF_FFFF
+Using RAT remapping region 0
+512MB DDR space
+(user defined)
+0xA000_0000 to 0xBFFF_FFFF
+0x8000_0000 to 0x9FFF_FFFF
+Using RAT remapping region 1
+Additional 1GB DDR Space
+(user defined)
+0xC000_0000 to 0xFFFF_FFFF
+0x9_0000_0000 to
+0x9_3FFF_FFFF
+Using RAT remapping region 2
+In this example, only three RAT regions are needed:
+•
+Region 0 is used to remap R5’s address between 0x8000_0000 to 0x9FFF_FFFF to SoC level address
+0x4_0000_0000 to 0x4_1FFF_FFFF
+•
+Region 1 is used to remap R5’s address between 0xA000_0000 to 0xBFFF_FFFF to 0x8000_0000 to
+0x9FFF_FFFF
+•
+Region 2 is used to remap R5’s address 0xc000_0000 t0 0xFFFF_FFFF to 0x9_0000_0000 to
+0x9_3FFF_FFFF.
+In order achieving those mappings, those are the setting of the RAT configuration registers:
+Region 0
+Region 1
+Region 2
+Other regions
+Region control register
+Enabled, size set to
+512MB
+Enabled, size set to
+512MB
+Enabled, size set to 1GB
+disabled
+Region base(32b)
+0x8000_0000
+0xA000_0000
+0xc000_0000
+Don’t care
+Region translated lower
+address(32b)
+0x0000_0000
+0x8000_0000
+0x0000_0000
+Don’t care
+Region translated upper
+address
+0x4
+0x0
+0x9
+Don’t care
+Figure 7-15 shows how RAT is remapping the address between R5’s 32b address to 36b SoC address.
+=== Page 695 ===
+Figure 7-15. RAT Configuration Example
+=== Page 696 ===
+7.3.2.8 MCU_M4FSS ECC Support
+The MCU_M4FSS includes an ECC aggregator module that combines ECC errors from various local sources,
+such as RAMs, interconnects and bridges. Table 7-30 provides the mapping of ECC errors within the
+MCU_M4FSS ECC aggregator. Two separate interrupts are generated for ECC error: correctable and non-
+correctable.
+The full ECC aggregator functionality is described in ECC Aggregator.
+Table 7-30. "Fault Detected" Interrupt Mapping for MCU_M4FSS ECC
+Aggregator
+Interrupt
+Number
+(RAM ID)
+Source
+0
+Iram_ramecc_pend
+1
+dram_ramecc_pend
+2
+Iram_busecc_pend
+3
+dram_busecc_pend
+4
+blazar_rat_edc_ctrl_busecc_pend
+5
+blazar_cbass_vbusp_s_p2p_bridge_vbusp_s_bridge_busecc_pend
+6
+blazar_cbass_Iecc_s_p2p_bridge_Iecc_s_bridge_busecc_pend
+7
+blazar_cbass_blazar_scr_scr_blazar_cbass_blazar_scr_scr_edc_ctrl_busecc_pend
+8
+blazar_cbass_vbus_clk_edc_ctrl_cbass_int_vbus_busecc_pend
+9
+blazar_sys_scr_vbus_clk_edc_ctrl_cbass_int_vbus_busecc_pend
+10
+blazar_Ia2v_i_edc_ctrl_busecc
+11
+blazar_Ia2v_d_edc_ctrl_busecc
+12
+blazar_Ia2v_s_edc_ctrl_busecc
+7.3.2.9 MCU_M4FSS Interrupts
+See specific integration chapter.
+7.3.2.10 MCU_M4FSS Debug and Trace
+The MCU_M4FSS supports the following debug and trace features:
+•
+Full debug, including data matching for watchpoint generation
+•
+Full trace, including ITM, ETM and DWT
+•
+HTM port is not present
+•
+TPIU is not present
+•
+DAP interface
+•
+ITM and ETM interfaces
+•
+CTM crossbar to map CTI triggers to CTM channels through a CS_CTI module
+•
+Debug infrastructure is reset with POR reset
+7.3.2.11 MCU_M4FSS Time Sync
+The MCU_M4FSS supports a 48-bit input interface for synchronizing to the global time counter (GTC). The 48-
+bit timestamp can be appended with ITM messages. Timestamping is a mechanism whereby a global timestamp
+value is periodically inserted at strategic locations into the trace stream. Timestamps can be used to correlate
+trace from various sources. Each trace source samples the timestamp value and inserts it as an absolute value
+into the trace stream.
+The global timestamp value coming to the MCU_M4FSS is gray-encoded. It is then internally converted to its
+binary value.
+For more details on the device time synchronization, refer to the following sections:
+•
+Global Timebase Counter (GTC)
+=== Page 697 ===
+•
+Time Sync
+7.3.2.12 MCU_M4FSS SysTick
+The MCU_M4FSS includes a 24-bit count-down system timer (SysTick) that can be used as a real time
+operating system (RTOS) tick timer or as a simple counter. The MCU_M4FSS_SYSTICK register in the
+MCU_CTRL_MMR module provides the calibration settings required for proper SysTick operation.
+7.3.2.13 MCU_M4FSS Initialization
+The MCU_M4FSS has a local reset input. This input is driven by PSC, but controlled by software (PSC MMRs,
+with programmable default state). This local reset resets just the M4F processor. When the PSC (controlled
+by software) brings the MCU_M4FSS out of reset, the M4F CPU is held in reset through this local reset, but
+everything else will be running (except debug logic). This allows to pre-load the RAMs in the MCU_M4FSS.
+Software then releases the local reset and M4F starts executing the pre-loaded code in the RAMs.
+Software can repeat the initialization process over and over by following these steps:
+1.
+Execute WFI instruction
+2.
+Transition MCU_M4FSS to a DISABLE/OFF state through PSC (PSC will wait for MCU_M4FSS to be IDLE
+which includes MCU_M4FSS asserting WFI)
+3.
+Transition MCU_M4FSS to an ENABLE/ON state through PSC (local reset will be held asserted)
+4.
+Pre-load RAMs
+5.
+Release local reset
+=== Page 698 ===

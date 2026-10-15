@@ -1,0 +1,1281 @@
+=== Page 12 ===
+This chapter introduces the features, subsystems, and architecture of the AM62x Sitara Processor Platform
+high-performance System-on-Chip (SoC).
+Note
+This document describes the Superset architecture, processors and peripherals of the AM62x Family
+of SoCs, which are part of the AM62x Multicore SoC architecture platform. Not all features are
+available on each family of devices. The superset AM623 and AM625 (each of which will have a
+single, dual and quad core option) devices are available for preproduction software development.
+Software should constrain the features used to match the intended production device. For more
+information on the specific features, processors and peripherals available on a particular device, refer
+to the Device Comparison table in the corresponding device-specific Data sheet.
+The AM62x Sitara Processor Platforms are hereinafter commonly referred to as AM62x platform,
+device, or SoC.
+1.1 Device Overview.........................................................................................................................................................13
+1.2 Functional Block Diagram.........................................................................................................................................14
+1.3 Module Allocation and Instances within Device Domains......................................................................................15
+1.4 Device MAIN Domain..................................................................................................................................................15
+1.5 Device MCU Domain...................................................................................................................................................24
+1.6 Device WKUP Domain................................................................................................................................................28
+1.7 Device Identification...................................................................................................................................................30
+Chapter 1
+Introduction
+
+=== Page 13 ===
+1.1 Device Overview
+This section gives overview
+
+=== Page 14 ===
+1.2 Functional Block Diagram
+Figure 1-1 is functional block diagram for the device.
+Note
+To understand what device features are currently supported by TI Software Development Kits (SDKs),
+see the AM62x Software Build Sheet.
+Figure 1-1. Functional Block Diagram
+
+=== Page 15 ===
+1.3 Module Allocation and Instances within Device Domains
+Module Full Name
+Module Abbreviation
+Device Domain
+MCU
+MAIN
+WKUP
+Quad-Core Arm Cortex A53 Subsystem
+A53SS
+-
+1
+-
+Single-Core Arm Cortex-R5F Subsystem
+R5FSS
+-
+-
+1
+Arm Cortex-M4F Subsystem
+M4FSS
+1
+-
+-
+Programmable Real-Time Unit and Industrial
+Communication Subsystem - Megabit
+PRUSS_M
+-
+1
+-
+Interprocessor Communication - Mailbox
+Mailbox
+-
+1
+-
+Interprocessor Communication - Spinlock
+Spinlock
+-
+1
+-
+Dual Data Rate Random Access Memory (16-Bit)
+Subsystem
+DDRSS
+-
+1
+-
+Region-based Address Translation
+RAT
+1
+2
+1
+Data Movement Subsystem
+DMSS
+-
+1
+-
+Peripheral DMA
+PDMA
+-
+3
+-
+Common Platform Time Sync Module
+CPTS
+-
+1
+-
+General Purpose Input/Output
+GPIO
+1
+2
+-
+Inter-Integrated Circuit
+I2C
+1
+4
+1
+Multi-channel Serial Peripheral Interface
+MCSPI
+2
+3
+-
+Universal Asynchronous Receiver/Transmitter
+UART
+1
+7
+1
+2 Port Gigabit Ethernet Switch
+CPSW
+-
+1
+-
+Universal Serial Bus Subsystem
+USB
+-
+2
+-
+Enhanced Pulse Width Modulation Module
+EPWM
+-
+3
+-
+Enhanced Quadrature Encoder Pulse Module
+EQEP
+-
+3
+-
+Enhanced Capture Module
+ECAP
+-
+3
+-
+Controller Area Network Interface
+MCAN
+2
+1
+-
+Flash Memory Subsystem
+FSS
+-
+1
+-
+Octal Serial Peripheral Interface
+OSPI
+-
+1
+-
+General Purpose Memory Controller
+GPMC
+-
+1
+-
+Error Location Module
+ELM
+-
+1
+-
+Multi-Media Card/Secure Digital Interface
+MMCSD
+-
+3
+-
+Global Time Counter
+GTC
+-
+-
+1
+Real Time Interrupt/Windowed WatchDog Timer
+RTI/WWDT
+1
+5
+1
+Dual-Mode Timer
+TIMER
+4
+8
+2
+Real-Time Clock
+RTC
+-
+-
+1
+Dual Clock Comparator
+DCC
+2
+7
+-
+Error Signaling Module
+ESM
+-
+1
+1
+Memory Cyclic Redundancy Check Controller
+MCRC
+1
+1
+-
+Multi-channel Audio Serial Port
+McASP
+-
+3
+-
+Camera Serial Interface Receiver
+CSI-RX
+-
+1
+-
+MIPI D-PHY Receiver
+DPHY_RX
+-
+1
+-
+Display Subsystem
+DSS
+-
+1
+-
+3D Graphics Processing Unit
+GPU
+-
+1
+-
+1.4 Device MAIN Domain
+This section describes the modules integrated in the device MAIN domain.
+
+=== Page 16 ===
+Figure 1-2. AM62x MAIN Domain Functional Block Diagram
+1.4.1 Arm Cortex-A53 Subsystem (A53SS)
+The integrated 64-bit Arm Cortex-A53 subsystem (A53SS) supports the following main features:
+•
+Up to a quad-core Arm Cortex-A53 MPCore processor with L1 memory system and a single shared L2
+cache.
+•
+Full Arm®v8-A architecture compliancy
+•
+Advanced Single Instruction Multiple Data (SIMD) and floating point extension (Arm® Neon™)
+•
+Floating-Point Unit (FPU) VFPv4
+•
+Armv8 Cryptography Extensions
+•
+Arm General Interrupt Controller (GICv3) architecture
+•
+In-order pipeline with symmetric dual-issue of most instructions
+•
+32KB program and 32KB data Level 1 (L1) Cache
+•
+512KB shared Level 2 (L2) Cache
+
+=== Page 17 ===
+•
+Support for up to four timers within each Cortex-A53 core
+•
+Arm® CoreSight™ Debug and Trace Architecture
+•
+ECC protection for L1 data cache and L2 Cache
+•
+Parity protection for L1 Instruction Cache
+•
+128-bit wide, synchronous or asynchronous VBUSM initiator interface
+•
+Dedicated RTI windowed watchdog timer per core
+•
+Support for Big-Endian (BE) and Little-Endian (LE) at core level
+•
+Interface with Arm GIC-500 Interrupt Controller (SoC level, not part of A53SS)
+•
+Advanced power management for low power optimization
+1.4.2 Programmable Real-Time Unit Subsystem (PRUSS)
+Integrated in MAIN domain: Two instances of the Programmable Real-Time Unit Subsystem used primarily for
+driving GPIO for cycle accurate protocols such as additional UARTS, I2C and external ADC.
+MAIN domain encompasses two identical PRUSS subsystems, each supporting the following main features,
+among others:
+•
+Two Programmable Real-time Unit Subsystems (PRUSS):
+•
+PRU:
+•
+Asynchronous capture (Serial Capture Unit (SCU)] with EnDat 2.2 protocol and Sigma-Delta
+demodulation support
+•
+20 Enhanced General Purpose Inputs (EGPI) and 20 Enhanced General Purpose Outputs (EGPO)
+•
+12 KB program memory per PRU (PRU0_IRAM and PRU1_IRAM) with ECC
+•
+CRC16/CRC32 HW accelerator
+•
+RX XFR2VBUS
+•
+Scratchpad Memory (SPAD) with 2 banks of 30 x 32-bit registers
+•
+3 banks for the PRU0 and PRU1 cores
+•
+32KB shared general purpose RAM with ECC, shared between PRU0 and PRU1
+•
+Two 8KB (shared) Data Memories with ECC (one per slice)
+•
+36-bit VBUSM Controller Port
+•
+Optional address translation for all transactions to External Host
+•
+16 Software Events generated by 2 PRUs
+•
+One Enhanced Capture (ECAP) module
+•
+One interrupt controller (INTC)
+•
+Up to 32 internal events, generated by modules, internal to the PRUSS
+•
+Up to 32 external events, generated by the system
+•
+Supports up to 10 interrupt channels
+•
+Generation of 18 Host interrupts
+•
+2 Host interrupts tp PRU0, PRU1
+•
+8 Host interrupts, exported from the PRUSS for signaling the Arm interrupt controllers (pulse and level
+provided)
+•
+Each system event can be enabled and disabled
+•
+Each host event can be enabled and disabled
+•
+Hardware prioritization of events
+•
+One 32-bit VBUSP target port for memory mapped register and internal memories access
+•
+Flexible power management support
+•
+Integrated 32-bit interconnect
+1.4.3 DDR 16-bit Subsystem (DDR16)
+Integrated in MAIN domain: One instance of DDR 16-bit Subsystem (DDR16) (also referred to as DDRSS) is
+used as an interface to external SDRAM devices which can be utilized for storing program or data. The DDRSS
+provides the following main features:
+•
+Support of LPDDR4 memory type (up to 1600Mbps)
+•
+Support of DDR4 memory type (up to 1600Mbps)
+
+=== Page 18 ===
+•
+16-bit memory bus interface with in-line ECC
+•
+Up to 8 GB memory address range
+•
+Support of dual rank configuration
+•
+Support of automatic idle power saving mode when no or low activity is detected
+•
+Class of Service (CoS) - three latency classes supported
+•
+Dynamic change of refresh reach via SW for extended temperatures
+•
+Prioritized refresh scheduling
+•
+Statistical counters for performance management
+1.4.4 Region-based Address Translation Module (RAT)
+Integrated in MAIN domain: One instance of the Region-based Address Translation (RAT) module to perform
+a region based address translation of a 32-bit input address into a 36-bit output address. The RAT module
+provides the following main features:
+•
+4 regions with dedicated registers for attributes configuration:
+•
+Region base address
+•
+Region size
+•
+Translated base address
+•
+Address translation for only enabled regions
+•
+Region boundary crossing transactions error generation
+1.4.5 Data Movement Subsystem (DMSS)
+Integrated in the MAIN domain:One Data Movement subsystem named DMSS can be used for efficient transfer
+of data support between software, firmware and hardware in all combinations. It consists of the following main
+modules:
+•
+Packet DMA Controller
+•
+Block Copy DMA Controller
+•
+Ring Accelerator provides hardware acceleration to enable straightforward passing of work between a
+producer and a consumer and has the following main features:
+•
+Supports up to 20 independent memory-mapped ring structures
+•
+Supports various modes for each ring based on usage and compatibility
+•
+Provides single-word deep shared incoming Transfer Response FIFO
+•
+Provides bit-wide source VBUSM read/write target interface for accesses from DMA controller entities
+•
+Secure proxy module is a modified version of the proxy module and in addition has the following main
+features:
+•
+Provides proxy function to store large data bursts that a host can only access in smaller amounts
+•
+Supports a configurable number of threads, where each has their own independent proxy function
+•
+Keeps the large data burst coherent until the complete data has been accessed
+•
+Allows for interleaved access between multiple hosts or tasks using multiple proxy threads
+•
+Supports a configurable target resource. The target has a configurable number of channels, size of each
+channel and base address
+•
+Supports a programmable fixed queue for each proxy thread
+•
+Supports multiple producers all writing to the same queue
+•
+Supports programmable thresholds for when to generate events
+•
+Supports a max message count for outbound proxy threads limiting the number of messages a thread can
+produce
+•
+Optionally supports dynamic clock gating
+•
+Interrupt Aggregator modules provide a centralized machine which handles the termination of system events
+to that they can be coherently processed by the host(s) in the system. Main features are as follows:
+•
+64-bit VBUSP target using 64-bit registers
+•
+Provide a set of TI Interrupt Architecture compliant interrupt status and mask registers which are used to
+pass specific event status to one or more host blocks.
+
+=== Page 19 ===
+•
+Provides an optional set of Unmapped event (UNMAP) which can take an 'unmapped' event from the
+ingress ETL and generate a Global event on the egress Event Transport Lane (ETL) interface.
+•
+Provides an optional set of Global Event Input (GEVI) counters which can count events delivered via an
+ingress Event Transport Lane (ETL)
+•
+Provides an optional set of Local Event Input (LEVI) to Global event registers which can be used to
+convert pulsed discrete interrupt inputs or clock synchronous rising edge events into Global events on an
+egress ETL
+•
+Provides an optional set of Global Event Input (GEVI) 'Multicast' registers which can take a Global event
+from an ingress ETL and generate two egress Global events on two egress ETL interfaces
+1.4.6 Mailbox (MAILBOX)
+Integrated in MAIN domain: One Mailbox (MAILBOX) module to facilitate the communication between the
+various on-chip processor cores of the device by providing a queued mailbox-interrupt mechanism with the
+following main features:
+•
+1x clusters
+•
+32-bit message width
+•
+Message reception and queue-not-full notification using interrupts
+•
+Non-intrusive emulation
+1.4.7 Spinlock (SPINLOCK)
+One Spinlock module with (256 hardware semaphores) for synchronizing the processes running on multiple
+cores in the device.
+1.4.8 General Purpose Input/Output Interface (GPIO)
+Integrated in MAIN domain: Two General Purpose Input/Output (GPIO) modules that provide dedicated general-
+purpose pins that can be configured as either inputs or outputs. The GPIO modules main features include:
+•
+Support of 9 banks x 16 GPIO pins
+•
+Support of up to 9 banks of interrupt capable GPIOs
+•
+Interrupts can be triggered by rising and/or falling edge, specified for each interrupt capable GPIO pin
+•
+Set/clear functionality per individual GPIO pin
+1.4.9 Inter-Integrated Circuit Interface (I2C)
+Integrated in MAIN domain: Four instances of the multi-controller Inter-Integrated Circuit (I2C) interface module,
+each with the following main features:
+•
+1x Instances with open-drain voltage buffers in compliance with the Philips I2C-bus specification version 2.1
+•
+Support of standard mode (up to 100 Kbps) and fast mode (up to 400 Kbps)
+•
+Support of 7-bit and 10-bit device addressing modes
+•
+8-bit-wide data access
+•
+Support of multi-controller transmitter/peripheral receiver and receiver/peripheral transmitter modes
+•
+Built-in FIFOs with fixed size of 32 bytes.
+•
+Support of Auto Idle, Idle Request/Idle Acknowledge handshake, and Asynchronous wake-up mechanisms
+•
+Low power consumption
+1.4.10 Serial Peripheral Interface (SPI)
+Integrated in MAIN domain: Three instances of the Serial Peripheral Interface (SPI) module with the following
+main features:
+•
+Serial clock with programmable frequency, polarity, and phase for each channel
+•
+Wide selection of SPI word lengths, ranging from 4 to 32 bits
+•
+Up to four channels in controller mode, or single channel in receiver mode
+•
+Support for various controller multichannel modes
+•
+Single interrupt line for multiple interrupt source events
+•
+Support of start-bit write command
+•
+Support of start-bit pause and break sequence
+
+=== Page 20 ===
+•
+Built-in FIFO available for a single channel
+1.4.11 Universal Asynchronous Receiver/Transmitter (UART)
+Instances of the configurable Universal Asynchronous Receiver/Transmitter (UART) interface module have the
+following main features:
+•
+16C750-compatible interface
+•
+Support of RS-485 external transceiver auto flow control
+•
+Dual 64-byte FIFOs ± one per each received and transmitted data paths
+•
+Programmable and selectable transmit and receive FIFO trigger levels for DMA and interrupt generation
+•
+Programmable sleep mode
+•
+Baud-rate from 300 bits/s up to 3.6864 Mbits/s with 48 MHz functional clock
+•
+Auto-baud between 1200 bits/s and 115.2 Kbits/s (only when 48 MHz function clock is used)
+•
+Support of IrDA 1.4 Slow Infrared (SIR), Medium Infrared (MIR), and Fast Infrared (FIR) communications
+•
+Support of Consumer Infrared Remote control mode (CIR) with programmable data encoding
+Note
+Only one UART instance has support for support full modem control functions. All other UART
+instances will support only the TX, RX, RTS, and CTS signals.
+1.4.12 3-port Gigabit Ethernet Switch (CPSW3G)
+Integrated in MAIN domain: One instance of the 3-port Gigabit Ethernet Switch (CPSW3G) subsystem provides
+Ethernet packet communication for the device. The CPSW3G subsystem provides the following main features:
+•
+Two external Ethernet ports with selectable RGMII and RMII interfaces and one internal Communications
+Port Programming Interface (CPPI) port.
+•
+Synchronous 10/100/1000 Mbit operation
+•
+Flexible logical FIFO-based packet buffer structure
+•
+Support of eight priority level Quality Of Service (QOS) - 802.1p
+•
+Support for Audio/Video Bridging (P802.1Qav/D6.0 and 802.1Qaz)
+•
+Ethernet port reset isolation
+•
+Support for IEEE 1588 Clock Synchronization (2008 Annex D, Annex E and Annex F)
+•
+Differentiated Services Code Point (DSCP) Priority Mapping (IPv4 and IPv6)
+•
+IPV4/IPV6 UDP/TCP checksum offload
+•
+Priority Based Flow Control (801.1QBB) and Flow Control (802.3x) Support
+•
+Wire rate switching (802.1d)
+•
+Store and Forward Switching
+•
+Non-Blocking switch fabric
+•
+Support of Time Sensitive Network - IEEE P902.3br/D2.0 Interspersing Express Traffic and IEEE 802.1Qbv/
+D2.2 Enhancements for Scheduled Traffic
+•
+Address Lookup Engine (ALE) with 512 ALE table entries
+•
+EtherStats and 802.3 Stats Remote Network Monitoring (RMON) statistics gathering (per port statistics)
+•
+Maximum frame size of 2020 bytes
+•
+Management Data Input/Output (MDIO) module for PHY Management
+•
+Host port CPPI Streaming Packet Interface
+•
+Emulation support
+1.4.13 Universal Serial Bus (USB) Subsystem 2.0
+Instantiated in MAIN domain: Two instances of the Universal Serial Bus (USB) subsystem with integrated
+USB2.0 PHY module has the following main features:
+•
+Dual-Role Device (DRD) capability
+•
+Support of Peripheral (aka Device) mode at High Speed (HS at 480 Mbps) and Full Speed (FS at 12 Mbps)
+•
+Support of Host mode at High Speed (HS at 480 Mbps), Full Speed (FS at 12 Mbps), and Low Speed (LS at
+1.5 Mbps)
+
+=== Page 21 ===
+•
+Support of Host Negotiation Protocol (HNP)
+•
+Support of USB3 low power protocol states (U1, U2, and U3)
+•
+USB instance contains a single xHCI compliant with xHCI 1.0 specification with internal DMA controller
+•
+ECC on internal RAMs
+•
+Embedded USB 2.0 PHY
+1.4.14 General Purpose Memory Controller (GPMC)
+One instance of the General-Purpose Memory Controller (GPMC) module. The GPMC is dedicated to interfacing
+with external memory devices and has the following main features:
+•
+Support of 8- or 16-bit-wide data path to external memory devices
+•
+Supports up to 4 independent chip-select regions of programmable size and programmable base addresses
+on 16MB, 32MB, 64MB, or 128MB boundary in a total address space of 1GB
+•
+Support of the following wide range of external memories/devices:
+•
+Asynchronous or synchronous 8-bit wide memory or device (non-burst device)
+•
+Asynchronous or synchronous 16-bit wide memory or device
+•
+16-bit non-multiplexed NOR flash device
+•
+16-bit address and data multiplexed NOR flash device
+•
+8-bit and 16-bit NAND flash device
+•
+16-bit pseudo-SRAM (pSRAM) device
+•
+Supports various interface protocols when communicating with external memory or external devices:
+•
+Asynchronous read/write access
+•
+Asynchronous read page access (4, 8, and 16 Word16)
+•
+Synchronous read/write access
+•
+Synchronous read burst access without wrap capability (4, 8, and 16 Word16)
+•
+Synchronous read burst access with wrap capability (4, 8, and 16 Word16)
+•
+Supports up to 16-bit on-the-fly error code detection using the Bose-Chaudhuri-Hocquenghem (BCH) or
+Hamming code to improve the reliability of NAND with a minimum effect on software (NAND flash with
+512-byte page size or greater)
+1.4.15 Error Location Module (ELM)
+One instance of the Error Location Module (ELM). The ELM module works in conjunction with the GPMC and
+has the following main features:
+•
+ECC calculations (up to 16-bit) for NAND support and ability to work in both page-based and continuous
+modes
+•
+4, 8, and 16 bits per 512-byte block error-location, based on BCH algorithms
+•
+Eight simultaneous processing contexts
+•
+Page-based and continuous modes
+•
+Interrupt generation on error-location process completion
+1.4.16 Flash Subsystem (FSS) with Octal Serial Peripheral Interface (OSPI)
+Integrated in MAIN domain: One instance of the Flash Subsystem (FSS) module provides access to external
+flash devices via Octal Serial Peripheral Interface (OSPI) along with encryption/decryption and in-line ECC
+protection. FSS supports the following main features:
+•
+Provides one OSPI flash interfaces
+•
+OSPI interface supports:
+•
+Execute in place (XIP) operation
+•
+32-byte Block Copy (BC) operation
+•
+ECC
+•
+OSPI supports up to 4 devices
+•
+OSPI supports single, dual, quad, or octal SPI devices
+•
+The OSPI interface has independent power management for low power operations
+
+=== Page 22 ===
+1.4.17 Multi-Media Card/Secure Digital Interface (MMCSD)
+Integrated in MAIN domain: Three Multi-Media Card/Secure Digital (MMCSD) controller modules with the
+following main features:
+•
+One controller with 8-bit wide data bus
+•
+Two controllers with 4-bit wide data bus
+•
+Support of eMMC5.1 Host Specification (JESD84-B51)
+•
+Support of SD Host Controller Standard Specification - SDIO 3.00
+•
+Integrated DMA controller supporting SD Advanced DMA - ADMA2 and ADMA3
+•
+eMMC Electrical Standard 5.1 (JESD84-B51)
+•
+Multi-Media card features:
+•
+Backward compatible with earlier eMMC standards
+•
+Legacy MMC SDR: 3.3/1.8 V, 8/4/1-bit bus width, 0-25 MHz, 25/12.5/3.125 MB/s
+•
+High Speed SDR: 3.3/1.8 V, 8/4/1-bit bus width, 0-50 MHz, 50/25/6.25 MB/s
+•
+High Speed DDR: 3.3/1.8 V, 8/4-bit bus width, 0-50 MHz, 100/50 MB/s
+•
+HS200 SDR: 1.8 V, 0-200 MHz, 8/4-bit bus width, 200/100 MB/s
+•
+SD card support: SDIO, SDR12, SDR25, SDR50, SDR104, DDR50
+•
+System bus interface: CBA 4.0 VBUSM controller port with 64-bit data width and 64-bit address, little endian
+only
+•
+Configuration bus interface: CBA 4.0 VBUSM with 32-bit data width, 32-bit aligned accesses only, linear
+incrementing addressing mode, little endian only
+1.4.18 Enhanced Capture Module (ECAP)
+Integrated in MAIN domain: Three Enhanced Capture (ECAP) modules provide accurate timing for different
+events. When not being used for event capture, its resources can be used to generate a single channel of
+asymmetrical PWM waveforms (configurable as either one capture input, or as one auxiliary PWM output). Each
+ECAP module supports the following main features:
+•
+32-bit time base counter
+•
+4 x 32 bits event time-stamp capture registers
+•
+4 stage sequencer (Mod4 counter), synchronized to external events
+•
+Independent edge polarity selection for up to four sequenced time-stamp capture events
+•
+Input capture signal pre-scaling (from 1 to 16)
+•
+Interrupt capabilities on any of the four capture events
+•
+Support of different capture modes (single shot capture, continuous mode capture, absolute timestamp
+capture or delta mode time-stamp capture)
+1.4.19 Enhanced Pulse-Width Modulation Module (EPWM)
+Integrated in MAIN domain: Three Enhanced Pulse-Width Modulation (EPWM) modules, each with the following
+main features:
+•
+Dedicated 16-bit time-base counter with period and frequency control
+•
+Two independent PWM outputs that can be used in different configurations (with single-edge operation, with
+dual-edge symmetric operation or one independent PWM output with dual-edge asymmetric operation)
+•
+Asynchronous override control of PWM signals during fault conditions
+•
+Programmable phase-control support for lag or lead operation relative to other EPWM modules
+•
+Dead-band generation with independent rising and falling edge delay control
+•
+Programmable trip zone allocation of both latched and un-latched fault conditions
+•
+Events enabling to trigger both CPU interrupts and start of ADC conversions
+1.4.20 Enhanced Quadrature Encoder Pulse Module (EQEP)
+Integrated in MAIN domain: Three 32-bit Enhanced Quadrature Encoder Pulse (EQEP) modules for position,
+speed, and frequency measurements support, each with the following main features:
+•
+Input synchronization
+•
+Three stage/six stage digital noise filter
+
+=== Page 23 ===
+•
+Quadrature decoder unit
+•
+Position counter and control unit for position measurement
+•
+Quadrature edge capture unit for low speed measurement
+•
+Unit time base for speed/frequency measurement
+•
+Watchdog timer for detecting stalls
+1.4.21 Controller Area Network (MCAN)
+Integrated in the domain: One Controller Area Network interfaces (MCAN) supporting both classic CAN and CAN
+FD (CAN with Flexible Data-Rate) specifications and having the following main features:
+•
+Conforms with CAN Protocol version 2.0 part A, B and ISO 11898-1:2015
+•
+Full CAN FD (up to 64 data bytes) support
+•
+SAE J1939 support
+•
+AUTOSAR support
+•
+Up to 32 dedicated transmit buffers and 64 dedicated receive buffers
+•
+Two configurable receive FIFOs, up to 64 elements each
+•
+Configurable transmit FIFO, up to 32 elements
+•
+Configurable transmit queue, up to 32 elements
+•
+Configurable transmit event FIFO, up to 32 elements
+•
+Up to 128 filter elements
+•
+Maskable interrupts, two interrupt lines
+•
+Timestamp Counter
+1.4.22 Timers
+Three different types of timer modules are instantiated in the MAIN domain:
+•
+One instance of Global Time Counter (GTC) module that can be used for time synchronization and debug
+trace time stamping with the following main features:
+•
+64-bit up counter
+•
+No rollover during the lifetime of the device
+•
+Compatible with Armv8 system counter requirements
+•
+Outputs reflected binary (Gray) encoded timer value for system timer bus distribution to other modules
+•
+Selectable counter bit output as a push event that can be used by CPTS modules, timers or interface
+protocols
+•
+Five instances Windowed Watchdog Timer (WWDT), implemented by using the Digital Windowed Watchdog
+(DWWD) function of the Real Time Interrupt (RTI) module providing timer functionality for operation systems
+and benchmarking code with the following main features:
+•
+Two independent 64 bit counter blocks
+•
+Four configurable compare registers for generating operating system ticks
+•
+Free running counter 0 can be incremented by either the internal pre-scale counter or by an external event
+•
+Selectable RTI clock input (derived from any of the available clock sources)
+•
+Fast enabling/disabling of events
+•
+Eight instances of the dual mode Timer (TIMER) module with support of the following main features:
+•
+Free running 32-bit upward counter
+•
+Generates a 1-ms tick with a 32.768-kHz functional clock
+•
+Interrupts generated on overflow, compare and capture
+•
+Supported modes of operation: compare and capture, auto-reload and start-stop
+•
+Programmable divider clock source (2n, where n = [0-8])
+•
+Dedicated input trigger for capture mode and dedicated output trigger/PWM signal
+•
+On-the-fly read/write register (while counting) for systems operation and benchmarking code
+1.4.23 Internal Diagnostics Modules
+Instantiated in MAIN domain are different internal diagnostics modules which provide monitoring and diagnostic
+functions required to achieve certain safety compliance levels:
+
+=== Page 24 ===
+•
+Seven Dual Clock Comparator (DCC) modules, used to determine the accuracy of a clock signal during the
+time execution of an application, each having the following main features:
+•
+Two independent counter blocks count clock pulses from each clock source
+•
+Each counter block is programmable, however, for proper operation the counters must be programmed
+with seed values that respect the ratio of the two clock frequencies
+•
+Configurable time base for error signal
+•
+Error signal generation when one of the clocks is out of spec
+•
+Clock frequency measurement
+•
+One instance of Error Signaling Module (ESM) for safety-related events and/or errors aggregation from
+throughout the device into one location supports the following main features:
+•
+Up to 1024 level or pulse error event inputs
+•
+Selectable low and high priority interrupt error pin prioritization of each error event
+•
+Error signal routed out of device through MCU_ESM error signal
+•
+Configurable time base for error signal
+•
+Error forcing capability
+•
+Internal redundant flops on safety critical fields
+•
+Multiple ECC aggregator modules supporting ECC mechanism for providing increased system reliability via
+reduction of memory software errors by allowing single bit errors to be detected and corrected (SEC) and
+double bit errors to be detected (DED). Applied to different memories in many of the subsystems, each of the
+ECC aggregators has the following main features:
+•
+Reduces memory software errors via single error correction (SEC) and double error detection (DED)
+•
+Provides a mechanism to control and monitor the ECC RAMs in a module or subsystem
+•
+Supports software readable status of ECC errors (single and double-bit) and associated info such as RAM
+address and data bit or bits that are in error
+•
+Aggregates level pending status from the ECC RAMs in two interrupts to the device CPU ± interrupt for
+correctable error (SEC) and interrupt for uncorrectable error (DED)
+•
+Supports up to 256 ECC endpoints (either ECC RAM or interconnect ECC component)
+•
+Single bit error detection via parity checking results in a non-correctable error interrupt
+1.5 Device MCU Domain
+This section describes the modules integrated in the device MCU domain.
+Note
+In TI documentaiton, the MCU Domain may be referred to as "M4FSS Island", "MCU Island", "MCU
+Channel", or "MCU Subsystem".
+The Microcontroller Unit Domain (MCU Domain) is a „chip-in-a-chip“ concept and it operates using separate
+clock sources and resets. This allows the MCU Domain to function continuously regardless of the state of the
+rest of the device, including periods in which the rest of the device is held in reset or powered down. The MCU
+island integrates communication peripherals such as SPI, I2C, and UART which are expected to be used for
+safety critical communication, so if the main SoC goes down, the MCU island can communicate this information
+to the rest of the system. Isolation of the MCU Arm Cortex-M4F Microcontroller Subsystem helps to provide
+Freedom From Interference (FFI).
+
+=== Page 25 ===
+Figure 1-3. AM62x MCU Domain Functional Block Diagram
+1.5.1 MCU Arm Cortex M4F Subsystem (MCU_M4FSS)
+Integrated in the MCU domain: One Arm Cortex-M4F Subsystem module. This processor core can be configured
+as an isolated safety MCU or general purpose MCU.
+•
+Cortex M4F With MPU
+•
+ARMv7-M architecture
+•
+Support for Nested Vectored Interrupt Controller (NVIC) with 64 inputs
+•
+Ability to executed code from internal or external memories
+•
+192 KB of SRAM (I-Code)
+•
+64 KB of SRAM (D-Code)
+•
+Debug Support Including:
+•
+DAP based Debug to the CPU Core
+•
+Full Debug Features of CPU Core are enabled
+•
+Standard ITM trace
+
+=== Page 26 ===
+•
+CTM Cross Trigger
+•
+ETM Trace Support
+•
+Fault Detection and Correction:
+•
+SECDED ECC protection on I-CODE
+•
+SECDED ECC protection on D-CODE
+•
+Fault Error Interrupt Output
+1.5.2 MCU General Purpose Input/Output Interface (MCU_GPIO)
+Integrated in MCU domain: One General Purpose Input/Output (MCU_GPIO) module provides dedicated
+general-purpose pins that can be configured as either inputs or outputs. the MCU_GPIO module includes these
+main features:
+•
+Support of 9 banks x 16 GPIO pins
+•
+Support of up to 9 banks of interrupt capable GPIOs
+•
+Interrupts can be triggered by rising and/or falling edge, specified for each interrupt capable GPIO pin
+•
+Set/clear functionality per individual GPIO pin
+1.5.3 MCU Inter-Integrated Circuit Interface (MCU_I2C)
+Integrated in MCU domain:One multi-controller Inter-Integrated Circuit (MCU_I2C) interface with the following
+main features:
+•
+Compliancy to the Philips I2C-bus specification version 2.1
+•
+Support of standard mode (up to 100 Kbps) and fast mode (up to 400 Kbps)
+•
+Support of 7-bit and 10-bit device addressing modes
+•
+Support of multi-controller transmitter/peripheral receiver and receiver/peripheral transmitter modes
+•
+Built-in FIFOs with programmable size of 8 to 64 bytes for buffered read or write
+•
+8-bit-wide data access
+•
+Support of Auto Idle, Idle Request/Idle Acknowledge handshake, and Asynchronous Wakeup mechanisms
+•
+Low power consumption
+1.5.4 MCU Multi-channel Serial Peripheral Interface (MCU_SPI)
+Integrated in MCU domain: Two Multi-channel Serial Peripheral Interface (MCU_SPI) modules where each have
+the following main features:
+•
+Serial clock with programmable frequency, polarity, and phase for each channel
+•
+Wide selection of MCSPI word lengths, ranging from 4 to 32 bits
+•
+Up to four controller channels, or single channel in receiver mode
+•
+Support of different controller multichannel modes
+•
+Single interrupt line for multiple interrupt source events
+•
+Support of start-bit write command
+•
+Support of start-bit pause and break sequence
+•
+Built-in FIFO available for a single channel
+1.5.5 MCU Universal Asynchronous Receiver/Transmitter (MCU_UART)
+Integrated in MCU domain: One configurable Universal Asynchronous Receiver/Transmitter (MCU_UART)
+interface with the following main features:
+•
+Support of RS-485 external transceiver auto flow control
+•
+Dual 64-byte FIFOs ± one per each received and transmitted data paths
+•
+Programmable and selectable transmit and receive FIFO trigger levels for DMA and interrupt generation
+•
+Programmable sleep mode
+•
+16C750 compatible interface
+•
+Baud rates up to 3.6 Mbps with 48 MHz functional clock
+•
+Auto-baud between 1200 bits/s and 115.2 Kbits/s (only when 48 MHz function clock is used)
+•
+Support of IrDA 1.4 Slow Infrared (SIR), Medium Infrared (MIR), and Fast Infrared (FIR) communications
+•
+Support of Consumer Infrared Remote control mode (CIR) with programmable data encoding
+
+=== Page 27 ===
+1.5.6 MCU Timers
+Two different types of timer modules are instantiated in the MCU domain:
+•
+One instance Windowed Watchdog Timer (WWDT), implemented by using the Digital Windowed Watchdog
+(DWWD) function of the Real Time Interrupt (RTI) module providing timer functionality for operation systems
+and benchmarking code with the following main features:
+•
+Two independent 64 bit counter blocks
+•
+Four configurable compare registers for generating operating system ticks
+•
+Free running counter 0 can be incremented by either the internal pre-scale counter or by an external event
+•
+Selectable RTI clock input (derived from any of the available clock sources)
+•
+Windowed Watchdog Timer (WWDT) feature
+•
+Some RTI modules are pre-dedicated to specific processor cores
+•
+Four instances of Timer module with support of the following main features:
+•
+Free running 32-bit upward counter
+•
+Generates a 1-ms tick with a 32.768-kHz functional clock
+•
+Interrupts generated on overflow, compare and capture
+•
+Supported modes of operation: compare and capture, auto-reload and start-stop
+•
+Programmable divider clock source (2n, where n = [0-8])
+•
+Dedicated input trigger for capture mode and dedicated output trigger/PWM signal
+•
+On-the-fly read/write register (while counting) for systems operation and benchmarking code
+•
+Each odd numbered timer instance may be optionally cascaded with the previous even numbered timer
+instance to form up to a 64-bit timer
+1.5.7 MCU Internal Diagnostics Modules
+Instantiated in MCU domain are different internal diagnostics modules which provide monitoring and diagnostic
+functions required to achieve certain safety compliance levels:
+•
+One instance of the Dual Clock Comparator (MCU_DCC) module, used to determine the accuracy of a clock
+signal during the time execution of an application, each having the following main features:
+•
+Two independent counter blocks count clock pulses from each clock source
+•
+Each counter block is programmable, however, for proper operation the counters must be programmed
+with seed values that respect the ratio of the two clock frequencies
+•
+Configurable time base for error signal
+•
+Error signal generation when one of the clocks is out of spec
+•
+Clock frequency measurement
+•
+One instance of Error Signaling Module (MCU_ESM) for safety-related events and/or errors aggregation from
+throughout the device into one location supports the following main features:
+•
+Up to 1024 level or pulse error event inputs
+•
+Selectable low and high priority interrupt error pin prioritization of each error event
+•
+Single Error Pin output to signal severe device failure to outside world
+•
+Configurable time base for error signal
+•
+Triple Redundant Pulse Inputs
+•
+Two Priority Levels
+•
+Error Forcing capability
+•
+Internal redundant flops on safety critical fields
+•
+Multiple ECC aggregator modules supporting ECC mechanism for providing increased system reliability via
+reduction of memory software errors by allowing single bit errors to be detected and corrected (SEC) and
+double bit errors to be detected (DED). Applied to different memories in many of the subsystems, each of the
+ECC aggregators has the following main features:
+•
+Reduces memory software errors via single error correction (SEC) and double error detection (DED)
+•
+Provides a mechanism to control and monitor the ECC RAMs in a module or subsystem
+•
+Supports software readable status of ECC errors (single and double-bit) and associated info such as RAM
+address and data bit or bits that are in error
+
+=== Page 28 ===
+•
+Aggregates level pending status from the ECC RAMs in two interrupts to the device CPU ± interrupt for
+correctable error (SEC) and interrupt for uncorrectable error (DED)
+•
+Supports up to 256 ECC endpoints (either ECC RAM or interconnect ECC component)
+•
+Single bit error detection via parity checking results in a non-correctable error interrupt
+•
+Memory Cyclic Redundancy Check module used to perform CRC to verify the integrity of a memory system.
+The MCRC module has the following main feature:
+•
+Four Channels of CRC Compression based Signature Generation
+•
+8, 16, 32, or 64-bit Data Size
+•
+Maximum Length PSA based on 64-bit Polynomial
+•
+Programmable 20 bit pattern counter per channel
+•
+Three Operating Modes: Auto, Semi-CPU, Full CPU
+•
+MCRC or CPU can perform signature verification for each Channel
+•
+Timeout Interrupt if CRC is not performed within the time limit
+1.6 Device WKUP Domain
+This section describes the modules integrated in the device WKUP domain.
+1.6.1 Arm Cortex-R5F Processor (R5FSS)
+The ARM Core Cortex-R5F processor subsystem (R5FSS) supports the following main features:
+•
+Armv7-R architecture
+•
+R5FSS Memory System
+•
+32KB Instruction Cache
+•
+4x8KB ways
+•
+SECDED ECC protected per 64 bits
+•
+32KB Data Cache
+•
+4x8KB ways
+•
+SECDED ECC protected per 32 bits
+•
+64KB tightly-coupled memory (TCM) per CPU
+•
+SECDED ECC protected per 32 bits
+•
+TCM hard error cache Implemented in CPU
+•
+Readable/writable from system
+•
+TCMs initialized (to 0's) at reset
+•
+32KB TCMA (ATCM)
+•
+16KB TCMB0 (B0TCM)
+•
+16KB TCMB1 (B1TCM)
+•
+Full-precision Floating Point (VFPv3)
+•
+16-region Memory Protection Unit (MPU)
+•
+8 breakpoints, 8 watch points
+•
+CoreSight Debug Access Port (DAP)
+•
+CoreSight ETM-R5 interface (CTI, ETM)
+•
+Performance Monitoring Unit (PMU)
+•
+32-bit to 36-bit Region-based Address Translation (RAT) on memory access initiators
+•
+Integrated Vectored Interrupt Manager (VIM) per core with 256 Interrupt Inputs each
+•
+Programmable interrupt priority (4-bit)
+•
+Programmable interrupt enable mask
+•
+Software-generated interrupts
+•
+Synchronous clock domain crossing on all core interfaces
+Note
+CORE0 has 64KB of TCM.
+
+=== Page 29 ===
+Note
+These details describe a superset of the R5FSS memory configuration. For additional details on
+device memory availability, please refer to the device-specific Datasheet.
+
+=== Page 30 ===
+1.7 Device Identification
+The device part number identification data can be read in the WKUP_CTRL_MMR_CFG0_JTAG_USER_ID
+register. See Table 1-1 for more information.
+Table 1-1. Device Part Number Identifier
+WKUP_CTRL_MMR_CFG0_JTAG_USE
+R_ID
+Register Field
+Value and Description
+Comment
+[31-13] DEVICE_ID
+Base Part Number.
+Refer to the Device Comparison table
+in the device specific datasheet for the
+combined DEVICE_ID and FEATURES
+value of a given part number
+[12] SAFETY
+0 = Non Functional Safety
+1 = Functional Safety
+[11] SECURITY
+0 = Non-Secure
+1 = Secure
+[10-6] SPEED
+Device Speed Grade.
+Refer to the device-specific Datasheet
+for the supported speed grades and the
+definitions for a given device.
+1 (0x01) = A speed designator
+2 (0x02) = B speed designator
+…
+25 (0x19) = Y speed designator
+26 (0x1A) = Z speed designator
+[5-3] TEMP
+Temperature grade.
+Operating junction temperature range.
+3 = 0°C to 95°C
+4 = -40°C to 105°C
+5 = -40°C to 125°C
+Others = Reserved
+[2-0] PKG
+Package
+Device Package type.
+1 = ALW
+6 = AMC
+Others = Reserved
+The manufacturer identity, the boundary scan part number, and the silicon revision of the device can be read in
+the WKUP_CTRL_MMR_CFG0_JTAGID register. See Table 1-2 and Table 1-3 tables for more information.
+Table 1-2. Device JTAG ID
+WKUP_CTRL_MMR_CFG0_JTAGID
+Register Field
+Value
+Comment
+[31-28] VARIANT
+See Table 1-3
+Silicon Revision (SR) identifier.
+[27-12] PARTNO
+See Table 1-3
+Part number for boundary scan.
+[11-1] MFG
+0x277F
+Manufacturer identity (TI).
+[0] LSB
+0x1
+Always reads 1.
+Table 1-3. Device JTAG ID Values
+Silicon Type
+VARIANT
+PARTNO
+WKUP_CTRL_MMR_CFG0_JTAGID
+Register Value
+AM62x SR1.0
+0x0
+0xBB7E
+0x43000014
+

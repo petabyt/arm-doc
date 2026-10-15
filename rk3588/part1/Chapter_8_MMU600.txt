@@ -1,0 +1,266 @@
+Chapter 8 MMU600
+8
+
+8.1 Overview
+The MMU600 is a System-level Memory Management Unit (SMMU) that translates an input
+address to an output address. This translation is based on address mapping and memory
+attribute information that is available in the MMU600 internal registers and translation
+tables. The MMU600 implements the Arm SMMU architecture version 3.1, SMMUv3.1, as the
+Arm® System Memory Management Unit Architecture Specification, SMMU architecture
+version 3.0 and version 3.1 defines.
+The version of MMU600 is r2p2-00rel0. There are two MMU600 instances in RK3588,
+MMU600_PCIE and MMU600_PHP respectively. Their configurations are shown below:
+Table 8-1 MMU600_PCIE Configuration
+Configuration Parameters
+Value
+TOPCFG_NO_OF_TBU
+2
+TCUCFG_QTW_ADDR_WIDTH
+48
+TCUCFG_QTW_DATA_WIDTH
+128
+TCUCFG_XLATE_SLOTS
+64
+TCUCFG_PTW_SLOTS
+16
+TCUCFG_CTW_SLOTS
+4
+TCUCFG_WCS1L0_DEPTH
+64
+TCUCFG_WCS1L1_DEPTH
+64
+TCUCFG_WCS1L2_DEPTH
+256
+TCUCFG_WCS1L3_DEPTH
+256
+TCUCFG_WCS2L0_DEPTH
+64
+TCUCFG_WCS2L1_DEPTH
+64
+TCUCFG_WCS2L2_DEPTH
+256
+TCUCFG_WCS2L3_DEPTH
+256
+TCUCFG_CC_DEPTH
+64
+TBUCFG_TBS_ADDR_WIDTH
+64
+TBUCFG_TBM_ADDR_WIDTH
+48
+TBUCFG_DATA_WIDTH
+128
+TBUCFG_UTLB_DEPTH
+32
+TBUCFG_MTLB_DEPTH
+256
+TBUCFG_MTLB_PARTS
+4
+TBUCFG_WOT_DEPTH
+16
+TBUCFG_ROT_DEPTH
+16
+TBUCFG_XLATE_SLOTS
+16
+TBUCFG_SID_WIDTH
+16
+TBUCFG_SSID_WIDTH
+20
+TBUCFG_LFIFO_DEPTH
+4
+TBUCFG_WBUF_DEPTH
+32
+Table 8-2 MMU600_PHP Configuration
+Configuration Parameters
+Value
+TOPCFG_NO_OF_TBU
+1
+TCUCFG_QTW_ADDR_WIDTH
+48
+TCUCFG_QTW_DATA_WIDTH
+128
+TCUCFG_XLATE_SLOTS
+64
+TCUCFG_PTW_SLOTS
+16
+TCUCFG_CTW_SLOTS
+4
+TCUCFG_WCS1L0_DEPTH
+64
+TCUCFG_WCS1L1_DEPTH
+64
+TCUCFG_WCS1L2_DEPTH
+256
+TCUCFG_WCS1L3_DEPTH
+256
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1273
+
+RK3588 TRM-Part1
+Configuration Parameters
+TCUCFG_WCS2L0_DEPTH
+TCUCFG_WCS2L1_DEPTH
+TCUCFG_WCS2L2_DEPTH
+TCUCFG_WCS2L3_DEPTH
+TCUCFG_CC_DEPTH
+TBUCFG_TBS_ADDR_WIDTH
+TBUCFG_TBM_ADDR_WIDTH
+TBUCFG_DATA_WIDTH
+TBUCFG_UTLB_DEPTH
+TBUCFG_MTLB_DEPTH
+TBUCFG_MTLB_PARTS
+TBUCFG_WOT_DEPTH
+TBUCFG_ROT_DEPTH
+TBUCFG_XLATE_SLOTS
+TBUCFG_SID_WIDTH
+TBUCFG_SSID_WIDTH
+TBUCFG_LFIFO_DEPTH
+TBUCFG_WBUF_DEPTH
+
+Value
+64
+64
+256
+256
+64
+64
+48
+128
+32
+256
+4
+16
+16
+16
+16
+20
+4
+32
+
+The MMU600 in RK3588 supports following feature:
+⚫ Compliance with the SMMUv3.1 architecture:
+◼ Support for Stage 1 translation, Stage 2 translation, and Stage 1 followed by stage 2
+translation
+◼ Support for ARMv8 AArch32 and AArch64 translation table formats
+◼ Support for 4KB, 16KB and 64KB granule sizes in AArch64 format
+◼ Masters can be stalled while a processor handles translation faults, enabling
+software support for demand paging
+◼ Configuration tables in memory can support millions of active translation contexts
+◼ Queues in memory perform MMU600 management, no requirement to stall a
+processor when it accesses the MMU600
+◼ A Performance Monitoring Unit (PMU) in each TBU and TCU that enables MMU600
+performance to be investigated
+◼ Reliability, Serviceability, and Availability (RAS) features for cache corruption
+detection and correction
+⚫ Support for AMBA interfaces, including:
+◼ AMBA DTI communication between the TCU and TBUs, enabling masters to request
+translations and implement TBU functionality internally
+◼ Support for the AMBA Low-Power Interface (LPI) Q-Channel so that standard
+controllers can control power and clock gating
+◼ AXI5 WAKEUP signaling on all interfaces, including DTI and APB interfaces
+⚫ Support for flexible integration:
+◼ You can place a configurable number of TBUs close to the masters being translated
+◼ Communication between TBU and TCU over AXI4-Stream, supported using the
+supplied DTI interconnect components, or any other AXI4-Stream interconnect
+⚫ Support for high-performance translation:
+◼ Scalable configurable micro TLB and Main TLB (MTLB) in the TBU can reduce the
+number of translation requests to the TCU
+◼ MTLB partitioning enable the use of MTLB entries to be managed outside the TBU,
+improving real-time translation performance
+◼ Optimization to store all architecturally defined page and block sizes, including
+contiguous page and block entries, as a single entry in the TBU and TCU TLBs
+◼ Per-TBU prioritization in the TCU enables high-priority transaction streams to be
+translated
+◼ TCU prefetch of translation tables, which can be enabled on a per-context basis,
+improving translation performance for real-time masters that access memory
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1274
+
+RK3588 TRM-Part1
+◼
+◼
+◼
+◼
+◼
+
+linearly
+Hit-Under-Miss (HUM) support in the TBU enables transactions with different AXI IDs
+to be propagated out of order, when a translation is available
+TBU detection of multiple transactions that require the same translation so that only
+one TBU request to the TCU is required
+TCU detection of multiple translations that require the same table in memory so that
+only one TCU memory request is required
+Multi-level, multi-stage walk caches in the TCU reduce translation cost by performing
+only part of the table walk process on a miss
+A configurable number of concurrent translations in the TBU and TCU promotes high
+translation throughput
+
+8.2 Block Diagram
+The MMU600_PCIE is connected with five PCIe controllers and the MMU600_PHP is
+connected with USB3/GMAC/SATA controller. The Bridge_PCIe/Bridge_PHP will arbiter
+requests from various masters under first in first out method. As shown below:
+
+Interconnect
+
+To GIC-600
+
+TBU1_M
+
+TBU_M
+
+TCU_M
+
+ITS
+TBU0_M
+MMU600_PCIE
+TBU1_S
+
+MMU600_PHP
+
+TBU0_S
+
+TBU_S
+
+Bridge_PCIe
+
+PCIe3_4
+
+PCIe3_3
+
+TCU_M
+
+PCIe3_2
+
+Bridge_PHP
+
+PCIe3_1
+
+PCIe3_0
+
+SATA0
+
+SATA1
+
+SATA2
+
+USB3
+
+GMAC0
+
+GMAC1
+
+Fig. 8-1 Block Diagram
+
+8.3 Function Description
+Please refer to the document
+corelink_mmu600_system_memory_management_unit_technical_reference_manual_10031
+0_0202_00_en.pdf for the detail function description.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1275
+
+RK3588 TRM-Part1
+

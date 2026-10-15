@@ -1,0 +1,4268 @@
+Chapter 13 USB3 Controller
+13.1 Overview
+
+USB3 sub-system include three USB3.0 controller and some PHYs. Two of the USB3.0
+controller (marked as USB3OTG_0 and USB3OTG_1) in PD_USB can act as static host, static
+device, USB2.0/3.0 OTG A device or B device basing on the status of input ID from USB2.0
+PHY. The two controllers respectively connect to one USB3.0 PHY and one USB2.0 PHY. They
+can perform data transmission between host and device as host or device for SuperSpeed/High-Speed/Full-Speed/Low-Speed. The other one (marked as USB3OTG_2) in
+PD_PHP only support USB3.0 Host and only connect to one USB3.0 PHY and be used for
+Super-Speed.
+USB3.0 sub-system supports the following features:
+⚫ General Features
+1. Compatible Specification
+◆ Universal Serial Bus 3.0 Specification, Revision 1.0
+◆ Universal Serial Bus Specification, Revision 2.0 (exclude USB3OTG_2)
+◆ eXtensible Host Controller Interface for Universal Serial Bus (xHCI), Revision 1.1
+2. Support Control/Bulk (including stream)/Interrupt/Isochronous Transfer
+3. Simultaneous IN and OUT transfer for USB3.0, up to 8Gbps bandwidth
+4. Descriptor caching and data pre-fetching used to improve system performance in
+high-latency systems
+5. LPM protocol in USB 2.0 (exclude USB3OTG_2) and U0, U1, U2, and U3 states for
+USB 3.0
+6. Dynamic FIFO memory allocation for endpoints
+7. Keep-Alive feature in LS mode and (micro-)SOFs in HS/FS modes (exclude
+USB3OTG_2)
+8. Low MIPS requirement
+◆ Driver involved only in setting up transfers and high-level error recovery
+◆ Hardware handles data packing and routing to a specific pipe
+⚫ Application Interface Features
+1. AHB Slave interface
+2. AXI Master interface
+◆ Programmable burst lengths up to 16
+◆ Handle fixed burst address alignment
+◆ Programmable number of outstanding read/write requests up to 16
+◆ Concurrent read/write to get best performance of USB3.0 duplex operation
+⚫ USB3.0 Device Features
+1. Up to 10 IN endpoints, including control endpoint 0
+2. Up to 6 OUT endpoints, including control endpoint 0
+3. Up to 16 endpoint transfer resources, each one for each endpoint
+4. Flexible endpoint configuration for multiple applications/USB set-configuration modes
+5. Hardware handles ERDY and burst
+6. Stream-based bulk endpoints with controller automatically initiating data movement
+7. Isochronous endpoints with isochronous data in data buffers
+8. Flexible Descriptor with rich set of features to support buffer interrupt moderation,
+multiple transfers, isochronous, control, and scattered buffering support
+⚫ USB Class-Specific Device Features
+1. Stream support for UASP application
+2. Gathering of scattered packet to support Ethernet Over USB
+3. Scheduling of multiple Ethernet packets without interrupt
+4. Variable FIFO buffer allocation for each endpoint
+5. For isochronous applications, scheduling of variable-length payloads for each
+microframe
+6. Microframe precise scheduling for isochronous applications
+7. Configurable endpoint type selection and dynamic FIFO allocation to facilitate multifunction/composite device implementation. During set-config or alternate-setting,
+device resources are reconfigured to meet the configuration or alternate setting
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2185
+
+RK3588 TRM-Part2
+
+⚫
+
+⚫
+
+⚫
+
+requirements.
+USB 3.0 xHCI Host Features
+1. Support up to 64 devices
+2. Support 1 interrupter
+3. Support 1 USB2.0 port (exclude USB3OTG_2) and 1 Super-Speed port
+4. Support standard or open-source xHCI and class driver
+USB 3.0 Dual-Role Device (DRD) Features
+1. Static Device Operation
+2. Static Host Operation
+3. USB3.0/USB2.0 OTG A device and B device basing on ID, USB3OTG_2 only support
+USB3.0
+4. Not Support USB3.0/USB2.0 OTG session request protocol (SRP), host negotiation
+protocol (HNP) and Role Swap Protocol (RSP)
+Miscellaneous Features
+5. USB2.0 PHY support Battery Charge detection
+6. USB3OTG_0 and USB3OTG_1 support USB Type-C and DP Alt Mode (DP should refer
+to DP TX Controller section)
+7. USB3OTG_2 PHY combos with PCIE and SATA, this could refer to Multi-PHY section
+
+13.2 Block Diagram
+
+USB3OTG_0 and USB3OTG_1 comprises with:
+⚫ Bus Interface: Register Interface/Data and Descriptors DMA management
+⚫ SS/HS/FS/LS MAC: USB part logic
+⚫ USB2.0 PHY: UTMI+ interface USB2.0 PHY
+⚫ USBDP PHY: USB3.0 and DP combo
+Note: For detail about USBDP PHY, please refer to USBDP PHY section.
+USB3OTG_2 comprises with:
+⚫ Bus Interface: Register Interface/Data and Descriptors DMA management
+⚫ SS/HS/FS/LS MAC: USB2.0 part logic not used
+⚫ USB3/PCIE/SATA Combo PHY
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2186
+
+RK3588 TRM-Part2
+
+USB3OTG_1
+
+USB3OTG_0
+USB3OTG_controller
+
+AXI
+Master
+
+HS/FS/LS
+MAC
+
+SS
+MAC
+
+AHB
+Slave
+
+UTMI+
+
+USB2.0 PHY
+
+PIPE
+
+AXI
+Master
+
+USBDP PHY
+
+Bus Interface
+
+AHB
+Slave
+
+Bus Interface
+
+USB3OTG_controller
+
+HS/FS/LS
+MAC
+
+UTMI+
+
+SS
+MAC
+
+USB2.0 PHY
+
+PIPE
+
+USBDP PHY
+
+DP TX
+Controller
+
+DP TX
+Controller
+
+USB3OTG_2
+AHB
+Slave
+
+AXI
+Master
+
+Bus Interface
+
+USB3OTG_controller
+
+HS/FS/LS
+MAC
+
+SS
+MAC
+
+PIPE
+
+USB3/PCIE/SATA
+PHY
+
+PCIE/SATA
+Controller
+
+Fig. 13-1 USB3 Block Diagram
+
+13.3 Function Description
+
+As USB3OTG_0 or USB3OTG_1, it can act as static xHCI host controller, static device
+controller, USB3.0/2.0 OTG A device or B device basing on ID of USB2.0 PHY. As device
+controller, it can work on either USB2.0 speed or Super-Speed basing on speed of host
+attached to, and process USB transactions described in the descriptors (read back from
+external memory by AXI master) to/from UTMI+ interface and Pipe Interface of USBDP PHY.
+As host controller, it can work on USB2.0 speed, Super-Speed or both basing on speed or
+type of attached device, and process USB transactions described in the descriptors (read
+back from external memory by AXI master) to/from UTMI+ interface and Pipe Interface of
+USBDP PHY.
+For USB3OTG_2, it only works in Super-Speed mode and process USB transactions described
+in the descriptors (read back from external memory by AXI master) to/from Pipe Interface
+of USB3/SATA/PCIE combo PHY.
+
+13.4 Register Description
+
+13.4.1 Internal Address Mapping
+
+Slave address can be divided into different length for different usage, which is shown as
+follows.
+Table 13-1 USB3 Address Mapping
+Base Address
+Device
+0xFC000000~0xFC3FFFFF
+USB3OTG_0 controller
+0xFC4000000~xFC7FFFFF
+USB3OTG_1 controller
+0xFCD00000~0xFD0FFFFF
+USB3OTG_2 controller
+USB3.0 Controller Address Mapping
+Offset Address Range
+Register Type
+0x00000 ~ 0x07FFF
+xHCI Registers, see xHCI spec.
+0x0C100 ~ 0x0C6FF
+Global Registers
+0x0C700 ~ 0x0CBFF
+Device Controller Registers
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2187
+
+RK3588 TRM-Part2
+0x0CC00 ~ 0x0CFFF
+0x40000 ~ 0x7FFFF
+0x80000 ~ 0xBFFFF
+0xC0000 ~ 0xFFFFF
+
+Unused/Reserved
+Internal RAM0 – Debug Access (256KB)
+Internal RAM1 – Debug Access (256KB)
+Internal RAM2 – Debug Access (256KB)
+
+13.4.2 Registers Summary
+Name
+
+Offset
+
+Size
+
+Reset
+Value
+0x00000001
+
+USB3OTG_GSBUSCFG0
+
+0xC100
+
+W
+
+USB3OTG_GSBUSCFG1
+
+0xC104
+
+W
+
+USB3OTG_GTXTHRCFG
+
+0xC108
+
+W
+
+USB3OTG_GRXTHRCFG
+
+0xC10C
+
+W
+
+USB3OTG_GCTL
+USB3OTG_GSTS
+USB3OTG_GUCTL1
+USB3OTG_GSNPSID
+
+0xC110
+0xC118
+0xC11C
+0xC120
+
+W
+W
+W
+W
+
+USB3OTG_GGPIO
+
+0xC124
+
+W
+
+USB3OTG_GUID
+0xC128
+USB3OTG_GUCTL
+0xC12C
+USB3OTG_GBUSERRADDR
+0xC130
+LO
+USB3OTG_GBUSERRADDR
+0xC134
+HI
+
+W
+W
+
+USB3OTG_GPRTBIMAPLO
+
+0xC138
+
+W
+
+USB3OTG_GHWPARAMS0 0xC140
+
+W
+
+USB3OTG_GHWPARAMS1 0xC144
+
+W
+
+USB3OTG_GHWPARAMS2 0xC148
+
+W
+
+USB3OTG_GHWPARAMS3 0xC14C
+
+W
+
+USB3OTG_GHWPARAMS4 0xC150
+
+W
+
+USB3OTG_GHWPARAMS5 0xC154
+
+W
+
+USB3OTG_GHWPARAMS6 0xC158
+
+W
+
+USB3OTG_GHWPARAMS7 0xC15C
+
+W
+
+USB3OTG_GDBGFIFOSPA
+0xC160
+CE
+USB3OTG_GDBGLNMCC
+0xC168
+USB3OTG_GDBGBMU
+0xC16C
+
+W
+W
+
+W
+W
+W
+
+USB3OTG_GDBGLSPMUX
+
+0xC170
+
+W
+
+USB3OTG_GDBGLSP
+
+0xC174
+
+W
+
+USB3OTG_GDBGEPINFO0 0xC178
+
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+Global SoC Bus Configuration
+Register 0
+Global SoC Bus Configuration
+0x00000300
+Register 1
+Global Tx Threshold Control
+0x00000000
+Register
+Global Rx Threshold Control
+0x00000000
+Register
+0x13512004 Global Core Control Register
+0x7E800000 Global Status Register
+0x0004018A Global User Control Register 1
+0x5533300A Global SNPS ID Register
+Global General Purpose
+0x00000000
+Input/Output Register
+0x20190520 Global User ID Register
+0x02008010 Global User Control Register
+Global SoC Bus Error Address
+0x00000000
+Register - Low
+Global SoC Bus Error Address
+0x00000000
+Register - High
+Global SS Port to Bus Instance
+0x00000000
+Mapping Register
+Global Hardware Parameters
+0x2020400A
+Register 0
+Global Hardware Parameters
+0x0120C93B
+Register 1
+Global Hardware Parameters
+0x20190520
+Register 2
+Global Hardware Parameters
+0x069CD084
+Register 3
+Global Hardware Parameters
+0x47822010
+Register 4
+Global Hardware Parameters
+0x04204018
+Register 5
+Global Hardware Parameters
+0x09D78020
+Register 6
+Global Hardware Parameters
+0x00000000
+Register 7
+Global Debug Queue/FIFO Space
+0x000A0000
+Available Register
+0x00000000 Global Debug LNMCC Register
+0x00000000 Global Debug BMU Register
+Global Debug LSP MUX Register 0x003F0000
+Device
+0x00000000 Global Debug LSP Register
+Global Debug Endpoint
+0x00000000
+Information Register 0
+
+2188
+
+RK3588 TRM-Part2
+Name
+
+Offset
+
+USB3OTG_GDBGEPINFO1 0xC17C
+USB3OTG_GPRTBIMAP_H
+0xC180
+SLO
+USB3OTG_GPRTBIMAP_FS
+0xC188
+LO
+USB3OTG_GUSB2PHYCFG
+0xC200
+0
+USB3OTG_GUSB3PIPECTL
+0xC2C0
+0
+
+Size
+
+Reset
+Value
+
+W
+
+0x00800000
+
+W
+W
+W
+W
+
+USB3OTG_GTXFIFOSIZn
+
+0xC300
+
+W
+
+USB3OTG_GRXFIFOSIZn
+
+0xC380
+
+W
+
+USB3OTG_GEVNTADRLO0 0xC400
+
+W
+
+USB3OTG_GEVNTADRHI0 0xC404
+
+W
+
+USB3OTG_GEVNTSIZ0
+
+0xC408
+
+W
+
+USB3OTG_GEVNTCOUNT0 0xC40C
+
+W
+
+USB3OTG_GHWPARAMS8 0xC600
+
+W
+
+USB3OTG_GTXFIFOPRIDE
+0xC610
+V
+USB3OTG_GTXFIFOPRIHS
+0xC618
+T
+USB3OTG_GRXFIFOPRIHS
+0xC61C
+T
+USB3OTG_GFIFOPRIDBC
+
+W
+W
+W
+
+0xC620
+
+W
+
+USB3OTG_GDMAHLRATIO 0xC624
+
+W
+
+USB3OTG_GFLADJ
+
+0xC630
+
+W
+
+USB3OTG_DCFG
+USB3OTG_DCTL
+USB3OTG_DEVTEN
+USB3OTG_DSTS
+
+0xC700
+0xC704
+0xC708
+0xC70C
+
+W
+W
+W
+W
+
+USB3OTG_DGCMDPAR
+
+0xC710
+
+W
+
+USB3OTG_DGCMD
+
+0xC714
+
+W
+
+USB3OTG_DALEPENA
+
+0xC720
+
+W
+
+USB3OTG_DEPnCMDPAR2 0xC800
+
+W
+
+USB3OTG_DEPnCMDPAR1 0xC804
+
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+Global Debug Endpoint
+Information Register 1
+Global High-Speed Port to Bus
+0x00000000
+Instance Mapping Register - Low
+Global Full-Speed Port to Bus
+0x00000000
+Instance Mapping Register - Low
+Global USB2 PHY Configuration
+0x40102400
+Register 0
+Global PIPE PHY Configuration
+0x00000000
+Register 0
+Global Transmit FIFO Size Register
+0x00000042
+n, offset (0xc300 + 4*n), n=0~6
+Global Receive FIFO Size Register
+0x03340185
+n
+Global Event Buffer Address (Low)
+0x00000000
+Register 0
+Global Event Buffer Address
+0x00000000
+(High) Register 0
+Global Event Buffer Size Register
+0x00000000
+0
+Global Event Buffer Count
+0x00000000
+Register 0
+Global Hardware Parameters
+0x0000047C
+Register 8
+Global Device TX FIFO DMA
+0x00000000
+Priority Register
+Global Host TX FIFO DMA Priority
+0x00000000
+Register
+Global Host RX FIFO DMA Priority
+0x00000000
+Register
+Global Host Debug Capability DMA
+0x00000000
+Priority Register
+Global Host FIFO DMA High-Low
+0x00000000
+Priority Ratio Register
+Global Frame Length Adjustment
+0x00000000
+Register
+0x00080000 Device Configuration Register
+0x00F00000 Device Control Register
+0x00000000 Device Event Enable Register
+0x00520000 Device Status Register
+Device Generic Command
+0x00000000
+Parameter Register
+0x00000000 Device Generic Command Register
+Device Active USB Endpoint
+0x00000000
+Enable Register
+Device Physical Endpoint-n
+0x00000000 Command Parameter 2 Register,
+offset (0xc800 + 4*n), n=0~12
+Device Physical Endpoint-n
+0x00000000 Command Parameter 1 Register,
+offset (0xc804 + 4*n), n=0~12
+
+2189
+
+RK3588 TRM-Part2
+Name
+
+Offset
+
+Size
+
+USB3OTG_DEPnCMDPAR0 0xC808
+
+W
+
+USB3OTG_DEPnCMD
+
+W
+
+0xC80C
+
+Reset
+Value
+
+Description
+
+Device Physical Endpoint-n
+0x00000000 Command Parameter 0 Register,
+offset (0xc808 + 4*n), n=0~12
+Device Physical Endpoint-n
+0x00000000 Command Register, offset (0xc80c
++ 4*n), n=0~12
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+13.4.3 Detail Registers Description
+USB3OTG_GSBUSCFG0
+Address: Operational Base + offset (0xC100)
+Bit Attr Reset Value
+Description
+datrdreqinfo
+31:28 RW 0x0
+AXI-cache for Data Read (DatRdReqInfo).
+desrdreqinfo
+27:24 RW 0x0
+AXI-cache for Descriptor Read (DesRdReqInfo).
+datwrreqinfo
+23:20 RW 0x0
+AXI-cache for Data Write (DatWrReqInfo).
+deswrreqinfo
+19:16 RW 0x0
+AXI-cache for Descriptor Write (DesWrReqInfo).
+15:12 RO 0x0
+reserved
+datbigend
+This bit controls the endian mode for data accesses.
+11
+RW 0x0
+1'b0: Little-endian (default)
+1'b1: Big-endian
+desbigend
+This bit controls the endian mode for descriptor accesses.
+10
+RW 0x0
+1'b0: Little-endian (default)
+1'b1: Big-endian
+9:8
+RO 0x0
+reserved
+incr256brstena
+7
+RW 0x0
+If software set this bit to 1, the AXI master uses INCR to do the
+256-beat burst.
+incr128brstena
+6
+RW 0x0
+If software set this bit to 1, the AXI master uses INCR to do the
+128-beat burst.
+incr64brstena
+5
+RW 0x0
+If software set this bit to 1, AXI master uses INCR to do the 64beat burst.
+incr32brstena
+4
+RW 0x0
+If software set this bit to 1, the AXI master uses INCR to do the
+32-beat burst.
+incr16brstena
+3
+RW 0x0
+If software set this bit to 1, the AXI master uses INCR to do the
+16-beat burst.
+incr8brstena
+2
+RW 0x0
+If software set this bit to 1, the AXI master uses INCR to do the
+8-beat burst.
+incr4brstena
+When this bit is enabled the controller is allowed to do bursts of
+1
+RW 0x0
+beat length 1, 2, 3, and 4. It is highly recommended that this bit
+is enabled to prevent descriptor reads and writes from being
+broken up into separate transfers.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2190
+
+RK3588 TRM-Part2
+Bit
+
+0
+
+Attr Reset Value
+
+RW 0x1
+
+Description
+incrbrstena
+This bit determines the set of burst lengths the master interface
+uses. It works in conjunction with the GSBUSCFG0[7:1] enables
+(INCR256/128/64/32/16/8/4).
+0: INCRX burst mode
+ARLEN/AWLEN do not use INCR. They use only the following
+burst lengths:
+4 (if GSBUSCFG0.INCR4BrstEna = 1);
+8 (if GSBUSCFG0.INCR8BrstEna = 1);
+16 (if GSBUSCFG0.INCR16BrstEna = 1);
+32 (if GSBUSCFG0.INCR32BrstEna = 1);
+64 (if GSBUSCFG0.INCR64BrstEna = 1);
+128 (if GSBUSCFG0.INCR128BrstEna = 1);
+256 (if GSBUSCFG0.INCR256BrstEna = 1);
+1: INCR (undefined length) burst mode;
+ARLEN/AWLEN uses any length less than or equal to the largestenabled burst length of INCR4/8/16/32/64/128/256.
+For cache line-aligned applications, this bit is typically set to 0 to
+ensure that the master interface uses only power-of-2 burst
+lengths (as enabled via GSBUSCFG0[7:0]).
+
+USB3OTG_GSBUSCFG1
+Address: Operational Base + offset (0xC104)
+Bit Attr Reset Value
+Description
+31:13 RO 0x00000
+reserved
+en1kpage
+1K Page Boundary Enable.
+12
+RW 0x0
+By default (this bit is disabled) the AXI breaks transfers at the 4k
+page boundary. When this bit is enabled, the AXI master (DMA
+data) breaks transfers at the 1k page boundary.
+pipe_trans_limit
+AXI Pipelined Transfers Burst Request Limit.
+The field controls the number of outstanding pipelined transfer
+requests the AXI master pushes to the AXI slave. When the AXI
+master reaches this limit, it does not make any more requests on
+the AXI ARADDR and AWADDR buses until the associated data
+phases complete.
+11:8 RW 0x3
+This field is encoded as follows:
+4’h0: 1 request
+4’h1: 2 requests
+4’h2: 3 requests
+4’h3: 4 requests
+...
+4’hF: 16 requests
+7:0
+RO 0x00
+reserved
+USB3OTG_GTXTHRCFG
+Address: Operational Base + offset (0xC108)
+Bit Attr Reset Value
+31:30 RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2191
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+29
+
+RO
+
+0x0
+
+28
+
+RO
+
+0x0
+
+27:24 RW 0x0
+
+23:16 RW 0x00
+
+15:0
+
+RO
+
+0x0000
+
+Description
+USBTxPktCntSel
+This field enables/disables the USB transmission multi-packet
+thresholding:
+1’b0: USB transmission multi-packet thresholding is disabled; the
+core can only start transmission on the USB after the entire
+packet has been fetched into the corresponding TXFIFO.
+1’b1: USB transmission multi-packet thresholding is enabled. The
+core can only start transmission on the USB after USB Transmit
+Packet Count amounts of packets for the USB transaction (burst)
+are already in the corresponding TXFIFO. This mode is only valid
+in the host mode. It is only used for SuperSpeed.
+reserved
+USBTxPktCnt
+This field specifies the number of packets that must be in the
+TXFIFO before the core can start transmission for the
+corresponding USB transaction (burst). This field is only valid
+when the USB Transmit Packet Count Enable field is set to one.
+Valid values are from 1 to 15.
+Note: This field must be less than or equal to the USB Maximum
+TX Burst Size field.
+USBMaxTxBurstSize
+When USBTxPktCntSel is one, this field specifies the Maximum
+Bulk OUT burst the core can do. When the system bus is
+slower than the USB, TX FIFO can underrun during a long
+burst.
+You can program a smaller value to this field to limit the TX
+burst size that the core can execute.
+Host mode: It only applies to SS Bulk, Isochronous, and
+Interrupt
+OUT endpoints.
+Device mode: This value is not used in device mode, but users
+need to program a value when using the TX threshold feature
+to make sure that the value programmed in USBTxPktCnt is
+less than this value.
+Valid values are from 1 to 16.
+reserved
+
+USB3OTG_GRXTHRCFG
+Address: Operational Base + offset (0xC10C)
+Bit Attr Reset Value
+Description
+31:30 RO 0x0
+reserved
+usb_rx_pkt_cntsel
+USB ReceivePacket Count Enable.
+This field enables/disables the USB reception multi-packet
+thresholding:
+29
+RW 0x0
+1'b0: The core can only start reception on the USB when the RX
+FIFO has space for at least one packet.
+1'b1: Not applied.
+If you are using external buffer control (EBC) feature, disable this
+mode by setting USBRxPktCntSel to 0.
+28:13 RO 0x0000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2192
+
+RK3588 TRM-Part2
+Bit
+
+12:0
+
+Attr Reset Value
+
+RW 0x0000
+
+Description
+resvl_socout_spc
+Space reserved in rx fifo for ISOC OUT.
+In host mode, this field is not applicable and must be
+programmed to 0.
+In device mode, this value represents the amount of space to be
+reserved for ISOC OUT packets.
+The value to be programmed should be chosen so as to ensure
+that non ISOC packets are not completely dropped,
+If no space needs to be reserved for ISOC OUT packets, program
+this field to 0.
+This field is valid only in device mode. The maximum configurable
+depth of rx fifo is 8192. Therefore, this field is 13 bits wide.
+For HS/FS, the space reservation is the actual value.
+
+USB3OTG_GCTL
+Address: Operational Base + offset (0xC110)
+Bit Attr Reset Value
+Description
+pwrdnscale
+31:19 RW 0x026a
+Not applied.
+masterfiltbypass
+Master Filter Bypass
+18
+RW 0x0
+When this bit is set to 1'b1, all the filters are bypassed. The
+double synchronizers to mac clk preceding the filters are also
+bypassed. For enabling the filters, this bit must be 1'b0.
+bypassetaddr
+Bypass SetAddress in Device Mode.
+When BYPSSETADDR bit is set, the device core uses the value in
+the DCFG[DevAddr] bits directly for comparing the device
+address in the tokens.
+17
+RW 0x0
+For simulation, you can use this feature to avoid sending an
+actual SET ADDRESS control transfer on the USB, and make the
+device core respond to a new address.
+Note: You can set this bit for simulation purposes only. In the
+actual hardware, this bit must be set to 1'b0.
+u2rstecn
+Device controller on USB 2.0 reset checks for receiver
+16
+RW 0x1
+termination eight times per attempt if this bit is set to zero, or
+only once per attempt if the bit is set to one.
+Note: This bit is applicable only in device mode.
+frmscldwn
+This field scales down device view of a SOF/USOF duration.
+For HS mode:
+Value of 2'h3 implements interval to be 15.625 us
+Value of 2'h2 implements interval to be 31.25 us
+Value of 2'h1 implements interval to be 62.5 us
+Value of 2'h0 implements interval to be 125us
+15:14 RW 0x0
+For FS mode, the scale-down value is multiplied by 8.
+This field also scales down the MaxPacketSize of the IN and OUT
+bulk endpoint to allow more traffic during simulation. It can only
+be changed from a non-zero value during simulation.
+2'h0: 1024 bytes
+2'h1: 512 bytes
+2'h2: 256 bytes
+2'h3: 128 bytes
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2193
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+13:12 RW 0x2
+
+11
+
+RW 0x0
+
+10
+
+RW 0x0
+
+9
+
+RW 0x0
+
+8
+
+RW 0x0
+
+7:6
+
+RW 0x0
+
+5:4
+
+RW 0x0
+
+3
+
+RW 0x0
+
+Description
+prtcapdir
+PRTCAPDIR: Port Capability Direction (PrtCapDir)
+2'b01: for Host configurations
+2'b10: for Device configurations
+SW should base on IDDIG input to set usb controller as an OTG
+2.0 device with A-device or B-device.
+coresoftreset
+Core Soft Reset (CoreSoftReset)
+1'b0: No soft reset;
+1'b1: Soft reset to core
+Clears the interrupts and all the CSRs except the following
+registers:
+GCTL; GUCTL; GSTS; GSNPSID; GGPIO; GUID; GUSB2PHYCFGn
+registers; GUSB3PIPECTLn registers; DCFG; DCTL; DEVTEN;
+DSTS.
+sofitpsync
+Not applied.
+u1u2_timescale
+Not applied.
+debugattach
+Debug Attach.
+Not applied.
+ramclksel
+RAM Clock Select (RAMClkSel)
+2'b00: bus clock
+2'b01: pipe clock (Only used in device mode)
+2'b10: In device mode, pipe/2 clock. In Host mode, controller
+switches ram_clk between pipe/2 clock, mac2_clk and bus_clk
+based on the status of the U2 ports
+2'b11: In device mode, selects mac2_clk as ram_clk (when 8-bit
+UTMI or ULPI used. Not supported in 16-bit UTMI mode); In Host
+mode, controller switches ram_clk between pipe_clk, mac2_clk
+and bus_clk based on the status of the U2 ports.
+In device mode, upon a USB reset and USB disconnect, the
+hardware clears these bits to 2'b00.
+scaledown
+Scale-Down Mode (ScaleDown)
+When Scale-Down mode is enabled for simulation, the core uses
+scaled-down timing values, resulting in faster simulations.
+When Scale-Down mode is disabled, actual timing values are
+used. This is required for hardware operation.
+HS/FS/LS Modes:
+2'b00: Disables all scale-downs. Actual timing values are used.
+2'b01: Enables scale-down of all timing values except Device
+mode suspend and resume. These include Speed enumeration,
+HNP/SRP, and Host mode suspend and resume
+2'b10: Enables scale-down of Device mode suspend and resume
+timing values only.
+2'b11: Enables bit 0 and bit 1 scale-down timing values.
+disscramble
+Disable Scrambling (DisScramble)
+Transmit request to Link Partner on next transition to Recovery or
+Polling.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2194
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+2
+
+RW 0x1
+
+1
+
+RO
+
+0
+
+RW 0x0
+
+0x0
+
+Description
+u2exit_lfps
+If this bit is:
+1'b0: the link treats 248ns LFPS as a valid U2 exit.
+1'b1: the link waits for 8us of LFPS before it detects a valid U2
+exit.
+This bit is added to improve interoperability with a third part host
+controller. This host controller in U2 state while performing
+receiver detection generates an LFPS glitch of about 4ms
+duration. This causes the device to exit from U2 state because
+the LFPS filter value is 248ns. With the new functionality enabled,
+the device can stay in U2 while ignoring this glitch from the host
+controller.
+gbl_hibernation_en
+This bit enables hibernation at the global level. If hibernation is
+not enabled through this bit, the PMU immediately accepts the
+D0->D3 and D3->D0 power state change requests, but does not
+save or restore any core state. In addition, the PMUs never drive
+the PHY interfaces and let the core continue to drive the PHY
+interfaces.
+dsblclkgtng
+Disable Clock Gating.
+This bit is set to 1 and the core is in Low Power mode, internal
+clock gating is disabled. You can set this bit to 1'b1 after Power
+On Reset.
+
+USB3OTG_GSTS
+Address: Operational Base + offset (0xC118)
+Bit Attr Reset Value
+Description
+cbelt
+Current BELT Value.
+31:20 RO 0x7e8
+In Host mode, this field indicates the minimum value of all
+received device BELT values and the BELT value that is set by the
+Set Latency Tolerance Value command.
+19:12 RO 0x00
+reserved
+SSIC_IP
+11
+RO 0x0
+Not applied.
+OTG_IP
+OTG Interrupt Pending.
+10
+RO 0x0
+This field indicates that there is a pending interrupt pertaining to
+OTG in OEVT register.
+bc_ip
+Battery Charger Interrupt Pending
+9
+RO 0x0
+This field indicates that there is a pending interrupt pertaining to
+BC in BCEVT register.
+adp_ip
+ADP Interrupt Pending.
+8
+RO 0x0
+This field indicates that there is a pending interrupt pertaining to
+ADP in ADPEVT register.
+host_ip
+Host Interrupt Pending.
+7
+RO 0x0
+This field indicates that there is a pending interrupt pertaining to
+xHC in the Host event queue.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2195
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+6
+
+RO
+
+0x0
+
+5
+
+W1
+C
+
+0x0
+
+4
+
+W1
+C
+
+0x0
+
+3:2
+
+RO
+
+0x0
+
+1:0
+
+RO
+
+0x0
+
+Description
+device_ip
+Device Interrupt Pending
+This field indicates that there is a pending interrupt pertaining to
+peripheral (device) operation in the Device event queue.
+csr_timeout
+When this bit is 1'b1, it indicates that the software performed a
+write or read to a core register that could not be completed
+within DWC_USB3_CSR_ACCESS_TIMEOUT bus clock cycles
+(default: h1FFFF).
+buserraddrvld
+us Error Address Valid
+Indicates that the GBUSERRADDR register is valid and reports the
+first bus address that encounters a bus error.
+reserved
+curmod
+Current Mode of Operation.
+
+USB3OTG_GUCTL1
+Address: Operational Base + offset (0xC11C)
+Bit Attr Reset Value
+Description
+31:30 RO 0x0
+reserved
+filter_se0_fsls_eop
+1'b0: Default behaviour, no change in Linestate check for SE0
+detection in FS/LS.
+1'b1: Feature enabled, FS/LS SE0 is filtered for 2 clocks for
+detecting EOP.
+This bit is applicable for FS/LS operation. If this feature is
+enabled, then SE0 on the Linestate is validated for 2 consecutive
+utmi/ulpi clock edges for EOP detection. This feature is applicable
+only in FS in device mode and FS/LS mode of operation in host
+mode.
+29
+RW 0x0
+Device mode: FS - If GUCTL1.FILTER_SE0_FSLS_EOP is set, then
+for device LPM handshake, the core will ignore single SE0 glitch
+on the Linestate during transmit. Only 2 or more SE0 is
+considered as a valid EOP on FS.
+Host mode: FS/LS - If GUCTL1.FILTER_SE0_FSLS_EOP is set,
+then the core will ignore single SE0 glitch on the Linestate during
+transmit. Only 2 or more SE0 is considered as a valid EOP on
+FS/LS port. Enable this feature if the Linestate has SE0 glitches
+during transmission. This bit is quasi-static, i.e., should not be
+changed during device operation.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2196
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+28
+
+RW 0x0
+
+27
+
+RW 0x0
+
+26
+
+RW 0x0
+
+25
+
+RW 0x0
+
+Description
+tx_ipgap_linecheck_dis
+1'b0: Default behavior, no change in Linestate check.
+1'b1: Feature enable, 2.0 MAC disables Linestate check during HS
+transmit.
+This bit is applicable for HS operation of u2mac. If this feature is
+enabled, then the 2.0 mac operating in HS ignores the UTMI/ULPI
+Linestate during the transmit of a token (during token-to-token
+and token-to-data IPGAP). When enabled, the controller
+implements a fixed 40-bit TxEndDelay after the packet is given
+on UTMI and ignores the Linestate during this time. This feature
+is applicable only in HS mode of operation.
+Device mode: If GUCTL1.TX_IPGAP_LINECHECK_DIS is set, then
+for device LPM handshake, the core will ignore the Linestate after
+TX and wait for a fixed clocks (40 bit times equivalent) after
+transmitting ACK on utmi.
+Host mode: If GUCTL1.TX_IPGAP_LINECHECK_DIS is set, then
+the ipgap between (tkn to tkn/data) is added by 40 bit times of
+TXENDDELAY, and linestate is ignored during this 40 bit times
+delay.
+Enable this bit if the LineState will not reflect the expected line
+state (J) during transmission. This bit is quasi-static, i.e., should
+not be changed during device operation.
+dev_trb_out_spr_ind
+1'b0: Default behavior, no change in TRB status dword.
+1'b1: Feature enable, OUT TRB status indicates Short Packet.
+This bit is applicable for device mode only (and ignored in host
+mode). If the device application (SW/HW) wants to know if a
+short packet was received for an OUT in the TRB status itself,
+then this feature can be enabled, so that a bit is set in the TRB
+writeback in the buf_size dword. Bit[26] - SPR of the trbstatus,
+RSVD, SPR,PCM1, bufsize dword will be set during an OUT
+transfer TRB write back if this is the last TRB used for that
+transfer descriptor. This bit is quasi-static, i.e., should not be
+changed during device operation.
+dve_force_20clk_for_30clk
+Not applied.
+p3_in_u2
+Not applied.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2197
+
+RK3588 TRM-Part2
+Bit
+
+24
+
+Attr Reset Value
+
+RW 0x0
+
+23:21 RW 0x0
+
+20
+
+RW 0x0
+
+19
+
+RW 0x0
+
+Description
+dev_l1_exit_by_hw
+1'b0: Default behavior, disables device L1 hardware exit logic.
+1'b1: Feature enabled
+This bit is applicable for device mode (2.0) only. This field enables
+device controller sending remote wakeup for L1 if the device
+becomes ready for sending/accepting data when in L1 state. If
+the host expects the device to send remote wkp signaling to
+resume after going into L1 in flow controlled state, then this bit
+can be set to send the remote wake signal automatically when
+the device controller becomes ready. This HW remote wake
+feature is applicable only to bulk and interrupt transfers, and not
+for Isoch/Control
+When control transfers are in progress, the LPM will be rejected
+(NYET response). Only after control transfers are completed
+(either with ACK/STALL), LPM will be accepted
+For Isoch transfers, the host needs to do the wake-up and start
+the transfer. Device controller will not do remote-wakeup when
+Isoch endpoints get ready. The device SW needs to keep the
+GUSB2PHYCFG[EnblSlpM] reset in order to keep the PHY clock to
+be running for keeping track of SOF intervals.
+When L1 hibernation is enabled, the controller will not do
+automatic exit for hibernation requests thru L1.
+This bit is quasi-static, i.e., should not be changed during device
+operation.
+ip_gap_add_on
+This register field is used to add on to the default inter packet
+gap setting in the USB 2.0 MAC.
+dev_lsp_tail_lock_dis
+1'b0: Default behaviour, enables device lsp lock logic for tail TRB
+update.
+1'b1: Fix disabled
+This is a bug fix for STAR 9000716195 that affects the CSP mode
+for OUT endpoints in device mode. The issue is that tail TRB
+index is not synchronized with the cache Scratchpad bytecount
+update. If the fast-forward request comes in-between the
+bytecount update on a newly fetched TRB and the tail-index write
+update in TPF, the RDP works on an incorrect tail index and
+misses the byte count decrement for the newly fetched TRB in
+the fast-forwarding process. This fix needs to be present all the
+times.
+nak_per_enh_fs
+1'b1: Enables performance enhancement for FS async endpoints
+in the presence of NAKs.
+1'b0: Enhancement not applied.
+If a periodic endpoint is present, and if a bulk endpoint which is
+also active is being NAKed by the device, then this could result in
+a decrease in performance of other Full Speed bulk endpoint
+which is ACKed by the device. Setting this bit to 1, will enable the
+host controller to schedule more transactions to the async
+endpoints (bulk/ control) and hence will improve the performance
+of the bulk endpoint. This control bit should be enabled only if the
+existing performance with the default setting is not sufficient for
+your FullSpeed application. Setting this bit will only control, and
+is only required for Full Speed transfers.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2198
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+18
+
+RW 0x1
+
+17
+
+RW 0x0
+
+16
+
+RW 0x0
+
+15
+
+RW 0x0
+
+14:9
+
+RO
+
+0x00
+
+Description
+nak_per_enh_hs
+1'b1: Enables performance enhancement for HS async endpoints
+in the presence of NAKs.
+1'b0: Enhancement not applied.
+If a periodic endpoint is present, and if a bulk endpoint which is
+also active is being NAKed by the device, then this could result in
+a decrease in performance of other High Speed bulk endpoint
+which is ACKed by the device. Setting this bit to 1, will enable the
+host controller to schedule more transactions to the async
+endpoints (bulk/ control) and hence will improve the performance
+of the bulk endpoint. This control bit should be enabled only if the
+existing performance with the default setting is not sufficient for
+your HighSpeed application. Setting this bit will only control, and
+is only required for High Speed transfers.
+parkmode_disbale_ss
+Not applied.
+parkmode_disable_hs
+This bit is used only in host mode.
+When this bit is set to 1 all HS bus instances park mode are
+disabled.
+To improve performance in park mode, the xHCI scheduler
+queues in three requests of 4 packets each for High Speed
+asynchronous endpoints in a micro-frame. But if a device is slow
+and if it NAKs more than 3 times, then it is rescheduled only in
+the next micro-frame. This could decrease the performance of a
+slow device even further.
+In a few High Speed devices (such as Sandisk Cruzer Blade 4GB
+VID: 1921, PID: 21863 and Flex Drive VID: 3744, PID: 8552)
+when an IN request is sent within 900ns of the ACK of the
+previous packet, these devices send a NAK. When connected to
+these devices, if required, the software can disable the park
+mode if you see performance drop in your system. When park
+mode is disabled, pipelining of multiple packet is disabled and
+instead one packet at a time is requested by the scheduler. This
+allows up to 12 NAKs in a micro-frame and improves performance
+of these slow devices.
+parkmod_disavale_fsls
+This bit is used only in host mode, and is for debug purpose only.
+When this bit is set to 1 all FS/LS bus instances in park mode
+disabled.
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2199
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+8
+
+RW 0x1
+
+7:4
+
+RW 0x8
+
+3
+
+RW 0x1
+
+2
+
+RW 0x0
+
+1
+
+RW 0x1
+
+0
+
+RW 0x0
+
+Description
+l1_susp_thrld_en_for_host
+This bit is used only in host mode.
+The host controller asserts the utmi_l1_suspend_n and
+utmi_sleep_n output signals (see LPM Interface Signals table in
+the Databook) as follows:
+The controller asserts the utmi_l1_suspend_n signal to put the
+PHY into deep low-power mode in L1 when both of the following
+are true:
+The HIRD/BESL value used is greater than or equal to the value
+in L1_SUSP_THRLD_FOR_HOST field.
+The L1_SUSP_THRLD_EN_FOR_HOST bit is set to 1'b1. The
+controller asserts utmi_sleep_n on L1 when one of the following
+is true:
+The HIRD/BESL value used is less than the value in
+L1_SUSP_THRLD_FOR_HOST field.
+The L1_SUSP_THRLD_EN_FOR_HOST bit is set to 1'b0.
+l1_susp_thrld_for_host
+This field is effective only when the
+L1_SUSP_THRLD_EN_FOR_HOST bit is set to 1. For more details,
+refer to the description of the L1_SUSP_THRLD_EN_FOR_HOST
+bit.
+hc_errata_enable
+Not applied.
+hc_parchk_disable
+Host Parameter Check Disable.
+When this bit is set to 0 (by default), the xHC checks that the
+input slot/EP context fields comply to the xHCI Specification.
+Upon detection of a parameter error during command execution,
+the xHC generates an event TRB with completion code indicating
+PARAMETER ERROR.
+When the bit is set to 1, the xHC does not perform parameter
+checks and does not generate PARAMETER ERROR completion
+code.
+ovrld_l1_susp_com
+If this bit is set, the utmi_l1_suspend_com_n is overloaded with
+the utmi_sleep_n signal. This bit is usually set if the PHY stops
+the port clock during L1 sleep condition.
+loa_filter_en
+If this bit is set, the USB 2.0 port babble is checked at least three
+consecutive times before the port is disabled. This prevents false
+triggering of the babble condition when using low quality cables.
+Note: This bit is valid only in host mode.
+
+USB3OTG_GSNPSID
+Address: Operational Base + offset (0xC120)
+Bit Attr Reset Value
+Description
+snpsid
+SNPSID[31:16] indicates Core Identification Number. 0x5533 is
+ASCII for U3 (DWC_usb3).
+31:0 RO 0x5533300a SNPSID[15:0] indicates the release number. Current Release is
+3.00a.
+Software uses this register to configure release-specific features
+in the driver.
+USB3OTG_GGPIO
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2200
+
+RK3588 TRM-Part2
+Address: Operational Base + offset (0xC124)
+Bit Attr Reset Value
+Description
+gpo
+General Purpose Output
+31:16 RW 0x0000
+This field's value is driven out on the gp_out[15:0] core output
+port.
+gpi
+15:0 RO 0x0000
+General Purpose Input
+This field's read value reflects the gp_in[15:0] core input value.
+USB3OTG_GUID
+Address: Operational Base + offset (0xC128)
+Bit Attr Reset Value
+Description
+userid
+31:0 RW 0x20190520
+Application-programmable ID field.
+USB3OTG_GUCTL
+Address: Operational Base + offset (0xC12C)
+Bit Attr Reset Value
+Description
+refclkper
+This field indicates in terms of nano seconds the period of ref_clk.
+The default value of this register is set to 'h8 (8ns/125 MHz).
+This field needs to be updated during power-on initialization, if
+GCTL.SOFITPSYNC or GFLADJ.GFLADJ_REFCLK_LPM_SEL is set to
+1. The programmable maximum value is 62ns, and the minimum
+31:22 RW 0x008
+value is 8ns.
+You must use a reference clock with a period that is an integer
+multiple, so that ITP can meet the jitter margin of 32ns. The
+allowable ref_clk frequencies whose period is not integer
+multiples are 16/17/19.2/24/39.7MHz.
+This field must not be set to 0 at any time. If you never plan to
+use this feature, then set this field to 'h8, the default value.
+no_extr_di
+No Extra Delay Between SOF and the First.
+Some HS devices misbehave when the host sends a packet
+immediately after a SOF. However, adding an extra delay between
+a SOF and the first packet can reduce the USB data rate and
+performance.
+This bit is used to control whether the host must wait for 2
+21
+RW 0x0
+microseconds before it sends the first packet after a SOF, or not.
+User can set this bit to one to improve the performance if those
+problematic devices are not a concern in the user's host
+environment.
+1'b0: Host waits for 2 microseconds after a SOF before it sends
+the first USB packet.
+1'b1: Host doesn't wait after a SOF before it sends the first USB
+packet.
+20:18 RO 0x0
+reserved
+sprs_ctrl_trans_en
+Sparse Control Transaction Enable.
+Some devices are slow in responding to Control transfers.
+17
+RW 0x0
+Scheduling multiple transactions in one microframe/frame can
+cause these devices to misbehave.
+If this bit is set to 1'b1, the host controller schedules transactions
+for a Control transfer in different microframes/frames.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2201
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+16
+
+RW 0x0
+
+15
+
+RW 0x1
+
+14
+
+RW 0x0
+
+13
+
+RW 0x0
+
+Description
+res_bw_hs_esp
+Reserving 85% Bandwidth for HS Periodic EPs.
+By default, HC reserves 80% of the bandwidth for periodic EPs. If
+this bit is set, the bandwidth is relaxed to 85% to accommodate
+two high speed, high bandwidth ISOC EPs.
+USB 2.0 required 80% bandwidth allocated for ISOC traffic. If two
+High-bandwidth ISOC devices (HD Webcams) are connected, and
+if each requires 1024-bytes X 3 packets per Micro-Frame, then
+the bandwidth required is around 82%. If this bit is set, then it is
+possible to connect two Webcams of 1024bytes X 3 payload per
+Micro-Frame each. Otherwise, you may have to reduce the
+resolution of the Webcams.
+This bit is valid in Host and DRD configuration and is used in host
+mode operation only. Ignore this bit in device mode.
+cm_dev_addr
+Compliance Mode for Device Address.
+When this bit is 1'b1, Slot ID may have different value than
+Device Address if max_slot_enabled < 128.
+1'b1: Increment Device Address on each Address Device
+command.
+1'b0: Device Address is equal to Slot ID.
+The xHCI compliance requires this bit to be set to 1. The 0 mode
+is for debug purpose only. This allows you to easily identify a
+device connected to a port in the Lecroy or Eliisys trace during
+hardware debug.
+This bit is valid in Host and DRD configuration and is used in host
+mode operation only. Ignore this bit in device mode.
+usb_host_in_auto_retry_en
+Host IN Auto Retry.
+1'b0: Auto Retry Disabled
+1'b1: Auto Retry Enabled
+Note: This bit is also applicable to the device mode.
+en_overlap_chk
+Not applied.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2202
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+12
+
+RW 0x0
+
+11
+
+RW 0x0
+
+10:9
+
+RW 0x0
+
+Description
+ext_cap_suppt_en
+External Extended Capability Support Enable
+When set, this field enables extended capabilities to be
+implemented outside the core.
+When the ExtCapSupEN is set and the Debug Capability is
+enabled, the Next Capability pointer in Debug Capability returns
+16.
+A read to the first DWORD of the last internal extended capability
+(the "xHCI Supported Protocol Capability for USB 3.0" when the
+Debug Capability is not enabled) returns a value of 4 in the Next
+Capability Pointer field.
+This indicates to software that there is another capability four
+DWORDs after this capability (for example, at address N+16
+where N is the address of this DWORD). If enabled, an external
+address decoder that snoops the xHC slave interface must be
+implemented.
+If it sees an access to N+16 or greater, the slave access is rerouted to a piece of hardware which returns the external
+capability pointer register of the new capability and also handles
+reads/writes to this new capability and the side effects.
+If disabled, a read to the first DWORD of the last internal
+extended capability returns 0 in the 'Next Capability Pointer' field.
+This indicates there are no more capabilities.
+insrt_extr_fsbodi
+Insert Extra Delay Between FS Bulk OUT.
+Some FS devices are slow to receive Bulk OUT data and can get
+stuck when there are consecutive Bulk OUT transactions with
+short inter-transaction delays. This bit is used to control whether
+the host inserts extra delay between consecutive Bulk OUT
+transactions to a FS Endpoint.
+1'b0: Host doesn't insert extra delay between consecutive Bulk
+OUT transactions to a FS Endpoint.
+1'b1: Host inserts about 12us extra delay between consecutive
+Bulk OUT transactions to a FS Endpoint to work around the
+device issue.
+Note: Setting this bit to one will reduce the Bulk OUT transfer
+performance for most of the FS devices.
+dtct
+Device Timeout Coarse Tuning.
+This field is a Host mode parameter which determines how long
+the host waits for a response from device before considering a
+timeout.
+The core first checks the DTCT value. If it is 0, then the timeout
+value is defined by the DTFT. If it is non-zero, then it uses the
+following timeout values:
+2'b00: 0 usec -> use DTFT value instead
+2'b01: 500 usec
+2'b10: 1.5 msec
+2'b11: 6.5 msec
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2203
+
+RK3588 TRM-Part2
+Bit
+
+8:0
+
+Attr Reset Value
+
+RW 0x010
+
+Description
+ctft
+Device Timeout Fine Tuning.
+This field is a Host mode parameter which determines how long
+the host waits for a response from device before considering a
+timeout.
+For the DTFT field to take effect, DTCT must be set to 2'b00.
+The DTFT value is the number of 125 MHz clocks * 256 to count
+before considering a device timeout.
+The minimum value of DTFT is 2.
+For example, if the mac3_clk is 125 MHz clk (8 ns period), this is
+calculated as follows:
+(DTFT value) * 256 * (8 ns)
+Quick Reference:
+if DTFT = 0x2, 2*256*8 = 4usec timeout
+if DTFT = 0x5, 5*256*8 = 10usec timeout
+if DTFT = 0xA, 10*256*8 = 20usec timeout
+if DTFT = 0x10, 16*256*8 = 32usec timeout
+if DTFT = 0x19, 25*256*8 = 51usec timeout
+if DTFT = 0x31, 49*256*8 = 100usec timeout
+if DTFT = 0x62, 98*256*8 = 200usec timeout
+
+USB3OTG_GBUSERRADDRLO
+Address: Operational Base + offset (0xC130)
+Bit Attr Reset Value
+Description
+buserraddr
+Bus Address - Low.
+This register contains the lower 32 bits of the first bus address
+31:0 RO 0x00000000 that encountered a SoC bus error. It is valid when the
+GSTS.BusErrAddrVld field is 1. It can only be cleared by resetting
+the core.
+Note: Only supported in AHB and AXI configurations.
+USB3OTG_GBUSERRADDRHI
+Address: Operational Base + offset (0xC134)
+Bit Attr Reset Value
+Description
+buserraddr
+Bus Address - High.
+This register contains the higher 32 bits of the first bus address
+31:0 RU 0x00000000 that encountered a SoC bus error. It is valid when the
+GSTS.BusErrAddrVld field is 1. It can only be cleared by resetting
+the core.
+Note: Only supported in AHB and AXI configurations.
+USB3OTG_GPRTBIMAPLO
+Address: Operational Base + offset (0xC138)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+BINUM1
+3:0
+RW 0x0
+SS USB Instance Number for Port 1
+Application-programmable ID field.
+USB3OTG_GHWPARAMS0
+Address: Operational Base + offset (0xC140)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2204
+
+RK3588 TRM-Part2
+Bit
+31:0
+
+Attr Reset Value
+RO
+
+0x2020400a
+
+Description
+ghwparams0
+Global Hardware Parameters Register 0.
+
+USB3OTG_GHWPARAMS1
+Address: Operational Base + offset (0xC144)
+Bit Attr Reset Value
+Description
+ghwparams1
+31:0 RO 0x0120c93b
+Global Hardware Parameters Register 1.
+USB3OTG_GHWPARAMS2
+Address: Operational Base + offset (0xC148)
+Bit Attr Reset Value
+Description
+ghwparams2
+31:0 RO 0x20190520
+Global Hardware Parameters Register 2.
+USB3OTG_GHWPARAMS3
+Address: Operational Base + offset (0xC14C)
+Bit Attr Reset Value
+Description
+ghwparams3
+31:0 RO 0x069cd084
+Global Hardware Parameters Register 3.
+USB3OTG_GHWPARAMS4
+Address: Operational Base + offset (0xC150)
+Bit Attr Reset Value
+Description
+ghwparams4
+31:0 RO 0x47822010
+Global Hardware Parameters Register 4.
+USB3OTG_GHWPARAMS5
+Address: Operational Base + offset (0xC154)
+Bit Attr Reset Value
+Description
+ghwparams5
+31:0 RO 0x04204018
+Global Hardware Parameters Register 5.
+USB3OTG_GHWPARAMS6
+Address: Operational Base + offset (0xC158)
+Bit Attr Reset Value
+Description
+ghwparams6
+31:0 RO 0x09d78020
+Global Hardware Parameters Register 6.
+USB3OTG_GHWPARAMS7
+Address: Operational Base + offset (0xC15C)
+Bit Attr Reset Value
+Description
+ghwparams7
+31:0 RO 0x00000000
+Global Hardware Parameters Register 7.
+USB3OTG_GDBGFIFOSPACE
+Address: Operational Base + offset (0xC160)
+Bit Attr Reset Value
+space_available
+31:16 RO 0x000a
+Space Available.
+15:9 RO 0x00
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2205
+
+RK3588 TRM-Part2
+Bit
+
+8:0
+
+Attr Reset Value
+
+RW 0x000
+
+Description
+fifo_queue_select
+FIFO/Queue Select (or) Port-Select.
+FIFO/Queue Select[8:5] indicates the FIFO/Queue Type.
+FIFO/Queue Select[4:0] indicates the FIFO/Queue Number.
+Port-Select[3:0] selects the port-number when accessing
+GDBGLTSSM register.
+
+USB3OTG_GDBGLNMCC
+Address: Operational Base + offset (0xC168)
+Bit Attr Reset Value
+Description
+31:9 RO 0x000000
+reserved
+lnmcc_berc
+This field indicates the bit error rate information for the port
+8:0
+RO 0x000
+selected in the GDBGFIFOSPACE.PortSelect field. This field is for
+debug purposes only.
+USB3OTG_GDBGBMU
+Address: Operational Base + offset (0xC16C)
+Bit Attr Reset Value
+Description
+bmu_bcu
+31:8 RW 0x000000
+BMU_BCU Debug information.
+bmu_dcu
+7:4
+RO 0x0
+BMU_DCU Debug information.
+bmu_ccu
+3:0
+RO 0x0
+BMU_CCU Debug information.
+USB3OTG_GDBGLSPMUX
+Address: Operational Base + offset (0xC170)
+Bit Attr Reset Value
+Description
+31:24 RO 0x00
+reserved
+logic_analyzer_trace
+Logic Analyzer Trace Port MUX Select.
+Currently only bits[21:16] are used. A value of 6'h3F drives "0"s
+23:16 RW 0x3f
+on the logic_analyzer_trace signal. If you plan to OR (instead
+using a mux) this signal with other trace signals in your system
+to generate a common trace signal, you can use this feature.
+endbc
+Enable debugging of Debug capability LSP in Host mode. Use
+15
+RW 0x0
+HostSelect to select DbC LSP debug information presented in the
+GDBGLSP register.
+14
+RO 0x0
+Reserved
+hostselect
+Host LSP Select.
+13:8 RW 0x00
+Selects the LSP debug information presented in the GDBGLSP
+register in host mode.
+devselect
+Device LSP Select.
+Selects the LSP debug information presented in the GDBGLSP
+7:4
+RW 0x0
+register in device mode. Or bit[7:4] of HOSTSELECT, Selects the
+LSP debug information presented in the GDBGLSP register in host
+mode.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2206
+
+RK3588 TRM-Part2
+Bit
+
+3:0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+epselect
+Device Endpoint Select.
+Selects the Endpoint debug information presented in the
+GDBGEPINFO registers in device mode. Or bit[3:0] of
+HOSTSELECT, Selects the LSP debug information presented in the
+GDBGLSP register in host mode.
+
+USB3OTG_GDBGLSP
+Address: Operational Base + offset (0xC174)
+Bit Attr Reset Value
+lspdebug
+31:0 RO 0x00000000
+LSP Debug Information.
+
+Description
+
+USB3OTG_GDBGEPINFO0
+Address: Operational Base + offset (0xC178)
+Bit Attr Reset Value
+Description
+epdebug
+31:0 RO 0x00000000
+Endpoint Debug Information Low 32-bit.
+USB3OTG_GDBGEPINFO1
+Address: Operational Base + offset (0xC17C)
+Bit Attr Reset Value
+Description
+epdebug
+31:0 RO 0x00800000
+Endpoint Debug Information High 32-bit.
+USB3OTG_GPRTBIMAP_HSLO
+Address: Operational Base + offset (0xC180)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+binum1
+3:0
+RW 0x0
+HS USB Instance Number for Port 1.
+Application-programmable ID field.
+USB3OTG_GPRTBIMAP_FSLO
+Address: Operational Base + offset (0xC188)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+binum1
+3:0
+RW 0x0
+FS USB Instance Number for Port 1.
+Application-programmable ID field.
+USB3OTG_GUSB2PHYCFG0
+Address: Operational Base + offset (0xC200)
+Bit Attr Reset Value
+Description
+physoftrst
+UTMI PHY Soft Reset.
+Causes the usb2phy_reset signal to be asserted to reset a UTMI
+31
+RW 0x0
+PHY. Not applicable to ULPI because ULPI PHYs are reset via their
+FunctionControl. Reset register, and the core automatically writes
+to this register when the core is reset (vcc_reset_n,
+USBCMD.HCRST, DCTL.SoftReset, or GCTL.SoftReset).
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2207
+
+RK3588 TRM-Part2
+Bit
+
+30
+
+Attr Reset Value
+
+RW 0x1
+
+29:25 RO
+
+0x00
+
+24:22 RW 0x0
+
+21:19 RW 0x2
+
+18:14 RO
+
+0x00
+
+Description
+u2_freeclk_exists
+Specifies whether your USB 2.0 PHY provides a free-running PHY
+clock, which is active when the clock control input is active.
+If your USB 2.0 PHY provides a free-running PHY clock, it must be
+connected to the utmi_clk[0] input. The remaining utmi_clk[n]
+must be connected to the respective port clocks. The core uses
+the Port-0 clock for generating the internal mac2 clock.
+1'b0: USB 2.0 free clock does not exist
+1'b1: USB 2.0 free clock exists
+Note: When the core is configured as device-only, do not set this
+bit to 1.
+reserved
+lstrd
+LS Turnaround Time.
+This field indicates the value of the Rx-to-Tx packet gap for LS
+devices. The encoding is as follows:
+3'h0: 2 bit times
+3'h1: 2.5 bit times
+3'h2: 3 bit times
+3'h3: 3.5 bit times
+3'h4: 4 bit times
+3'h5: 4.5 bit times
+3'h6: 5 bit times
+3'h7: 5.5 bit times
+Note:
+This field is applicable only in Host mode.
+For normal operation (to work with most LS devices), set the
+default value of this field to 3'h0 (2 bit times).
+The programmable LS device inter-packet gap and turnaround
+delays are provided to support some legacy LS devices that might
+require different delays than the default/fixed ones. For instance,
+the Open LS mouse requires 3 bit times of inter-packet gap to
+work correctly.
+lsipd
+LS Inter-Packet Time.
+This field indicates the value of Tx-to-Tx packet gap for LS
+devices.
+The encoding is as follows:
+3'h0: 2 bit times
+3'h1: 2.5 bit times
+3'h2: 3 bit times
+3'h3: 3.5 bit times
+3'h4: 4 bit times
+3'h5: 4.5 bit times
+3'h6: 5 bit times
+3'h7: 5.5 bit times
+Note:
+This field is applicable only in Host mode.
+For normal operation (to work with most LS devices), set the
+default value of this field to 3'h2 (3 bit times).
+The programmable LS device inter-packet gap and turnaround
+delays are provided to support some legacy LS devices that might
+require different delays than the default/fixed ones. For instance,
+the AOpen LS mouse requires 3 bit times of inter-packet gap to
+work correctly.
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2208
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+13:10 RW 0x9
+
+9
+
+RW 0x0
+
+8
+
+RW 0x0
+
+7
+
+RO
+
+0x0
+
+Description
+usbtrdim
+USB 2.0 Turnaround Time.
+Sets the turnaround time in PHY clocks.
+Specifies the response time for a MAC request to the Packet FIFO
+Controller (PFC) to fetch data from the DFIFO (SPRAM).
+The following are the required values for the minimum SoC bus
+frequency of 60 MHz. USB turnaround time is a critical
+certification criteria when using long cables and five hub levels.
+The required values for this field:
+4'h5: When the MAC interface is 16-bit UTMI+.
+4'h9: When the MAC interface is 8-bit UTMI+/ULPI.
+If SoC bus clock is less than 60 MHz, and USB turnaround time is
+not critical, this field can be set to a larger value.
+Note: This field is valid only in device mode.
+xcvrdly
+Transceiver Delay.
+Enables a delay between the assertion of the UTMI/ULPI
+Transceiver Select signal (for HS) and the assertion of the TxValid
+signal during a HS Chirp.
+When this bit is set to 1, a delay (of approximately 2.5 us) is
+introduced from the time when the Transceiver Select is set to
+2'b00 (HS) to the time the TxValid is driven to 0 for sending the
+chirp-K.
+This delay is required for some UTMI/ULPI PHYs.
+Note:
+If you enable the hibernation feature when the device core comes
+out of power-off, you must re-initialize this bit with the
+appropriate value because the core does not save and restore
+this bit value during hibernation.
+This bit is valid only in device mode.
+enblslpm
+Enable utmi_sleep_n and utmi_l1_suspend_n.
+The application uses this bit to control utmi_sleep_n and
+utmi_l1_suspend_n assertion to the PHY in the L1 state.
+1'b0: utmi_sleep_n and utmi_l1_suspend_n assertion from the
+core is not transferred to the external PHY.
+1'b1: utmi_sleep_n and utmi_l1_suspend_n assertion from the
+core is transferred to the external PHY.
+Note:
+This bit must be set high for Port0 if SNPS PHY is used.
+In Device mode - Before issuing any device endpoint command
+when operating in 2.0 speeds, disable this bit and enable it after
+the command completes. Without disabling this bit, if a command
+is issued when the device is in L1 state and if mac2_clk
+(utmi_clk/ulpi_clk) is gated off, the command will not get
+completed.
+physel
+USB 2.0 High-Speed PHY or USB 1.1 Full-Speed.
+1'b0: USB 2.0 high-speed UTMI+ or ULPI PHY.
+1'b1: USB 1.1 full-speed serial transceiver.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2209
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+6
+
+RW 0x0
+
+5
+
+RO
+
+0x0
+
+4
+
+RO
+
+0x0
+
+3
+
+RW 0x0
+
+2:0
+
+RW 0x0
+
+Description
+suspendusb20
+Suspend USB2.0 HS/FS/LS PHY.
+When set, USB2.0 PHY enters Suspend mode if Suspend
+conditions are valid.
+If it is set to 1, then the application must clear this bit after
+power-on reset. Application needs to set it to 1 after the core
+initialization completes.
+For all other configurations, this bit can be set to 1 during core
+configuration.
+Note:
+In host mode, on reset, this bit is set to 1. Software can override
+this bit after reset.
+In device mode, before issuing any device endpoint command
+when operating in 2.0 speeds, disable this bit and enable it after
+the command completes. If you issue a command without
+disabling this bit when the device is in L2 state and if mac2_clk
+(utmi_clk/ulpi_clk) is gated off, the command will not get
+completed.
+reserved
+ulpi_utmi_sel
+ULPI or UTMI+ Select.
+1'b0: UTMI+ Interface
+1'b1: ULPI Interface
+phyif
+If UTMI+ is selected, the application uses this bit to configure the
+core to support a UTMI+ PHY with an 8- or 16-bit interface.
+1'b0: 8 bits
+1'b1: 16 bits
+tout_cal
+HS/FS Timeout Calibration.
+The number of PHY clocks, as indicated by the application in this
+field, is multiplied by a bit-time factor; this factor is added to the
+high-speed/full-speed interpacket timeout duration in the core to
+account for additional delays introduced by the PHY. This may be
+required, since the delay introduced by the PHY in generating the
+linestate condition may vary among PHYs.
+The USB standard timeout value for high-speed operation is 736
+to 816 (inclusive) bit times. The USB standard timeout value for
+full-speed operation is 16 to 18 (inclusive) bit times. The
+application must program this field based on the speed of
+connection. The number of bit times added per PHY clock are:
+High-speed operation:
+One 30-MHz PHY clock = 16 bit times
+One 60-MHz PHY clock = 8 bit times
+Full-speed operation:
+One 30-MHz PHY clock = 0.4 bit times
+One 60-MHz PHY clock = 0.2 bit times
+
+USB3OTG_GUSB3PIPECTL0
+Address: Operational Base + offset (0xC2C0)
+Bit Attr Reset Value
+Description
+PHYSoftRst
+31
+RW 0x0
+USB3 PHY Soft Reset
+After setting this bit to 1, the software needs to clear this bit.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2210
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+30
+
+RW 0x0
+
+29
+
+RW 0x0
+
+28
+
+RW 0x0
+
+27
+
+RW 0x0
+
+26
+
+RW 0x0
+
+25
+
+RW 0x0
+
+Description
+HstPrtCmpl
+This feature tests the PIPE PHY compliance patterns without
+having to have a test fixture on the USB 3.0 cable.
+This bit enables placing the SS port link into a compliance
+state. By default, this bit must be set to 1'b0.
+In compliance lab testing, the SS port link enters compliance
+after failing the first polling sequence after power on. Set this
+bit to 0, when you run compliance tests.
+The sequence for using this functionality is as follows:
+1. Disconnect any plugged in devices.
+2. Perform USBCMD.HCRST or power-on-chip reset.
+3. Set PORTSC.PP=0.
+4. Set GUSB3PIPECTL. HstPrtCmpl=1. This places the link into
+compliance state.
+To advance the compliance pattern, follow this sequence
+(toggle
+the set GUSB3PIPECTL. HstPrtCmpl):
+1. Set GUSB3PIPECTL.HstPrtCmpl=0.
+2. Set GUSB3PIPECTL.HstPrtCmpl=1. This advances the link to
+the next compliance pattern.
+To exit from the compliance state perform USBCMD.HCRST or
+power-on-chip reset.
+U2SSInactP3ok
+1’b0: During link state U2/SS.Inactive, put PHY in P2 (Default)
+1’b1: During link state U2/SS.Inactive, put PHY in P3
+DisRxDetP3
+Disabled receiver detection in P3
+1’b0: If PHY is in P3 and Core needs to perform receiver
+detection, The core performs receiver detection in P3. (Default)
+1’b1: If PHY is in P3 and Core needs to perform receiver
+detection, The core changes the PHY power state to P2 and then
+performs receiver detection. After receiver detection, the cores
+changes PHY power state to P3.
+Ux_exit_in_Px
+1’b0: The core does U1/U2/U3 exit in PHY power state P0
+(default behavior).
+1’b1: The core does U1/U2/U3 exit in PHY power state
+P1/P2/P3
+respectively.
+ping_enhancement_en
+Ping Enhancement Enable
+When set, the Downstream port U1 ping receive timeout becomes
+500 ms instead of 300 ms. Minimum Ping.LFPS receive duration is
+8 ns (one mac3_clk). This field is valid for the downstream port
+only.
+u1u2exitfail_to_recov
+U1U2exitfail to Recovery
+When set, and U1/U2 LFPS handshake fails, the LTSSM transitions
+from U1/U2 to Recovery instead of SS Inactive. If Recovery fails,
+then the LTSSM can enter SS.Inactive. This is an enhancement
+only. It prevents interoperability issue if the remote link does not
+do proper handshake.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2211
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+24
+
+RW 0x0
+
+23
+
+RW 0x0
+
+22
+
+RW 0x0
+
+21:19 RW 0x0
+
+18
+
+RW 0x0
+
+17
+
+RW 0x0
+
+16:15 RW 0x0
+
+Description
+request_p1p2p3
+Always Request P1/P2/P3 for U1/U2/U3
+When set, the core always requests PHY power change from P0 to
+P1/P2/P3 during U0 to U1/U2/U3 transition.
+If this bit is 0, and immediate Ux exit (remotely initiated, or
+locally initiated) happens, the core does not request P1/P2/P3
+power state change.
+StartRxDetU3RxDet
+Start Receiver Detection in U3/Rx.Detect (StartRxdetU3RxDet)
+If DWC_USB3_GUSB3PIPECTL_INIT[22] is set, and the link is
+in
+either U3 or Rx.Detect state, the core starts receiver detection
+on the rising edge of this bit. This can only be used for
+Downstream ports. This bit must be set to '0' for Upstream
+ports. This feature must not be enabled for normal operation.
+DisRxDetU3RxDet
+Disable Receiver Detection in U3/Rx.Det
+When set, the core does not handle receiver detection in either
+U3 or Rx.Detect states. DWC_USB3_GUSB3PIPECTL_INIT[23]
+must be used to start receiver detection manually. This bit can
+only be used for the downstream port. This bit must be set to 0
+for Upstream ports. This feature must not be enabled for normal
+operation. If you have to use this feature, contact SNPS.
+DelayP1P2P3
+Delay P1P2P3
+Delay P0 to P1/P2/P3 request when entering U1/U2/U3 until
+(DWC_USB3_GUSB3PIPECTL_INIT[21:19]*8) 8B10B error
+occurs, or Pipe3_RxValid drops to 0.
+DWC_USB3_GUSB3PIPECTL_INIT[18] must be 1 to enable this
+functionality.
+DELAYP1TRANS
+DELAYP1TRANS
+Delay PHY power change from P0 to P1/P2/P3 when link state
+changing from U0 to U1/U2/U3 respectively.
+1'b1: When entering U1/U2/U3, delay the transition to P1/P2/P3
+until the pipe3 signals, Pipe3_RxElecIlde is 1 and pipe3_RxValid is
+0
+1'b0: When entering U1/U2/U3, transition to P1/P2/P3 without
+checking for Pipe3_RxElecIlde and pipe3_RxValid.
+Note: This bit must be set to '1' for SNPS PHY. It is also used by
+third-party SS PHY.
+SUSPENDENABLE
+Suspend USB3.0 SS PHY (Suspend_en)
+When set, and if Suspend conditions are valid, the USB 3.0
+PHY
+enters Suspend mode.
+Application needs to set it to '1' after the core initialization is
+completed.
+DATWIDTH
+2'b00: 32 bits
+2'b01: 16 bits
+2'b10: 8 bits
+One clock after reset, these bits receive the value seen on the
+pipe3_DataBusWidth.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2212
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+14
+
+RW 0x0
+
+13
+
+RW 0x0
+
+12
+
+RW 0x0
+
+11
+
+RW 0x0
+
+10
+
+RW 0x0
+
+9
+
+RW 0x0
+
+Description
+AbortRxDetInU2
+Abort Rx Detect in U2 (AbortRxDetInU2)
+When set, and the link state is U2, then the core will abort
+receiver detection if it receives U2 exit LFPS from the remote
+link partner.
+This bit is for the downstream port only.
+SkipRxDet
+Skip Rx Detect:
+When set, the core skips Rx Detection if pipe3_RxElecIdle is
+low.
+Skip is defined as waiting for the appropriate timeout, then
+repeating the operation.
+LFPSP0Algn
+LFPS P0 Align
+When set:
+1. The core deasserts LFPS transmission on the clock edge that it
+requests PHY power state 0 when exiting U1, U2, or U3 low
+power states. Otherwise, LFPS transmission is asserted one clock
+earlier.
+2. The core requests symbol transmission two pipe3_rx_pclks
+periods after the PHY asserts PhyStatus as a result of the PHY
+switching from P1 or P2 state to P0 state.
+Currently, this bit is only used in USB 3.0 HUB with SNPS PHY. For
+other USB 3.0 Host, Device, and DRD cores, this bit is not
+required.
+P3P2TranOK
+P3 P2 Transitions OK (P3P2TranOK)
+When set, the core transitions directly from PHY power state
+P2 to P3 or from state P3 to P2. When not set, P0 is always
+entered as an intermediate state during transitions between
+P2 and P3, as defined in the PIPE3 Specification.
+According to the PIPE3 Specification, any direct transition
+between P3 and P2 is illegal.
+P3ExSigP2
+P3 Exit Signal in P2
+When this bit is set, the core always changes the PHY power state
+to P2, before attempting a U3 exit handshake. This bit is used
+only for some non-SNPS PHYs that cannot do LFPS in P3.
+LFPSFILTER
+LFPS Filter
+When set, filter LFPS reception with pipe3_RxValid in PHY power
+state P0, that is, ignore LFPS reception from the PHY unless both
+pipe3_Rxelecidle and pipe3_RxValid are deasserted.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2213
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+8
+
+RW 0x0
+
+7
+
+RO
+
+6
+
+RW 0x0
+
+5:3
+
+RW 0x0
+
+2:1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+0x0
+
+Description
+RX_DETECT_to_Polling_L
+RX_DETECT to Polling.LFPS Control
+1'b0 (Default): Enables a 400us delay to start Polling LFPS after
+RX_DETECT. This allows VCM offset to settle to a proper level.
+1'b1: Disables the 400us delay to start Polling LFPS after
+RX_DETECT.
+During controller certification with third party PHY it is observed
+that the PHY is not able to meet the Tx AC common mode voltage
+active (VTX-CM-ACPP_ACTIVE <100mv) if the link starts polling
+within 80us from the time rx.detect is performed.
+To meet this VTX-CM-ACPP_ACTIVE specification, the polling must
+be delayed further. If the PHY does not have issue then they can
+set this bit to 1 which allows polling to start within 80us.
+reserved
+TX_SWING
+Tx Swing (TxSwing)
+Refer to the PIPE3 specification.
+TX_MARGIN
+Tx Margin[2:0] (TxMargin)
+Refer to Table 5-3 of the PIPE3 Specification.
+TX_DE_EPPHASIS
+Tx Deemphasis
+The value driven to the PHY is controlled by the LTSSM during
+USB3 Compliance mode.
+ELASTIC_BUFFER_MODE
+Elastic Buffer Mode (ElasticBufferMode)
+(Refer to Table 5-3 of the PIPE3 specification.)
+
+USB3OTG_GTXFIFOSIZn
+Address: Operational Base + offset (0xC300)
+Bit Attr Reset Value
+Description
+txfstaddr_n
+Transmit FIFOn RAM Start Address.
+31:16 RW 0x0000
+This field contains the memory start address for TxFIFOn in 64bit words.
+txfdep_n
+TxFIFO Depth.
+15:0 RW 0x0042
+This field contains the depth of TxFIFOn in 64-bit words.
+Minimum value: 32; Maximum value: 32,768.
+USB3OTG_GRXFIFOSIZn
+Address: Operational Base + offset (0xC380)
+Bit Attr Reset Value
+Description
+rxfstaddr_n
+RxFIFOn RAM Start Address.
+31:16 RW 0x0334
+This field contains the memory start address for RxFIFOn in 64bit words.
+rxfdep_n
+RxFIFOn RAM Start Address.
+15:0 RW 0x0185
+This field contains the memory start address for RxFIFOn in 64bit words.
+USB3OTG_GEVNTADRLO0
+Address: Operational Base + offset (0xC400)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2214
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+evntadrlo
+Event Buffer Address.
+Holds the lower 32 bits of start address of the external memory
+for the Event Buffer. During operation, hardware does not update
+this address.
+
+USB3OTG_GEVNTADRHI0
+Address: Operational Base + offset (0xC404)
+Bit Attr Reset Value
+Description
+evntadrhi
+Event Buffer Address.
+31:0 RW 0x00000000 Holds the higher 32 bits of start address of the external memory
+for the Event Buffer. During operation, hardware does not update
+this address.
+USB3OTG_GEVNTSIZ0
+Address: Operational Base + offset (0xC408)
+Bit Attr Reset Value
+Description
+evntintrptmask
+Event Interrupt Mask.
+31
+RW 0x0
+When set to '1', this prevents the interrupt from being generated.
+However, even when the mask is set, the events are queued.
+30:16 RO 0x0000
+reserved
+eventsiz
+Event Buffer Size in bytes.
+15:0 RW 0x0000
+Holds the size of the Event Buffer in bytes; must be a multiple of
+four. This is programmed by software once during initialization.
+The minimum size of the event buffer is 32 bytes.
+USB3OTG_GEVNTCOUNT0
+Address: Operational Base + offset (0xC40C)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+evntcount
+Event Count.
+When read, returns the number of valid events in the Event
+15:0 RW 0x0000
+Buffer (in bytes).
+When written, hardware decrements the count by the value
+written. The interrupt line remains high when count is not 0.
+USB3OTG_GHWPARAMS8
+Address: Operational Base + offset (0xC600)
+Bit Attr Reset Value
+ghwparams8_32_0
+31:0 RO 0x0000047c
+ghwparams8
+USB3OTG_GTXFIFOPRIDEV
+Address: Operational Base + offset (0xC610)
+Bit Attr Reset Value
+31:7 RO 0x0000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+Description
+
+2215
+
+RK3588 TRM-Part2
+Bit
+
+6:0
+
+Attr Reset Value
+
+RW 0x00
+
+Description
+gtxfifopridev
+Device TxFIFO priority.
+This register specifies the relative DMA priority level among the
+Device TXFIFOs (one per IN endpoint). Each register bit[n]
+controls the priority (1: high, 0: low) of each TXFIFO[n]. When
+multiple TXFIFOs compete for DMA service at a given time (that
+is, multiple TXQs contain TX DMA requests and their
+corresponding TXFIFOs have space available), the TX DMA arbiter
+grants access on a packet-basis in the following manner:
+1. High-priority TXFIFOs are granted access using round-robin
+arbitration
+2. Low-priority TXFIFOs are granted access using round-robin
+arbitration only after the high-priority TXFIFOs have no further
+processing to do (that is, either the TXQs are empty or the
+corresponding TXFIFOs are full).
+For scatter-gather packets, the arbiter grants successive DMA
+requests to the same FIFO until the entire packet is completed.
+When configuring periodic IN endpoints, software must set
+register bit[n]=1, where n is the TXFIFO assignment. This
+ensures that the DMA for isochronous or interrupt IN endpoints
+are prioritized over bulk or control IN endpoints.
+This register is present only when the core is configured to
+operate in the device mode. The register size corresponds to the
+number of Device IN endpoints.
+
+USB3OTG_GTXFIFOPRIHST
+Address: Operational Base + offset (0xC618)
+Bit Attr Reset Value
+Description
+31:3 RO 0x00000000 reserved
+gtxfifoprihst
+Host TxFIFO priority.
+This register specifies the relative DMA priority level among the
+Host TXFIFOs (one per USB bus instance) within the associated
+speed group (HS/FSLS). Each register bit[n] controls the priority
+(1: high, 0: low) of TXFIFO[n] within a speed group. When
+multiple TXFIFOs compete for DMA service at a given time (i.e.,
+multiple TXQs contain TX DMA requests and their corresponding
+TXFIFOs have space available), the TX DMA arbiter grants access
+on a packet-basis in the following manner:
+1. Among the FIFOs in the same speed group (HS/FSLS):
+a. High-priority TXFIFOs are granted access using round-robin
+arbitration
+2:0
+RW 0x0
+b. Low-priority TXFIFOs are granted access using round-robin
+arbitration only after the high-priority TXFIFOs have no further
+processing to do (that is, either the TXQs are empty or the
+corresponding TXFIFOs are full).
+2. The TX DMA arbiter prioritizes the HS/FSLS speed group
+according to the ratio programmed in the GDMAHLRATIO register.
+For scatter-gather packets, the arbiter grants successive DMA
+requests to the same FIFO until the entire packet is completed.
+This register is present only when the core is configured to
+operate in the host mode (includes DRD and OTG modes). The
+register size corresponds to the number of configured USB bus
+instances; for example, in the default configuration, there are 2
+USB bus instances (1 HS, and 1 FSLS).
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2216
+
+RK3588 TRM-Part2
+USB3OTG_GRXFIFOPRIHST
+Address: Operational Base + offset (0xC61C)
+Bit Attr Reset Value
+Description
+31:3 RO 0x00000000 reserved
+grxfifoprihst
+Host RxFIFO priority
+This register specifies the relative DMA priority level among the
+Host RXFIFOs (one per USB bus instance) within the associated
+speed group (HS/FSLS). Each register bit[n] controls the priority
+(1: high, 0: low) of RXFIFO[n] within a speed group. When
+multiple RXFIFOs compete for DMA service at a given time (i.e.,
+multiple RXQs contain RX DMA requests and their corresponding
+RXFIFOs have data available), the RX DMA arbiter grants access
+on a packet-basis in the following manner:
+1. Among the FIFOs in the same speed group (HS/FSLS):
+a. High-priority RXFIFOs are granted access using round-robin
+arbitration
+2:0
+RW 0x0
+b. Low-priority RXFIFOs are granted access using round-robin
+arbitration only after high-priority RXFIFOs have no further
+processing to do (that is, either the RXQs are empty or the
+corresponding RXFIFOs do not have the required data).
+2. The RX DMA arbiter prioritizes the HS/FSLS speed group
+according to the ratio programmed in the GDMAHLRATIO register.
+For scatter-gather packets, the arbiter grants successive DMA
+requests to the same FIFO until the entire packet is completed.
+This register is present only when the core is configured to
+operate in the host mode (includes DRD and OTG modes). The
+register size corresponds to the number of configured USB bus
+instances; for example, in the default configuration, there are 2
+USB bus instances (1 HS, and 1 FSLS).
+USB3OTG_GFIFOPRIDBC
+Address: Operational Base + offset (0xC620)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+gfifopridbc
+Host DbC DMA priority.
+This register specifies the relative priority of the RXFIFOs and
+1:0
+RW 0x0
+TXFIFOs associated with the DbC mode. It overrides the priority
+assigned in the corresponding indexes of the Host RXFIFO and
+TXFIFO DMA priority registers, when the DbC mode is enabled.
+USB3OTG_GDMAHLRATIO
+Address: Operational Base + offset (0xC624)
+Bit Attr Reset Value
+Description
+31:22 RO 0x000
+reserved
+hstrxfifo
+21:8 RW 0x0000
+Host RXFIFO DMA High-Low Priority.
+7:5
+RO 0x0
+reserved
+hsttxfifo
+4:0
+RW 0x00
+Host TXFIFO DMA High-Low Priority.
+USB3OTG_GFLADJ
+Address: Operational Base + offset (0xC630)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2217
+
+RK3588 TRM-Part2
+Bit
+
+31
+
+Attr Reset Value
+
+RW 0x0
+
+30:24 RW 0x00
+
+23
+
+RW 0x0
+
+22
+
+RO
+
+21:8
+
+RW 0x0000
+
+0x0
+
+Description
+gfladj_refclk_240mhzdecr_pls1
+This field indicates that the decrement value that the controller
+applies for each ref_clk must be GFLADJ_REFCLK_240MHZ_DECR
+and GFLADJ_REFCLK_240MHZ_DECR +1 alternatively on each
+ref_clk.
+Set this bit to a 1 only if GFLADJ_REFCLK_LPM_SEL is set to 1
+and the fractional component of 240/ref_frequency is greater
+than or equal to 0.5.
+Examples:
+If the ref_clk is 24 MHz then
+1. GUCTL.REF_CLK_PERIOD = 41
+2. GFLADJ.GFLADJ_REFCLK_240MHZ_DECR = (240/24) = 10
+3. GFLADJ.GFLADJ_REFCLK_240MHZDECR_PLS1 = 0
+gfladj_refclk_240mhz_decr
+This field indicates the decrement value that the controller applies
+for each ref_clk in order to derive a frame timer in terms of a
+240-MHz clock.
+This field must be programmed to a non-zero value only if
+GFLADJ_REFCLK_LPM_SEL is set to 1.
+The value is derived as follows:
+GFLADJ_REFCLK_240MHZ_DECR = 240/ref_clk_frequency
+Examples: If the ref_clk is 24 MHz then
+1. GUCTL.REF_CLK_PERIOD = 41
+2. GFLADJ.GFLADJ_REFCLK_240MHZ_DECR = 240/24 = 10
+gfladj_refclk_lpm_sel
+This bit enables the functionality of running SOF counters on the
+ref_clk. This bit must not be set to 1 if GCTL.SOFITPSYNC bit is
+set to 1. Similarly, if GFLADJ_REFCLK_LPM_SEL set to 1,
+GCTL.SOFITPSYNC must not be set to 1.
+Note that the ref_clk frequencies supported in this mode are
+16/17/19.2/20/24/39.7/40 MHz. The utmi_clk[0] signal of the
+core must be connected to the FREECLK of the PHY.
+Note: If you set this bit to 1, the
+GUSB2PHYCFG.U2_FREECLK_EXISTS bit must be set to 0.
+reserved
+gfladj_refclk_fladj
+This field indicates the frame length adjustment to be applied
+when SOF counter is running on the ref_clk.
+SOF interval when GLADJ.GFLADJ_REFCLK_LPM_SEL is set to 1.
+This field must be programmed to a non-zero value only if
+GFLADJ_REFCLK_LPM_SEL is set to 1 or GCTL.SOFITPSYNC is set
+to 1.
+The value is derived as follows:
+FLADJ_REF_CLK_FLADJ=((125000/ref_clk_period_integer) (125000/ref_clk_period)) * ref_clk_period where:
+1. The ref_clk_period_integer is the integer value of the ref_clk
+period got by truncating the decimal (fractional) value that is
+programmed in the GUCTL.REF_CLK_PERIOD field.
+2. The ref_clk_period is the ref_clk period including the fractional
+value.
+Examples: If the ref_clk is 24 MHz then
+1. GUCTL.REF_CLK_PERIOD = 41
+2. GFLADJ.GLADJ_REFCLK_FLADJ = ((125000/41) (125000/41.6666)) * 41.6666 = 2032 (ignoring the fractional
+value).
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2218
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+7
+
+RW 0x0
+
+6
+
+RO
+
+5:0
+
+RW 0x00
+
+0x0
+
+Description
+gfladj_30mhz_sdbnd_sel
+This field selects whether to use the input signal fladj_30mhz_reg
+or the GFLADJ.GFLADJ_30MHZ to adjust the frame length for the
+SOF. When this bit is set to:
+1'b1: the controller uses the register field
+GFLADJ.GFLADJ_30MHZ value
+1'b0: the controller uses the input signal fladj_30mhz_reg value.
+reserved
+gfadj_30mhz
+This field indicates the value that is used for frame length
+adjustment instead of considering from the sideband input signal
+fladj_30mhz_reg.
+This enables post-silicon frame length adjustment in case the
+input signal fladj_30mhz_reg is connected to a wrong value or is
+not valid.
+For details on how to set this value, refer to section 5.2.4, "Frame
+Length Adjustment Register (FLADJ)," of the xHCI Specification.
+
+USB3OTG_DCFG
+Address: Operational Base + offset (0xC700)
+Bit Attr Reset Value
+Description
+31:24 RO 0x00
+reserved
+ignstrmpp
+23
+RW 0x0
+This bit only affects stream-capable bulk endpoints. Not applied.
+lpmcap
+22
+RW 0x0
+LPM Capable. Not applied.
+nump
+21:17 RW 0x04
+Number of Receive Buffers. Not applied.
+intrnum
+Interrupt number.
+16:12 RW 0x00
+Indicates interrupt/EventQ number on which non-endpointspecific device-related interrupts (see DEVT) are generated.
+11:10 RO 0x0
+reserved
+devaddr
+Device Address.
+9:3
+RW 0x00
+The application must perform the following:
+1. Program this field after every SetAddress request.
+2. Reset this field to zero after USB reset.
+devspd
+Device Speed.
+Indicates the speed at which the application requires the core to
+connect, or the maximum speed the application can support.
+2:0
+RW 0x0
+However, the actual bus speed is determined only after the chirp
+sequence is completed, and is based on the speed of the USB
+host to which the core is connected.
+3'b000: High-speed (USB 2.0 PHY clock is 30 MHz or 60 MHz)
+3'b001: Full-speed (USB 2.0 PHY clock is 30 MHz or 60 MHz)
+USB3OTG_DCTL
+Address: Operational Base + offset (0xC704)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2219
+
+RK3588 TRM-Part2
+Bit
+
+31
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+run_stop
+The software writes 1 to this bit to start the device controller
+operation.
+To stop the device controller operation, the software must remove
+any active transfers and write 0 to this bit. When the controller is
+stopped, it sets the DSTS.DevCtrlHlt bit when the core is idle and
+the lower layer finishes the disconnect process.
+The Run/Stop bit must be used in following cases as specified:
+1. After power-on reset and CSR initialization, the software must
+write 1 to this bit to start the device controller. The controller
+does not signal connect to the host until this bit is set.
+2. The software uses this bit to control the device controller to
+perform a soft disconnect. When the software writes 0 to this bit,
+the host does not see that the device is connected. The device
+controller stays in the disconnected state until the software writes
+1 to this bit.
+The minimum duration of keeping this bit cleared is specified in
+the Note below. If the software attempts a connect after the soft
+disconnect or detects a disconnect event, it must set DCTL[8:5]
+to 5 before reasserting the Run/Stop bit.
+3. When the USB is in a lower power state and the Two Power
+Rails configuration is selected, software writes 0 to this bit to
+indicate that it is going to turn off the Core Power Rail. After the
+software turns on the Core Power Rail again and re-initializes the
+device controller, it must set this bit to start the device controller.
+Note: The following is the minimum duration under various
+conditions for which the soft disconnect (SftDiscon) bit must be
+set for the USB host to detect a device disconnect:
+10ms: For high-speed, when the device state is Suspended, Idle,
+or not Idle/Suspended (performing transactions); For fullspeed/low-speed, when the device state is Suspended, Idle, or
+not Idle/Suspended (performing transactions).
+To accommodate clock jitter, it is recommended that the
+application add extra delay to the specified minimum duration.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2220
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+30
+
+R/W
+0x0
+SC
+
+29
+
+RO
+
+0x0
+
+28:24 RW 0x00
+
+Description
+csftrst
+Core Soft Reset.
+Reset all clock domains as follows:
+1. This bit clears the interrupts and all the CSRs except GSTS,
+GSNPSID, GGPIO, GUID, GUSB2PHYCFGn registers,
+GUSB3PIPECTLn registers, DCFG, DCTL, DEVTEN, and DSTS
+registers.
+2. All module state machines (except the SoC Bus Slave Unit) are
+reset to the IDLE state, and all the TxFIFOs and the RxFIFO are
+flushed.
+3. Any transactions on the SoC bus Master are terminated as
+soon as possible, after gracefully completing the last data phase
+of a SoC bus transfer. Any transactions on the USB are
+terminated immediately.
+The application can write this bit at any time to reset the core.
+This is a self-clearing bit; the core clears this bit after all
+necessary logic is reset in the core, which may take several
+clocks depending on the core's current state. Once this bit is
+cleared, the software must wait at least 3 PHY clocks before
+accessing the PHY domain (synchronization delay).
+Typically, software reset is used during software development and
+also when you dynamically change the PHY selection bits in the
+USB configuration registers listed above. When you change the
+PHY, the corresponding clock for the PHY is selected and used in
+the PHY domain. Once a new clock is selected, the PHY domain
+must be reset for proper operation.
+reserved
+hirdthres
+HIRD Threshold.
+The core asserts output signals utmi_l1_suspend_n and
+utmi_sleep_n on the basis of this signal:
+The core asserts utmi_l1_suspend_n to put the PHY into Deep
+Low-Power mode in L1 when both of the following are true:
+1. HIRD value is greater than or equal to the value in
+DCTL.HIRD_Thres[3:0]
+2. HIRD_Thres[4] is set to 1'b1.
+The core asserts utmi_sleep_n on L1 when one of the following is
+true:
+1. If the HIRD value is less than HIRD_Thres[3:0] or
+2. HIRD_Thres[4] is set to 1'b0.
+Note: This field must be set to '0' during SuperSpeed mode of
+operation.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2221
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+23:20 RW 0xf
+
+19
+
+RW 0x0
+
+18
+
+RW 0x0
+
+17
+
+RW 0x0
+
+16
+
+RW 0x0
+
+15:13 RO
+
+0x0
+
+12
+
+RW 0x0
+
+11
+
+RW 0x0
+
+10
+
+RW 0x0
+
+9
+
+RW 0x0
+
+Description
+lpm_nyet_thres
+LPM NYET Threshold
+Handshake response to LPM token specified by device application.
+Response depends on DCFG.LPMCap.
+DCFG.LPMCap is 1'b0 - The core always responds with Timeout
+(that is, no response).
+DCFG.LPMCap is 1'b1 - The core responds with an ACK on
+successful LPM transaction, which requires that all of the
+following are satisfied:
+1. There are no PID or CRC5 errors in both the EXT token and the
+LPM token (if not true, inactivity results in a timeout ERROR).
+2. No data is pending in the Transmit FIFO and OUT endpoints not
+in flow controlled state (else NYET).
+3. The BESL value in the LPM token is less than or equal to
+LPM_NYET_thres[3:0].
+keep_connect
+When 1, this bit enables the save and restore programming
+model by preventing the core from disconnecting from the host
+when DCTL.RunStop is set to 0.
+The device core disconnects from the host when DCTL.RunStop is
+set to 0.
+This bit indicates whether to preserve this behavior (0), or if the
+core must not disconnect when RunStop is set to 0 (1).
+l1_hibernation_en
+When this bit is set along with KeepConnect, the device core
+generates a Hibernation Request Event if L1 is enabled and the
+HIRD value in the LPM token is larger than the threshold
+programmed in DCTL.HIRD_Thres.
+The core does not exit the LPM L1 state until software writes
+Recovery into the DCTL.ULStChngReq field.
+This prevents corner cases where the device is entering
+hibernation at the same time the host is attempting to exit L1.
+crs
+Controller Restore State.
+This command is similar to the USBCMD.CRS bit in host mode
+and initiates the restore process. When software sets this bit to 1,
+the controller immediately sets DSTS.RSS to 1. When the
+controller has finished the restore process, it sets DSTS.RSS to 0.
+Note: When read, this field always returns 0.
+css
+Controller Save State.
+This command is similar to the USBCMD.CSS bit in host mode
+and initiates the save process. When software sets this bit to 1,
+the controller immediately sets DSTS.SSS to 1. When the
+controller has finished the save process, it sets DSTS.SSS to 0.
+Note: When read, this field always returns 0.
+reserved
+initu2ena
+Not applied.
+acceptu2ena
+Not applied.
+initu1ena
+Not applied.
+acceptu1ena
+Not applied.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2222
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+8:5
+
+RW 0x0
+
+4:1
+
+RW 0x0
+
+0
+
+RO
+
+0x0
+
+Description
+ulstchngreq
+Software writes this field to issue a USB state change request. A
+change in this field indicates a new request to the core.
+If software wants to issue the same request back-to-back, it must
+write a 0 to this field between the two requests. The result of the
+state change request is reflected in the USB State in DSTS. These
+bits are self-cleared on the MAC Layer exiting suspended state.
+If software is updating other fields of the DCTL register and not
+intending to force any link state change, then it must write a 0 to
+this field.
+In HS/FS/LS mode:
+Value: Requested USB state transition
+8: Remote wakeup request
+Others: Reserved
+The Remote wakeup request must be issued 2us after the device
+goes into suspend state (DSTS[21:18] is 3 ).
+Note: After coming out of hibernation, software must write 8
+(Recovery) into this field to confirm exit from the suspended
+state.
+tstctl
+Test Control.
+4'b000: Test mode disabled
+4'b001: Test_J mode
+4'b010: Test_K mode
+4'b011: Test_SE0_NAK mode
+4'b100: Test_Packet mode
+4'b101: Test_Force_Enable
+Others: Reserved
+reserved
+
+USB3OTG_DEVTEN
+Address: Operational Base + offset (0xC708)
+Bit Attr Reset Value
+Description
+31:13 RO 0x00000
+reserved
+vendevtstrcvden
+Vendor Device Test LMP Received Event.
+12
+RW 0x0
+1'b0: Disable this event
+1'b1: Enable this event
+11:10 RO 0x0
+reserved
+errticerrevten
+Erratic Error Event Enable.
+9
+RW 0x0
+1'b0: Disable this event
+1'b1: Enable this event
+8
+RO 0x0
+reserved
+softevten
+Start of (u)frame Event Enable.
+7
+RW 0x0
+1'b0: Disable this event
+1'b1: Enable this event
+u3l2l1_susp_en
+U3/L2-L1 Suspend Event Enable.
+6
+RW 0x0
+1'b0: Disable this event
+1'b1: Enable this event
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2223
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+hibernation_req_evt_en
+Hibernation Request Event Enable.
+1'b0: Disable this event
+1'b1: Enable this event
+wkupevten
+Resume/Remote Wakeup Detected Event Enable.
+1'b0: Disable this event
+1'b1: Enable this event
+ulstcngen
+USB State Change Event Enable.
+1'b0: Disable this event
+1'b1: Enable this event
+connectdoneevten
+Connection Done Event Enable.
+1'b0: Disable this event
+1'b1: Enable this event
+usbrstevten
+USB Reset Event Enable.
+1'b0: Disable this event
+1'b1: Enable this event
+disconnevten
+Disconnect Detected Event Enable.
+1'b0: Disable this event
+1'b1: Enable this event
+
+USB3OTG_DSTS
+Address: Operational Base + offset (0xC70C)
+Bit Attr Reset Value
+Description
+31:30 RO 0x0
+reserved
+dcnrd
+Device Controller Not Ready.
+The bit indicates that the core is in the process of completing the
+state transitions after exiting from hibernation.
+To complete the state transitions, it takes 256 bus clock cycles
+29
+RW 0x0
+from the time DCTL[31].Run/Stop is set. During hibernation, if
+the UTMI/ULPI PHY is in suspended state, then the 256-bus clock
+cycle delay starts after the PHY exited suspended state. Software
+must set DCTL[31].Run/Stop to 1 and wait for this bit to be deasserted to zero before processing DSTS.USBLnkSt.
+28:26 RO 0x0
+reserved
+rss
+Restore State Status.
+25
+RW 0x0
+This bit is similar to the USBSTS.RSS in host mode.
+When the controller finishes the restore process, it completes the
+command by setting DSTS.RSS to 0.
+sss
+Save State Status.
+24
+RO 0x0
+This bit is similar to the USBSTS.SSS in host mode.
+When the controller has finished the save process, it completes
+the command by setting DSTS.SSS to 0.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2224
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+23
+
+RO
+
+0x0
+
+22
+
+RO
+
+0x1
+
+21:18 RO
+
+0x4
+
+17
+
+0x1
+
+RO
+
+Description
+coreidle
+Core Idle.
+The bit indicates that the core finished transferring all RxFIFO
+data to system memory, writing out all completed descriptors,
+and all Event Counts are zero.
+Note: While testing for Reset values, mask out the read value.
+This bit represents the changing state of the core and does not
+hold a static value.
+devctrlhlt
+Device Controller Halted.
+This bit is set to 0 when the Run/Stop bit in the DCTL register is
+set to 1.
+The core sets this bit to 1 when, after SW sets Run/Stop to 0, the
+core is idle and the lower layer finishes the disconnect process.
+When Halted=1, the core does not generate Device events.
+Note: The core does not set this bit to 1 if GEVNTCOUNTn has
+some valid value. Software needs to acknowledge the events that
+are generated (by writing to GEVNTCOUNTn) while it is waiting
+for this bit to be set to 1.
+usblnkst
+USB/Link State
+In SS mode: LTSSM State
+4'h0: U0
+4'h1: U1
+4'h2: U2
+4'h3: U3
+4'h5: RX_DET
+4'h6: SS_INACT
+4'h7: POLL
+4'h8: RECOV
+4'h9: HRESET
+4'ha: CMPLY
+4'hb: LPBK
+4'hf: Resume/Reset
+In HS/FS/LS mode:
+4'h0: On state
+4'h2: Sleep (L1) state
+4'h3: Suspend (L2) state
+4'h4: Disconnected state (Default state)
+4'h5: Early Suspend state (valid only when Hibernation is
+disabled, GCTL[1].GblHibernationEn = 0)
+4'he: Reset (valid only when Hibernation is enabled,
+GCTL[1].GblHibernationEn = 1)
+4'hf: Resume (valid only when Hibernation is enabled,
+GCTL[1].GblHibernationEn = 1)
+The link state Resume/Reset indicates that the core received a
+resume or USB reset request from the host while the link was in
+hibernation. Software must write 8 (Recovery) to the
+DCTL.ULStChngReq field to acknowledge the resume/reset
+request.
+When Hibernation is enabled, GCTL[1].GblHibernationEn = 1, this
+field USBLnkSt is valid only when DCTL[31].Run/Stop set to 1
+and DSTS[29].DCNRD = 0.
+rx_fifo_empty
+Rx Fifo Empty.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2225
+
+RK3588 TRM-Part2
+Bit
+16:3
+
+2:0
+
+Attr Reset Value
+Description
+RO 0x0000
+reserved
+connectspd
+Connected Speed.
+Indicates the speed at which the DWC_usb3 core has come up
+RU 0x0
+after speed detection through a chirp sequence.
+3'b000: High-speed (PHY clock is running at 30 or 60 MHz)
+3'b001: Full-speed (PHY clock is running at 30 or 60 MHz)
+
+USB3OTG_DGCMDPAR
+Address: Operational Base + offset (0xC710)
+Bit Attr Reset Value
+Description
+parameter
+This register indicates the device command parameter. This must
+31:0 RW 0x00000000
+be programmed before or along with the device command. The
+available device commands are listed in DGCMD register.
+USB3OTG_DGCMD
+Address: Operational Base + offset (0xC714)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+cmdstatus
+Command Status:
+15:12 RO 0x0
+1'b1: CmdErr: Indicates that the device controller encountered an
+error while processing the command.
+1'b0: Indicates command success
+11:10 RO 0x0
+reserved
+cmdact
+Command Active.
+R/W
+The software sets this bit to 1 to enable the device controller to
+9
+0x0
+SC
+execute the generic command.
+The device controller sets this bit to 0 after executing the
+command.
+cmdioc
+Command Interrupt on Complete.
+When this bit is set, the device controller issues a Generic
+8
+RW 0x0
+Command Completion event after executing the command.
+Note that this interrupt is mapped to DCFG.IntrNum.
+Note: This field must not set to 1 if the DCTL.RunStop field is 0.
+cmdtyp
+Command Type.
+Specifies the type of command the software driver is requesting
+the core to perform.
+8'h0: Reserved
+8'h1: Set Endpoint Configuration - 64 or 96-bit Parameter
+8'h2: Set Endpoint Transfer Resource Configuration - 32-bit
+7:0
+RW 0x00
+Parameter
+8'h3: Get Endpoint State - No Parameter Needed
+8'h4: Clear Stall (see Set Stall) - No Parameter Needed
+8'h5: Start Transfer - 64-bit Parameter
+8'h6: Update Transfer - No Parameter Needed
+8'h7: End Transfer - No Parameter Needed
+8'h8 Start New Configuration - No Parameter Needed
+USB3OTG_DALEPENA
+Address: Operational Base + offset (0xC720)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2226
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+usbactep
+USB Active Endpoints.
+This field indicates if a USB endpoint is active in the current
+configuration and interface. It applies to USB IN endpoints 0~15
+and OUT endpoints 0~15, with one bit for each of the 32 possible
+endpoints. Even numbers are for USB OUT endpoints, and odd
+numbers are for USB IN endpoints, as follows:
+Bit[0]: USB EP0-OUT
+Bit[1]: USB EP0-IN
+Bit[2]: USB EP1-OUT
+Bit[3]: USB EP1-IN
+...
+The entity programming this register must set bits 0 and 1
+because they enable control endpoints that map to physical
+endpoints (resources) after USBReset.
+Hardware clears these bits for all endpoints (other than EP0-OUT
+and EP0-IN) after detecting a USB reset event. After receiving
+SetConfiguration and SetInterface requests, the application must
+program endpoint registers accordingly and set these bits.
+
+USB3OTG_DEPnCMDPAR2
+Address: Operational Base + offset (0xC800)
+Bit Attr Reset Value
+Description
+parameter
+31:0 RW 0x00000000 This register indicates the physical endpoint command Parameter
+2. It must be programmed before issuing the command.
+USB3OTG_DEPnCMDPAR1
+Address: Operational Base + offset (0xC804)
+Bit Attr Reset Value
+Description
+parameter
+31:0 RW 0x00000000 This register indicates the physical endpoint command Parameter
+1. It must be programmed before issuing the command.
+USB3OTG_DEPnCMDPAR0
+Address: Operational Base + offset (0xC808)
+Bit Attr Reset Value
+Description
+parameter
+31:0 RW 0x00000000 This register indicates the physical endpoint command Parameter
+0. It must be programmed before issuing the command.
+USB3OTG_DEPnCMD
+Address: Operational Base + offset (0xC80C)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2227
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+31:16 RW 0x0000
+
+15:12 RW 0x0
+
+11
+
+RW 0x0
+
+10
+
+RW 0x0
+
+9
+
+RO
+
+8
+
+RW 0x0
+
+7:4
+
+RO
+
+0x0
+
+0x0
+
+Description
+commandparam
+Command Parameters or Event Parameters
+when this register is written:
+For Start Transfer command: The 16-bit StreamID assigned to
+this transfer.
+For Start Transfer command applied to an isochronous endpoint:
+StartMicroFramNum, Indicates the (micro) frame number to
+which the first TRB applies.
+For Update Transfer, End Transfer, and Start New Configuration
+commands: [22:16]: Transfer Resource Index (XferRscIdx). The
+hardware-assigned transfer resource index for the transfer, which
+was returned in response to the Start Transfer command. The
+application software-assigned transfer resource index for a Start
+New Configuration command.
+Event Parameters (EventParam), when this register is read.
+cmdstatus
+Command Completion Status.
+The information is in the same format as bits 15:12 of the
+Endpoint Command Complete event.
+hipri_forcerm
+HighPriority: Only valid for Start Transfer command.
+ForceRM: Only valid for End Transfer command.
+ClearPendIN: Only valid for Clear Stall command. Software sets
+this bit to clear any pending IN transaction (on that endpoint)
+stuck at the lower layers when a Clear Stall command is issued.
+cmdact
+Command Active.
+Software sets this bit to 1 to enable the device endpoint
+controller to execute the generic command.
+The device controller sets this bit to 0 when the CmdStatus field
+is valid and the endpoint is ready to accept another command.
+This does not imply that all the effects of the previously-issued
+command have taken place.
+reserved
+cmdioc
+Command Interrupt on Complete.
+When this bit is set, the device controller issues a generic
+Endpoint Command Complete event after executing the
+command.
+Note that this interrupt is mapped to DEPCFG.IntrNum.
+When the DEPCFG command is executed, the command interrupt
+on completion goes to the interrupt pointed by the
+DEPCFG.IntrNum in the current command.
+Note: This field must not set to 1 if the DCTL.RunStop field is 0.
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2228
+
+RK3588 TRM-Part2
+Bit
+
+3:0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+cmdtyp
+Command Type.
+Specifies the type of command the software driver is requesting
+the core to perform.
+4'h0: Reserved
+4'h1: Set Endpoint Configuration 64 or 96-bit Parameter
+4'h2: Set Endpoint Transfer Resource Configuration - 32bitparameter
+4'h3: Get Endpoint State - No Parameter Needed
+4'h4: Set Stall - No Parameter Needed
+4'h5: Clear Stall (see Set Stall) - No Parameter Needed
+4'h6: Start Transfer - 64-bit Parameter
+4'h7: Update Transfer - No Parameter Needed
+4'h8: End Transfer - No Parameter Needed
+4'h9: Start New Configuration - No Parameter Needed
+
+13.5 Interface Description
+Table 13-2 USB3OTG_0 Interface Description
+Pad Name
+Direction
+Descriptions
+TYPEC0_SBU2/DP0_AUXN
+I/O
+USBDP PHY AUX differential serial data line
+TYPEC0_SBU1/DP0_AUXP
+I/O
+TYPEC0_SSRX1N/DP0_TX0N I/O
+Received Differential Data for USB3.0
+TYPEC0_SSRX1P/DP0_TX0P
+I/O
+TYPEC0_SSTX1N/DP0_TX1N
+I/O
+Transmitted Different Data for USB3.0
+TYPEC0_SSTX1P/DP0_TX1P
+I/O
+TYPEC0_SSRX2N/DP0_TX2N I/O
+Received Differential Data for USB3.0
+TYPEC0_SSRX2P/DP0_TX2P
+I/O
+TYPEC0_SSTX2N/DP0_TX3N
+I/O
+Transmitted Different Data for USB3.0
+TYPEC0_SSTX2P/DP0_TX3P
+I/O
+TYPEC0_DP0_REXT
+I/O
+USBDP PHY External Reference Resistor
+TYPEC0_USB20_OTG_DM
+I/O
+USB D- Signal
+TYPEC0_USB20_OTG_DP
+I/O
+USB D+ Signal
+TYPEC0_USB20_OTG_ID
+I/O
+USB2.0 PHY Mini-Receptacle Identifier
+TYPEC0_USB20_OTG0_REXT I/O
+USB2.0 PHY Transmitter Resistor Tune Pin
+TYPEC0_USB20_VBUSDET
+I/O
+USB2.0 PHY VBUS
+Table 13-3 USB3OTG_1 Interface Description
+Pad Name
+Direction
+Descriptions
+TYPEC1_SBU2/DP1_AUXN
+I/O
+USBDP PHY AUX differential serial data line
+TYPEC1_SBU1/DP1_AUXP
+I/O
+TYPEC1_SSRX1N/DP1_TX0N I/O
+Received Differential Data for USB3.0
+TYPEC1_SSRX1P/DP1_TX0P
+I/O
+TYPEC1_SSTX1N/DP1_TX1N
+I/O
+Transmitted Different Data for USB3.0
+TYPEC1_SSTX1P/DP1_TX1P
+I/O
+TYPEC1_SSRX2N/DP1_TX2N I/O
+Received Differential Data for USB3.0
+TYPEC1_SSRX2P/DP1_TX2P
+I/O
+TYPEC1_SSTX2N/DP1_TX3N
+I/O
+Transmitted Different Data for USB3.0
+TYPEC1_SSTX2P/DP1_TX3P
+I/O
+TYPEC1_DP0_REXT
+I/O
+USBDP PHY External Reference Resistor
+TYPEC1_USB20_OTG_DM
+I/O
+USB D- Signal
+TYPEC1_USB20_OTG_DP
+I/O
+USB D+ Signal
+TYPEC1_USB20_OTG_ID
+I/O
+USB2.0 PHY Mini-Receptacle Identifier
+TYPEC1_USB20_OTG0_REXT I/O
+USB2.0 PHY Transmitter Resistor Tune Pin
+TYPEC1_USB20_VBUSDET
+I/O
+USB2.0 PHY VBUS
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2229
+
+RK3588 TRM-Part2
+Table 13-4 USB3OTG_2 Interface Description
+Pad Name
+Direction
+Descriptions
+PCIE20_2_RXN/SATA30_2_R I/O
+XN/USB30_SSRXN
+Received Differential Data for USB3.0
+PCIE20_2_RXP/SATA30_2_R I/O
+XP/USB30_SSRXP
+PCIE20_2_TXN/SATA30_2_T I/O
+XN/USB30_SSTXN
+Transmitted Different Data for USB3.0
+PCIE20_2_TXP/SATA30_2_T I/O
+XP/USB30_SSTXP
+
+13.6 Application Notes
+
+13.6.1 Some Settings About USB3OTG_0 and USB3OTG_1
+
+⚫ USB3 mode initial sequence
+In this application USBDP PHY will use 24Mhz reference clock, some initial sequence should
+be set and USB mode should be configured before working. Please refer to USBDP PHY
+section.
+⚫ Power Down Mode
+When no transfer happened, PD_USB can be power down in application. At this time the
+PowerDown signal to USBDP PHY PIPE interface will be clamped to 3’b3. But there is also a
+MUX near USBDP PHY which could choose form GRF. Also, RxTermination, TxElecIdle and
+TxDetectRxLoopbx can also be control by GRF, this could be found in USBDPGRF_CON3 in
+GRF section.
+If USB and DP not be used, USBDPPHY could also be power down, and before power down,
+USBDPGRF_CON2[15] will use to clamp the PHY output signal.
+⚫ PhyStatus in PIPE Interface for USB2 only
+If only USB2 is used and USBDP PHY initial sequence not correctly processes, the PIPE
+interface signal PhyStatus may be set to 1’b1, USB3OTG0/1_CON1[3:2] can be set to
+control PhyStatus.
+
+13.6.2 USB3OTG_2 mode setting
+In USB3OTG_2 subsystem, PHY is combo with PCIE and SATA, so you must set some GRF to
+set USB mode.
+⚫ Set PIPE_PHY_GRF_PIPE_CON0[3:2] to 1’b1 to select USB mode.
+⚫ Set PIPE_PHY_GRF_PIPE_CON2[12] and [15] to 1’b0. This will select TxElecidle and
+TxCompliance form controller.
+⚫ Set PIPE_PHY_GRF_PIPE_CON3[14:13] to 2'b01 to select pipe to USB3 controller.
+
+13.6.3 Battery Charging Application
+
+The USB2.0 PHY supports battery charger detection to enable device draw increased current
+from VBUS for charging and/or powering up from dedicated charging ports or charging
+downstream ports.
+The related signals with GRF are following:
+Table 13-5 USB2PHY Battery Charging GRF Description
+GRF
+Description
+USB2PHYGRF_CON2[5]
+CHRGSEL: This signal selects whether the Battery Charger
+circuit sets voltage sourcing on the DP line and sensing on
+the DM line or voltage sourcing on DM and sensing on DP.
+USB2PHYGRF_CON2[6]
+VDATDETENB: This signal activates the Battery Charger
+comparator and enables detection of the DP and DM lines
+according to the Battery Charging specification.
+USB2PHYGRF_CON2[7]
+VDATSRCENB: This signal activates the voltage sourcing on
+the DP or DM line.
+USB2PHYGRF_STATUS0[0]
+CHGDET: This signal is the battery charge detection
+(VDAT_REF) comparator output.
+USB2PHYGRF_STATUS0[1]
+FSVPLUS: This signal is the DP FS/LS single ended receiver
+output, which is also the VLGC output.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2230
+
+RK3588 TRM-Part2
+GRF
+USB2PHYGRF_STATUS0[2]
+USB2PHYGRF_STATUS0[11]
+
+Description
+FSVMINUS: This signal is the DM FS/LS single ended
+receiver output, which is also the VLGC output.
+OTGSESSVLD0: This signal is the VBUS session valid
+detection and can be used by a portable device to detect the
+VBUS voltage from the host or charger port.
+
+Table 1-6 lists the detection flow.
+Table 13-6 USB2PHY Battery Charging Operations
+Inputs
+
+Mode of Operation
+
+CHRGSEL
+
+VDATDETEN
+B
+
+VDATSRCEN
+B
+
+OTGSESSVLD
+
+CHGDET
+
+FSVPUS
+
+FSVMINUS
+
+Outputs
+
+Battery charging is disabled
+PHY is operating as a portable device (PD) and is
+not attached to host nor charger port.
+PHY is operating as a PD using the Dead Battery
+Provision (DBP) - Unconfigured Clause, while
+attached to a standard downstream port (SDP).
+PHY is operating as a PD using the DBP Unconfigured Clause, while attached to a special
+port (such as a PS2 or proprietary charger) that
+pulls D+/D– high.
+PHY is operating as a PD using the DBP Unconfigured Clause, while attached to a charging
+downstream port (CDP) or a dedicated charging
+port (DCP).
+PHY is operating as a PD that is performing
+Primary Detection while attached to an SDP.
+PHY is operating as a PD that is performing
+Primary Detection while attached to a special port
+(such as a PS2 or proprietary charger) that pulls
+D+/D– high.
+PHY is operating as a PD that is performing
+Primary Detection while attached to a CDP or
+DCP.
+PHY is operating as a PD that is performing
+Secondary Detection while attached to a CDP.
+PHY is operating as a PD that is performing
+Secondary Detection while attached to a DCP.
+PHY is operating as a host CDP with no PD
+detected.
+PHY is operating as a host CDP that detects an
+attached PD, which supports the BC specification.
+PHY is operating as a host CDP that detects a
+connect from the PD D+ pullup.
+
+X
+X
+
+0
+0
+
+0
+0
+
+X
+0
+
+0
+X
+
+X
+X
+
+X
+X
+
+0
+
+1
+
+1
+
+1
+
+0
+
+X
+
+0
+
+0
+
+1
+
+1
+
+1
+
+1
+
+X
+
+1
+
+0
+
+1
+
+1
+
+1
+
+1
+
+X
+
+0
+
+1
+
+1
+
+1
+
+1
+
+0
+
+X
+
+0
+
+0
+
+1
+
+1
+
+1
+
+1
+
+X
+
+1
+
+0
+
+1
+
+1
+
+1
+
+1
+
+X
+
+0
+
+1
+
+1
+
+1
+
+1
+
+0
+
+X
+
+X
+
+1
+
+1
+
+1
+
+1
+
+1
+
+X
+
+X
+
+1
+
+1
+
+0
+
+X
+
+0
+
+0
+
+X
+
+1
+
+1
+
+1
+
+X
+
+1
+
+0
+
+X
+
+1
+
+1
+
+0
+
+X
+
+X
+
+1
+
+0
+
+13.6.4 OTG Programming Model
+
+When detect ID change event (see USB2PHY_GRF) or VBUS change event (see
+USB2PHY_GRF) after disconnect, it means a USB3/2 OTG A device or B device may connect,
+then check status of ID (see USB2PHY_GRF). If ID==0, it will work as A device, then follow
+host programming flow; if ID==1, it will work as B device, then it follows device
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2231
+
+RK3588 TRM-Part2
+programming flow.
+Note: USB3.0 OTG doesn’t support host/device mode swapping through HNP and RSP.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2232
+
+RK3588 TRM-Part2
+

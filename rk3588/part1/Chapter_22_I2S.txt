@@ -1,0 +1,4581 @@
+Chapter 22 I2S
+22
+
+22.1 Overview
+The I2S/PCM/TDM controller is designed for interfacing between the AHB bus and the I2S
+bus.
+The I2S bus (Inter-IC sound bus) is a serial link for digital audio data transfer between
+devices in the system and is invented by Philips Semiconductor. Now it is widely used by
+many semiconductor manufacturers.
+I2S bus is widely used in the devices such as ADC, DAC, DSP, CPU, etc. With the I2S
+interface, we can connect audio devices and the embedded SoC platform together and
+provide an audio interface solution for the system.
+
+22.1.1 Features
+There are nine I2S/PCM/TDM controllers and two I2S/PCM controllers embed in the system.
+I2S/PCM/TDM controllers support I2S format, PCM format and TDM format. While I2S/PCM
+controllers only support I2S format and PCM format. The nine I2S/PCM/TDM controllers are
+I2S0, I2S1, I2S4, I2S5, I2S6, I2S7, I2S8, I2S9 and I2S10. Remaining two I2S/PCM
+controllers are 2-channel I2S2 and I2S3.
+Unless stated separately, all of the following features apply to I2S0~I2S10.
+⚫ Support eight internal 32-bit wide and 32-location deep FIFOs, four for transmitting and
+the others for receiving audio data for I2S0 and I2S1
+⚫ Support two internal 32-bit wide and 32-location deep FIFOs, one for transmitting and
+the other for receiving audio data for each I2S2 and I2S3
+⚫ Support four internal 32-bit wide and 32-location deep transmitting FIFOs for I2S4,
+I2S5, I2S6 and I2S8
+⚫ Support four internal 32-bit wide and 32-location deep receiving FIFOs for I2S7, I2S9
+and I2S10
+⚫ Support AHB bus interface
+⚫ Support 16~32 bits audio data transfer
+⚫ Support master and slave mode for I2S0, I2S1, I2S2 and I2S3
+⚫ Support only master TX mode for I2S4, I2S5, I2S6 and I2S8
+⚫ Support only slave RX mode for I2S7, I2S9 and I2S10
+⚫ Support DMA handshaking interface and configurable DMA water level
+⚫ Support transmit FIFO empty, underflow, receive FIFO full, overflow interrupt and all
+interrupts can be masked
+⚫ Support configurable water level of transmit FIFO empty and receive FIFO full interrupt
+⚫ Support combined interrupt output
+⚫ Support 2-channel audio transmitting and receiving in PCM mode for I2S0, I2S1, I2S2
+and I2S3
+⚫ Support 2-channel audio transmitting in PCM mode for I2S4, I2S5, I2S6 and I2S8
+⚫ Support 2-channel audio receiving in PCM mode for I2S7, I2S9 and I2S10
+⚫ Support 8-channel audio transmitting and receiving in I2S mode for I2S0 and I2S1
+⚫ Support 2-channel audio transmitting and receiving in I2S mode for I2S2 and I2S3
+⚫ Support 8-channel audio transmitting in I2S mode for I2S4, I2S5, I2S6 and I2S8
+⚫ Support 8-channel audio receiving in I2S mode for I2S7, I2S9 and I2S10
+⚫ Support up to 16-channel audio transmitting and receiving in TDM mode for
+I2S/PCM/TDM controllers
+⚫ Support up to 192kHz sample rate for I2S0, I2S1, I2S2, I2S3, I2S4 and I2S8
+⚫ Support up to 768kHz sample rate for I2S5, I2S6, I2S7, I2S9 and I2S10
+⚫ Support I2S normal, left and right justified mode serial audio data transfer
+⚫ Support PCM early, late1, late2, late3 mode serial audio data transfer
+⚫ Support TDM normal, 1/2 cycle left shift , 1 cycle left shift, 2 cycle left shift, right shift
+mode serial audio data transfer for I2S/PCM/TDM controllers
+⚫ Support MSB or LSB first serial audio data transfer
+⚫ Support 16 to 31 bit audio data left or right justified in 32-bit wide FIFO
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1511
+
+RKRK3588 TRM-Part1
+⚫
+⚫
+⚫
+⚫
+⚫
+⚫
+
+Support two 16-bit audio data store together in one 32-bit wide location
+Support configurable SCLK and LRCK polarity
+Support a range of 16 to 32 programmable slot bit width in TDM mode for I2S/PCM/TDM
+controllers
+Support a range of 32 to 512 programmable frame width in TDM mode for I2S/PCM/TDM
+controllers
+Support a range of 32 to 256 programmable frame width in I2S/PCM mode for
+I2S/PCM/TDM controllers and I2S/PCM controllers except I2S4 and I2S8
+Support a range of 32 to 512 programmable frame width in I2S/PCM mode for I2S4 and
+I2S8
+
+22.2 Block Diagram
+TDM Transmitter
+dma interface
+TX FIFO
+
+System Interface
+
+TX_CTRL
+I2S/PCM
+Transmitter
+
+Clock Generator
+
+stereo
+audio
+output
+
+I2S BUS
+
+AHB BUS
+TDM Receiver
+interrupt
+interface
+
+RX FIFO
+
+RX_CTRL
+
+stereo
+audio
+input
+
+I2S/PCM Receiver
+
+Fig. 22-1 I2S/PCM/TDM Controller (8-channel) Block Diagram
+TX_CTRL
+dma interface
+TX FIFO
+
+System Interface
+
+I2S/PCM
+Transmitter
+
+Clock Generator
+
+stereo
+audio
+output
+
+I2S BUS
+
+AHB BUS
+RX_CTRL
+interrupt
+interface
+
+RX FIFO
+
+I2S/PCM Receiver
+
+stereo
+audio
+input
+
+Fig. 22-2 I2S/PCM Controller (2-channel) Block Diagram
+System Interface
+The system interface implements the AHB slave operation. It contains not only control
+registers of transmitters and receiver inside but also interrupt and DMA handshaking
+interface.
+Clock Generator
+The Clock Generator implements clock generation function. By the divider of the module, the
+clock generator generates SCLK and LRCK to transmitter and receiver.
+TX_CTRL
+For I2S/PCM/TDM Controller, TX_CTRL includes TDM transmitter and I2S/PCM transmitter.
+While for I2S/PCM Controller, TX_CTRL only includes I2S/PCM transmitter. The Transmitters
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1512
+
+RKRK3588 TRM-Part1
+implement transmission operation. The transmitters can act as either a master or a slave,
+with I2S, PCM or TDM mode surround serial audio interface.
+RX_CTRL
+For I2S/PCM/TDM Controller, RX_CTRL includes TDM receiver and I2S/PCM receiver. While
+for I2S/PCM Controller, RX_CTRL only includes I2S/PCM receiver. The Receiver implements
+receive operation. The receiver can act as either a master or a slave, with I2S, PCM or TDM
+mode stereo serial audio interface.
+TX FIFO
+The transmit FIFO is the buffer to store transmitted audio data. The size of one FIFO is
+32bits x 32.
+RX FIFO
+The receive FIFO is the buffer to store received audio data. The size of one FIFO is 32bits x
+32.
+
+22.3 Function description
+In the I2S/PCM/TDM or I2S/PCM controller, there are four types: transmitter-master &
+receiver-master; transmitter-master & receiver-slave; transmitter-slave & receiver-master;
+transmitter-slave & receiver-slave.
+In broadcasting application, the I2S/PCM/TDM or I2S/PCM controller is used as a transmitter
+and external or internal audio CODEC is used as a receiver. In recording application, the
+I2S/PCM/TDM or I2S/PCM controller is used as a receiver and external or internal audio
+CODEC is used as a transmitter. Either the I2S/PCM/TDM or I2S/PCM controller or the audio
+CODEC can act as a master or a slave, but if one is master, the other must be slave.
+SCLK
+
+I2S Transmitter Master
+
+LRCK
+
+I2S Receiver Slave
+
+SD
+
+Fig. 22-3 I2S Transmitter-Master & Receiver-Slave Condition
+When the transmitter acts as a master, it sends all signals to the receiver (the slave), and
+CPU controls when to send clock and data to the receiver. When acts as a slave, SD signal
+still goes from transmitter to receiver, but SCLK and LRCK signals are from the receiver (the
+master) to the transmitter. Based on three interface specifications, transmitting data should
+be ready before transmitter receives SCLK and LRCK signals. CPU should know when the
+receiver to initialize a transaction and when the transmitter to send data.
+SCLK
+
+I2S Transmitter Slave
+
+LRCK
+
+I2S Receiver Master
+
+SD
+
+Fig. 22-4 I2S Transmitter-Slave & Receiver-Master Condition
+When the receiver acts as a master, it sends SCLK and LRCK signals to the transmitter (the
+slave) and receives serial data. So CPU must tell the transmitter when to start a transaction
+for it to prepare transmitting data then start a transfer and send clock and channel-select
+signals. When the receiver acts as a slave, CPU should only do initial setting and wait for all
+signals and then start reading data.
+Before transmitting or receiving data, CPU need do initial setting to the I2S register. These
+includes CPU settings, I2S interface registers settings, and maybe the embedded SoC
+platform settings. These registers must be set before starting data transfer.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1513
+
+RKRK3588 TRM-Part1
+
+22.3.1 I2S Normal Mode
+This is the waveform of I2S normal mode. For LRCK (i2s_lrck) signal, it goes low to indicate
+left channel and high to right channel. For SD (i2s_sdo, i2s_sdi) signal, it starts sending the
+first bit (MSB or LSB) one SCLK clock cycle after LRCK changes. The range of SD signal
+width is from 16 to 32bits.
+i2s_sclk
+
+i2s_lrck
+
+Left channel
+
+i2s_sdo/
+i2s_sdi
+
+0
+
+1
+
+Right channel
+21
+
+22
+
+23
+
+0
+
+1
+
+21
+
+22
+
+23
+
+0
+
+Fig. 22-5 I2S Normal Mode Timing Format
+
+22.3.2 I2S Left Justified Mode
+This is the waveform of I2S left justified mode. For LRCK (i2s_lrck) signal, it goes high to
+indicate left channel and low to right channel. For SD (i2s_sdo, i2s_sdi) signal, it starts
+sending the first bit (MSB or LSB) at the same time when LRCK changes. The range of SD
+signal width is from 16 to 32bits.
+i2s_sclk
+Right channel
+
+i2s_lrck
+i2s_sdo/
+i2s_sdi
+
+Left channel
+0
+
+1
+
+21
+
+22
+
+23
+
+0
+
+1
+
+21
+
+22
+
+23
+
+0
+
+1
+
+Fig. 22-6 I2S Left Justified Mode Timing Format
+
+22.3.3 I2S Right Justified Mode
+This is the waveform of I2S right justified mode. For LRCK (i2s_lrck) signal, it goes high to
+indicate left channel and low to right channel. For SD (i2s_sdo, i2s_sdi) signal, it transfers
+MSB or LSB first; but what is different from I2S normal or left justified mode, the last bit of
+the transferred data is aligned to the transition edge of the LRCK signal while one bit is
+transferred at one SCLK cycle. The range of SD signal width is from 16 to 32bits.
+i2s_sclk
+
+i2s_lrck
+
+Left channel
+
+i2s_sdo/
+i2s_sdi
+
+0
+
+Right channel
+
+1
+
+21
+
+22
+
+23
+
+0
+
+1
+
+21
+
+22
+
+23
+
+Fig. 22-7 I2S Right Justified Mode Timing Format
+
+22.3.4 PCM Early Mode
+This is the waveform of PCM early mode. For LRCK (i2s_lrck) signal, it goes high to indicate
+the start of a group of audio channels. For SD (i2s_sdo, i2s_sdi) signal, it sends the first bit
+(MSB or LSB) at the same time when LRCK goes high. The range of SD signal width is from
+16 to 32bits.
+i2s_sclk
+i2s_lrck
+(slave mode)
+
+At least one sclk cycle in slave mode
+
+i2s_lrck
+(master mode)
+i2s_sdo
+
+Always one sclk cycle in master mode
+0
+
+1
+
+23
+
+0
+
+channel0 left
+
+i2s_sdi
+
+0
+
+1
+
+23
+
+channel0 right
+
+1
+
+23
+
+0
+
+1
+channel0 right
+
+channel0 left
+
+0
+
+1
+
+0
+
+1
+
+no valid data
+23
+no valid data
+
+Fig. 22-8 PCM Early Mode Timing Format
+
+22.3.5 PCM Late1 Mode
+This is the waveform of PCM early mode. For LRCK (i2s_lrck) signal, it goes high to indicate
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1514
+
+RKRK3588 TRM-Part1
+the start of a group of audio channels. For SD (i2s_sdo, i2s_sdi) signal, it sends the first bit
+(MSB or LSB) one SCLK clock cycle after LRCK goes high. The range of SD signal width is
+from 16 to 32bits.
+i2s_sclk
+i2s_lrck
+(slave mode)
+i2s_lrck
+(master mode)
+
+At least one sclk cycle in slave mode
+
+Always one sclk cycle in master mode
+
+i2s_sdo
+
+0
+
+1
+
+23
+
+0
+
+1
+
+23
+
+0
+no valid data
+
+channel0 left
+
+i2s_sdi
+
+0
+
+channel0 right
+
+1
+
+23
+
+0
+
+1
+
+23
+
+0
+
+channel0 right
+
+channel0 left
+
+no valid data
+
+Fig. 22-9 PCM Late1 Mode Timing Format
+
+22.3.6 PCM Late2 Mode
+This is the waveform of PCM early mode. For LRCK (i2s_lrck) signal, it goes high to indicate
+the start of a group of audio channels. For SD (i2s_sdo, i2s_sdi) signal, it sends the first
+bit(MSB or LSB) two SCLK clock cycles after LRCK goes high. The range of SD signal width is
+from 16 to 32bits.
+i2s_sclk
+
+i2s_lrck
+(slave mode)
+i2s_lrck
+(master mode)
+
+At least one sclk cycle in slave mode
+
+Always one sclk cycle in master mode
+
+i2s_sdo
+
+0
+
+1
+
+23
+
+0
+
+1
+
+23
+no valid data
+
+channel0 left
+
+i2s_sdi
+
+0
+
+1
+
+channel0 right
+23
+
+0
+
+channel0 left
+
+1
+
+23
+no valid data
+
+channel0 right
+
+Fig. 22-10 PCM Late2 Mode Timing Format
+
+22.3.7 PCM Late3 Mode
+This is the waveform of PCM early mode. For LRCK (i2s_lrck) signal, it goes high to indicate
+the start of a group of audio channels. For SD (i2s_sdo, i2s_sdi) signal, it sends the first bit
+(MSB or LSB) three SCLK clock cycles after LRCK goes high. The range of SD signal width is
+from 16 to 32bits.
+i2s_sclk
+i2s_lrck
+(slave mode)
+
+i2s_lrck
+(master mode)
+
+At least one sclk cycle in slave mode
+
+Always one sclk cycle in master mode
+0
+
+i2s_sdo
+no valid data
+
+i2s_sdi
+
+23
+
+0
+
+channel0 left
+0
+
+no valid data
+
+1
+
+1
+
+1
+
+23
+no valid data
+
+channel0 right
+23
+
+channel0 left
+
+0
+
+1
+
+23
+
+channel0 right
+
+no valid data
+
+Fig. 22-11 PCM Late3 Mode Timing Format
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1515
+
+RKRK3588 TRM-Part1
+
+22.3.8 TDM Normal Mode (PCM Format)
+This is the waveform of TDM normal mode. For LRCK (i2s_lrck) signal, it goes high to
+indicate the start of a group of audio channels. For SD (i2s_sdo, i2s_sdi) signal, it sends the
+first bit (MSB or LSB) on the second falling edge of SCLK after LRCK goes high. The range of
+SD signal width is from 16 to 32bits.
+i2s_sclk
+i2s_lrck
+(slave mode)
+
+At least one sclk cycle in slave mode
+
+i2s_lrck
+(master mode)
+At least one sclk cycle in slave mode
+
+0
+
+i2s_sdo
+no valid data
+
+1
+
+23
+
+0
+
+23
+
+0
+
+channel0 left
+
+i2s_sdi
+
+0
+
+no valid data
+
+1
+
+23
+
+0
+
+channel0 right
+
+1
+
+channel0 left
+
+1
+
+23
+no valid data
+
+channel1 left ~ channel3 right
+
+1
+
+23
+
+0
+
+channel0 right
+
+1
+
+23
+
+no valid data
+
+channel1 left ~ channel3 right
+
+Fig. 22-12 TDM Normal Mode Timing Format (PCM Format)
+
+22.3.9 TDM Left Shift Mode0 (PCM Format)
+This is the waveform of PCM early mode. For LRCK (i2s_lrck) signal, it goes high to indicate
+the start of a group of audio channels. For SD (i2s_sdo, i2s_sdi) signal, it sends the first bit
+(MSB or LSB) on the second rising edge of SCLK after LRCK goes high. The range of SD
+signal width is from 16 to 32bits.
+i2s_sclk
+i2s_lrck
+(slave mode)
+
+At least one sclk cycle in slave mode
+
+i2s_lrck
+(master mode)
+At least one sclk cycle in slave mode
+
+0
+
+i2s_sdo
+no valid data
+
+i2s_sdi
+
+1
+
+0
+
+channel0 left
+0
+
+no valid data
+
+23
+
+1
+
+23
+
+0
+
+channel0 right
+
+1
+
+23
+
+0
+
+channel0 left
+
+1
+
+23
+
+channel1 left ~ channel3 right
+
+1
+
+23
+
+0
+
+channel0 right
+
+1
+
+no valid data
+
+23
+
+channel1 left ~ channel3 right
+
+no valid data
+
+Fig. 22-13 TDM Left Shift Mode 0 Timing Format (PCM Format)
+
+22.3.10 TDM Left Shift Mode1 (PCM Format)
+This is the waveform of PCM early mode. For LRCK (i2s_lrck) signal, it goes high to indicate
+the start of a group of audio channels. For SD (i2s_sdo, i2s_sdi) signal, it sends the first bit
+(MSB or LSB) on the first falling edge of SCLK after LRCK goes high. The range of SD signal
+width is from 16 to 32bits.
+i2s_sclk
+i2s_lrck
+(slave mode)
+
+At least one sclk cycle in slave mode
+
+i2s_lrck
+(master mode)
+At least one sclk cycle in slave mode
+
+0
+
+i2s_sdo
+no valid data
+
+i2s_sdi
+
+23
+
+0
+
+23
+
+0
+
+channel0 left
+0
+
+no valid data
+
+1
+
+1
+
+channel0 left
+
+1
+
+23
+
+channel0 right
+1
+channel0 right
+
+0
+
+1
+
+23
+
+channel1 left ~ channel3 right
+23
+
+0
+
+1
+
+no valid data
+
+23
+
+channel1 left ~ channel3 right
+
+no valid data
+
+Fig. 22-14 TDM Left Shift Mode 1 Timing Format (PCM Format)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1516
+
+RKRK3588 TRM-Part1
+
+22.3.11 TDM Left Shift Mode2 (PCM Format)
+This is the waveform of PCM early mode. For LRCK (i2s_lrck) signal, it goes high to indicate
+the start of a group of audio channels. For SD (i2s_sdo, i2s_sdi) signal, it sends the first bit
+(MSB or LSB) on the first rising edge of SCLK after LRCK goes high. The range of SD signal
+width is from 16 to 32bits.
+i2s_sclk
+i2s_lrck
+(slave mode)
+
+At least one sclk cycle in slave mode
+
+i2s_lrck
+(master mode)
+At least one sclk cycle in slave mode
+
+0
+
+i2s_sdo
+
+1
+
+no valid data
+
+i2s_sdi
+
+23
+
+0
+
+23
+
+0
+
+channel0 left
+0
+
+23
+
+0
+
+channel0 right
+
+1
+
+no valid data
+
+1
+
+channel0 left
+
+1
+
+23
+no valid data
+
+channel1 left ~ channel3 right
+
+1
+
+23
+
+0
+
+channel0 right
+
+1
+
+23
+
+no valid data
+
+channel1 left ~ channel3 right
+
+Fig. 22-15 TDM Left Shift Mode 2 Timing Format (PCM Format)
+
+22.3.12 TDM Left Shift Mode3 (PCM Format)
+This is the waveform of PCM early mode. For LRCK (i2s1_lrck) signal, it goes high to indicate
+the start of a group of audio channels. For SD (i2s_sdo, i2s_sdi) signal, it sends the first bit
+(MSB or LSB) at the same time when LRCK goes high. The range of SD signal width is from
+16 to 32bits.
+i2s_sclk
+i2s_lrck
+(slave mode)
+
+At least one sclk cycle in slave mode
+
+i2s_lrck
+(master mode)
+At least one sclk cycle in slave mode
+
+0
+
+i2s_sdo
+no valid data
+
+i2s_sdi
+
+1
+
+23
+
+0
+
+1
+
+channel0 left
+0
+
+no valid data
+
+1
+
+23
+
+channel0 right
+23
+
+0
+
+1
+
+channel0 left
+
+0
+
+1
+
+23
+no valid data
+
+channel1 left ~ channel3 right
+23
+
+channel0 right
+
+0
+
+1
+
+23
+
+no valid data
+
+channel1 left ~ channel3 right
+
+Fig. 22-16 TDM Left Shift Mode 3 Timing Format (PCM Format)
+
+22.3.13 TDM Normal Mode (I2S Format)
+This is the waveform of I2S normal mode. For SD (i2s_sdo, i2s_sdi) signal, it starts sending
+the first bit (MSB or LSB)on the first falling edge of SCLK after LRCK changes. The range of
+SD signal width is from 16 to 32bits.
+tdm_txctrl[17]/tdm_rxctrl[17]=1:
+i2s_sclk
+i2s_lrck
+i2s_sdi
+/i2s_sdo
+
+0
+no valid data
+
+1
+
+23
+
+0
+
+channel0 left
+
+1
+
+23
+
+0
+
+1
+
+23
+
+0
+
+channel1 left ~ channel3 right no valid data
+
+channel0 right
+
+1
+
+23
+
+0
+
+channel0 left
+
+1
+
+23
+
+channel0 right
+
+0
+
+1
+
+23
+
+channel1 left ~ channel3 right
+
+tdm_txctrl[17]/tdm_rxctrl[17]=0:
+i2s_sclk
+i2s_lrck
+
+i2s_sdi
+/i2s_sdo
+
+0
+no valid data
+
+1
+channel0 left
+
+23
+
+0
+
+1
+channel1 left
+
+23
+
+0
+
+1
+
+23
+
+channel2 left ~ channel3 left no valid data
+
+0
+
+1
+channel0 right
+
+23
+
+0
+
+1
+channel1 right
+
+23
+
+0
+
+1
+
+23
+
+channel2 right ~ channel3 right
+
+Fig. 22-17 TDM Normal Mode Timing Format (I2S Format)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1517
+
+RKRK3588 TRM-Part1
+
+22.3.14 TDM Left Justified Mode (I2S Format)
+This is the waveform of I2S left justified mode. For SD (i2s_sdo, i2s_sdi) signal, it starts
+sending the first bit (MSB or LSB) at the same time when LRCK changes. The range of SD
+signal width is from 16 to 32bits.
+Unuse
+d cycle
+
+Valid cycle
+
+Unuse
+d cycle
+
+Valid cycle
+
+slot0
+
+Unuse
+d cycle
+
+Valid cycle
+
+slot1
+
+Unuse
+d cycle
+
+Valid cycle
+
+slot2
+
+Unuse
+d cycle
+
+Valid cycle
+
+slot3
+
+Unuse
+d cycle
+
+Valid cycle
+
+slot4
+
+Unuse
+d cycle
+
+Valid cycle
+
+slot5
+
+Unuse
+d cycle
+
+Valid cycle
+
+slot6
+
+Unused cycle
+
+slot7
+
+frame
+
+tdm_txctrl[17]/tdm_rxctrl[17]=1:
+i2s_sclk
+i2s_lrck
+i2s_sdi
+/i2s_sdo
+
+0
+
+no valid data
+
+1
+
+23
+
+0
+
+channel0 left
+
+1
+
+23
+
+0
+
+channel0 right
+
+1
+
+23
+
+0
+
+1
+
+23
+
+0
+
+1
+
+channel0 left
+
+channel1 left ~ channel3 right
+
+23
+
+0
+
+channel0 right
+
+1
+
+23
+
+channel1 left ~ channel3 right
+
+tdm_txctrl[17]/tdm_rxctrl[17]=0:
+i2s_sclk
+i2s_lrck
+
+i2s_sdi
+/i2s_sdo
+
+0
+
+no valid data
+
+1
+
+23
+
+0
+
+channel0 left
+
+1
+
+23
+
+0
+
+channel1 left
+
+1
+
+23
+
+0
+
+1
+
+23
+
+0
+
+channel0 right
+
+channel2 left ~ channel3 left
+
+1
+
+23
+
+0
+
+channel1 right
+
+1
+
+23
+
+channel2 right ~ channel3 right
+
+Fig. 22-18 TDM Left Justified Mode Timing Format (I2S Format)
+
+22.3.15 TDM Right Justified Mode (I2S Format)
+This is the waveform of I2S right justified mode. For SD (i2s_sdo, i2s_sdi) signal, it transfers
+MSB or LSB first; but what is different from I2S normal or left justified mode. The range of
+SD signal width is from 16 to 32bits.
+Unuse
+d cycle
+
+Unuse
+d cycle
+
+Valid cycle
+
+Unuse
+d cycle
+
+Valid cycle
+
+slot0
+
+Valid cycle
+
+slot1
+
+Unuse
+d cycle
+
+Unuse
+d cycle
+
+Valid cycle
+
+slot2
+
+slot3
+
+Valid cycle
+
+Unuse
+d cycle
+
+Unuse
+d cycle
+
+Valid cycle
+
+slot4
+
+slot5
+
+Unuse
+d cycle
+
+Valid cycle
+
+slot6
+
+Valid cycle
+
+Unused cycle
+
+slot7
+
+frame
+
+tdm_txctrl[17]/tdm_rxctrl[17]=1:
+i2s_sclk
+i2s_lrck
+
+i2s_sdi
+/i2s_sdo
+
+0
+no valid data
+
+1
+
+23
+
+0
+
+channel0 left
+
+1
+
+23
+
+channel0 right
+
+0
+
+1
+
+23
+
+0
+
+1
+
+23
+
+0
+
+channel0 left
+
+channel1 left ~ channel3 right
+
+1
+
+23
+
+channel0 right
+
+0
+
+1
+
+23
+
+channel1 left ~ channel3 right
+
+tdm_txctrl[17]/tdm_rxctrl[17]=0:
+i2s_sclk
+i2s_lrck
+i2s_sdi
+/i2s_sdo
+
+0
+no valid data
+
+1
+channel0 left
+
+23
+
+0
+
+1
+
+23
+
+channel1 left
+
+0
+
+1
+
+23
+
+0
+
+channel2 left ~ channel3 left
+
+1
+
+23
+
+channel0 right
+
+0
+
+1
+
+23
+
+channel1 right
+
+0
+
+1
+
+23
+
+channel2 right ~ channel3 right
+
+Fig. 22-19 TDM Right Justified Mode Timing Format (I2S Format)
+
+22.4 Register description
+22.4.1 Internal Address Mapping
+Slave address can be divided into different length for different usage, which is shown as
+follows.
+
+22.4.2 Registers Summary for I2S/PCM controllers
+Following register summary can be applied to I2S0, I2S1, I2S5, I2S6, I2S7, I2S9 and
+I2S10.
+Name
+I2S_2CH_TXCR
+
+Offset
+0x0000
+
+Size
+
+Reset
+Value
+
+W
+
+0x0000000F
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+Transmit Operation Control
+Register
+
+1518
+
+RKRK3588 TRM-Part1
+Name
+
+Offset
+
+Size
+
+Reset
+Value
+0x0000000F
+
+I2S_2CH_RXCR
+
+0x0004
+
+W
+
+I2S_2CH_CKR
+I2S_2CH_TXFIFOLR
+I2S_2CH_DMACR
+I2S_2CH_INTCR
+I2S_2CH_INTSR
+I2S_2CH_XFER
+I2S_2CH_CLR
+I2S_2CH_TXDR
+I2S_2CH_RXDR
+I2S_2CH_RXFIFOLR
+I2S_2CH_VERSION
+
+0x0008
+0x000C
+0x0010
+0x0014
+0x0018
+0x001C
+0x0020
+0x0024
+0x0028
+0x002C
+0x0030
+
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+
+Description
+
+Receive Operation Control
+Register
+0x00071F1F Clock Generation Register
+0x00000000 TX FIFO Level Register
+0x001F0000 DMA Control Register
+0x01F00000 Interrupt Control Register
+0x00000000 Interrupt Status Register
+0x00000000 Transfer Start Register
+0x00000000 SCLK Domain Logic Clear Register
+0x00000000 Transmit FIFO Data Register
+0x00000000 Receive FIFO Data Register
+0x00000000 RX FIFO Level Register
+0x20150001 Version Register
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+22.4.3 Detail Registers Description
+I2S_2CH_TXCR
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+31:23 RO 0x000
+reserved
+RCNT
+Right justified counter
+Can be written only when XFER[0] bit is 0.
+22:17 RW 0x00
+Only valid in I2S right justified format and slave TX mode is
+selected.
+Start to transmit data RCNT sclk cycles after left channel valid.
+CSR
+Channel select
+16:15 RW 0x0
+2'b00: 2 channel
+2'b01~2'b11: Reserved
+HWT
+Halfword word transform
+Can be written only when XFER[0] bit is 0.
+Only valid when VDW select 16bit data.
+14
+RW 0x0
+1'b0: 32 bit data valid from AHB/APB bus. Low 16 bit for left
+channel and high 16 bit for right channel.
+1'b1: Low 16bit data valid from AHB/APB bus, high 16 bit data
+invalid.
+13
+RO 0x0
+reserved
+SJM
+Store justified mode
+Can be written only when XFER[0] bit is 0.
+16bit~31bit DATA stored in 32 bits width FIFO.
+12
+RW 0x0
+If VDW select 16bit data, this bit is valid only when HWT select
+0.Because if HWT is 1'b1, every FIFO unit contain two 16bit data
+and 32 bit space is full, it is impossible to choose justified mode.
+1'b0: Right justified
+1'b1: Left justified
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1519
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+11
+
+RW 0x0
+
+10:9
+
+RW 0x0
+
+8:7
+
+RW 0x0
+
+6
+
+RO
+
+5
+
+RW 0x0
+
+4:0
+
+RW 0x0f
+
+0x0
+
+Description
+FBM
+First bit mode
+Can be written only when XFER[0] bit is 0.
+1'b0: MSB
+1'b1: LSB
+IBM
+I2S bus mode
+Can be written only when XFER[0] bit is 0.
+2'b00: I2S normal
+2'b01: I2S left justified
+2'b10: I2S right justified
+2'b11: Reserved
+PBM
+PCM bus mode
+Can be written only when XFER[0] bit is 0.
+2'b00: PCM no delay mode
+2'b01: PCM delay 1 mode
+2'b10: PCM delay 2 mode
+2'b11: PCM delay 3 mode
+reserved
+TFS
+Transfer format select
+Can be written only when XFER[0] bit is 0.
+1'b0: I2S format
+1'b1: PCM format
+VDW
+Valid data width
+Can be written only when XFER[0] bit is 0.
+5'b00000~5'b01110: Reserved
+5'b01111: 16bit
+5'b10000: 17bit
+5'b10001: 18bit
+5'b10010: 19bit
+......
+5'b11100: 29bit
+5'b11101: 30bit
+5'b11110: 31bit
+5'b11111: 32bit
+
+I2S_2CH_RXCR
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+31:15 RO 0x00000
+reserved
+HWT
+Halfword word transform
+Can be written only when XFER[1] bit is 0.
+Only valid when VDW select 16bit data.
+14
+RW 0x0
+1'b0: 32 bit data valid to AHB/APB bus. Low 16 bit for left
+channel and high 16 bit for right channel.
+1'b1: Low 16bit data valid to AHB/APB bus, high 16 bit data
+invalid.
+13
+RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1520
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+12
+
+RW 0x0
+
+11
+
+RW 0x0
+
+10:9
+
+RW 0x0
+
+8:7
+
+RW 0x0
+
+6
+
+RO
+
+5
+
+RW 0x0
+
+4:0
+
+RW 0x0f
+
+0x0
+
+Description
+SJM
+Store justified mode
+Can be written only when XFER[1] bit is 0.
+16bit~31bit DATA stored in 32 bits width FIFO.
+If VDW select 16bit data, this bit is valid only when HWT select
+0.Because if HWT is 1'b1, every FIFO unit contain two 16bit data
+and 32 bit space is full, it is impossible to choose justified mode.
+1'b0: Right justified
+1'b1: Left justified
+FBM
+First bit mode
+Can be written only when XFER[1] bit is 0.
+1'b0: MSB
+1'b1: LSB
+IBM
+I2S bus mode
+Can be written only when XFER[1] bit is 0.
+2'b00: I2S normal
+2'b01: I2S left justified
+2'b10: I2S right justified
+2'b11: Reserved
+PBM
+PCM bus mode
+Can be written only when XFER[1] bit is 0.
+2'b00: PCM no delay mode
+2'b01: PCM delay 1 mode
+2'b10: PCM delay 2 mode
+2'b11: PCM delay 3 mode
+reserved
+TFS
+Transfer format select
+Can be written only when XFER[1] bit is 0.
+1'b0: I2S format
+1'b1: PCM format
+VDW
+Valid data width
+Can be written only when XFER[1] bit is 0.
+5'b00000~5'b01110: Reserved
+5'b01111: 16bit
+5'b10000: 17bit
+5'b10001: 18bit
+5'b10010: 19bit
+......
+5'b11100: 29bit
+5'b11101: 30bit
+5'b11110: 31bit
+5'b11111: 32bit
+
+I2S_2CH_CKR
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+31:30 RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1521
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+29:28 RW 0x0
+
+27
+
+RW 0x0
+
+26
+
+RW 0x0
+
+25
+
+RO
+
+24
+
+RW 0x0
+
+0x0
+
+23:16 RW 0x07
+
+15:8
+
+RW 0x1f
+
+Description
+TRCM
+LRCK Control
+2'b00: Generates LRCK for TX only.
+2'b01: Generates LRCK for TX/RX or RX.
+2'b10/2'b11: Reseverd
+If only TX works, please set TRCM to 2'b00. If TX and RX work at
+the same time or only RX works, please set TRCM to 2'b01.
+Note: When set to 2'b01, if user wants to use both transmitting
+and receiving in master mode, user should configure as following.
+a. The value of TSD and RSD should be same.
+b. User should start TX transfer and RX transfer at the same
+time.
+MSS
+Master/slave mode select
+Can be written only when XFER[1] or XFER[0] bit is 0.
+1'b0: Master mode (sclk output)
+1'b1: Slave mode (sclk input)
+CKP
+Sclk polarity
+Can be written only when XFER[1] or XFER[0] bit is 0.
+1'b0: Sample data at posedge sclk and drive data at negedge
+sclk.
+1'b1: Sample data at negedge sclk and drive data at posedge
+sclk.
+reserved
+LRCKP
+Lrck polarity
+Can be written only when XFER[1] or XFER[0] bit is 0.
+1'b0: Normal polarity
+(I2S normal: Low for left channel, high for right channel
+I2S left/right just: High for left channel, low for right channel
+PCM start signal: High valid)
+1'b1: Opposite polarity
+(I2S normal: High for left channel, low for right channel
+I2S left/right just: Low for left channel, high for right channel
+PCM start signal: Low valid)
+MDIV
+Mclk divider
+Can be written only when XFER[1] or XFER[0] bit is 0.
+mclk divider = (mclk/sclk)-1.
+For example, if mclk divider is 5, then the frequency of sclk is
+mclk/6
+RSD
+Receive Sclk Divider
+Can be written only when XFER[1] or XFER[0] bit is 0.
+8'h00~8'h1e: Reserved
+8'h1f~8'hff: Frequency of sclk = ((RSD>>1)+1)*2*frequency of
+lrck for I2S format. Frequency of sclk = (RSD+1)*frequency of
+lrck for PCM format.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1522
+
+RKRK3588 TRM-Part1
+Bit
+
+7:0
+
+Attr Reset Value
+
+RW 0x1f
+
+Description
+TSD
+Transmit sclk divider
+Can be written only when XFER[1] or XFER[0] bit is 0.
+8'h00~8'h1e: Reserved
+8'h1f~8'hff: Frequency of sclk = ((TSD>>1)+1)*2*frequency of
+lrck for I2S format. Frequency of sclk = (TSD+1)*frequency of
+lrck for PCM format.
+
+I2S_2CH_TXFIFOLR
+Address: Operational Base + offset (0x000C)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+TFL
+5:0
+RO 0x00
+Transmit FIFO level
+Contains the number of valid data entries in the transmit FIFO.
+I2S_2CH_DMACR
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+Description
+31:25 RO 0x00
+reserved
+RDE
+Receive DMA enable
+24
+RW 0x0
+1'b0: Receive DMA disabled
+1'b1: Receive DMA enabled
+23:21 RO 0x0
+reserved
+RDL
+Receive data level
+This bit field controls the level at which a DMA request is made by
+20:16 RW 0x1f
+the receive logic. The watermark level = DMARDL+1. That is,
+dma_rx_req is generated when the number of valid data entries
+in the receive FIFO is equal to or above this field value + 1.
+15:9 RO 0x00
+reserved
+TDE
+Transmit DMA enable
+8
+RW 0x0
+1'b0: Transmit DMA disabled
+1'b1: Transmit DMA enabled
+7:5
+RO 0x0
+reserved
+TDL
+Transmit data level
+This bit field controls the level at which a DMA request is made by
+4:0
+RW 0x00
+the transmit logic. It is equal to the watermark level; that is, the
+dma_tx_req signal is generated when the number of valid data
+entries in the TXFIFO is equal to or below this field value.
+I2S_2CH_INTCR
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+Description
+31:25 RO 0x00
+reserved
+RFT
+Receive FIFO threshold
+24:20 RW 0x1f
+When the number of receive FIFO entries is more than or equal to
+this threshold plus 1, the receive FIFO full interrupt is triggered.
+19
+RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1523
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+18
+
+WO 0x0
+
+17
+
+RW 0x0
+
+16
+
+RW 0x0
+
+15:9
+
+RO
+
+8:4
+
+RW 0x00
+
+3
+
+RO
+
+2
+
+WO 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+0x00
+
+0x0
+
+Description
+RXOIC
+RX overrun interrupt clear
+Write 1'b1 to clear RX overrun interrupt.
+RXOIE
+RX overrun interrupt enable
+1'b0: Disable
+1'b1: Enable
+RXFIE
+RX full interrupt enable
+1'b0: Disable
+1'b1: Enable
+reserved
+TFT
+Transmit FIFO threshold
+When the number of transmit FIFO entries is less than or equal to
+this threshold, the transmit FIFO empty interrupt is triggered.
+reserved
+TXUIC
+TX underrun interrupt clear
+Write 1'b1 to clear TX underrun interrupt.
+TXUIE
+TX underrun interrupt enable
+1'b0: Disable
+1'b1: Enable
+TXEIE
+TX empty interrupt enable
+1'b0: Disable
+1'b1: Enable
+
+I2S_2CH_INTSR
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+31:18 RO 0x0000
+reserved
+RXOI
+RX overrun interrupt
+17
+RO 0x0
+1'b0: Inactive
+1'b1: Active
+RXFI
+RX full interrupt
+16
+RO 0x0
+1'b0: Inactive
+1'b1: Active
+15:2 RO 0x0000
+reserved
+TXUI
+TX underrun interrupt
+1
+RO 0x0
+1'b0: Inactive
+1'b1: Active
+TXEI
+TX empty interrupt
+0
+RO 0x0
+1'b0: Inactive
+1'b1: Active
+I2S_2CH_XFER
+Address: Operational Base + offset (0x001C)
+Bit Attr Reset Value
+31:2 RO 0x00000000 reserved
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+Description
+
+1524
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+RXS
+RX transfer start bit
+1'b0: Stop RX transfer
+1'b1: Start RX transfer
+TXS
+TX transfer start bit
+1'b0: Stop TX transfer.
+1'b1: Start TX transfer.
+
+I2S_2CH_CLR
+Address: Operational Base + offset (0x0020)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+RXC
+1
+RW 0x0
+RX logic clear
+This is a self-cleared bit. Write 1'b1 to clear all receive logic.
+TXC
+0
+RW 0x0
+TX logic clear
+This is a self-cleared bit. Write 1'b1 to clear all transmit logic.
+I2S_2CH_TXDR
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+Description
+TDR
+31:0 WO 0x00000000 Transmit FIFO data register
+When it is written to, data are moved into the transmit FIFO.
+I2S_2CH_RXDR
+Address: Operational Base + offset (0x0028)
+Bit Attr Reset Value
+Description
+RDR
+31:0 RO 0x00000000 Receive FIFO data register
+When the register is read, data in the receive FIFO is accessed.
+I2S_2CH_RXFIFOLR
+Address: Operational Base + offset (0x002C)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+RFL
+5:0
+RO 0x00
+Receive FIFO level
+Contains the number of valid data entries in the receive FIFO.
+I2S_2CH_VERSION
+Address: Operational Base + offset (0x0030)
+Bit Attr Reset Value
+VER
+31:0 RO 0x20150001
+Version of I2S_2CH
+
+Description
+
+22.4.4 Registers Summary for I2S/PCM/TDM controllers Part 1
+Following register summary can be applied to I2S0, I2S1, I2S5, I2S6, I2S7, I2S9 and
+I2S10. Note that for I2S5 and I2S6, only TX is used, RX related registers should be ignored.
+For I2S7, I2S9 and I2S10, only RX is used, TX related registers should be ignored.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1525
+
+RKRK3588 TRM-Part1
+Offset
+
+Size
+
+Reset
+Value
+
+I2S_TDM_8CH_TXCR
+
+0x0000
+
+W
+
+0x7200000F
+
+Transmit Operation Control
+Register
+
+I2S_TDM_8CH_RXCR
+
+0x0004
+
+W
+
+0x01C8000F
+
+Receive Operation Control
+Register
+
+I2S_TDM_8CH_CKR
+
+0x0008
+
+W
+
+0x00071F1F Clock Generation Register
+
+I2S_TDM_8CH_TXFIFOLR
+
+0x000C
+
+W
+
+0x00000000 TX FIFO Level Register
+
+I2S_TDM_8CH_DMACR
+
+0x0010
+
+W
+
+0x001F0000 DMA Control Register
+
+I2S_TDM_8CH_INTCR
+
+0x0014
+
+W
+
+0x01F00000 Interrupt Control Register
+
+I2S_TDM_8CH_INTSR
+
+0x0018
+
+W
+
+0x00000000 Interrupt Status Register
+
+I2S_TDM_8CH_XFER
+
+0x001C
+
+W
+
+0x00000000 Transfer Start Register
+
+I2S_TDM_8CH_CLR
+
+0x0020
+
+W
+
+0x00000000
+
+I2S_TDM_8CH_TXDR
+
+0x0024
+
+W
+
+0x00000000 Transmit FIFO Data Register
+
+I2S_TDM_8CH_RXDR
+
+0x0028
+
+W
+
+0x00000000 Receive FIFO Data Register
+
+I2S_TDM_8CH_RXFIFOLR
+
+0x002C
+
+W
+
+0x00000000 RX FIFO Level Register
+
+I2S_TDM_8CH_TDM_TXCTRL 0x0030
+
+W
+
+0x00003EFF
+
+TDM Mode Transmit Operation
+Control Register
+
+I2S_TDM_8CH_TDM_RXCTRL 0x0034
+
+W
+
+0x00003EFF
+
+TDM Mode Receive Operation
+Control Register
+
+I2S_TDM_8CH_CLKDIV
+
+0x0038
+
+W
+
+0x00000707 Clock Divider Register
+
+I2S_TDM_8CH_VERSION
+
+0x003C
+
+W
+
+0x20150001 Version Register
+
+Name
+
+Description
+
+Sclk Domain Logic Clear
+Register
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+22.4.5 Detail Registers Description
+I2S_TDM_8CH_TXCR
+Address: Operational Base + offset (0x0000)
+Bit
+31
+
+Attr Reset Value
+RO
+
+0x0
+
+Description
+reserved
+
+30:29 RW 0x3
+
+TX_PATH_SEL3
+TX path select 3
+2'b00: Sdo3 output data from path0
+2'b01: Sdo3 output data from path1
+2'b10: Sdo3 output data from path2
+2'b11: Sdo3 output data from path3
+Note: When TDM mode, only path0 enable.
+
+28:27 RW 0x2
+
+TX_PATH_SEL2
+TX path select 2
+2'b00: Sdo2 output data from path0
+2'b01: Sdo2 output data from path1
+2'b10: Sdo2 output data from path2
+2'b11: Sdo2 output data from path3
+Note: When TDM mode, only path0 enable.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1526
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+26:25 RW 0x1
+
+TX_PATH_SEL1
+TX path select 1
+2'b00: Sdo1 output data from path0
+2'b01: Sdo1 output data from path1
+2'b10: Sdo1 output data from path2
+2'b11: Sdo1 output data from path3
+Note: When TDM mode, only path0 enable.
+
+24:23 RW 0x0
+
+TX_PATH_SEL0
+TX path select 0
+2'b00: Sdo0 output data from path0
+2'b01: Sdo0 output data from path1
+2'b10: Sdo0 output data from path2
+2'b11: Sdo0 output data from path3
+Note: When TDM mode, only path0 enable.
+
+22:17 RW 0x00
+
+RCNT
+Can be written only when XFER[0] bit is 0.
+Only valid in I2S right justified format and slave TX mode is
+selected.
+Start to transmit data RCNT sclk cycles after left channel valid.
+Note: Only function when TX TFS[1]=0.
+
+16:15 RW 0x0
+
+TCSR
+Transmit channel select
+2'b00: Two channel
+2'b01: Four channel
+2'b10: Six channel
+2'b11: Eight channel
+
+14
+
+RW 0x0
+
+HWT
+Halfword word transform
+Can be written only when XFER[0] bit is 0.
+Only valid when VDW select 16bit data.
+1'b0: 32 bit data valid from AHB/APB bus. Low 16 bit for left
+channel and high 16 bit for right channel.
+1'b1: Low 16bit data valid from AHB/APB bus, high 16 bit data
+invalid.
+
+13
+
+RO
+
+reserved
+
+12
+
+0x0
+
+RW 0x0
+
+SJM
+Store justified mode
+Can be written only when XFER[0] bit is 0.
+16bit~31bit DATA stored in 32 bits width FIFO.
+If VDW select 16bit data, this bit is valid only when HWT select
+1'b0. Because if HWT is 1'b1, every FIFO unit contains two 16bit
+data and 32 bit space is full, it is impossible to choose justified
+mode.
+1'b0: Right justified
+1'b1: Left justified
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1527
+
+RKRK3588 TRM-Part1
+Bit
+
+11
+
+10:9
+
+8:7
+
+6:5
+
+4:0
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+FBM
+First bit mode
+Can be written only when XFER[0] bit is 0.
+1'b0: MSB
+1'b1: LSB
+
+RW 0x0
+
+IBM
+I2S bus mode
+Can be written only when XFER[0] bit is 0.
+2'b00: I2S normal
+2'b01: I2S left justified
+2'b10: I2S right justified
+2'b11: Reserved
+
+RW 0x0
+
+PBM
+Can be written only when XFER[0] bit is 0.
+2'b00: PCM no delay mode
+2'b01: PCM delay 1 mode
+2'b10: PCM delay 2 mode
+2'b11: PCM delay 3 mode
+Note: Function when TX TFS[1:0] is 2'b01.
+
+RW 0x0
+
+TFS
+Can be written only when XFER[0] bit is 0.
+2'b00: I2S format
+2'b01: PCM format
+2'b10: TDM format 0 (PCM mode)
+2'b11: TDM format 1 (I2S mode)
+
+RW 0x0f
+
+VDW
+Valid data width
+Can be written only when XFER[0] bit is 0.
+5'b00000~5'b01110: Reserved
+5'b01111: 16bit
+5'b10000: 17bit
+5'b10001: 18bit
+5'b10010: 19bit
+......
+5'b11100: 29bit
+5'b11101: 30bit
+5'b11110: 31bit
+5'b11111: 32bit
+
+I2S_TDM_8CH_RXCR
+Address: Operational Base + offset (0x0004)
+Bit
+
+Attr Reset Value
+
+31:25 RO
+
+0x00
+
+Description
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1528
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+24:23 RW 0x3
+
+RX_PATH_SEL3
+RX path select 3
+2'b00: Path3 data from sdi0
+2'b01: Path3 data from sdi1
+2'b10: Path3 data from sdi2
+2'b11: Path3 data from sdi3
+Note: Inoperative at TDM mode.
+
+22:21 RW 0x2
+
+RX_PATH_SEL2
+RX path select 2
+2'b00: Path2 data from sdi0
+2'b01: Path2 data from sdi1
+2'b10: Path2 data from sdi2
+2'b11: Path2 data from sdi3
+Note: Inoperative at TDM mode.
+
+20:19 RW 0x1
+
+RX_PATH_SEL1
+RX path select 1
+2'b00: Path1 data from sdi0
+2'b01: Path1 data from sdi1
+2'b10: Path1 data from sdi2
+2'b11: Path1 data from sdi3
+Note: Inoperative at TDM mode.
+
+18:17 RW 0x0
+
+RX_PATH_SEL0
+RX path select 0
+2'b00: Path0 data from sdi0
+2'b01: Path0 data from sdi1
+2'b10: Path0 data from sdi2
+2'b11: Path0 data from sdi3
+
+16:15 RW 0x0
+
+RCSR
+Receive channel select
+2'b00: Two channel
+2'b01: Four channel
+2'b10: Six channel
+2'b11: Eight channel
+
+14
+
+RW 0x0
+
+HWT
+Halfword word transform
+Can be written only when XFER[1] bit is 0.
+Only valid when VDW select 16bit data.
+1'b0: 32 bit data valid to AHB/APB bus. Low 16 bit for left
+channel and high 16 bit for right channel.
+1'b1: Low 16bit data valid to AHB/APB bus, high 16 bit data
+invalid.
+
+13
+
+RO
+
+reserved
+
+0x0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1529
+
+RKRK3588 TRM-Part1
+Bit
+
+12
+
+11
+
+10:9
+
+8:7
+
+6:5
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+SJM
+Store justified mode
+Can be written only when XFER[1] bit is 0.
+16bit~31bit DATA stored in 32 bits width FIFO.
+If VDW select 16bit data, this bit is valid only when HWT select
+1'b0. Because if HWT is 1'b1, every FIFO unit contains two 16bit
+data and 32 bit space is full, it is impossible to choose justified
+mode.
+1'b0: Right justified
+1'b1: Left justified
+
+RW 0x0
+
+FBM
+First bit mode
+Can be written only when XFER[1] bit is 0.
+1'b0: MSB
+1'b1: LSB
+
+RW 0x0
+
+IBM
+I2S bus mode
+Can be written only when XFER[1] bit is 0.
+2'b00: I2S normal
+2'b01: I2S left justified
+2'b10: I2S right justified
+2'b11: Reserved
+
+RW 0x0
+
+PBM
+PCM bus mode
+Can be written only when XFER[1] bit is 0.
+2'b00: PCM no delay mode
+2'b01: PCM delay 1 mode
+2'b10: PCM delay 2 mode
+2'b11: PCM delay 3 mode
+
+RW 0x0
+
+TFS
+Transfer format select
+Can be written only when XFER[1] bit is 0.
+2'b00: I2S format
+2'b01: PCM format
+2'b10: TDM format 0 (PCM mode)
+2'b11: TDM format 1 (I2S mode)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1530
+
+RKRK3588 TRM-Part1
+Bit
+
+4:0
+
+Attr Reset Value
+
+RW 0x0f
+
+Description
+VDW
+Valid data width
+Can be written only when XFER[1] bit is 0.
+5'b00000~5'b01110: Reserved
+5'b01111: 16bit
+5'b10000: 17bit
+5'b10001: 18bit
+5'b10010: 19bit
+......
+5'b11100: 29bit
+5'b11101: 30bit
+5'b11110: 31bit
+5'b11111: 32bit
+
+I2S_TDM_8CH_CKR
+Address: Operational Base + offset (0x0008)
+Bit
+
+Attr Reset Value
+
+31:30 RO
+
+0x0
+
+Description
+reserved
+
+29:28 RW 0x0
+
+LRCK_CTRL
+LRCK Control
+2'b01: Generates LRCK for TX or RX.
+Others: Reseverd
+Please set it to 2’b01 in all situations.
+Note: When set to 2'b01, if user wants to use both transmitting
+and receiving in master mode, user should configure as following.
+a. The value of TSD and RSD should be same.
+b. User should start TX transfer and RX transfer at the same
+time.
+
+27
+
+RW 0x0
+
+MSS
+Master/slave mode select
+Can be written only when XFER[1] or XFER[0] bit is 0.
+1'b0: Master mode (sclk output)
+1'b1: Slave mode (sclk input)
+
+26
+
+RW 0x0
+
+CKP
+Sclk polarity
+Can be written only when XFER[1] or XFER[0] bit is 0.
+1'b0: Sample data at posedge sclk and drive data at negedge
+sclk.
+1'b1: Sample data at negedge sclk and drive data at posedge
+sclk.
+
+25
+
+RO
+
+reserved
+
+0x0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1531
+
+RKRK3588 TRM-Part1
+Bit
+
+24
+
+Attr Reset Value
+
+RW 0x0
+
+23:16 RO
+
+15:8
+
+0x07
+
+RW 0x1f
+
+Description
+LRCKP
+Lrck polarity
+Can be written only when XFER[1] or XFER[0] bit is 0.
+1'b0: Normal polarity
+(I2S normal: Low for left channel, high for right channel
+I2S left/right just: High for left channel, low for right channel
+PCM start signal: High valid)
+1'b1: Opposite polarity
+(I2S normal: High for left channel, low for right channel
+I2S left/right just: Low for left channel, high for right channel
+PCM start signal: Low valid)
+reserved
+RSD
+Receive Sclk Divider
+Can be written only when XFER[1] or XFER[0] bit is 0.
+8'h00~8'h1e: Reserved
+8'h1f~8'hff:
+Frequency of sclk = ((RSD>>1)+1)*2*frequency of lrck when RX
+TFS[1:0] is 2'b00.
+Frequency of sclk = (RSD+1)*frequency of lrck when RX
+TFS[1:0] is 2'b01.
+Frequency of sclk = (TDM_RX_FRAME_WIDTH+1)*frequency of
+lrck when RX TFS[1:0] is 2'b10.
+Frequency of sclk = (TDM_RX_FRAME_WIDTH+1)*2*frequency of
+lrck when RX TFS[1:0] is 2'b11 and
+RX_TDM_FSYNC_WIDTH_SEL0 is 1'b1.
+Frequency of sclk =
+((TDM_RX_FRAME_WIDTH>>1)+1)*2*frequency of lrck when RX
+TFS[1:0] is 2'b11 and RX_TDM_FSYNC_WIDTH_SEL0 is 1'b0.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1532
+
+RKRK3588 TRM-Part1
+Bit
+
+7:0
+
+Attr Reset Value
+
+RW 0x1f
+
+Description
+TSD
+Transmit sclk divider
+Can be written only when XFER[1] or XFER[0] bit is 0.
+8'h00~8'h1e: Reserved
+8'h1f~8'hff:
+Frequency of sclk = ((TSD>>1)+1)*2*frequency of lrck when TX
+TFS[1:0] is 2'b00.
+Frequency of sclk = (TSD+1)*frequency of lrck when TX TFS[1:0]
+is 2'b01.
+Frequency of sclk = (TDM_TX_FRAME_WIDTH+1)*frequency of
+lrck when TX TFS[1:0] is 2'b10.
+Frequency of sclk = (TDM_TX_FRAME_WIDTH+1)*2*frequency of
+lrck when TX TFS[1:0] is 2'b11 and
+TX_TDM_FSYNC_WIDTH_SEL0 is 1'b1.
+Frequency of sclk =
+((TDM_TX_FRAME_WIDTH>>1)+1)*2*frequency of lrck when TX
+TFS[1:0] is 2'b11 and TX_TDM_FSYNC_WIDTH_SEL0 is 1'b0.
+
+I2S_TDM_8CH_TXFIFOLR
+Address: Operational Base + offset (0x000C)
+Bit
+
+Attr Reset Value
+
+31:24 RO
+
+Description
+
+0x00
+
+reserved
+
+0x00
+
+TFL3
+Transmit FIFO3 level
+Contains the number of valid data entries in the transmit FIFO3.
+
+17:12 RO
+
+0x00
+
+TFL2
+Transmit FIFO2 level
+Contains the number of valid data entries in the transmit FIFO2.
+
+11:6
+
+0x00
+
+TFL1
+Transmit FIFO1 level
+Contains the number of valid data entries in the transmit FIFO1.
+
+0x00
+
+TFL0
+Transmit FIFO0 level
+Contains the number of valid data entries in the transmit FIFO0.
+
+23:18 RO
+
+5:0
+
+RO
+
+RO
+
+I2S_TDM_8CH_DMACR
+Address: Operational Base + offset (0x0010)
+Bit
+
+Attr Reset Value
+
+31:25 RO
+
+24
+
+0x00
+
+RW 0x0
+
+23:21 RO
+
+0x0
+
+Description
+reserved
+RDE
+Receive DMA enable
+1'b0: Receive DMA disabled
+1'b1: Receive DMA enabled
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1533
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+20:16 RW 0x1f
+
+RDL
+Receive Data Level
+This bit field controls the level at which a DMA request is made by
+the receive logic. The watermark level = DMARDL+1. That is,
+dma_rx_req is generated when the number of valid data entries
+in the receive FIFO is equal to or above this field value + 1.
+
+15:9
+
+reserved
+
+RO
+
+0x00
+
+8
+
+RW 0x0
+
+TDE
+Transmit DMA enable
+1'b0: Transmit DMA disabled
+1'b1: Transmit DMA enabled
+
+7:5
+
+RO
+
+reserved
+
+4:0
+
+0x0
+
+RW 0x00
+
+TDL
+Transmit data level
+This bit field controls the level at which a DMA request is made by
+the transmit logic. It is equal to the watermark level. That is, the
+dma_tx_req signal is generated when the number of valid data
+entries in the TX FIFO(TX FIFO0 if CSR=2'b00;TX FIFO1 if
+CSR>=2'b01,TX FIFO2 if CSR>=2'b10,TX FIFO3 if CSR=2'b11)is
+equal to or below this field value.
+
+I2S_TDM_8CH_INTCR
+Address: Operational Base + offset (0x0014)
+Bit
+
+Attr Reset Value
+
+31:25 RO
+
+0x00
+
+Description
+reserved
+
+24:20 RW 0x1f
+
+RFT
+Receive FIFO threshold
+When the number of receive FIFO entries is more than or equal to
+this threshold plus 1, the receive FIFO full interrupt is triggered.
+
+19
+
+reserved
+
+RO
+
+0x0
+
+WO 0x0
+
+RXOIC
+RX overrun interrupt clear
+Write 1'b1 to clear RX overrun interrupt.
+
+RW 0x0
+
+RXOIE
+RX overrun interrupt enable
+1'b0: Disable
+1'b1: Enable
+
+16
+
+RW 0x0
+
+RXFIE
+RX full interrupt enable
+1'b0: Disable
+1'b1: Enable
+
+15:9
+
+RO
+
+reserved
+
+18
+
+17
+
+0x00
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1534
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+8:4
+
+RW 0x00
+
+TFT
+Transmit FIFO threshold
+When the number of transmit FIFO entries is less than or equal to
+this threshold, the transmit FIFO empty interrupt is triggered.
+
+3
+
+RO
+
+reserved
+
+2
+
+1
+
+0
+
+0x0
+
+RW 0x0
+
+TXUIC
+TX underrun interrupt clear
+Write 1'b1 to clear TX underrun interrupt.
+
+RW 0x0
+
+TXUIE
+TX underrun interrupt enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+TXEIE
+TX empty interrupt enable
+1'b0: Disable
+1'b1: Enable
+
+I2S_TDM_8CH_INTSR
+Address: Operational Base + offset (0x0018)
+Bit
+
+Attr Reset Value
+
+31:18 RO
+
+17
+
+RO
+
+Description
+
+0x0000
+
+reserved
+
+0x0
+
+RXOI
+RX overrun interrupt
+1'b0: Inactive
+1'b1: Active
+
+16
+
+RO
+
+0x0
+
+RXFI
+RX full interrupt
+1'b0: Inactive
+1'b1: Active
+
+15:2
+
+RO
+
+0x0000
+
+reserved
+
+0x0
+
+TXUI
+TX underrun interrupt
+1'b0: Inactive
+1'b1: Active
+
+0x0
+
+TXEI
+TX empty interrupt
+1'b0: Inactive
+1'b1: Active
+
+1
+
+RO
+
+0
+
+RO
+
+I2S_TDM_8CH_XFER
+Address: Operational Base + offset (0x001C)
+Bit
+31:2
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1535
+
+RKRK3588 TRM-Part1
+Bit
+
+1
+
+0
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+RXS
+RX start bit
+1'b0: Stop RX transfer.
+1'b1: Start RX transfer.
+
+RW 0x0
+
+TXS
+TX transfer start bit
+1'b0: Stop TX transfer.
+1'b1: Start TX transfer.
+
+I2S_TDM_8CH_CLR
+Address: Operational Base + offset (0x0020)
+Bit
+31:2
+1
+
+0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+reserved
+
+RW 0x0
+
+RXC
+RX logic clear
+This is a self-cleared bit. Write 1'b1 to clear all receive logic.
+
+RW 0x0
+
+TXC
+TX logic clear
+This is a self-cleared bit. Write 1'b1 to clear all transmit logic.
+
+I2S_TDM_8CH_TXDR
+Address: Operational Base + offset (0x0024)
+Bit
+31:0
+
+Attr Reset Value
+WO 0x00000000
+
+Description
+TXDR
+Transmit FIFO data register
+When it is written, data are moved into the transmit FIFO.
+
+I2S_TDM_8CH_RXDR
+Address: Operational Base + offset (0x0028)
+Bit
+31:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+RXDR
+Receive FIFO data register
+When the register is read, data in the receive FIFO is accessed.
+
+I2S_TDM_8CH_RXFIFOLR
+Address: Operational Base + offset (0x002C)
+Bit
+
+Attr Reset Value
+
+31:24 RO
+23:18 RO
+
+17:12 RO
+
+Description
+
+0x00
+
+reserved
+
+0x00
+
+RFL3
+Receive FIFO3 level
+Contains the number of valid data entries in the receive FIFO3.
+
+0x00
+
+RFL2
+Receive FIFO2 level
+Contains the number of valid data entries in the receive FIFO2.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1536
+
+RKRK3588 TRM-Part1
+Bit
+11:6
+
+5:0
+
+Attr Reset Value
+RO
+
+RO
+
+Description
+
+0x00
+
+RFL1
+Receive FIFO1 level
+Contains the number of valid data entries in the receive FIFO1.
+
+0x00
+
+RFL0
+Receive FIFO0 level
+Contains the number of valid data entries in the receive FIFO0.
+
+I2S_TDM_8CH_TDM_TXCTRL
+Address: Operational Base + offset (0x0030)
+Bit
+
+Attr Reset Value
+
+31:21 RO
+
+0x000
+
+Description
+reserved
+
+20:18 RW 0x0
+
+TX_TDM_FSYNC_WIDTH_SEL1
+TDM transfer fsync width sel1
+Can be written only when XFER[0] is 0.
+3'b000: Single period of the sclk
+3'b001: 2 period of the sclk
+n: n+1 period of the sclk
+3'b110: 7 period of the sclk
+3'b111: The width is equivalent to a channel block.
+Note: Function when TX TFS[1:0] is 2 or 3.
+
+17
+
+TX_TDM_FSYNC_WIDTH_SEL0
+TDM transfer fsync width sel0
+Can be written only when XFER[0] is 0.
+1'b0: 1/2 frame width. It should be set to an even number.
+1'b1: Frame width.
+
+RW 0x0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1537
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+16:14 RW 0x0
+
+TDM_TX_SHIFT_CTRL
+TDM transfer shift ctrl
+Can be written only when XFER[0] is 0.
+3'b000:
+PCM format 0: Normal mode, drive data on the second negedge
+of sclk after rising edge of LRCK.
+I2S format 0: Normal mode
+3'b001:
+PCM format 1: 1/2 cycle shift left, drive data on second posedge
+of sclk after rising edge of LRCK.
+I2S format 1: Left justified mode
+3'b010:
+PCM format 2: 1 cycle shift left, drive data on first negedge of
+sclk after rising edge of LRCK.
+I2S format 2: Right justified mode
+3'b011:
+PCM format 3: 3/2 cycle shift left, drive data on first posedge of
+sclk after rising edge of LRCK.
+I2S format: Not supported
+3'b100:
+PCM format 4: 2 cycle shift left, drive data aligned to the posedge
+of LRCK.
+I2S format: Not supported
+3'b101~3'b111: Not supported
+Note: Function when TX TFS[1:0] is 2 or 3.
+
+13:9
+
+TDM_TX_SLOT_BIT_WIDTH
+TDM transfer slot bits
+Can be written only when XFER[0] is 0.
+5'h00~5'h0e: Reserved
+5'h0f: 16bit
+5'h10: 17bit
+5'h11: 18bit
+5'h12: 19bit
+......
+5'h1f: 32bit
+Note: Function when TX TFS[1:0] is 2 or 3.
+
+RW 0x1f
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1538
+
+RKRK3588 TRM-Part1
+Bit
+
+8:0
+
+Attr Reset Value
+
+RW 0x0ff
+
+Description
+TDM_TX_FRAME_WIDTH
+TDM transfer frame width
+Can be written only when XFER[0] is 0.
+9'h000~9'h01e: Reserved
+9'h01f: 32bit
+9'h020: 33bit
+9'h021: 34bit
+9'h022: 35bit
+......
+9'h1ff: 512bit
+Note: Functional when TX TFS[1:0] is 2 or 3.
+
+I2S_TDM_8CH_TDM_RXCTRL
+Address: Operational Base + offset (0x0034)
+Bit
+
+Attr Reset Value
+
+31:21 RO
+
+0x000
+
+Description
+reserved
+
+20:18 RW 0x0
+
+RX_TDM_FSYNC_WIDTH_SEL1
+TDM receive fsync width sel1
+Can be written only when XFER[1] is 0.
+3'b000: Single period of the sclk
+3'b001: 2 period of the sclk
+n: n+1 period of the sclk
+3'b110: 7 period of the sclk
+3'b111: The width is equivalent to a channel block
+Note: Function when RX TFS[1:0] is 2 or 3.
+
+17
+
+RX_TDM_FSYNC_WIDTH_SEL0
+TDM receive fsync width sel0
+Can be written only when XFER[1] is 0.
+1'b0: 1/2 frame width. It should be set to an even number.
+1'b1: Frame width
+
+RW 0x0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1539
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+16:14 RW 0x0
+
+TDM_RX_SHIFT_CTRL
+TDM receive shift ctrl
+Can be written only when XFER[1] is 0.
+3'b000:
+PCM format 0: Normal mode, sample data on the third posedge
+of sclk after rising edge of LRCK.
+I2S format 0: Normal mode
+3'b001:
+PCM format 1: 1/2 cycle shift left, sample data on second
+negedge of sclk after rising edge of LRCK.
+I2S format 1: left justified mode
+3'b010:
+PCM format 2: 1 cycle shift left, sample data on second posedge
+of sclk after rising edge of LRCK.
+I2S format 2: Right justified mode
+3'b011:
+PCM format 3: 3/2 cycle shift left, sample data on first negedge
+of sclk after rising edge of LRCK.
+I2S format: Not supported
+3'b100:
+PCM format 4: 2 cycle shift left, sample data on the first posedge
+of sclk after rising edge of LRCK.
+I2S format: Not supported
+3'b101~3'b111: Not supported
+Note: Function when RX TFS[1:0] is 2 or 3.
+
+13:9
+
+TDM_RX_SLOT_BIT_WIDTH
+TDM receive slot bits
+Can be written only when XFER[1] is 0.
+5'h00~5'h0e: Reserved
+5'h0f: 16bit
+5'h10: 17bit
+5'h11: 18bit
+5'h12: 19bit
+......
+5'h1f: 32bit
+Note: Function when RX TFS[1:0] is 2 or 3.
+
+RW 0x1f
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1540
+
+RKRK3588 TRM-Part1
+Bit
+
+8:0
+
+Attr Reset Value
+
+RW 0x0ff
+
+Description
+TDM_RX_FRAME_WIDTH
+TDM receive frame width
+Can be written only when XFER[1] is 0.
+9'h000~9'h01e: Reserved
+9'h01f: 32bit
+9'h020: 33bit
+9'h021: 34bit
+9'h022: 35bit
+......
+9'h1ff: 512bit
+Note: Functional when RX TFS[1:0] is 2 or 3.
+
+I2S_TDM_8CH_CLKDIV
+Address: Operational Base + offset (0x0038)
+Bit
+31:8
+
+7:0
+
+Attr Reset Value
+RO
+
+0x0007
+
+RW 0x07
+
+Description
+reserved
+MDIV
+Mclk divider
+Can be written only when XFER[0] bit is 0.
+mclk divider = (mclk/sclk)-1.
+For example, if mclk divider is 5, then the frequency of sclk is
+mclk/6.
+
+I2S_TDM_8CH_VERSION
+Address: Operational Base + offset (0x003C)
+Bit
+31:0
+
+Attr Reset Value
+RO
+
+0x20150001
+
+Description
+VER
+Version of I2S_TDM_8CH
+
+22.4.6 Registers Summary for I2S/PCM/TDM controllers Part 2
+For I2S4 and I2S8, only master TX mode is used, RX related registers should be ignored.
+Registers of I2S4 and I2S8 are same as I2S0, I2S1, I2S5, I2S6, I2S7, I2S9 and I2S10
+except that I2S_TDM_8CH_CKR is different.
+Name
+I2S_TDM_8CH_CKR
+
+Offset
+
+Size
+
+0x0000
+
+W
+
+Reset
+Value
+0x00003e1f
+
+Description
+Clock Generation Register
+
+22.4.7 Detail Registers Description
+I2S_TDM_8CH_CKR
+Address: Operational Base + offset (0x0008)
+Bit
+
+Attr Reset Value
+
+31:30 RO
+
+0x0
+
+Description
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1541
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+29:28 RW 0x0
+
+LRCK_CTRL
+LRCK Control
+2'b00: Generates LRCK for TX.
+Others: Reseverd
+Please set it to 2’b00 in all situations.
+
+27
+
+RW 0x0
+
+MSS
+Master/slave mode select
+Can be written only when XFER[1] or XFER[0] bit is 0.
+1'b0: Master mode (sclk output)
+1'b1: Slave mode (sclk input)
+
+26
+
+RW 0x0
+
+CKP
+Sclk polarity
+Can be written only when XFER[1] or XFER[0] bit is 0.
+1'b0: Sample data at posedge sclk and drive data at negedge
+sclk.
+1'b1: Sample data at negedge sclk and drive data at posedge
+sclk.
+
+25
+
+RO
+
+reserved
+
+24
+
+0x0
+
+RW 0x0
+
+LRCKP
+Lrck polarity
+Can be written only when XFER[1] or XFER[0] bit is 0.
+1'b0: Normal polarity
+(I2S normal: Low for left channel, high for right channel
+I2S left/right just: High for left channel, low for right channel
+PCM start signal: High valid)
+1'b1: Opposite polarity
+(I2S normal: High for left channel, low for right channel
+I2S left/right just: Low for left channel, high for right channel
+PCM start signal: Low valid)
+
+23:18 RO
+
+0x00
+
+reserved
+
+17:9
+
+0x1f
+
+reserved
+
+RO
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1542
+
+RKRK3588 TRM-Part1
+Bit
+
+8:0
+
+Attr Reset Value
+
+Description
+TSD
+Transmit sclk divider
+Can be written only when XFER[1] or XFER[0] bit is 0.
+8'h00~8'h1e: Reserved
+8'h1f~8'hff:
+Frequency of sclk = ((TSD>>1)+1)*2*frequency of lrck when TX
+TFS[1:0] is 2'b00.
+Frequency of sclk = (TSD+1)*frequency of lrck when TX TFS[1:0]
+is 2'b01.
+Frequency of sclk = (TDM_TX_FRAME_WIDTH+1)*frequency of
+lrck when TX TFS[1:0] is 2'b10.
+Frequency of sclk = (TDM_TX_FRAME_WIDTH+1)*2*frequency of
+lrck when TX TFS[1:0] is 2'b11 and
+TX_TDM_FSYNC_WIDTH_SEL0 is 1'b1.
+Frequency of sclk =
+((TDM_TX_FRAME_WIDTH>>1)+1)*2*frequency of lrck when TX
+TFS[1:0] is 2'b11 and TX_TDM_FSYNC_WIDTH_SEL0 is 1'b0.
+
+RW 0x1f
+
+22.5 Interface Description
+22.5.1 I2S0 Interface Description
+The following table shows the I2S0 interface description.
+Table 22-1 I2S0 Interface Description
+Module Pin
+i2s0_mclk
+
+Direction
+I/O
+
+Pad Name
+I2S0_MCLK/I2C6_SDA_M1/UART3_RTSN/
+PWM3_IR_M2/SPI4_CLK_M0/GPIO1_C2_d
+
+i2s0_sclk
+
+I/O
+
+I2S0_SCLK/I2C6_SCL_M1/UART3_CTSN/
+PWM7_IR_M2/SPI4_CS0_M0/GPIO1_C3_
+
+IOMUX Setting
+BUS_IOC_GPIO1C_IOMUX_
+SEL_L[11:8]=4’h1
+BUS_IOC_GPIO1C_IOMUX_
+SEL_L[15:12]=4’h1
+
+d
+i2s0_lrck
+
+I/O
+
+i2s0_sdo0
+
+O
+
+i2s0_sdo1
+
+O
+
+I2S0_LRCK/I2C2_SCL_M3/UART4_RTSN/
+GPIO1_C5_d
+I2S0_SDO0/I2C4_SCL_M4/UART4_CTSN/
+GPIO1_C7_d
+I2S0_SDO1/I2C7_SCL_M0/UART6_TX_M2
+/SPI1_MISO_M2/GPIO1_D0_d
+
+i2s0_sdo2
+
+O
+
+I2S0_SDO2/I2S0_SDI3/PDM0_SDI1_M0/
+PCIE30PHY_DTB1/I2C7_SDA_M0/UART6_
+
+BUS_IOC_GPIO1C_IOMUX_
+SEL_H[7:4]=4’h1
+US_IOC_GPIO1C_IOMUX_S
+EL_H[15:12]=4’h1
+BUS_IOC_GPIO1D_IOMUX_
+SEL_L[3:0]=4’h1
+BUS_IOC_GPIO1D_IOMUX_
+SEL_L[7:4]=4’h1
+
+RX_M2/SPI1_MOSI_M2/GPIO1_D1_d
+i2s0_sdo3
+
+O
+
+I2S0_SDO3/I2S0_SDI2/PDM0_SDI2_M0/I
+2C1_SCL_M4/UART4_TX_M0/PWM0_M1/S
+
+BUS_IOC_GPIO1D_IOMUX_
+SEL_L[11:8]=4’h1
+
+PI1_CLK_M2/GPIO1_D2_d
+i2s0_sdi3
+
+I
+
+I2S0_SDO2/I2S0_SDI3/PDM0_SDI1_M0/
+PCIE30PHY_DTB1/I2C7_SDA_M0/UART6_
+
+BUS_IOC_GPIO1D_IOMUX_
+SEL_L[7:4]=4’h2
+
+RX_M2/SPI1_MOSI_M2/GPIO1_D1_d
+i2s0_sdi2
+
+I
+
+I2S0_SDO3/I2S0_SDI2/PDM0_SDI2_M0/I
+2C1_SCL_M4/UART4_TX_M0/PWM0_M1/S
+
+BUS_IOC_GPIO1D_IOMUX_
+SEL_L[11:8]=4’h2
+
+PI1_CLK_M2/GPIO1_D2_d
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1543
+
+RKRK3588 TRM-Part1
+Module Pin
+i2s0_sdi1
+
+Direction
+I
+
+Pad Name
+I2S0_SDI1/PDM0_SDI3_M0/I2C1_SDA_M
+4/UART4_RX_M0/PWM1_M1/SPI1_CS0_M
+
+IOMUX Setting
+BUS_IOC_GPIO1D_IOMUX_
+SEL_L[15:12]=4’h2
+
+2/GPIO1_D3_d
+i2s0_sdi0
+
+I
+
+I2S0_SDI0/GPIO1_D4_d
+
+BUS_IOC_GPIO1D_IOMUX_
+SEL_H[3:0]=4’h2
+
+22.5.2 I2S1 Interface Description
+The following table shows the I2S1 group 0 interface description.
+Table 22-2 I2S1 Group 0 Interface Description
+Module Pin
+i2s1_mclk
+
+Direction
+I/O
+
+Pad Name
+CIF_D0/BT1120_D0/I2S1_MCLK_M0/PCIE
+30X1_1_CLKREQN_M1/DDRPHY_CH0_DT
+B0/UART9_RTSN_M1/SPI0_MISO_M1/GPI
+O4_A0_d
+
+i2s1_sclk
+
+I/O
+
+CIF_D1/BT1120_D1/I2S1_SCLK_M0/PCIE
+30X1_1_WAKEN_M1/DDRPHY_CH0_DTB_
+1/UART9_CTSN_M1/SPI0_MOSI_M1/GPIO
+
+IOMUX Setting
+BUS_IOC_GPIO4A_IOMUX_
+SEL_L[3:0]=4’h3 &&
+PMU1_IOC_GPIO0B_IOMUX
+_SEL_H[7:4]==4’h0
+BUS_IOC_GPIO4A_IOMUX_
+SEL_L[7:4]=4’h3 &&
+PMU1_IOC_GPIO0B_IOMUX
+_SEL_H[11:8]==4’h0
+
+4_A1_d
+i2s1_lrck
+
+I/O
+
+CIF_D2/BT1120_D2/I2S1_LRCK_M0/PCIE
+30X1_1_PERSTN_M1/DDRPHY_CH0_DTB2
+/SPI0_CLK_M1/GPIO4_A2_d
+
+i2s1_sdo0
+
+O
+
+MIPI_CAMERA0_CLK_M0/SPDIF1_TX_M1/
+I2S1_SDO0_M0/PCIE30X1_0_BUTTON_R
+
+BUS_IOC_GPIO4A_IOMUX_
+SEL_L[11:8]=4’h3 &&
+PMU1_IOC_GPIO0B_IOMUX
+_SEL_H[15:12]==4’h0
+BUS_IOC_GPIO4B_IOMUX_
+SEL_L[7:4]=4’h3
+
+STN/SATA2_ACT_LED_M0/DDRPHY_CH2_
+DTB1/I2C6_SCL_M3/UART8_RX_M0/SPI0
+_CS1_M1/GPIO4_B1_u
+i2s1_sdo1
+
+O
+
+CIF_HREF/BT1120_D8/I2S1_SDO1_M0/P
+CIE30X1_1_BUTTON_RSTN/DDRPHY_CH2
+
+BUS_IOC_GPIO4B_IOMUX_
+SEL_L[11:8]=4’h3
+
+_DTB2/I2C7_SCL_M3/UART8_RTSN_M0/P
+WM14_M1/SPI0_CS0_M1/CAN1_RX_M1/G
+PIO4_B2_u
+i2s1_sdo2
+
+O
+
+CIF_VSYNC/BT1120_D9/I2S1_SDO2_M0/
+PCIE20X1_2_BUTTON_RSTN/DDRPHY_CH
+
+BUS_IOC_GPIO4B_IOMUX_
+SEL_L[15:12]=4’h3
+
+2_DTB3/I2C7_SDA_M3/UART8_CTSN_M0
+/PWM15_IR_M1/CAN1_TX_M1/GPIO4_B3
+_u
+i2s1_sdo3
+
+O
+
+CIF_CLKOUT/BT1120_D10/I2S1_SDO3_M
+0/PCIE30X4_CLKREQN_M1/DP0_HPDIN_
+
+BUS_IOC_GPIO4B_IOMUX_
+SEL_H[3:0]=4’h3
+
+M0/SPDIF0_TX_M1/DDRPHY_CH3_DTB0/
+UART9_TX_M1/PWM11_IR_M1/GPIO4_B4
+_u
+i2s1_sdi0
+
+I
+
+CIF_D5/BT1120_D5/I2S1_SDI0_M0/PCIE
+30X1_0_PERSTN_M1/DDRPHY_CH1_DTB_
+1/I2C3_SDA_M2/UART3_TX_M2/SPI2_MO
+
+BUS_IOC_GPIO4A_IOMUX_
+SEL_H[7:4]=4’h3 &&
+PMU1_IOC_GPIO0C_IOMUX
+_SEL_H[7:4]==4’h0
+
+SI_M1/GPIO4_A5_d
+i2s1_sdi1
+
+I
+
+CIF_D6/BT1120_D6/I2S1_SDI1_M0/PCIE
+30X2_CLKREQN_M1/DDRPHY_CH1_DTB2/
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+BUS_IOC_GPIO4A_IOMUX_
+SEL_H[11:8]=4’h3 &&
+PMU1_IOC_GPIO0C_IOMUX
+_SEL_H[11:8]==4’h0
+
+1544
+
+RKRK3588 TRM-Part1
+Module Pin
+
+Direction
+
+Pad Name
+
+IOMUX Setting
+
+I2C5_SCL_M2/UART3_RX_M2/SPI2_CLK_
+M1/GPIO4_A6_d
+i2s1_sdi2
+
+I
+
+CIF_D7/BT1120_D7/I2S1_SDI2_M0/PCIE
+30X2_WAKEN_M1/DDRPHY_CH1_DTB3/I2
+C5_SDA_M2/SPI2_CS0_M1/GPIO4_A7_d
+
+i2s1_sdi3
+
+I
+
+CIF_CLKIN/BT1120_CLKOUT/I2S1_SDI3_
+M0/PCIE30X2_PERSTN_M1/DDRPHY_CH2
+_DTB0/I2C6_SDA_M3/UART8_TX_M0/SPI
+
+BUS_IOC_GPIO4A_IOMUX_
+SEL_H[15:12]=4’h3 &&
+PMU1_IOC_GPIO0C_IOMUX
+_SEL_H[15:12]==4’h0
+BUS_IOC_GPIO4B_IOMUX_
+SEL_L[3:0]=4’h3 &&
+PMU1_IOC_GPIO0D_IOMU
+X_SEL_L[3:0]==4’h0
+
+2_CS1_M1/GPIO4_B0_d
+
+The following table shows the I2S1 group 1 interface description.
+Table 22-3 I2S1 Group 1 Interface Description
+Module Pin
+i2s1_mclk
+
+Direction
+I/O
+
+Pad Name
+I2S1_MCLK_M1/JTAG_TCK_M2/I2C1_SCL
+_M0/UART2_TX_M0/PCIE30X1_1_CLKREQ
+N_M0/GPIO0_B5_d
+
+IOMUX Setting
+PMU1_IOC_GPIO0B_IOMUX
+_SEL_H[7:4]=4’h1
+
+i2s1_sclk
+
+I/O
+
+I2S1_SCLK_M1/JTAG_TMS_M2/I2C1_SDA
+
+PMU1_IOC_GPIO0B_IOMUX
+_SEL_H[11:8]=4’h1
+
+_M0/UART2_RX_M0/PCIE30X1_1_WAKEN
+_M0/GPIO0_B6_d
+i2s1_lrck
+
+I/O
+
+I2S1_LRCK_M1/PWM0_M0/I2C2_SCL_M0
+/CAN0_TX_M0/SPI0_CS1_M0/PCIE30X1_
+
+PMU1_IOC_GPIO0B_IOMUX
+_SEL_H[15:12]==4’h1
+
+1_PERSTN_M0/GPIO0_B7_d
+i2s1_sdo0
+
+O
+
+I2S1_SDO0_M1/CPU_BIG0_AVS/I2C0_SC
+L_M2/UART0_CTSN/UART1_TX_M2/HDMI
+
+PMU1_IOC_GPIO0D_IOMU
+X_SEL_L[7:4]=4’h1
+
+_RX_SDA_M0/SPI0_CS0_M0/PCIE30X2_C
+LKREQN_M0/HDMI_TX0_CEC_M1/GPIO0_
+D1_u
+i2s1_sdo1
+
+O
+
+I2S1_SDO1_M1/I2C0_SDA_M2/UART1_R
+X_M2/HDMI_RX_SCL_M0/SPI3_MOSI_M2
+
+PMU1_IOC_GPIO0D_IOMU
+X_SEL_L[11:8]=4’h1
+
+/PCIE30X2_WAKEN_M0/HDMI_TX1_CEC_
+M1/GPIO0_D2_u
+i2s1_sdo2
+
+O
+
+I2S1_SDO2_M1/PDM0_SDI2_M1/PWM3_I
+R_M0/I2C1_SCL_M2/CAN2_RX_M1/HDMI
+
+PMU1_IOC_GPIO0D_IOMU
+X_SEL_H[3:0]=4’h1
+
+_TX0_SDA_M1/SPI3_CS0_M2/PCIE30X2_
+PERSTN_M0/SATA_CPDET/GPIO0_D4_u
+i2s1_sdo3
+
+O
+
+I2S1_SDO3_M1/CPU_BIG1_AVS/I2C1_SD
+A_M2/CAN2_TX_M1/HDMI_TX0_SCL_M1/
+
+PMU1_IOC_GPIO0D_IOMU
+X_SEL_H[7:4]=4’h1
+
+SPI3_CS1_M2/SATA_MP_SWITCH/GPIO0
+_D5_u
+i2s1_sdi0
+
+I
+
+I2S1_SDI0_M1/GPU_AVS/UART0_TX_M0/
+I2C4_SCL_M2/DP1_HPDIN_M1/PWM4_M0
+
+PMU1_IOC_GPIO0C_IOMUX
+_SEL_H[7:4]==4’h1
+
+/PCIE30X1_0_PERSTN_M0/GPIO0_C5_u
+i2s1_sdi1
+
+I
+
+I2S1_SDI1_M1/NPU_AVS/UART0_RTSN/P
+WM5_M1/SPI0_CLK_M0/PCIE30X4_CLKRE
+
+PMU1_IOC_GPIO0C_IOMUX
+_SEL_H[11:8]==4’h1
+
+QN_M0/SATA_CP_POD/GPIO0_C6_u
+i2s1_sdi2
+
+I
+
+I2S1_SDI2_M1/PDM0_SDI0_M1/I2C6_SD
+A_M0/UART1_RTSN_M2/PWM6_M0/SPI0_
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+PMU1_IOC_GPIO0C_IOMUX
+_SEL_H[15:12]==4’h1
+
+1545
+
+RKRK3588 TRM-Part1
+Module Pin
+
+Direction
+
+Pad Name
+
+IOMUX Setting
+
+MISO_M0/PCIE30X4_WAKEN_M0/GPIO0_
+C7_d
+i2s1_sdi3
+
+I
+
+I2S1_SDI3_M1/PDM0_SDI1_M1/I2C6_SC
+L_M0/UART1_CTSN_M2/PWM7_IR_M0/SP
+
+PMU1_IOC_GPIO0D_IOMU
+X_SEL_L[3:0]==4’h1
+
+I3_MISO_M2/PCIE30X4_PERSTN_M0/GPI
+O0_D0_d
+
+22.5.3 I2S2 Interface Description
+The following table shows the I2S2 group 0 interface description.
+Table 22-4 I2S2 Group 0 Interface Description
+Module Pin
+i2s2_mclk
+
+Direction
+I/O
+
+Pad Name
+GMAC0_TXD0/I2S2_MCLK_M0/I2C5_SCL
+_M4/UART1_RX_M0/GPIO2_B6_d
+
+i2s2_sclk
+
+I/O
+
+GMAC0_TXD1/I2S2_SCLK_M0/I2C5_SDA
+_M4/UART1_TX_M0/GPIO2_B7_d
+
+i2s2_lrck
+
+I/O
+
+GMAC0_TXEN/I2S2_LRCK_M0/I2C2_SDA
+_M1/UART1_RTSN_M0/SPI1_CLK_M0/GPI
+O2_C0_d
+
+i2s2_sdo0
+
+O
+
+GMAC0_MCLKINOUT/I2S2_SDO_M0/I2C7
+_SCL_M1/PWM4_M1/SPI3_CS1_M0/GPIO
+
+IOMUX Setting
+BUS_IOC_GPIO2B_IOMUX_
+SEL_H[11:8]=4’h2 &&
+BUS_IOC_GPIO3B_IOMUX_
+SEL_H[3:0]=4’h0
+BUS_IOC_GPIO2B_IOMUX_
+SEL_H[15:12]=4’h2 &&
+BUS_IOC_GPIO3B_IOMUX_
+SEL_H[7:4]=4’h0
+BUS_IOC_GPIO2C_IOMUX_
+SEL_L[3:0]=4’h2 &&
+BUS_IOC_GPIO3B_IOMUX_
+SEL_H[11:8]=4’h0
+BUS_IOC_GPIO4C_IOMUX_
+SEL_L[15:12]=4’h2
+
+4_C3_d
+i2s2_sdi0
+
+I
+
+ETH0_REFCLKO_25M/I2S2_SDI_M0/I2C6
+_SCL_M2/SPI1_CS0_M0/GPIO2_C3_d
+
+BUS_IOC_GPIO2C_IOMUX_
+SEL_L[15:12]=4’h2 &&
+BUS_IOC_GPIO3B_IOMUX_
+SEL_L[11:8]=4’h0
+
+The following table shows the I2S2 group 1 interface description.
+Table 22-5 I2S2 Group 1 Interface Description
+Module Pin
+i2s2_mclk
+
+Direction
+I/O
+
+Pad Name
+GMAC1_TXD1/I2S2_MCLK_M1/UART2_CT
+SN/GPIO3_B4_u
+
+i2s2_sclk
+
+I/O
+
+GMAC1_TXEN/I2S2_SCLK_M1/CAN1_RX_
+M0/UART3_TX_M1/PWM12_M0/GPIO3_B5
+
+IOMUX Setting
+BUS_IOC_GPIO3B_IOMUX_
+SEL_H[3:0]=4’h3
+BUS_IOC_GPIO3B_IOMUX_
+SEL_H[7:4]=4’h3
+
+_u
+i2s2_lrck
+
+I/O
+
+GMAC1_MCLKINOUT/I2S2_LRCK_M1/CAN
+1_TX_M0/UART3_RX_M1/PWM13_M0/GPI
+
+BUS_IOC_GPIO3B_IOMUX_
+SEL_H[11:8]=4’h3
+
+O3_B6_d
+i2s2_sdo0
+
+O
+
+i2s2_sdi0
+
+I
+
+GMAC1_TXD0/I2S2_SDO_M1/UART2_RTS
+N/GPIO3_B3_u
+GMAC1_TXER/I2S2_SDI_M1/UART2_RX_
+M2/PWM3_IR_M1/GPIO3_B2_d
+
+BUS_IOC_GPIO3B_IOMUX_
+SEL_L[15:12]=4’h3
+BUS_IOC_GPIO3B_IOMUX_
+SEL_L[11:8]=4’h3
+
+There are 2 IOMUX groups connected to I2S2. BUS_IOC_GPIO3B_IOMUX_SEL_H[3:0],
+BUS_IOC_GPIO3B_IOMUX_SEL_H[7:4], BUS_IOC_GPIO3B_IOMUX_SEL_L[3:0],
+BUS_IOC_GPIO3B_IOMUX_SEL_H[11:8], BUS_IOC_GPIO3B_IOMUX_SEL_L[7:4] and
+BUS_IOC_GPIO3B_IOMUX_SEL_L[11:8] are used to select whether I2S2 group 0 interface
+or group 1 interface is used.
+
+22.5.4 I2S3 Interface Description
+The following table shows the I2S3 interface description.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1546
+
+RKRK3588 TRM-Part1
+Table 22-6 I2S3 Interface Description
+Module Pin
+i2s3_mclk
+
+Direction
+I/O
+
+Pad Name
+GMAC1_TXD2/SDIO_D0_M1/I2S3_MCLK/
+FSPI_D0_M2/I2C6_SDA_M4/PWM10_M0/
+SPI4_MISO_M1/GPIO3_A0_u
+
+IOMUX Setting
+BUS_IOC_GPIO3A_IOMUX_
+SEL_L[3:0]=4’h3
+
+i2s3_sclk
+
+I/O
+
+GMAC1_TXD3/SDIO_D1_M1/I2S3_SCLK/
+
+BUS_IOC_GPIO3A_IOMUX_
+SEL_L[7:4]=4’h3 &&
+SYS_GRF_SOC_CON6[8]
+=1’b1
+
+AUDDSM_LN/FSPI_D1_M2/I2C6_SCL_M4/
+PWM11_IR_M0/SPI4_MOSI_M1/GPIO3_A
+1_u
+i2s3_lrck
+
+I/O
+
+GMAC1_RXD2/SDIO_D2_M1/I2S3_LRCK/
+AUDDSM_LP/FSPI_D2_M2/UART8_TX_M1
+/SPI4_CLK_M1/GPIO3_A2_u
+
+i2s3_sdo0
+
+O
+
+GMAC1_RXD3/SDIO_D3_M1/I2S3_SDO/A
+UDDSM_RN/FSPI_D3_M2/UART8_RX_M1/
+
+BUS_IOC_GPIO3A_IOMUX_
+SEL_L[11:8]=4’h3 &&
+SYS_GRF_SOC_CON6[9]
+=1’b1
+BUS_IOC_GPIO3A_IOMUX_
+SEL_L[15:12]=4’h3
+
+SPI4_CS0_M1/GPIO3_A3_u
+i2s3_sdi0
+
+I
+
+GMAC1_TXCLK/SDIO_CMD_M1/I2S3_SDI
+/AUDDSM_RP/UART8_RTSN_M1/SPI4_CS
+
+BUS_IOC_GPIO3A_IOMUX_
+SEL_H[3:0]=4’h3
+
+1_M1/GPIO3_A4_d
+
+The TX interface of I2S3 can be also connected to the RX interface of Digital Audio Codec by
+programming SYS_GRF_SOC_CON6[11]. If SYS_GRF_SOC_CON6[11] is 1’b1, I2S3 is
+connected to Digital Audio Codec.
+
+22.5.5 I2S4 and I2S8 Interface Description
+I2S4 and I2S8 are connected to DPTX0 and DPTX1 respectively. I2S4 and I2S8 should be
+always operate in master TX mode, other modes are not support. Following table shows
+connection between I2S4/8 and DPTX0/1.
+Table 22-7 I2S4/8 and DPTX0/1 Interface Description
+Module Pin
+(I2S4/8)
+i2sx_sclk(x=4,8)
+i2sx_lrck(x=4,8)
+
+Direction
+
+Module Pin
+(DPTX0/1)
+
+O
+O
+
+i2sclk
+
+i2sx_sdo[3:0] (x=4,8)
+
+O
+
+i2sdata_i[3:0]
+
+i2slrclk_i
+
+22.5.6 I2S5 and I2S6 Interface Description
+The TX interface of I2S5 can be connected to EDP TX Controller0 and HDMI TX Controller0
+at the same time by programming VO1_GRF_VO1_CON0[3] to 1’b1 and
+VO1_GRF_VO1_CON3[13] to 1’b1 respectively. Note that I2S5 should always operate in
+master TX mode, other modes are not support.
+The TX interface of I2S6 can be connected to EDP TX Controller1 and HDMI TX Controller1
+at the same time by programming VO1_GRF_VO1_CON1[3] to 1’b1 and
+VO1_GRF_VO1_CON6[13] to 1’b1 respectively. Note that I2S6 should always operate in
+master TX mode, other modes are not support.
+Following table shows connection between I2S5/6 and EDP TX Controller0/1.
+Table 22-8 I2S5/6 and EDP TX Controller0/1 Interface Description
+Module Pin
+(I2S5/6)
+i2sx_sclk(x=5,6)
+i2sx_lrck(x=5,6)
+
+Direction
+
+Module Pin
+(EDP TX Controller0/1)
+
+O
+O
+
+I_I2S_SCK_IN
+
+i2sx_sdo0 (x=5,6)
+
+O
+
+I_I2S_SD0_IN
+
+i2sx_sdo1 (x=5,6)
+
+O
+
+I_I2S_SD1_IN
+
+i2sx_sdo2 (x=5,6)
+
+O
+
+I_I2S_SD2_IN
+
+i2sx_sdo3 (x=5,6)
+
+O
+
+I_I2S_SD3_IN
+
+I_I2S_WS_IN
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1547
+
+RKRK3588 TRM-Part1
+Table 22-9 I2S5/6 and HDMI TX Controller0/1 Interface Description
+Module Pin
+(I2S5/6)
+i2sx_sclk(x=5,6)
+i2sx_lrck(x=5,6)
+
+Direction
+
+Module Pin
+(HDMI TX Controller0/1)
+
+O
+O
+
+ii2s_sck
+
+i2sx_sdo[3:0] (x=5,6)
+
+O
+
+ii2s_sdin[3:0]
+
+ii2s_ws
+
+22.5.7 I2S7 Interface Description
+The RX interface of I2S7 is connected to HDMIRX. I2S7 should always operate in RX slave
+mode, other modes are not support. Following table shows connection between I2S7 and
+HDMIRX.
+Table 22-10 I2S7 and HDMIRX Interface Description
+Module Pin
+i2s7_sclk
+i2s7_lrck
+
+I
+I
+
+Direction
+osao_i2s_sck
+
+Module Pin
+
+i2s7_sdi[3:0]
+
+I
+
+osao_i2s_data[3:0]
+
+osao_i2s_ws
+
+22.5.8 I2S9 and I2S10 Interface Description
+The RX interface of I2S9 and I2S10 are connected to HDMI TX Controller0 and HDMI TX
+Controller1 respectively. I2S9 and I2S10 should always operate in RX slave mode, other
+modes are not support. Following table shows connection between I2S9/10 and HDMI TX
+Controller0/1.
+Table 22-11 I2S9/10 and HDMI TX Controller0/1 Interface Description
+Module Pin
+(I2S9/10)
+i2sx_sclk(x=9,10)
+i2sx_lrck(x=9,10)
+
+Direction
+I
+I
+
+i2sx_sdi[3:0](x=9,10)
+
+I
+
+Module Pin
+(HDMI TX Controller0/1)
+oearcrx_dmac_sao_i2s_sck
+oearcrx_dmac_sao_i2s_ws
+oearcrx_dmac_sao_i2s_data[3:0]
+
+22.6 Application Notes
+22.6.1 Software Application Notes
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1548
+
+RKRK3588 TRM-Part1
+
+Disable I2Sx transmitter by writing 0x0 to I2Sx_XFER[0]
+
+Clear control logic by writing 0x1 to I2Sx_CLR[0]
+
+I2Sx_CLR[0]= 0x1
+
+Read I2Sx_CLR[0]
+
+I2Sx_CLR= 0x0
+Write I2Sx_TXCR &I2Sx_CKR to config I2Sx
+operation mode
+
+Config a DMA channel for I2Sx transmitter and the destination
+address is I2Sx_TXDR
+
+x=1
+Write I2Sx_DMACR to determine when to issue dma request
+
+I2Sx
+Contrlloller
+(8 channel)
+Configuration
+
+Enable I2Sx transmitter by writing 0x1 to I2Sx_XFER[0]
+
+I2Sx_XFER[0] can not be disabled until the current transfer has
+completed
+
+DMA
+Controller
+Configuration
+
+Fig. 22-20 I2S/PCM/TDM Controller Transmit Operation Flow Chart
+
+Note: User should clear TX/RX logical by CLR[0]/CLR[1] and wait clear operation done before configure the
+other registers.
+
+For I2S0, I2S1, I2S4, I2S5, I2S6, I2S7, I2S8, I2S9 and I2S10, these are I2S/PCM/TDM
+controllers. I2S/PCM/TDM controllers can support up to 16 channels when operate in TDM
+mode. Following configurations must be observed when in 16-channel TDM mode before
+starting sending or receiving audio data.
+1. Set I2S_TDM_8CH_TXCR.TFS to 2’b11 or I2S_TDM_8CH_RXCR.TFS to 2’b11.
+2. Set I2S_TDM_8CH_TDM_TXCTRL.TX_TDM_FSYNC_WIDTH_SEL0 to 1’b1 or
+I2S_TDM_8CH_TDM_RXCTRL.RX_TDM_FSYNC_WIDTH_SEL0 to 1’b1.
+3. Set other registers properly.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1549
+
+RKRK3588 TRM-Part1
+

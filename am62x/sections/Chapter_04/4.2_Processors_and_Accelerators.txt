@@ -1,0 +1,1187 @@
+4.2 Processors and Accelerators
+4.2.1 Arm Cortex A53 Subsystem (A53SS)
+This section contains the integration details for the A53SS module on this device. For Further information, see
+the Arm Cortex A53 Subsystem (A53SS) section of the Processors and Accelerators chapter
+4.2.1.1 A53SS Unsupported Features
+The following features are not supported on this family of devices:
+•
+There are no unsupported features
+4.2.1.2 Module Allocations
+Table 4-1. A53SS Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+A53SS0_CORE_0
+✓
+A53SS0_CORE_1
+✓
+A53SS0_CORE_2
+✓
+A53SS0_CORE_3
+✓
+4.2.1.3 Resets, Interrupts, and Clocks
+Table 4-2. A53SS Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+A53SS0_CORE
+_0
+PSC0_PSC_0
+PD_A53_0
+LPSC_A53_0
+45
+OFF
+YES
+LPSC_A53_CL
+USTER_0
+A53SS0_CORE
+_1
+PSC0_PSC_0
+PD_A53_1
+LPSC_A53_1
+46
+OFF
+YES
+LPSC_A53_CL
+USTER_0
+A53SS0_CORE
+_2
+PSC0_PSC_0
+PD_A53_2
+LPSC_A53_2
+47
+OFF
+YES
+LPSC_A53_CL
+USTER_0
+A53SS0_CORE
+_3
+PSC0_PSC_0
+PD_A53_3
+LPSC_A53_3
+48
+OFF
+YES
+LPSC_A53_CL
+USTER_0
+Table 4-3. A53SS Resets
+Module Instance
+Source
+Description
+A53SS0
+PSC0_PSC_0
+A53SS0 reset
+Table 4-4. A53SS Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+A53SS0
+A53SS0_cnthpirq0_0
+GICSS0_ppi0_0_IN_
+26
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_cnthpirq1_0
+GICSS0_ppi0_1_IN_
+26
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_cnthpirq2_0
+GICSS0_ppi0_2_IN_
+26
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_cnthpirq3_0
+GICSS0_ppi0_3_IN_
+26
+GICSS0
+A53SS0 interrupt
+request
+level
+=== Page 101 ===
+Table 4-4. A53SS Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+A53SS0
+A53SS0_cntpnsirq0_
+0
+GICSS0_ppi0_0_IN_
+30
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_cntpnsirq1_
+0
+GICSS0_ppi0_1_IN_
+30
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_cntpnsirq2_
+0
+GICSS0_ppi0_2_IN_
+30
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_cntpnsirq3_
+0
+GICSS0_ppi0_3_IN_
+30
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_cntpsirq0_0
+GICSS0_ppi0_0_IN_
+29
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_cntpsirq1_0
+GICSS0_ppi0_1_IN_
+29
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_cntpsirq2_0
+GICSS0_ppi0_2_IN_
+29
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_cntpsirq3_0
+GICSS0_ppi0_3_IN_
+29
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_cntvirq0_0
+GICSS0_ppi0_0_IN_
+27
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_cntvirq1_0
+GICSS0_ppi0_1_IN_
+27
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_cntvirq2_0
+GICSS0_ppi0_2_IN_
+27
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_cntvirq3_0
+GICSS0_ppi0_3_IN_
+27
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_commirq0_0
+GICSS0_ppi0_0_IN_
+22
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_commirq1_0
+GICSS0_ppi0_1_IN_
+22
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_commirq2_0
+GICSS0_ppi0_2_IN_
+22
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_commirq3_0
+GICSS0_ppi0_3_IN_
+22
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ctiirq0_0
+GICSS0_ppi0_0_IN_
+24
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ctiirq0_0
+GICSS0_ppi0_1_IN_
+17
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ctiirq0_0
+GICSS0_ppi0_2_IN_
+17
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ctiirq0_0
+GICSS0_ppi0_3_IN_
+17
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ctiirq1_0
+GICSS0_ppi0_0_IN_
+18
+GICSS0
+A53SS0 interrupt
+request
+level
+=== Page 102 ===
+Table 4-4. A53SS Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+A53SS0
+A53SS0_ctiirq1_0
+GICSS0_ppi0_1_IN_
+24
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ctiirq1_0
+GICSS0_ppi0_2_IN_
+18
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ctiirq1_0
+GICSS0_ppi0_3_IN_
+18
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ctiirq2_0
+GICSS0_ppi0_0_IN_
+19
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ctiirq2_0
+GICSS0_ppi0_1_IN_
+19
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ctiirq2_0
+GICSS0_ppi0_2_IN_
+24
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ctiirq2_0
+GICSS0_ppi0_3_IN_
+19
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ctiirq3_0
+GICSS0_ppi0_0_IN_
+20
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ctiirq3_0
+GICSS0_ppi0_1_IN_
+20
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ctiirq3_0
+GICSS0_ppi0_2_IN_
+20
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ctiirq3_0
+GICSS0_ppi0_3_IN_
+24
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ecc_eccagg
+r0_corrected_err_leve
+l_0
+ESM0_esm_lvl_event
+_IN_24
+ESM0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ecc_eccagg
+r0_uncorrected_err_le
+vel_0
+ESM0_esm_lvl_event
+_IN_94
+ESM0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ecc_eccagg
+r1_corrected_err_leve
+l_0
+ESM0_esm_lvl_event
+_IN_25
+ESM0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ecc_eccagg
+r1_uncorrected_err_le
+vel_0
+ESM0_esm_lvl_event
+_IN_93
+ESM0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ecc_eccagg
+r2_corrected_err_leve
+l_0
+ESM0_esm_lvl_event
+_IN_45
+ESM0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ecc_eccagg
+r2_uncorrected_err_le
+vel_0
+ESM0_esm_lvl_event
+_IN_46
+ESM0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ecc_eccagg
+r3_corrected_err_leve
+l_0
+ESM0_esm_lvl_event
+_IN_47
+ESM0
+A53SS0 interrupt
+request
+level
+=== Page 103 ===
+Table 4-4. A53SS Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+A53SS0
+A53SS0_ecc_eccagg
+r3_uncorrected_err_le
+vel_0
+ESM0_esm_lvl_event
+_IN_48
+ESM0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ecc_eccagg
+r_corepac_corrected_
+err_level_0
+ESM0_esm_lvl_event
+_IN_26
+ESM0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_ecc_eccagg
+r_corepac_uncorrecte
+d_err_level_0
+ESM0_esm_lvl_event
+_IN_95
+ESM0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_exterrirq_0
+ESM0_esm_lvl_event
+_IN_144
+ESM0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_interrirq_0
+ESM0_esm_lvl_event
+_IN_145
+ESM0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_pmuirq0_0
+GICSS0_ppi0_0_IN_
+23
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_pmuirq1_0
+GICSS0_ppi0_1_IN_
+23
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_pmuirq2_0
+GICSS0_ppi0_2_IN_
+23
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_pmuirq3_0
+GICSS0_ppi0_3_IN_
+23
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_vcpumntirq0
+_0
+GICSS0_ppi0_0_IN_
+25
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_vcpumntirq1
+_0
+GICSS0_ppi0_1_IN_
+25
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_vcpumntirq2
+_0
+GICSS0_ppi0_2_IN_
+25
+GICSS0
+A53SS0 interrupt
+request
+level
+A53SS0
+A53SS0_vcpumntirq3
+_0
+GICSS0_ppi0_3_IN_
+25
+GICSS0
+A53SS0 interrupt
+request
+level
+Table 4-5. A53SS Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source
+Control
+Register
+Description
+A53SS0
+COREPAC_ARM_CLK_CLK
+MAIN_PLL8_HSDIV0_CLKOU
+T
+A53SS clock
+=== Page 104 ===
+4.2.2 Arm Cortex R5F Subsystem (WKUP_R5FSS)
+This section contains the integration details for the WKUP_R5FSS module on this device. For Further
+information, see the Arm Cortex R5F Subsystem (WKUP_R5FSS) section of the Processors and Accelerators
+chapter
+4.2.2.1 WKUP_R5FSS Unsupported Features
+The following features are not supported on this family of devices:
+•
+CPU1 is not supported. This family of devices only supports a single core R5F implementaion
+4.2.2.2 Module Allocations
+Table 4-6. WKUP_R5FSS Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+WKUP_R5FSS0
+✓
+4.2.2.3 Reference
+Table 4-7. R5FSS Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+A53SS0_CORE
+_0
+PSC0_PSC_0
+PD_A53_0
+LPSC_A53_0
+45
+OFF
+YES
+LPSC_A53_CL
+USTER_0
+Table 4-8. R5FSS Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+R5FSS0_CORE0
+FCLK
+DM_CLK
+WKUP_CLKSEL[0:0]
+R5FSS0_CORE0
+Functional Clock
+ICLK
+DM_CLK
+WKUP_CLKSEL[0:0]
+R5FSS0_CORE0
+Interface Clock
+Table 4-9. R5FSS Integration Resets
+Module Instance
+Source
+Description
+R5FSS0_CORE0
+PSC0_PSC_0
+R5FSS0_CORE0 reset
+Table 4-10. R5FSS Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+R5FSS0_CORE0
+R5FSS0_CORE0_cti
+_0
+R5FSS0_CORE0_intr
+_IN_175
+R5FSS0_CORE0
+R5FSS0_CORE0
+interrupt request
+level
+R5FSS0_CORE0
+R5FSS0_CORE0_ec
+c_corrected_level_0
+ESM0_esm_lvl_event
+_IN_30
+ESM0
+R5FSS0_CORE0
+interrupt request
+level
+R5FSS0_CORE0
+R5FSS0_CORE0_ec
+c_uncorrected_level_
+0
+ESM0_esm_lvl_event
+_IN_91
+ESM0
+R5FSS0_CORE0
+interrupt request
+level
+R5FSS0_CORE0
+R5FSS0_CORE0_ex
+p_intr_0
+ESM0_esm_lvl_event
+_IN_124
+ESM0
+R5FSS0_CORE0
+interrupt request
+level
+R5FSS0_CORE0
+R5FSS0_CORE0_ex
+p_intr_0
+R5FSS0_CORE0_intr
+_IN_4
+R5FSS0_CORE0
+R5FSS0_CORE0
+interrupt request
+level
+=== Page 105 ===
+Table 4-10. R5FSS Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+R5FSS0_CORE0
+R5FSS0_CORE0_pm
+u_0
+R5FSS0_CORE0_intr
+_IN_58
+R5FSS0_CORE0
+R5FSS0_CORE0
+interrupt request
+level
+R5FSS0_CORE0
+R5FSS0_CORE0_val
+fiq_0
+R5FSS0_CORE0_intr
+_IN_59
+R5FSS0_CORE0
+R5FSS0_CORE0
+interrupt request
+level
+R5FSS0_CORE0
+R5FSS0_CORE0_vali
+rq_0
+R5FSS0_CORE0_intr
+_IN_60
+R5FSS0_CORE0
+R5FSS0_CORE0
+interrupt request
+level
+=== Page 106 ===
+4.2.3 Arm Cortex M4F Subsystem (MCU_M4FSS)
+This section contains the integration details for the MCU_M4FSS module on this device. For Further information,
+see the Arm Cortex M4F Subsystem (MCU_M4FSS) section of the Processors and Accelerators chapter
+4.2.3.1 MCU_M4FSS Unsupported Features
+The following features are not supported on this family of devices:
+•
+Bit Banding
+•
+Big Endian
+4.2.3.2 Module Allocations
+Table 4-11. MCU_M4FSS Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+MCU_M4FSS0
+✓
+4.2.3.3 Resets, Interrupts, and Clocks
+Table 4-12. MCU_M4FSS Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+MCU_M4FSS0
+_CORE0
+WKUP_PSC0
+PD_M4F
+LPSC_MCU_M
+4F
+6
+OFF
+YES
+LPSC_MCU_C
+OMMON
+Table 4-13. MCU_M4FSS Resets
+Module Instance
+Source
+Description
+MCU_M4FSS0
+WKUP_PSC0
+MCU_M4FSS0 reset
+Table 4-14. MCU_M4FSS Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+Table 4-15. A53SS Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+MCU_M4FSS0_CORE0
+DAP_CLK
+MCU_SYSCLK0
+MCU_M4FSS0_CORE0
+Module DAP Clock
+VBUS_CLK
+MCU_SYSCLK0
+MCU_M4FSS_CLKSEL[0:
+0]
+MCU_M4FSS0_CORE0
+Main module clock that
+drives majority of blocks
+including M4F in functional
+mode.
+MCU_SYSCLK0/2
+MCU_M4FSS_CLKSEL[0:
+0]
+=== Page 107 ===
+4.2.4 Programmable Real-Time Unit Subsystem (PRUSS)
+This section contains the integration details for the PRUSS module on this device. For Further information, see
+the Programmable Real-Time Unit Subsystem(PRUSS) section of the Processors and Accelerators chapter
+4.2.4.1 PRUSS Unsupported Features
+The following features are not supported on this family of devices:
+•
+Industrial Communications Subsystem features
+•
+Ethernet (MII, MDIO, Industrial Communication Protocols are not supported)
+•
+Three Channel Peripheral Interface (EnDat 2.2 and BiSS not supported)
+•
+Sigma-Delta (SD)
+•
+16550 UART supporting 12Mps
+4.2.4.2 Module Allocations
+Table 4-16. PRUSS Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+PRUSS
+✓
+4.2.4.3 Resets, Interrupts, and Clocks
+Table 4-17. PRUSS Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+ICSSM0
+PSC0_PSC_0
+PD_ICSSM
+LPSC_ICSSM
+40
+OFF
+YES
+LPSC_SMS_C
+OMMON
+Table 4-18. PRUSS Resets
+Module Instance
+Source
+Description
+ICSSM0
+PSC0_PSC_0
+ICSSM0 reset
+Table 4-19. PRUSS Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+ICSSM0
+ICSSM0_iso_reset_pr
+otcol_ack_0
+MCU_M4FSS0_COR
+E0_nvic_IN_53
+MCU_M4FSS0_COR
+E0
+ICSSM0 interrupt
+request
+pulse
+ICSSM0
+ICSSM0_iso_reset_pr
+otcol_ack_0
+GICSS0_spi_IN_167
+GICSS0
+ICSSM0 interrupt
+request
+pulse
+ICSSM0
+ICSSM0_iso_reset_pr
+otcol_ack_0
+R5FSS0_CORE0_intr
+_IN_170
+R5FSS0_CORE0
+ICSSM0 interrupt
+request
+pulse
+ICSSM0
+ICSSM0_iso_reset_pr
+otcol_ack_0
+TIFS0_nvic_IN_194
+TIFS0
+ICSSM0 interrupt
+request
+pulse
+ICSSM0
+ICSSM0_iso_reset_pr
+otcol_ack_0
+HSM0_nvic_IN_194
+HSM0
+ICSSM0 interrupt
+request
+pulse
+ICSSM0
+ICSSM0_pr1_edc0_s
+ync0_out_0
+TIMESYNC_EVENT_
+ROUTER0_in_IN_10
+TIMESYNC_EVENT_
+ROUTER0
+ICSSM0 interrupt
+request
+level
+ICSSM0
+ICSSM0_pr1_edc0_s
+ync1_out_0
+TIMESYNC_EVENT_
+ROUTER0_in_IN_9
+TIMESYNC_EVENT_
+ROUTER0
+ICSSM0 interrupt
+request
+level
+=== Page 108 ===
+Table 4-19. PRUSS Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+ICSSM0
+ICSSM0_pr1_edio0_
+wd_triig_0
+ESM0_esm_lvl_event
+_IN_68
+ESM0
+ICSSM0 interrupt
+request
+level
+ICSSM0
+ICSSM0_pr1_host_int
+r_pend_[7:0]
+EPWM0_epwm_synci
+n_IN_0
+EPWM0
+ICSSM0 interrupt
+request
+level
+ICSSM0
+ICSSM0_pr1_host_int
+r_pend_[7:0]
+MCU_M4FSS0_COR
+E0_nvic_IN_51
+MCU_M4FSS0_COR
+E0
+ICSSM0 interrupt
+request
+level
+ICSSM0
+ICSSM0_pr1_host_int
+r_pend_[7:0]
+MCU_M4FSS0_COR
+E0_nvic_IN_52
+MCU_M4FSS0_COR
+E0
+ICSSM0 interrupt
+request
+level
+ICSSM0
+ICSSM0_pr1_host_int
+r_pend_[7:0]
+GICSS0_spi_IN_[127:
+120]
+GICSS0
+ICSSM0 interrupt
+request
+level
+ICSSM0
+ICSSM0_pr1_host_int
+r_pend_[7:0]
+R5FSS0_CORE0_intr
+_IN_[127:120]
+R5FSS0_CORE0
+ICSSM0 interrupt
+request
+level
+ICSSM0
+ICSSM0_pr1_host_int
+r_pend_[7:0]
+TIFS0_nvic_IN_[67:6
+0]
+TIFS0
+ICSSM0 interrupt
+request
+level
+ICSSM0
+ICSSM0_pr1_host_int
+r_pend_[7:0]
+HSM0_nvic_IN_[67:6
+0]
+HSM0
+ICSSM0 interrupt
+request
+level
+ICSSM0
+ICSSM0_pr1_host_int
+r_req_[7:0]
+CMP_EVENT_INTRO
+UTER0_in_IN_[7:0]
+CMP_EVENT_INTRO
+UTER0
+ICSSM0 interrupt
+request
+pulse
+ICSSM0
+ICSSM0_pr1_iep0_c
+mp_intr_req_[15:0]
+CMP_EVENT_INTRO
+UTER0_in_IN_[23:8]
+CMP_EVENT_INTRO
+UTER0
+ICSSM0 interrupt
+request
+pulse
+ICSSM0
+ICSSM0_pr1_rx_sof_i
+ntr_req_[1:0]
+GICSS0_spi_IN_244
+GICSS0
+ICSSM0 interrupt
+request
+pulse
+ICSSM0
+ICSSM0_pr1_rx_sof_i
+ntr_req_[1:0]
+GICSS0_spi_IN_245
+GICSS0
+ICSSM0 interrupt
+request
+pulse
+ICSSM0
+ICSSM0_pr1_rx_sof_i
+ntr_req_[1:0]
+R5FSS0_CORE0_intr
+_IN_244
+R5FSS0_CORE0
+ICSSM0 interrupt
+request
+pulse
+ICSSM0
+ICSSM0_pr1_rx_sof_i
+ntr_req_[1:0]
+R5FSS0_CORE0_intr
+_IN_245
+R5FSS0_CORE0
+ICSSM0 interrupt
+request
+pulse
+ICSSM0
+ICSSM0_pr1_tx_sof_i
+ntr_req_[1:0]
+GICSS0_spi_IN_246
+GICSS0
+ICSSM0 interrupt
+request
+pulse
+ICSSM0
+ICSSM0_pr1_tx_sof_i
+ntr_req_[1:0]
+GICSS0_spi_IN_247
+GICSS0
+ICSSM0 interrupt
+request
+pulse
+ICSSM0
+ICSSM0_pr1_tx_sof_i
+ntr_req_[1:0]
+R5FSS0_CORE0_intr
+_IN_246
+R5FSS0_CORE0
+ICSSM0 interrupt
+request
+pulse
+ICSSM0
+ICSSM0_pr1_tx_sof_i
+ntr_req_[1:0]
+R5FSS0_CORE0_intr
+_IN_247
+R5FSS0_CORE0
+ICSSM0 interrupt
+request
+pulse
+=== Page 109 ===
+Table 4-20. PRUSS Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+ICSSM0
+CORE_CLK
+MAIN_PLL2_HSDIV0_CL
+KOUT
+ICSSM0_CLKSEL[0:0]
+MAIN_PLL0_HSDIV9_CL
+KOUT
+ICSSM0_CLKSEL[0:0]
+IEP_CLK
+MAIN_PLL2_HSDIV5_CL
+KOUT
+ICSSM0_CLKSEL[18:16]
+MAIN_PLL0_HSDIV6_CL
+KOUT
+ICSSM0_CLKSEL[18:16]
+CP_GEMAC_CPTS_REF
+_CLK
+ICSSM0_CLKSEL[18:16]
+MCU_EXT_REFCLK0
+ICSSM0_CLKSEL[18:16]
+EXT_REFCLK1
+ICSSM0_CLKSEL[18:16]
+MCU_SYSCLK0
+ICSSM0_CLKSEL[18:16]
+MAIN_SYSCLK0
+ICSSM0_CLKSEL[18:16]
+UCLK_CLK
+MAIN_PLL1_HSDIV0_CL
+KOUT
+VCLK_CLK
+MAIN_SYSCLK0/2
+=== Page 110 ===

@@ -1,0 +1,189 @@
+Chapter 3 CPU
+3
+
+3.1 Overview
+The RK3588 has a cluster with quad-core Cortex-A55 and quad-core Cortex-A76 of which the
+cores are all single-threaded. Cortex-A55 processor, which is a mid-range, low-power
+processor that implements the ARMv8-A architecture. And the Cortex-A76 core is a highperformance and low-power Arm product that implements the Armv8-A architecture.
+The processor includes following features:
+⚫ Full implementation of the Armv8.2-A A64, A32, and T32 instruction sets
+⚫ Both the AArch32 and AArch64 execution states at all Exception levels (EL0 to EL3)
+⚫ In-order pipeline with direct and indirect branch prediction
+⚫ Separate L1 data and instruction side memory systems with a Memory Management Unit
+(MMU)
+⚫ Support for Arm TrustZone technology
+⚫ Support data engine that implements the Advanced SIMD and floating-point architecture
+support
+⚫ Support Cryptographic Extension
+⚫ ARMv8 debug logic
+⚫ Support Generic Interrupt Controller (GIC) CPU interface to connect to an external
+distributor
+⚫ Generic Timers supporting 64-bit count input from an external system counter
+The configuration details are shown in following tables
+Table 3-1 CPU Configuration
+Number of little cores(A55)
+Number of big cores(A76)
+L1 I cache size of A55
+L1 D cache size of A55
+L2 cache size of A55
+L1 I cache size of A76
+L1 D cache size of A76
+L2 cache size of A76
+L3 cache size
+L3 data RAM output latency
+L3 data RAM input latency
+CPU cache protection
+DSU L3 cache protection
+BUS master interface
+NEON and floating-point support
+Cryptography extension
+
+4
+4
+32K
+32K
+128K
+64K
+64K
+512K
+3072K
+3 cycles
+2p cycles
+No
+No
+AXI4
+Yes
+Yes
+
+3.2 Block Diagram
+The quad-core Cortex-A55 and quad-core Cortex-A76 subsystem is shown as below. As
+illustrated, the cores connect to system bus through DSU-L3 which can handle with CDC (clock
+domain crossing) issue.
+The Cortex-A55 and Cortex-A76 is connected with system counter, which can run under a
+constant frequency clock, for PPI interrupt generation.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+362
+
+RK3588 TRM-Part1
+Cluster with quad-core Cortex-A55 and quad-core Cortex-A76
+Core 0
+
+Core 0
+
+Core 1
+NEON
+
+Cortex-A55 Core
+
+Cortex-A76 Core
+
+Cortex-A55 Core
+FPU
+
+32K I-Cache
+
+32K D-Cache
+
+Cortex-A55 Core
+
+FPU
+
+64K I-Cache
+
+512K L2-Cache
+
+Core 3
+NEON
+
+Cortex-A76 Core
+
+FPU
+
+NEON
+
+Cortex-A76 Core
+FPU
+
+FPU
+
+32K I-Cache
+
+64K D-Cache
+
+512K L2-Cache
+
+Core 2
+NEON
+
+Cortex-A55 Core
+
+32K D-Cache
+
+128K L2-Cache
+
+64K D-Cache
+
+Core 3
+NEON
+
+32K I-Cache
+
+64K I-Cache
+
+32K D-Cache
+
+128K L2-Cache
+
+Core 2
+
+NEON
+
+Cortex-A76 Core
+FPU
+
+FPU
+
+32K I-Cache
+
+128K L2-Cache
+
+Core 1
+NEON
+
+NEON
+
+64K I-Cache
+
+32K D-Cache
+
+64K D-Cache
+
+512K L2-Cache
+
+128K L2-Cache
+
+FPU
+
+64K I-Cache
+
+64K D-Cache
+
+512K L2-Cache
+
+DSU-L3
+3M-Cache
+
+Fig. 3-1 Block Diagram
+
+3.3 Function Description
+Please refer to the document cortex_a55_r2p0_trm.pdf, cortex_a76_r4p0_trm.pdf and
+dsu_r4p1_trm.pdf for the detail function description.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+363
+
+RK3588 TRM-Part1
+

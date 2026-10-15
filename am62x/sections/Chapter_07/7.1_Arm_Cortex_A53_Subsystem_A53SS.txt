@@ -1,0 +1,563 @@
+7.1 Arm Cortex-A53 Subsystem (A53SS)
+This section describes the Arm® Cortex®-A53 Subsystem (A53SS) in the device.
+=== Page 644 ===
+7.1.1 A53SS Overview
+7.1.1.1 A53SS Introduction
+The SoC implements one cluster of quad-core Arm® Cortex® A53 MPCore™, with 32KB L1 instruction, 32KB L1
+data, per core and 512KB L2 shared cache.
+The Cortex®-A53 cores are general-purpose processors that can be used for running customer applications.
+Note
+Notes on references used in this document:
+•
+A53SS is also referred to as Arm® CorePac.
+•
+Cortex®-A53 is often shortened to A53.
+The A53SS is built around the Cortex®-A53 MPCore™ (Arm® A53 Cluster), which is provided by Arm and
+configured by TI. It is based on the symmetric multiprocessor (SMP) architecture, and thus it delivers high
+performance and optimal power management, debug and emulation capabilities.
+The A53 processor is a multi-issue out-of-order superscalar execution engine with integrated L1 Instruction
+and Data Caches, compatible with Arm®v8-A architecture. It delivers significantly more performance than its
+predecessors at a higher level of power efficiency.
+The Arm®v8-A architecture brings a number of new features. These include 64-bit data processing, extended
+virtual addressing and 64-bit general purpose registers. The A53 processor is Arm’s first Arm®v8-A processor
+aimed at providing power-efficient 64-bit processing. It features an in-order, 8-stage, dual-issue pipeline, and
+improved integer, Arm® Neon™, Floating-Point Unit (FPU) and memory performance.
+The A53 CPU supports two execution states: AArch32 and AArch64. The AArch64 state gives the A53 CPU its
+ability to execute 64-bit applications, while the AArch32 state allows the processor to execute existing Arm®v7-A
+applications.
+7.1.1.2 A53SS Features
+The A53SS module supports the following features:
+•
+Quad Core A53 Cluster
+•
+Full Arm®v8-A Architecture Compliant
+•
+AArch32 and AArch64 Execution States
+•
+All exception levels EL0-3
+•
+A32 Instruction Set (Previously Arm instruction set)
+•
+T32 instruction set (Previously Thumb instruction set)
+•
+A64 Instruction Set
+•
+Data Coherency within Cluster (L1/L2 caches)
+•
+Advanced SIMD and Floating Point Extensions (Arm® Neon™)
+•
+Armv8 Cryptography Extensions
+•
+Arm GICv3 architecture
+•
+In-order pipeline with symmetric dual-issue of most instructions
+•
+Harvard L1 with system MMU
+•
+32 KB Instruction Cache
+•
+32 KB Data Cache
+•
+512KB Shared L2 Cache
+•
+Generic Timer(s)
+•
+Debug
+•
+128-Bit VBUSM Initiator Interfaces (for axi_r and axi_r channels)
+•
+128-Bit VBUSM Target Interface (for Accelerator Coherency Port)
+•
+64-bit Grey-coded system input time
+•
+48-bit Grey-coded debug input time
+=== Page 645 ===
+•
+48-bit Grey-coded debug input time
+•
+Integrated PBIST controller with BISOR
+Note
+Some features may not be available. See Module Integration for more information.
+=== Page 646 ===
+7.1.2 A53SS Functional Description
+7.1.2.1 A53SS Block Diagram
+7.1.2.2 Arm Cortex-A53 Cluster
+The Arm Cortex-A53 Cluster is provided by Arm and configured by TI. Table 7-1 summarizes the configuration of
+the Arm Cortex-A53 Cluster on this SoC.
+Table 7-1. Arm A53 Cluster Configuration
+Parameter
+Value
+Core Type
+A53
+Core Revision
+r0p4
+Number of Cores
+4
+Bus Width
+256
+L1 Instruction Cache Size
+32K
+L1 Data Cache Size
+32K
+L2 Cache Size
+512K
+SCU-L2 Cache Protection
+Included
+Advanced SIMD and Floating Point Extension
+Included
+Cryptography Extension
+Included
+CPU Cache Protection
+Included
+AMBA5 CHI or AMBA4 ACE Interface
+AMBA4 ACE
+(configured for AXI
+using tie-offs)
+Accelerator Coherency Port (ACP)
+Included
+V7 or v8 Debug Memory Map
+v8
+Note
+For a brief list of features supported by the Arm Cortex-A53 Cluster, see A53SS Features.
+For detailed description of the Arm A53 Cluster, see the ARM®Cortex®-A53 MPCore Processor
+Technical Reference Manual.
+7.1.2.3 A53SS Interfaces and Async Bridges
+The A53SS has the following main interfaces:
+•
+64-bit graycoded system input time
+•
+Graycode value provided by Global Timebase Counter (GTC)
+•
+Dedicated decoder (64-bit input) for graycode-to-binary conversion
+•
+48-bit graycoded debug input time
+•
+Graycode value provided by GTC
+•
+Dedicated decoder (48-bit input) for graycode-to-binary conversion
+•
+32-bit VBUSP target interface for debug
+•
+Supported by VBUSP2APB Bridge, which performs VBUSP-to-APB conversion (for controlling the Arm
+A53 Cluster internal debug logic)
+•
+32-bit ATB output port for debug/trace
+•
+Supported by ATB Bridge, which performs clock and voltage level conversion on the combined ATB
+interface
+•
+Connected to the Debug Subsystem
+•
+Cross Trigger Interface (CTI) for debug
+•
+Connected to the Debug Subsystem
+•
+Interface(s) with Arm GIC-500 Interrupt Controller
+=== Page 647 ===
+•
+Supported by GIC AXI Streaming Bridge, which performs clock and voltage level conversion on the AXI
+streaming protocol
+•
+Interrupts (PPIs) from Arm A53 Cluster to GIC-500
+•
+Interrupts (IRQ, FIQ, VIRQ, VFIQ) from GIC-500 to Arm A53 Cluster
+•
+Power/clock interface(s)
+•
+Dedicated PLL for each Arm A53 Cluster
+•
+Dedicated LPSC for each Arm A53 Cluster, and also for each A53 core
+7.1.2.4 A53SS Interrupts
+7.1.2.4.1 A53SS Interrupt Inputs
+The A53 CPU recieves interrupts at its inputs (IRQ, FIQ, VIRQ, VFIQ) via the dedicated Arm GIC-500 Interrupt
+Controller, which resides at the SoC level (MAIN Domain) and is integrated inside the GIC0 Subsystem. The
+GIC-500 supports all four A53 cores in the system.
+The GIC-500 is compliant to the Arm GICv3 standard and supports four types of interrupts:
+•
+Software Generated Interrupts (SGI)
+•
+There are 16 SGIs (ID0-ID15)
+•
+These are inter-processor interrupts
+•
+Private Peripheral Interrupts (PPI)
+•
+There are 16 PPIs (ID16-ID31)
+•
+These are wired interrupts dedicated to a specific CPU
+•
+Many are reserved to specific functions via convention
+•
+Shared Peripheral Interrupts (SPIs)
+•
+There are 256 SPIs (ID32-ID288)
+•
+These are wired interrupts that can be routed to any core or cluster, based on the programming of that
+interrupt in the GIC500
+•
+Locality-Specific Peripheral Interrupts (LPI)
+•
+There are 57,344 LPIs
+•
+These interrupts are used for message-based interrupts from a peripheral
+The mapping of PPIs and SPIs to the GIC-500 interrupt inputs can be found in Interrupts.
+Note
+For a brief list of features supported by the GIC-500 module, see the Interrupts chapter.
+For detailed description of the GIC-500 module, see the Arm® CoreLink™ GIC-500 Generic Interrupt
+Controller Technical Reference Manual.
+7.1.2.4.2 A53SS Interrupt Outputs
+A53SS Interrupt Outputs lists the interrupts generated by the A53SS.
+Table 7-2. A53SS Interrupt Outputs
+Interrupt Name (TI)(1)
+Interrupt Name (Arm)
+Interrupt Description
+A53 Core Interrupts (PPIs)(2)
+A53_COREy_VCPUMNTIRQ
+VCPUMNTIRQn
+This interrupt indicates that a Virtual CPU Interface on the corresponding
+core needs serviced.
+This interrupt is serviced by software switching to the virtual CPU and finding
+what specific service needs done.
+A53_COREy_CNTHPIRQ
+CNTHPIRQn
+This interrupt indicates a physical timer event at the EL2 (Hypervisor)
+exception level.
+Service of this interrupt is dependent on what the timer was set for. Software
+should take exception to EL2 and service accordingly.
+=== Page 648 ===
+Table 7-2. A53SS Interrupt Outputs (continued)
+Interrupt Name (TI)(1)
+Interrupt Name (Arm)
+Interrupt Description
+A53_COREy_CNTPNSIRQ
+CNTPNSIRQn
+This interrupt indicates a physical timer event at the EL1 Non-Secure
+exception level.
+Service of this interrupt is dependent on what the timer was set for. Software
+should take exception to EL1 Non-Secure and service accordingly.
+A53_COREy_CNTPSIRQ
+CNTPSIRQn
+This interrupt indicates a physical timer event at the EL1 Secure exception
+level.
+Service of this interrupt is dependent on what the timer was set for. Software
+should take exception to EL1 Secure and service accordingly.
+A53_COREy_CNTVIRQ
+CNTVIRQn
+This interrupt indicates a Virtual timer event.
+Service of this interrupt is dependent on what the timer was set for. Software
+should take exception and service accordingly.
+A53_COREy_PMUIRQ
+PMUIRQn
+This interrupt is generated by the Performance Monitor Unit (PMU).
+The PMU can generate an interrupt based on several conditions, depending
+on programming.
+Software should take exception and query the PMU as to the cause of the
+interrupt, and act accordingly.
+A53_COREy_DCCIRQ
+COMMIRQn
+Communications Channel receive or transmit interrupt
+A53_COREy_CTIIRQ
+CTIIRQn
+Cross Trigger Interface interrupt
+(1)
+In this column, y is the A53 Core index (0 or 1)
+(2)
+These are 'per core' interrupts
+Note
+The mapping of these interrupts in the system is summarized in A53SS Integration, and can also be
+found in Interrupts.
+For more detailed description of these interrupts and their handling, see the Arm® Cortex®-A53
+MPCore Processor Technical Reference Manual.
+7.1.2.5 A53SS Power Management and Clocking
+7.1.2.5.1 A53SS Power Management
+Each Arm A53 Cluster and each A53 CPU reside in a separate power domain, as follows:
+There is a dedicated Local Power Sleep Controller (LPSC) for each Arm A53 Cluster, and for each A53 core, as
+well. The LPSC assignment is as follows:
+For more details on these LPSCs, including power-up/down sequences, see Power.
+7.1.2.5.2 A53SS Clocking
+There is a dedicated PLL for each Arm A53 Cluster. The PLL assignment is as follows:
+•
+PLL8 (ARM0 PLL): Dedicated for Arm A53 Cluster 0
+For more details on these PLLs, see Clocking.
+7.1.2.6 A53SS Debug
+The A53SS supports the standard Arm debug architecture. Details on Arm debug can be found in the On-chip
+Debug chapter and the relevant Arm specifications.
+7.1.2.7 A53SS Global and Debug Timestamps
+The A53SS has two timebase input interfaces:
+•
+64-bit global timestamp: Used for synchronizing the Arm internal timers (via the ARM CNTVALUEB [63:0]
+bus)
+•
+48-bit debug timestamp: Can be embedded in Arm trace streams at periodic and strategic locations, allowing
+the temporal relationship of different trace sources to be determined
+=== Page 649 ===
+Both of them are fed by the Global Timebase Counter (GTC), which provides a 64-bit graycode value.
+The A53SS includes two graycode decoders (for global time and debug time, respectively), which take the
+asynchronous graycoded times, synchronize them to the appropriate clock, and convert them to binary time, as
+required by Arm.
+Note
+Both graycode decoders are 64-bit but the one dedicated to debug time has a 48-bit input (the upper
+16 bits are tied to 0).
+For more details on the GTC, see Global Timebase Counter (GTC).
+7.1.2.8 A53SS Watchdog
+The A53SS does not have an integrated watchdog timer. Instead, this feature is provided externally by the Real
+Time Interrupt Module (RTI) module, which implements a windowed watchdog timer capable of issuing warm
+reset to the SoC, when necessary.
+For more details on the RTI windowed watchdog feature, see Real Time Interrupt Module (RTI/WWDT).
+7.1.2.9 A53SS Functional Safety - ECC Error Injection Support
+In the quad A53 CBA subsystem, there are five ECC aggregators ± one for each core and one for the corepac
+level. Debug domain is not safety critical.
+No CBASS/Bridge interconnect safety is supported. Only RAM safety is supported.
+The following A53SS ECC Aggregator instances are instantiated:
+•
+A53SS0_ECC_AGGR0: ECC Aggregator for Arm A53 Cluster 0, Core 0
+•
+A53SS0_ECC_AGGR1: ECC Aggregator for Arm A53 Cluster 0, Core 1
+•
+A53SS0_ECC_AGGR2: ECC Aggregator for Arm A53 Cluster 0, Core 2
+•
+A53SS0_ECC_AGGR3: ECC Aggregator for Arm A53 Cluster 0, Core 3
+•
+A53SS0_ECC_AGGR_COREPAC: ECC Aggregator for Arm A53 Cluster 0
+7.1.2.9.1 A53 ECC Aggregators During Low Power States
+•
+When a cpu core is in WFI/WFE, the corresponding core ECC Aggregator MMR regions is not accessible and
+will return error status.
+•
+Similarly when L2 is in WFI, the corepac ECC Aggregator MMR region is not accessible and will return error
+status.
+7.1.2.9.2 Auto-initialization of Memories
+All A53 L1 and L2 memory initialization is handled by the Arm core. The TI ECC aggregator is used in inject-only
+mode and this cannot be used for initialization. The Arm CPU will initialize the cache memories after reset.
+There are no other memories in the A53 subsystem beside the cache memories
+7.1.2.9.3 A53 SRAM Safety
+The Arm A53 Cluster natively supports ECC/parity protection on A53 SRAMs and error injection on few
+memories. The A53SS adds error injection capability on all internal SRAM. This is a valuable TI addition to
+the Arm native implementation.
+Table 7-3. A53 SRAM Safety Support
+RAM
+A53 Error Injection Support
+TI Error Injection Support
+L1 I-Cache Data
+No
+Single error injection
+L1 I-Cache Tag
+No
+Single error injection
+L1 D-Cache Data
+Double error injection
+Single and double error injection
+L1 D-Cache Tag
+No
+Single error injection
+L1 Data Dirty
+No
+Single error injection
+=== Page 650 ===
+Table 7-3. A53 SRAM Safety Support (continued)
+RAM
+A53 Error Injection Support
+TI Error Injection Support
+TLB RAM
+No
+Single error injection
+SCU Duplicate Tag
+No
+Single and double error injection
+L2 Tag RAM
+Double error injection
+Single and double error injection
+L2 Data RAM
+Double error injection
+Single and double error injection
+The ECC Aggregator for the cores stimulates errors in the following RAMs:
+•
+L1 I-Cache Data RAM
+•
+L1 I-Cache Tag RAM
+•
+L1 D-Cache Data RAM
+•
+L1 D-Cache Tag RAM
+•
+L1 D-Cache Dirty RAM
+•
+TLB RAM
+•
+L1 SCU L1-D Duplicate Tag RAM
+The ECC Aggregator for the L2 cache stimulates errors in the following RAMs:
+•
+L2 Data RAM
+•
+L2 Tag RAM
+7.1.2.9.4 A53 SRAM ECC Aggregator Configurations
+There are several schemas of memory protection employed inside of the processors. The tables below describe
+the schema and arrangement. This describes what bits are protected, how they are protected, the behavior
+when an error is detected and what bits can be disturbed for ECC testing purposes. This also lists the RAMID
+associated with each memory to the corresponding ECC Aggregator.
+The key for the protection schemes is as follows:
+•
+Parity ± Parity Bit(s) to protect data
+•
+ECC ± Error Correction Code to protect Data
+•
+SED ± Single Error Detection
+•
+SECDED ± Single Error Correction, Double Error Detection
+•
+SEDSEC ± Single Error Detection, Single Error Correction
+Table 7-4. CPU Memories Safety Details
+Memory
+Protection
+RAM Arrangement
+CPU
+(Core
+ECC
+Aggr)
+Rams
+Ram ID
+Notes
+L1 I-Cache
+Data
+Parity SED
+41 ± Parity for 40:21
+0-3
+Error detection results in both lines being invalidated then
+refetched from L2 or memory
+40:21 ± Instruction
+20 ± Parity for 19:0
+19:0 ± Instruction
+L1 I-Cache
+Tag
+Parity SED
+31 ± Parity for 30:0
+4-5
+Error detection results in both lines being invalidated, then
+line refetched from L2 or memory
+30:0 ± Data
+L1 D-cache
+Data
+ECC
+SECDED
+38:32 ± ECC
+6-13
+Error results in line being cleaned and invalidated from L1
+with single bit errors corrected as part of eviction. Line
+refetched from L2 or memory
+31:0 ± Data
+L1 D-Cache
+Tag
+Parity SED
+30 ± Parity for 29:0
+14-17
+Cache sizes makes LSB unnecessary (always 0) so they are
+removed from the actual RAM. Error results in line cleaned
+and invalidated from L1. SCU duplicate tags are used to get
+the correct address. Line refetched from L2 or memory
+29:0 ± Tag
+=== Page 651 ===
+Table 7-4. CPU Memories Safety Details (continued)
+Memory
+Protection
+RAM Arrangement
+CPU
+(Core
+ECC
+Aggr)
+Rams
+Ram ID
+Notes
+L1 D-cache
+Dirty
+Parity
+SEDSEC
+11:10 ± Way 1/3 Dirty copy 2 and 1.
+Parity for 4
+18
+Error results in line cleaned and invalidated from L1 with
+single bit errors corrected as part of the eviction. Only dirty
+bit is protected. Other bits are just performance hints
+9:8 ± Way 0/2 Dirty copy 2 and 1.
+Parity for 0
+7 ± Way 1/3 Outer Allocation Hint
+6 ± Way 1/3 Age
+5:4 ± Way 1/3 Partial MOESI
+3 ± Way 0/2 Outer Allocation Hint
+2 ± Way 0/2 Age
+1:0 ± Way 0/2 Partial MOESI
+TLB
+Parity SED
+116 ± parity for 113:62
+19-22
+Error detection results in entry invalidated, new pagewalk to
+refetch.
+115 ± Parity for 61:31
+114 ± Parity for 30:0
+113:62 ± Page Attributes
+61:31 ± Entry Identifiers
+30:0 ± Address
+SCU L1
+Duplicate
+Tag
+ECC
+SECDED
+37:31 - ECC for 30:0
+23-26
+(accessed
+by each
+Core's
+ecc_aggr)
+Cache sizes makes LSB unnecessary (always 0) so they are
+removed from the actual RAM.
+Corretable Error ± Tag rewritten with correct value, access
+retried
+Uncorrectable Error ± Tag is invalidated
+30:0 - Duplicate Tag
+Table 7-5. L2 Memories Safety Details
+Memory
+Protection
+RAM
+Arrangement
+RAM_ID
+(L2 Cache
+RAMs)
+Notes
+L2 Tag
+ECC
+SECDED
+37:31 ± ECC for
+30:0
+0-15
+Cache sizes makes LSB unnecessary (always 0) so they are removed from
+the actual RAM.
+Corretable Error ± Tag rewritten with correct value, access retried.
+Uncorrectable Error ± Tag is invalidated
+30:0 - Tag
+L2 Victim
+None
+•
+•
+Performance Hint Only ± Error has no functional impact
+L2 Data
+ECC
+SECDED
+71:64 ± ECC for
+63:0
+16-23
+Error results in Data corrected inline, access may stall for 1-2 cycles.
+After correction, line might be evicted
+63:0 ± Data
+Branch
+Predictor
+None
+•
+•
+Performance Hint Only ± Error has no functional impact
+7.1.2.10 A53SS Boot
+For A53SS boot sequence and any other A53SS boot details, see Control Module (CTRL_MMR).
+7.1.2.11 A53SS Interprocessor Communication
+The Arm A53 core(s) can communicate with other device cores (R5FSS, PRUSS PRU, DMSC M3) by
+supporting interrupt generation to and from these cores. The interprocessor communication (IPC) interrupts are
+assigned in the corresponding BOOTCFG0 memory-mapped registers (MMRs) called IPC_SETx / IPC_CLRx.
+For more information, see Control Module (CTRL_MMR).
+=== Page 652 ===

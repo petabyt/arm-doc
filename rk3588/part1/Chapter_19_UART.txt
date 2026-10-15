@@ -1,0 +1,3280 @@
+Chapter 19 UART
+19
+
+19.1 Overview
+The Universal Asynchronous Receiver/Transmitter (UART) is used for serial communication
+with a peripheral, modem (data carrier equipment, DCE) or data set. Data is written from a
+master (CPU) over the APB bus to the UART and it is converted to serial form and
+transmitted to the destination device. Serial data is also received by the UART and stored for
+the master (CPU) to read back.
+UART Controller supports the following features:
+⚫
+Support 10 independent UART controller: UART0-UART9
+⚫
+All contain two 64 Bytes FIFOs for data receive and transmit
+⚫
+All support auto flow-control
+⚫
+Support bit rates 115.2Kbps, 460.8Kbps, 921.6Kbps, 1.5Mbps, 3Mbps, 4Mbps
+⚫
+Support programmable baud rates, even with non-integer clock divider
+⚫
+Standard asynchronous communication bits (start, stop and parity)
+⚫
+Support interrupt-based or DMA-based mode
+⚫
+Support 5-8 bits width transfer
+
+19.2 Block Diagram
+This section provides a description about the functions and behavior under various
+conditions. The UART Controller comprises with:
+⚫
+AMBA APB interface
+⚫
+FIFO controllers
+⚫
+Register block
+⚫
+Modem synchronization block and baud clock generation block
+⚫
+Serial receiver and serial transmitter
+
+apb
+interface
+
+apb
+bus
+
+fifo
+block
+
+intr
+
+dma_tx_req
+
+dtr_n
+
+dma_rx_req
+
+cts_n
+dsr_n
+
+dma_tx_ack
+dma_rx_ack
+
+register
+block
+
+rts_n
+
+modem
+sync
+
+baud
+clock
+generation
+
+sin
+
+baudout_n
+
+sout
+
+serial
+receiver
+sir_in_n
+
+serial
+transmitter
+sir_out_n
+
+Fig. 19-1 UART Architecture
+APB INTERFACE
+The host processor accesses data, control, and status information on the UART through the
+APB interface. The UART supports APB data bus widths of 8, 16, and 32 bits.
+Register block
+Be responsible for the main UART functionality including control, status and interrupt
+generation.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1435
+
+RK3588 TRM-Part1
+Modem Synchronization block
+Synchronizes the modem input signal.
+FIFO block
+Be responsible for FIFO control and storage (when using internal RAM) or signaling to
+control external RAM (when used).
+Baud Clock Generator
+Generates the transmitter and receiver baud clock along with the output reference clock
+signal (baudout_n).
+Serial Transmitter
+Converts the parallel data, written to the UART, into serial form and adds all additional bits,
+as specified by the control register, for transmission.
+Serial Receiver
+Converts the serial data character (as specified by the control register) received to parallel
+form. Parity error detection, framing error detection and line break detection is carried out in
+this block.
+
+19.3 Function Description
+UART (RS232) Serial Protocol
+Because the serial communication is asynchronous, additional bits (start and stop) are
+added to the serial data to indicate the beginning and end. An additional parity bit may be
+added to the serial character. This bit appears after the last data bit and before the stop
+bit(s) in the character structure to perform simple error checking on the received data, as
+shown in Figure.
+
+Fig. 19-2 UART Serial protocol
+Baud Clock
+The baud rate is controlled by the serial clock (sclk or pclk in a single clock implementation)
+and the Divisor Latch Register (DLH and DLL). As the exact number of baud clocks that each
+bit was transmitted for is known, calculating the mid-point for sampling is not difficult, that
+is every 16 baud clocks after the mid-point sample of the start bit.
+
+Fig. 19-3 UART baud rate
+FIFO Support
+1. NONE FIFO MODE
+If FIFO support is not selected, then no FIFOs are implemented and only a single receive
+data byte and transmit data byte can be stored at a time in the RBR and THR.
+2. FIFO MODE
+The FIFO depth of is 64bytes. The FIFO mode of all the UART is enabled by register FCR[0].
+Interrupts
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1436
+
+RK3588 TRM-Part1
+The following interrupt types can be enabled with the IER register.
+⚫
+Receiver Error
+⚫
+Receiver Data Available
+⚫
+Character Timeout (in FIFO mode only)
+⚫
+Transmitter Holding Register Empty at/below threshold (in Programmable THRE
+Interrupt mode)
+⚫
+Modem Status
+DMA Support
+The UART supports DMA signaling with the use of two output signals (dma_tx_req_n and
+dma_rx_req_n) to indicate when data is ready to be read or when the transmit FIFO is
+empty.
+The dma_tx_req_n signal is asserted under the following conditions:
+⚫ When the Transmitter Holding Register is empty in non-FIFO mode.
+⚫ When the transmitter FIFO is empty in FIFO mode with Programmable THRE interrupt
+mode disabled.
+⚫ When the transmitter FIFO is at, or below the programmed threshold with
+Programmable THRE interrupt mode enabled.
+The dma_rx_req_n signal is asserted under the following conditions:
+⚫ When there is a single character available in the Receive Buffer Register in non-FIFO
+mode.
+⚫ When the Receiver FIFO is at or above the programmed trigger level in FIFO mode.
+Auto Flow Control
+The UART can be configured to have a 16750-compatible Auto RTS and Auto CTS serial data
+flow control mode available. If FIFOs are not implemented, then this mode cannot be
+selected. When Auto Flow Control mode has been selected, it can be enabled with the
+Modem Control Register (MCR[5]). Following figure shows a block diagram of the Auto Flow
+Control functionality.
+
+Fig. 19-4 UART Auto flow control block diagram
+Auto RTS – Becomes active when the following occurs:
+⚫
+Auto Flow Control is selected during configuration
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1437
+
+RK3588 TRM-Part1
+⚫
+⚫
+⚫
+⚫
+
+FIFOs are implemented
+RTS (MCR[1] bit and MCR[5]bit are both set)
+FIFOs are enabled (FCR[0]) bit is set)
+SIR mode is disabled (MCR[6] bit is not set)
+
+Fig. 19-5 UART AUTO RTS TIMING
+Auto CTS – becomes active when the following occurs:
+⚫
+Auto Flow Control is selected during configuration
+⚫
+FIFOs are implemented
+⚫
+AFCE (MCR[5] bit is set)
+⚫
+FIFOs are enabled through FIFO Control Register FCR[0] bit
+⚫
+SIR mode is disabled (MCR[6] bit is not set)
+
+Fig. 19-6 UART AUTO CTS TIMING
+
+19.4 Register Description
+19.4.1 Registers Summary
+
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+
+Reset
+Description
+Value
+0x00000000 Receive Buffer Register
+0x00000000 Divisor Latch Low
+0x00000000 Transmit Buffer Register
+0x00000000 Divisor Latch High
+0x00000000 Interrupt Enable Register
+0x00000000 FIFO Enable
+0x00000001 Interrupt Identity Register
+0x00000000 Line Control Register
+0x00000000 Modem Control Register
+0x00000060 Line Status Register
+0x00000000 Modem Status Register
+0x00000000 Scratchpad Register
+0x00000000 Shadow Receive Buffer Register
+0x00000000 Shadow Transmit Holding Register
+0x00000000 FIFO Access Register
+0x00000000 Transmit FIFO Read
+0x00000000 Receive FIFO write
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1438
+
+Name
+UART_RBR
+UART_DLL
+UART_THR
+UART_DLH
+UART_IER
+UART_FCR
+UART_IIR
+UART_LCR
+UART_MCR
+UART_LSR
+UART_MSR
+UART_SCR
+UART_SRBR
+UART_STHR
+UART_FAR
+UART_TFR
+UART_RFW
+
+Offset
+0x0000
+0x0000
+0x0000
+0x0004
+0x0004
+0x0008
+0x0008
+0x000C
+0x0010
+0x0014
+0x0018
+0x001C
+0x0030
+0x0030
+0x0070
+0x0074
+0x0078
+
+Size
+
+RK3588 TRM-Part1
+Name
+UART_USR
+UART_TFL
+UART_RFL
+UART_SRR
+UART_SRTS
+UART_SBCR
+UART_SDMAM
+UART_SFE
+UART_SRT
+UART_STET
+UART_HTX
+UART_DMASA
+UART_CPR
+UART_UCV
+UART_CTR
+
+Offset
+0x007C
+0x0080
+0x0084
+0x0088
+0x008C
+0x0090
+0x0094
+0x0098
+0x009C
+0x00A0
+0x00A4
+0x00A8
+0x00F4
+0x00F8
+0x00FC
+
+Size
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+
+Reset
+Description
+Value
+0x00000006 UART Status Register
+0x00000000 Transmit FIFO level
+0x00000000 Receive FIFO level
+0x00000000 Software Reset Register
+0x00000000 Shadow Request to Send
+0x00000000 Shadow Break Control Register
+0x00000000 Shadow DMA Mode
+0x00000000 Shadow FIFO enable
+0x00000000 Shadow RCVR Trigger
+0x00000000 Shadow TX Empty Trigger
+0x00000000 Halt TX
+0x00000000 DMA Software Acknowledge
+0x00043FF2 Component Parameter Register
+0x3430322A UART Component Version
+0x44570110 Component Type Register
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+19.4.2 Detail Registers Description
+UART_RBR
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+data_input
+Data byte received on the serial input port (sin) in UART mode, or
+the serial infrared input (sir_in) in infrared mode. The data in this
+register is valid only if the Data Ready (DR) bit in the Line Status
+Register (LCR) is set. If in non-FIFO mode (FIFO_MODE ==
+NONE) or FIFOs are disabled (FCR[0] set to zero), the data in the
+RBR must be read before the next data arrives, otherwise it is
+7:0
+RO 0x00
+overwritten, resulting in an over-run error.
+If in FIFO mode (FIFO_MODE != NONE) and FIFOs are enabled
+(FCR[0] set to one), this register accesses the head of the receive
+FIFO. If the receive FIFO is full and this register is not read before
+the next data character arrives, then the data already in the FIFO
+is preserved, but any incoming data are lost and an over-run
+error occurs.
+UART_DLL
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1439
+
+RK3588 TRM-Part1
+Bit
+
+7:0
+
+Attr Reset Value
+
+RW 0x00
+
+Description
+baud_rate_divisor_l
+Lower 8 bits of a 16-bit, read/write, Divisor Latch register that
+contains the baud rate divisor for the UART. This register may
+only be accessed when the DLAB bit (LCR[7]) is set and the UART
+is not busy (USR[0] is zero). The output baud rate is equal to the
+serial clock (pclk if one clock design, sclk if two clock design
+(CLOCK_MODE == Enabled)) frequency divided by sixteen times
+the value of the baud rate divisor, as follows: baud rate = (serial
+clock freq) / (16 * divisor).
+Note that with the Divisor Latch Registers (DLL and DLH) set to
+zero, the baud clock is disabled and no serial communications
+occur. Also, once the DLL is set, at least 8 clock cycles of the
+slowest UART clock should be allowed to pass before transmitting
+or receiving data.
+
+UART_THR
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+data_output
+Data to be transmitted on the serial output port (sout) in UART
+mode or the serial infrared output (sir_out_n) in infrared mode.
+Data should only be written to the THR when the THR Empty
+(THRE) bit (LSR[5]) is set. If in non-FIFO mode or FIFOs are
+disabled (FCR[0] = 0) and THRE is set, writing a single character
+7:0
+WO 0x00
+to the THR clears the THRE. Any additional writes to the THR
+before the THRE is set again causes the THR data to be
+overwritten.
+If in FIFO mode and FIFOs are enabled (FCR[0] = 1) and THRE is
+set, 64 characters of data may be written to the THR before the
+FIFO is full. Any attempt to write data when the FIFO is full
+results in the write data being lost.
+UART_DLH
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+baud_rate_divisor_h
+Upper 8-bits of a 16-bit, read/write, Divisor Latch register that
+contains the baud rate divisor for the UART. This register may
+only be accessed when the DLAB bit (LCR[7]) is set and the UART
+is not busy (USR[0] is zero). The output baud rate is equal to the
+serial clock (pclk if one clock design, sclk if two clock design
+CLOCK_MODE == Enabled)) frequency divided by sixteen times
+7:0
+RW 0x00
+the value of the baud rate divisor, as follows: baud rate = (serial
+clock freq) / (16 * divisor).
+Note that with the Divisor Latch Registers (DLL and DLH) set to
+zero, the baud clock is disabled and no serial communications
+occur. Also, once the DLH is set, at least 8 clock cycles of the
+slowest UART clock should be allowed to pass before transmitting
+or receiving data.
+UART_IER
+Address: Operational Base + offset (0x0004)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1440
+
+RK3588 TRM-Part1
+Bit
+31:8
+
+7
+
+6:4
+
+3
+
+2
+
+1
+
+0
+
+Attr Reset Value
+Description
+RO 0x000000
+reserved
+prog_thre_int_en
+Programmable THRE Interrupt Mode Enable that can be written to
+only when THRE_MODE_USER == Enabled, always readable. This
+RW 0x0
+is used to enable/disable the generation of THRE Interrupt.
+1'b0: Disabled
+1'b1: Enabled
+RO 0x0
+reserved
+modem_status_int_en
+Enable Modem Status Interrupt. This is used to enable/disable
+the generation of Modem Status Interrupt. This is the fourth
+RW 0x0
+highest priority interrupt.
+1'b0: Disabled
+1'b1: Enabled
+receive_line_status_int_en
+Enable Receiver Line Status Interrupt. This is used to
+enable/disable the generation of Receiver Line Status Interrupt.
+RW 0x0
+This is the highest priority
+interrupt.
+1'b0: Disabled
+1'b1: Enabled
+trans_hold_empty_int_en
+Enable Transmit Holding Register Empty Interrupt. This is used to
+enable/disable the generation of Transmitter Holding Register
+RW 0x0
+Empty Interrupt. This is the third highest priority interrupt.
+1'b0: Disabled
+1'b1: Enabled
+receive_data_available_int_en
+Enable Received Data Available Interrupt. This is used to
+enable/disable the generation of Received Data Available
+Interrupt and the Character Timeout Interrupt (if in FIFO mode
+RW 0x0
+and FIFOs enabled). These are the second highest priority
+interrupts.
+1'b0: Disabled
+1'b1: Enabled
+
+UART_FCR
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+rcvr_trigger
+At which the Received Data Available Interrupt is generated. In
+auto flow control mode it is used to determine when the rts_n
+signal is de-asserted. It also determines when the dma_rx_req_n
+signal is asserted in certain modes of operation. For details on
+7:6
+WO 0x0
+DMA support, refer to "DMA Support". The following trigger levels
+are supported:
+2'b00: 1 character in the FIFO
+2'b01: FIFO 1/4 full
+2'b10: FIFO 1/2 full
+2'b11: FIFO 2 less than full
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1441
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+5:4
+
+WO 0x0
+
+3
+
+WO 0x0
+
+2
+
+WO 0x0
+
+1
+
+WO 0x0
+
+0
+
+WO 0x0
+
+Description
+tx_empty_trigger
+TX Empty Trigger. Writes have no effect when THRE_MODE_USER
+== Disabled. This is used to select the empty threshold level at
+which the THRE Interrupts are generated when the mode is
+active. It also determines when the dma_tx_req_n signal is
+asserted when in certain modes of operation. For details on DMA
+support, refer to "DMA Support" . The following trigger levels are
+supported:
+2'b00: FIFO empty
+2'b01: 2 characters in the FIFO
+2'b10: FIFO 1/4 full
+2'b11: FIFO 1/2 full
+dma_mode
+DMA Mode. This determines the DMA signaling mode used for the
+dma_tx_req_n and dma_rx_req_n output signals when additional
+DMA handshaking signals are not selected (DMA_EXTRA == No).
+For details on DMA support, refer to DMA Support.
+1'b0: Mode 0
+1'b1: Mode 1
+xmit_fifo_reset
+XMIT FIFO Reset. This resets the control portion of the transmit
+FIFO and treats the FIFO as empty. This also de-asserts the DMA
+TX request and single signals when additional DMA handshaking
+signals are selected (DMA_EXTRA == YES). Note that this bit is
+'self-clearing'. It is not necessary to clear this bit.
+rcvr_fifo_reset
+RCVR FIFO Reset. This resets the control portion of the receive
+FIFO and treats the FIFO as empty. This also de-asserts the DMA
+RX request and single signals when additional DMA handshaking
+signals are selected (DMA_EXTRA == YES). Note that this bit is
+'self-clearing'. It is not necessary to clear this bit.
+fifo_en
+FIFO Enable. This enables/disables the transmit (XMIT) and
+receive (RCVR) FIFOs. Whenever the value of this bit is changed
+both the XMIT and RCVR controller portion of FIFOs is reset.
+
+UART_IIR
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+fifos_en
+FIFOs Enabled. This is used to indicate whether the FIFOs are
+7:6
+RO 0x0
+enabled or disabled.
+2'b00: Disabled
+2'b11: Enabled
+5:4
+RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1442
+
+RK3588 TRM-Part1
+Bit
+
+3:0
+
+Attr Reset Value
+
+RO
+
+0x1
+
+Description
+int_id
+Interrupt ID. This indicates the highest priority pending interrupt
+which can be one of the following types:
+4'b0000: Modem status
+4'b0001: No interrupt pending
+4'b0010: THR empty
+4'b0100: Received data available
+4'b0110: Receiver line status
+4'b0111: Busy detect
+4'b1100: Character timeout
+The interrupt priorities are split into four levels that are detailed
+in Table X.
+Bit 3 indicates an interrupt can only occur when the FIFOs are
+enabled and used to distinguish a Character Timeout condition
+interrupt.
+
+UART_LCR
+Address: Operational Base + offset (0x000C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+div_lat_access
+Divisor Latch Access Bit. Writable only when UART is not busy
+(USR[0] is zero), always readable. This bit is used to enable
+7
+RW 0x0
+reading and writing of the Divisor Latch register (DLL and DLH) to
+set the baud rate of the UART. This bit must be cleared after
+initial baud rate setup in order to access other registers.
+break_ctrl
+Break Control Bit. This is used to cause a break condition to be
+transmitted to the receiving device. If set to one the serial output
+is forced to the spacing (logic 0) state. When not in Loopback
+6
+RW 0x0
+Mode, as determined by MCR[4], the sout line is forced low until
+the Break bit is cleared. If SIR_MODE == Enabled and active
+(MCR[6] set to one) the sir_out_n line is continuously pulsed.
+When in Loopback Mode, the break condition is internally looped
+back to the receiver and the sir_out_n line is forced low.
+stick_parity
+If UART_16550_COMPATIBLE = NO, then writable only
+when UART is not busy (USR[0] is 0); otherwise always
+writable and always readable. This bit is used to force parity
+5
+RW 0x0
+value. When PEN, EPS and Stick Parity are set to 1, the
+parity bit is transmitted and checked as logic 0. If PEN and
+Stick Parity are set to 1 and EPS is a logic 0, then parity bit
+is transmitted and checked as a logic 1. If this bit is set to 0,
+Stick Parity is disabled.
+even_parity_sel
+Even Parity Select. Writable only when UART is not busy (USR[0]
+is zero), always readable. This is used to select between even and
+4
+RW 0x0
+odd parity, when parity is enabled (PEN set to one). If set to one,
+an even number of logic 1s is transmitted or checked. If set to
+zero, an odd number of logic 1s is transmitted or checked.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1443
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1:0
+
+RW 0x0
+
+Description
+parity_en
+Parity Enable. Writable only when UART is not busy (USR[0] is
+zero), always readable. This bit is used to enable and disable
+parity generation and detection in transmitted and received serial
+character respectively.
+1'b0: Parity disabled
+1'b1: Parity enabled
+stop_bits_num
+Number of stop bits. Writable only when UART is not busy
+(USR[0] is zero), always readable. This is used to select the
+number of stop bits per character that the peripheral transmits
+and receives. If set to zero, one stop bit is transmitted in the
+serial data. If set to one and the data bits are set to 5 (LCR[1:0]
+set to zero) one and a half stop bits is transmitted. Otherwise,
+two stop bits are transmitted. Note that regardless of the number
+of stop bits selected, the receiver checks only the first stop bit.
+1'b0: 1 stop bit
+1'b1: 1.5 stop bits when DLS (LCR[1:0]) is zero, else 2 stop bit.
+data_length_sel
+Data Length Select. Writable only when UART is not busy (USR[0]
+is zero), always readable. This is used to select the number of
+data bits per character that the peripheral transmits and receives.
+The number of bit that may be selected areas follows:
+2'b00: 5 bits
+2'b01: 6 bits
+2'b10: 7 bits
+2'b11: 8 bits
+
+UART_MCR
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+6
+RW 0x0
+reserved
+auto_flow_ctrl_en
+Auto Flow Control Enable. Writable only when AFCE_MODE ==
+Enabled, always readable. When FIFOs are enabled and the Auto
+5
+RW 0x0
+Flow Control Enable (AFCE) bit is set, Auto Flow Control features
+are enabled as described in "Auto Flow Control".
+1'b0: Auto Flow Control Mode disabled
+1'b1: Auto Flow Control Mode enabled
+loopback
+LoopBack Bit. This is used to put the UART into a diagnostic mode
+for test purposes. If operating in UART mode (SIR_MODE !=
+Enabled or not active, MCR[6] set to zero), data on the sout line
+is held high, while serial data output is looped back to the sin
+line, internally. In this mode all the interrupts are fully functional.
+4
+RW 0x0
+Also, in loopback mode, the modem control inputs (dsr_n, cts_n,
+ri_n, dcd_n) are disconnected and the modem control outputs
+(dtr_n, rts_n, out1_n, out2_n) are looped back to the inputs,
+internally. If operating in infrared mode (SIR_MODE == Enabled
+AND active, MCR[6] set to one), data on the sir_out_n line is held
+low, while serial data output is inverted and looped back to the
+sir_in line.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1444
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+out2
+OUT2. This is used to directly control the user-designated
+Output2 (out2_n) output. The value written to this location is
+inverted and driven out on out2_n, that is:
+1'b0: Out2_n de-asserted (logic 1)
+1'b1: Out2_n asserted (logic 0)
+Note that in Loopback mode (MCR[4] set to one), the out2_n
+output is held inactive high while the value of this location is
+internally looped back to an input.
+out1
+OUT1. This is used to directly control the user-designated
+Output1 (out1_n) output. The value written to this location is
+inverted and driven out on out1_n, that is:
+1'b0: Out1_n de-asserted (logic 1)
+1'b1: Out1_n asserted (logic 0)
+Note that in Loopback mode (MCR[4] set to one), the out1_n
+output is held inactive high while the value of this location is
+internally looped back to an input.
+req_to_send
+Request to Send. This is used to directly control the Request to
+Send (rts_n) output. The Request To Send (rts_n) output is used
+to inform the modem or data set that the UART is ready to
+exchange data. When Auto RTS Flow Control is not enabled
+(MCR[5] set to zero), the rts_n signal is set low by programming
+MCR[1] (RTS) to a high. In Auto Flow Control, AFCE_MODE ==
+Enabled and active (MCR[5] set to one) and FIFOs enable
+(FCR[0] set to one), the rts_n output is controlled in the same
+way, but is also gated with the receiver FIFO threshold trigger
+(rts_n is inactive high when above the threshold). The rts_n
+signal is de-asserted when MCR[1] is set low. Note that in
+Loopback mode (MCR[4] set to one), the rts_n output is held
+inactive high while the value of this location is internally looped
+back to an input.
+data_terminal_ready
+Data Terminal Ready. This is used to directly control the Data
+Terminal Ready (dtr_n) output. The value written to this location
+is inverted and driven out on dtr_n, that is:
+1'b0: dtr_n de-asserted (logic 1)
+1'b1: dtr_n asserted (logic 0)
+The Data Terminal Ready output is used to inform the modem or
+data set that the UART is ready to establish communications.
+Note that in Loopback mode (MCR[4] set to one), the dtr_n
+output is held inactive
+
+UART_LSR
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1445
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+7
+
+RO
+
+0x0
+
+6
+
+RO
+
+0x1
+
+5
+
+RO
+
+0x1
+
+4
+
+RO
+
+0x0
+
+Description
+receiver_fifo_error
+Receiver FIFO Error bit. This bit is only relevant when
+FIFO_MODE != NONE AND FIFOs are enabled (FCR[0] set to
+one). This is used to indicate if there is at least one parity error,
+framing error, or break indication in the FIFO.
+1'b0: No error in RX FIFO
+1'b1: Error in RX FIFO
+This bit is cleared when the LSR is read and the character with
+the error is at the top of the receiver FIFO and there are no
+subsequent errors in the FIFO.
+trans_empty
+Transmitter Empty bit. If in FIFO mode (FIFO_MODE != NONE)
+and FIFOs enabled (FCR[0] set to one), this bit is set whenever
+the Transmitter Shift Register and the FIFO are both empty. If in
+non-FIFO mode or FIFOs are disabled, this bit is set whenever the
+Transmitter Holding Register and the Transmitter Shift Register
+are both empty.
+trans_hold_reg_empty
+Transmit Holding Register Empty bit. If THRE_MODE_USER ==
+Disabled or THRE mode is disabled (IER[7] set to zero) and
+regardless of FIFO's being implemented/enabled or not, this bit
+indicates that the THR or TX FIFO is empty.
+This bit is set whenever data is transferred from the THR or TX
+FIFO to the transmitter shift register and no new data has been
+written to the THR or TX FIFO. This also causes a THRE Interrupt
+to occur, if the THRE Interrupt is enabled. If THRE_MODE_USER
+== Enabled AND FIFO_MODE != NONE and both modes are
+active (IER[7] set to one and FCR[0] set to one respectively), the
+functionality is switched to indicate the transmitter FIFO is full,
+and no longer controls THRE interrupts, which are then controlled
+by the FCR[5:4] threshold setting.
+break_int
+Break Interrupt bit. This is used to indicate the detection of a
+break sequence on the serial input data. If in UART mode
+(SIR_MODE == Disabled), it is set whenever the serial input, sin,
+is held in a logic '0' state for longer than the sum of start time +
+data bits + parity + stop bits. If in infrared mode (SIR_MODE ==
+Enabled), it is set whenever the serial input, sir_in, is
+continuously pulsed to logic '0' for longer than the sum of start
+time + data bits + parity + stop bits. A break condition on serial
+input causes one and only one character, consisting of all zeros,
+to be received by the UART. In the FIFO mode, the character
+associated with the break condition is carried through the FIFO
+and is revealed when the character is at the top of the FIFO.
+Reading the LSR clears the BI bit. In the non-FIFO mode, the BI
+indication occurs immediately and persists until the LSR is read.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1446
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+3
+
+RO
+
+0x0
+
+2
+
+RO
+
+0x0
+
+1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+framing_error
+Framing Error bit. This is used to indicate the occurrence of a
+framing error in the receiver. A framing error occurs when the
+receiver does not detect a valid STOP bit in the received data. In
+the FIFO mode, since the framing error is associated with a
+character received, it is revealed when the character with the
+framing error is at the top of the FIFO. When a framing error
+occurs, the UART tries to re-synchronize. It does this by
+assuming that the error was due to the start bit of the next
+character and then continues receiving the other bit i.e. data,
+and/or parity and stop. It should be noted that the Framing Error
+(FE) bit (LSR[3]) is set if a break interrupt has occurred, as
+indicated by Break Interrupt (BI) bit (LSR[4]).
+1'b0: No framing error
+1'b1: Framing error
+Reading the LSR clears the FE bit.
+parity_error
+Parity Error bit. This is used to indicate the occurrence of a parity
+error in the receiver if the Parity Enable (PEN) bit (LCR[3]) is set.
+In the FIFO mode, since the parity error is associated with a
+character received, it is revealed when the character with the
+parity error arrives at the top of the FIFO. It should be noted that
+the Parity Error (PE) bit (LSR[2]) is set if a break interrupt has
+occurred, as indicated by Break Interrupt (BI) bit (LSR[4]).
+1'b0: No parity error
+1'b1: Parity error
+Reading the LSR clears the PE bit.
+overrun_error
+Overrun error bit. This is used to indicate the occurrence of an
+overrun error. This occurs if a new data character was received
+before the previous data was read. In the non-FIFO mode, the OE
+bit is set when a new character arrives in the receiver before the
+previous character was read from the RBR. When this happens,
+the data in the RBR is overwritten. In the FIFO mode, an overrun
+error occurs when the FIFO is full and a new character arrives at
+the receiver. The data in the FIFO is retained and the data in the
+receive shift register is lost.
+1'b0: No overrun error
+1'b1: Overrun error
+Reading the LSR clears the OE bit.
+data_ready
+Data Ready bit. This is used to indicate that the receiver contains
+at least one character in the RBR or the receiver FIFO.
+1'b0: No data ready
+1'b1: Data ready
+This bit is cleared when the RBR is read in non-FIFO mode, or
+when the receiver FIFO is empty, in FIFO mode.
+
+UART_MSR
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1447
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+7
+
+RO
+
+0x0
+
+6
+
+RO
+
+0x0
+
+5
+
+RO
+
+0x0
+
+4
+
+RO
+
+0x0
+
+3
+
+RO
+
+0x0
+
+Description
+data_carrior_detect
+Data Carrier Detect. This is used to indicate the current state of
+the modem control line dcd_n. This bit is the complement of
+dcd_n. When the Data Carrier Detect input (dcd_n) is asserted it
+is an indication that the carrier has been detected by the modem
+or data set.
+1'b0: dcd_n input is de-asserted (logic 1)
+1'b1: dcd_n input is asserted (logic 0)
+In Loopback Mode (MCR[4] set to one), DCD is the same as
+MCR[3] (Out2).
+ring_indicator
+Ring Indicator. This is used to indicate the current state of the
+modem control line ri_n. This bit is the complement of ri_n. When
+the Ring Indicator input (ri_n) is asserted it is an indication that a
+telephone ringing signal has been received by the modem or data
+set.
+1'b0: ri_n input is de-asserted (logic 1)
+1'b1: ri_n input is asserted (logic 0)
+In Loopback Mode (MCR[4] set to one), RI is the same as MCR[2]
+(Out1).
+data_set_ready
+Data Set Ready. This is used to indicate the current state of the
+modem control line dsr_n. This bit is the complement of dsr_n.
+When the Data Set Ready input (dsr_n) is asserted it is an
+indication that the modem or data set is ready to establish
+communications with the UART.
+1'b0: dsr_n input is de-asserted (logic 1)
+1'b1: dsr_n input is asserted (logic 0)
+In Loopback Mode (MCR[4] set to one), DSR is the same as
+MCR[0] (DTR).
+clear_to_send
+Clear to Send. This is used to indicate the current state of the
+modem control line cts_n. This bit is the complement of cts_n.
+When the Clear to Send input (cts_n) is asserted it is an
+indication that the modem or data set is ready to exchange data
+with the UART.
+1'b0: cts_n input is de-asserted (logic 1)
+1'b1: cts_n input is asserted (logic 0)
+In Loopback Mode (MCR[4] = 1), CTS is the same as MCR[1]
+(RTS).
+delta_data_carrier_detect
+Delta Data Carrier Detect. This is used to indicate that the
+modem control line dcd_n has changed since the last time the
+MSR was read.
+1'b0: No change on dcd_n since last read of MSR
+1'b1: Change on dcd_n since last read of MSR
+Reading the MSR clears the DDCD bit. In Loopback Mode (MCR[4]
+= 1), DDCD reflects changes on MCR[3] (Out2).
+Note, if the DDCD bit is not set and the dcd_n signal is asserted
+(low) and a reset occurs (software or otherwise), then the DDCD
+bit is set when the reset is removed if the dcd_n signal remains
+asserted.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1448
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+2
+
+RO
+
+0x0
+
+1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+trailing_edge_ring_indicator
+Trailing Edge of Ring Indicator. This is used to indicate that a
+change on the input ri_n (from an active-low to an inactive-high
+state) has occurred since the last time the MSR was read.
+1'b0: No change on ri_n since last read of MSR
+1'b1: Change on ri_n since last read of MSR
+Reading the MSR clears the TERI bit. In Loopback Mode (MCR[4]
+= 1), TERI reflects when MCR[2] (Out1) has changed state from
+a high to a low.
+delta_data_set_ready
+Delta Data Set Ready. This is used to indicate that the modem
+control line dsr_n has changed since the last time the MSR was
+read.
+1'b0: No change on dsr_n since last read of MSR
+1'b1: Change on dsr_n since last read of MSR
+Reading the MSR clears the DDSR bit. In Loopback Mode (MCR[4]
+= 1), DDSR reflects changes on MCR[0] (DTR).
+Note, if the DDSR bit is not set and the dsr_n signal is asserted
+(low) and a reset occurs (software or otherwise), then the DDSR
+bit is set when the reset is removed if the dsr_n signal remains
+asserted.
+delta_clear_to_send
+Delta Clear to Send. This is used to indicate that the modem
+control line cts_n has changed since the last time the MSR was
+read.
+1'b0: No change on ctsdsr_n since last read of MSR
+1'b1: Change on ctsdsr_n since last read of MSR Reading the
+MSR clears the DCTS bit. In Loopback Mode (MCR[4] = 1), DCTS
+reflects changes on MCR[1] (RTS). Note, if the DCTS bit is not set
+and the cts_n signal is asserted (low) and a reset occurs
+(software or otherwise), then the DCTS bit is set when the reset
+is removed if the cts_n signal remains asserted.
+
+UART_SCR
+Address: Operational Base + offset (0x001C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+temp_store_space
+7:0
+RW 0x00
+Scratchpad register. This register is for programmers to use as a
+temporary storage space. It has no defined purpose in the UART.
+UART_SRBR
+Address: Operational Base + offset (0x0030)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1449
+
+RK3588 TRM-Part1
+Bit
+
+7:0
+
+Attr Reset Value
+
+RO
+
+0x00
+
+Description
+shadow_rbr
+This is a shadow register for the RBR and has been allocated
+sixteen 32-bit locations (0x30-0x6c) so as to accommodate burst
+accesses from the master. This register contains the data byte
+received on the serial input port (sin) in UART mode or the serial
+infrared input (sir_in) in infrared mode. The data in this register
+is valid only if the Data Ready (DR) bit in the Line status Register
+(LSR) is set. If in non-FIFO mode (FIFO_MODE == NONE) or
+FIFOs are disabled (FCR[0] set to zero), the data in the RBR must
+be read before the next data arrives, otherwise it is overwritten,
+resulting in an overrun error. If in FIFO mode (FIFO_MODE !=
+NONE) and FIFOs are enabled (FCR[0] set to one), this register
+accesses the head of the receive FIFO. If the receive FIFO is full
+and this register is not read before the next data character
+arrives, then the data already in the FIFO are preserved, but any
+incoming data is lost. An overrun error also occurs.
+
+UART_STHR
+Address: Operational Base + offset (0x0030)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+shadow_thr
+This is a shadow register for the THR and has been allocated
+sixteen 32-bit locations(0x30-0x6c) so as to accommodate burst
+accesses from the master. This register contains data to be
+transmitted on the serial output port (sout) in UART mode or the
+serial infrared output (sir_out_n) in infrared mode. Data should
+only be written to the THR when the THR Empty (THRE) bit
+(LSR[5]) is set. If in non-FIFO mode or FIFOs are disabled
+7:0
+WO 0x00
+(FCR[0] set to zero) and THRE is set, writing a single character to
+the THR clears the THRE. Any additional writes to the THR before
+the THRE is set again causes the THR data to be overwritten. If in
+FIFO mode and FIFOs are enabled (FCR[0] set to one) and THRE
+is set, x number of characters of data may be written to the THR
+before the FIFO is full. The number x (default=16) is determined
+by the value of FIFO Depth that you set during configuration. Any
+attempt to write data when the FIFO is full results in the write
+data being lost.
+UART_FAR
+Address: Operational Base + offset (0x0070)
+Bit Attr Reset Value
+31:1 RO 0x00000000 reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1450
+
+RK3588 TRM-Part1
+Bit
+
+0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+fifo_access_test_en
+Writes have no effect when FIFO_ACCESS == No, always
+readable. This register is use to enable a FIFO access mode for
+testing, so that the receive FIFO can be written by the master
+and the transmit FIFO can be read by the master when FIFOs are
+implemented and enabled. When FIFOs are not implemented or
+not enabled it allows the RBR to be written by the master and the
+THR to be read by the master.
+1'b0: FIFO access mode disabled
+1'b1: FIFO access mode enabled
+Note that when the FIFO access mode is enabled/disabled, the
+control portion of the receive FIFO and transmit FIFO is reset and
+the FIFOs are treated as empty.
+
+UART_TFR
+Address: Operational Base + offset (0x0074)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+trans_fifo_read
+Transmit FIFO Read. These bits are only valid when FIFO access
+mode is enabled (FAR[0] is set to one). When FIFOs are
+implemented and enabled, reading this register gives the data at
+7:0
+RO 0x00
+the top of the transmit FIFO. Each consecutive read pops the
+transmit FIFO and gives the next data value that is currently at
+the top of the FIFO.
+When FIFOs are not implemented or not enabled, reading this
+register gives the data in the THR.
+UART_RFW
+Address: Operational Base + offset (0x0078)
+Bit Attr Reset Value
+Description
+31:10 RO 0x000000
+reserved
+receive_fifo_framing_error
+Receive FIFO Framing Error. These bits are only valid when FIFO
+access mode is enabled (FAR[0] is set to one). When FIFOs are
+9
+WO 0x0
+implemented and enabled, this bit is used to write framing error
+detection information to the receive FIFO. When FIFOs are not
+implemented or not enabled, this bit is used to write framing
+error detection information to the RBR.
+receive_fifo_parity_error
+Receive FIFO Parity Error. These bits are only valid when FIFO
+access mode is enabled (FAR[0] is set to one). When FIFOs are
+8
+WO 0x0
+implemented and enabled, this bit is used to write parity error
+detection information to the receive FIFO. When FIFOs are not
+implemented or not enabled, this bit is used to write parity error
+detection information to the RBR.
+receive_fifo_write
+Receive FIFO Write Data. These bits are only valid when FIFO
+access mode is enabled (FAR[0] is set to one). When FIFOs are
+implemented and enabled, the data that is written to the RFWD is
+7:0
+WO 0x00
+pushed into the receive FIFO. Each consecutive write pushes the
+new data to the next write location in the receive FIFO. When
+FIFOs are not implemented or not enabled, the data that is
+written to the RFWD is pushed into the RBR.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1451
+
+RK3588 TRM-Part1
+UART_USR
+Address: Operational Base + offset (0x007C)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+receive_fifo_full
+Receive FIFO Full. This bit is only valid when FIFO_STAT == YES.
+This is used to indicate that the receive FIFO is completely full.
+4
+RO 0x0
+1'b0: Receive FIFO not full
+1'b1: Receive FIFO full
+This bit is cleared when the RX FIFO is no longer full.
+receive_fifo_not_empty
+Receive FIFO Not Empty. This bit is only valid when FIFO_STAT
+== YES. This is used to indicate that the receive FIFO contains
+3
+RO 0x0
+one or more entries.
+1'b0: Receive FIFO is empty
+1'b1: Receive FIFO is not empty
+This bit is cleared when the RX FIFO is empty.
+trasn_fifo_empty
+Transmit FIFO Empty. This bit is only valid when FIFO_STAT ==
+YES. This is used to indicate that the transmit FIFO is completely
+2
+RO 0x1
+empty.
+1'b0: Transmit FIFO is not empty
+1'b1: Transmit FIFO is empty
+This bit is cleared when the TX FIFO is no longer empty.
+trans_fifo_not_full
+Transmit FIFO Not Full. This bit is only valid when FIFO_STAT ==
+YES. This is used to indicate that the transmit FIFO in not full.
+1
+RO 0x1
+1'b0: Transmit FIFO is full
+1'b1: Transmit FIFO is not full
+This bit is cleared when the TX FIFO is full.
+uart_busy
+UART Busy. This is indicates that a serial transfer is in progress,
+when cleared indicates that the UART is idle or inactive.
+1'b0: UART is idle or inactive
+1'b1: UART is busy (actively transferring data)
+Note that it is possible for the UART Busy bit to be cleared even
+though a new character may have been sent from another device.
+0
+RO 0x0
+That is, if the UART has no data in THR and RBR and there is no
+transmission in progress and a start bit of a new character has
+just reached the UART. This is due to the fact that a valid start is
+not seen until the middle of the bit period and this duration is
+dependent on the baud divisor that has been programmed. If a
+second system clock has been implemented (CLOCK_MODE ==
+Enabled), the assertion of this bit is also delayed by several
+cycles of the slower clock.
+UART_TFL
+Address: Operational Base + offset (0x0080)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+trans_fifo_level
+5:0
+RO 0x00
+Transmit FIFO Level. This is indicates the number of data entries
+in the transmit FIFO.
+UART_RFL
+Address: Operational Base + offset (0x0084)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1452
+
+RK3588 TRM-Part1
+Bit
+31:6
+5:0
+
+Attr Reset Value
+Description
+RO 0x0000000
+reserved
+receive_fifo_level
+RO 0x00
+Receive FIFO Level. This is indicates the number of data entries in
+the receive FIFO.
+
+UART_SRR
+Address: Operational Base + offset (0x0088)
+Bit Attr Reset Value
+Description
+31:3 RO 0x00000000 reserved
+xmit_fifo_reset
+XMIT FIFO Reset. This is a shadow register for the XMIT FIFO
+Reset bit (FCR[2]). This can be used to remove the burden on
+software having to store previously written FCR values (which are
+pretty static) just to reset the transmit FIFO. This resets the
+2
+WO 0x0
+control portion of the transmit FIFO and treats the FIFO as empty.
+This also de-asserts the DMA TX request and single signals when
+additional DMA handshaking signals are selected (DMA_EXTRA
+== YES). Note that this bit is 'self-clearing'. It is not necessary to
+clear this bit.
+rcvr_fifo_reset
+RCVR FIFO Reset. This is a shadow register for the RCVR FIFO
+Reset bit (FCR[1]). This can be used to remove the burden on
+software having to store previously written FCR values (which are
+pretty static) just to reset the receive FIFO This resets the control
+1
+WO 0x0
+portion of the receive FIFO and treats the FIFO as empty. This
+also de-asserts the DMA RX request and single signals when
+additional DMA handshaking signals are selected (DMA_EXTRA
+== YES).
+Note that this bit is 'self-clearing'. It is not necessary to clear this
+bit.
+uart_reset
+UART Reset. This asynchronously resets the UART and
+0
+WO 0x0
+synchronously removes the reset assertion. For a two clock
+implementation both pclk and sclk domains are reset.
+UART_SRTS
+Address: Operational Base + offset (0x008C)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+shadow_req_to_send
+Shadow Request to Send. This is a shadow register for the RTS
+bit (MCR[1]), this can be used to remove the burden of having to
+performing a read-modify-write on the MCR. This is used to
+directly control the Request to Send (rts_n) output. The Request
+To Send (rts_n) output is used to inform the modem or data set
+that the UART is ready to exchange data. When Auto RTS Flow
+Control is not enabled (MCR[5] = 0), the rts_n signal is set low
+0
+RW 0x0
+by programming MCR[1] (RTS) to a high. In Auto Flow Control,
+AFCE_MODE == Enabled and active (MCR[5] = 1) and FIFOs
+enable (FCR[0] = 1), the rts_n output is controlled in the same
+way, but is also gated with the receiver FIFO threshold trigger
+(rts_n is inactive high when above the threshold).
+Note that in Loopback mode (MCR[4] = 1), the rts_n output is
+held inactive-high while the value of this location is internally
+looped back to an input.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1453
+
+RK3588 TRM-Part1
+UART_SBCR
+Address: Operational Base + offset (0x0090)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+shadow_break_ctrl
+Shadow Break Control Bit. This is a shadow register for the Break
+bit (LCR[6]), this can be used to remove the burden of having to
+performing a read modify write on the LCR. This is used to cause
+a break condition to be transmitted to the receiving device. If set
+0
+RW 0x0
+to one the serial output is forced to the spacing (logic 0) state.
+When not in Loopback Mode, as determined by MCR[4], the sout
+line is forced low until the Break bit is cleared. If SIR_MODE ==
+Enabled and active (MCR[6] = 1) the sir_out_n line is
+continuously pulsed. When in Loopback Mode, the break condition
+is internally looped back to the receiver.
+UART_SDMAM
+Address: Operational Base + offset (0x0094)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+shadow_dma_mode
+Shadow DMA Mode. This is a shadow register for the DMA mode
+bit (FCR[3]). This can be used to remove the burden of having to
+store the previously written value to the FCR in memory and
+having to mask this value so that only the DMA Mode bit gets
+0
+RW 0x0
+updated. This determines the DMA signaling mode used for the
+dma_tx_req_n and dma_rx_req_n output signals when additional
+DMA handshaking signals are not selected (DMA_EXTRA == NO).
+1'b0: Mode 0
+1'b1: Mode 1
+UART_SFE
+Address: Operational Base + offset (0x0098)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+shadow_fifo_en
+Shadow FIFO Enable. This is a shadow register for the FIFO
+enable bit (FCR[0]). This can be used to remove the burden of
+having to store the previously written value to the FCR in
+0
+RW 0x0
+memory and having to mask this value so that only the FIFO
+enable bit gets updated. This enables/disables the transmit
+(XMIT) and receive (RCVR) FIFOs. If this bit is set to zero
+(disabled) after being enabled then both the XMIT and RCVR
+controller portion of FIFOs are reset.
+UART_SRT
+Address: Operational Base + offset (0x009C)
+Bit Attr Reset Value
+31:2 RO 0x00000000 reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1454
+
+RK3588 TRM-Part1
+Bit
+
+1:0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+shadow_rcvr_trigger
+Shadow RCVR Trigger. This is a shadow register for the RCVR
+trigger bits (FCR[7:6]). This can be used to remove the burden of
+having to store the previously written value to the FCR in
+memory and having to mask this value so that only the RCVR
+trigger bit gets updated. This is used to select the trigger level in
+the receiver FIFO at which the Received Data Available Interrupt
+is generated. It also determines when the dma_rx_req_n signal is
+asserted when DMA Mode (FCR[3]) = 1. The following trigger
+levels are supported:
+2'b00: 1 character in the FIFO
+2'b01: FIFO 1/4 full
+2'b10: FIFO 1/2 full
+2'b11: FIFO 2 less than full
+
+UART_STET
+Address: Operational Base + offset (0x00A0)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+shadow_tx_empty_trigger
+Shadow TX Empty Trigger. This is a shadow register for the TX
+empty trigger bits (FCR[5:4]). This can be used to remove the
+burden of having to store the previously written value to the FCR
+in memory and having to mask this value so that only the TX
+empty trigger bit gets updated. This is used to select the empty
+1:0
+RW 0x0
+threshold level at which the THRE Interrupts are generated when
+the mode is active. The following trigger levels are supported:
+2'b00: FIFO empty
+2'b01: 2 characters in the FIFO
+2'b10: FIFO 1/4 full
+2'b11: FIFO 1/2 full
+UART_HTX
+Address: Operational Base + offset (0x00A4)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+halt_tx_en
+This register is use to halt transmissions for testing, so that the
+transmit FIFO can be filled by the master when FIFOs are
+implemented and enabled.
+0
+RW 0x0
+1'b0: Halt TX disabled
+1'b1: Halt TX enabled
+Note, if FIFOs are implemented and not enabled, the setting of
+the halt TX register has no effect on operation.
+UART_DMASA
+Address: Operational Base + offset (0x00A8)
+Bit Attr Reset Value
+31:1 RO 0x00000000 reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1455
+
+RK3588 TRM-Part1
+Bit
+
+0
+
+Attr Reset Value
+
+WO 0x0
+
+Description
+dma_software_ack
+This register is use to perform a DMA software acknowledge if a
+transfer needs to be terminated due to an error condition. For
+example, if the DMA disables the channel, then the UART should
+clear its request. This causes the TX request, TX single, RX
+request and RX single signals to de-assert. Note that this bit is
+'self-clearing'. It is not necessary to clear this bit.
+
+UART_CPR
+Address: Operational Base + offset (0x00F4)
+Bit Attr Reset Value
+Description
+31:24 RO 0x00
+reserved
+fifo_mode
+23:16 RO 0x04
+8'h4 means FIFO mode is 64.
+15:14 RO 0x0
+reserved
+dma_extra
+13
+RO 0x1
+1'b1 means DMA_EXTRA enabled.
+uart_add_encoded_params
+12
+RO 0x1
+1'b1 means UART_ADD_ENCODED_PARAMS enabled.
+shadow
+11
+RO 0x1
+1'b1 means SHADOW mode enabled.
+fifo_stat
+10
+RO 0x1
+1'b1 means FIFO_STAT enabled.
+fifo_access
+9
+RO 0x1
+1'b1 means FIFO ACCESS enabled.
+new_feat
+8
+RO 0x1
+1'b1 means Additional features enabled.
+sir_lp_mode
+7
+RO 0x1
+1'b1 means SIR_LP mode enabled.
+sir_mode
+6
+RO 0x1
+1'b1 means SIR mode enabled.
+thre_mode
+5
+RO 0x1
+1'b1 means THRE mode enabled.
+afce_mode
+4
+RO 0x1
+1'b1 means AFCE mode enabled.
+3:2
+RO 0x0
+reserved
+apb_data_width
+1:0
+RO 0x2
+2'b10 means APB data width is 32bit.
+UART_UCV
+Address: Operational Base + offset (0x00F8)
+Bit Attr Reset Value
+Description
+ver
+31:0 RO 0x3430322a
+ASCII value for each number in the version.
+UART_CTR
+Address: Operational Base + offset (0x00FC)
+Bit Attr Reset Value
+Description
+peripheral_id
+31:0 RO 0x44570110
+This register contains the peripherals identification code.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1456
+
+RK3588 TRM-Part1
+
+19.5 Interface Description
+Table 19-1 UART0 Interface Description
+Module
+Pin
+
+Direction
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+uart_cts_n
+
+I
+
+uart_rts_n
+
+O
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+Pad Name
+IOMUX0
+PDM0_CLK1_M1/PWM2_M0/UART0_R
+X_M0/I2C4_SDA_M2/DP0_HPDIN_M
+1/PCIE30X1_0_WAKEN_M0/GPIO0_C
+4_d
+I2S1_SDI0_M1/GPU_AVS/UART0_TX
+_M0/I2C4_SCL_M2/DP1_HPDIN_M1/
+PWM4_M0/PCIE30X1_0_PERSTN_M0
+/GPIO0_C5_u
+I2S1_SDO0_M1/CPU_BIG0_AVS/I2C
+0_SCL_M2/UART0_CTSN/UART1_TX_
+M2/HDMI_RX_SDA_M0/SPI0_CS0_M
+0/PCIE30X2_CLKREQN_M0/HDMI_TX
+0_CEC_M1/GPIO0_D1_u
+I2S1_SDI1_M1/NPU_AVS/UART0_RT
+SN/PWM5_M1/SPI0_CLK_M0/PCIE30
+X4_CLKREQN_M0/SATA_CP_POD/GPI
+O0_C6_u
+IOMUX1
+SPI2_CS1_M2/I2C1_SCL_M1/UART0
+_RX_M1/GPIO0_B0_z
+SPI2_CS0_M2/I2C1_SDA_M1/PWM5_
+M0/UART0_TX_M1/GPIO0_B1_z
+IOMUX2
+CIF_D4/BT1120_D4/PCIE30X1_0_WA
+KEN_M1/I2C3_SCL_M2/UART0_RX_M
+2/SPI2_MISO_M1/GPIO4_A4_d
+CIF_D3/BT1120_D3/PCIE30X1_0_CL
+KREQN_M1/UART0_TX_M2/GPIO4_A
+3_d
+
+IOMUX Setting
+
+PMU2_IOC_GPIO0C_IO
+MUX_SEL_H[3:0] =
+4’h4
+PMU2_IOC_GPIO0C_IO
+MUX_SEL_H[7:4] =
+4’h4
+PMU2_IOC_GPIO0D_IO
+MUX_SEL_L[7:4] = 4’h4
+PMU2_IOC_GPIO0C_IO
+MUX_SEL_H[11:8] =
+4’h4
+PMU1_IOC_GPIO0B_IO
+MUX_SEL_L[3:0] = 4’h4
+PMU1_IOC_GPIO0B_IO
+MUX_SEL_L[7:4] = 4’h4
+BUS_IOC_GPIO4A_IOM
+UX_SEL_H[3:0] = 4’ha
+BUS_IOC_GPIO4A_IOM
+UX_SEL_L[15:12] =
+4’ha
+
+Table 19-2 UART1 Interface Description
+Module
+Pin
+
+Direction
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+uart_cts_n
+
+I
+
+uart_rts_n
+
+O
+
+Pad Name
+IOMUX0
+GMAC0_TXD0/I2S2_MCLK_M0/I2C5_
+SCL_M4/UART1_RX_M0/GPIO2_B6_d
+GMAC0_TXD1/I2S2_SCLK_M0/I2C5_
+SDA_M4/UART1_TX_M0/GPIO2_B7_d
+GMAC0_RXD0/I2C2_SCL_M1/UART1_
+CTSN_M0/SPI1_MISO_M0/GPIO2_C1
+_d
+GMAC0_TXEN/I2S2_LRCK_M0/I2C2_
+SDA_M1/UART1_RTSN_M0/SPI1_CLK
+_M0/GPIO2_C0_d
+IOMUX1
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+IOMUX Setting
+
+BUS_IOC_GPIO2B_IOM
+UX_SEL_H[11:8] = 4’ha
+BUS_IOC_GPIO2B_IOM
+UX_SEL_H[15:12] =
+4’ha
+BUS_IOC_GPIO2C_IOM
+UX_SEL_L[7:4] = 4’ha
+BUS_IOC_GPIO2C_IOM
+UX_SEL_L[3:0] = 4’ha
+
+1457
+
+RK3588 TRM-Part1
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+uart_cts_n
+
+I
+
+uart_rts_n
+
+O
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+uart_cts_n
+
+I
+
+uart_rts_n
+
+O
+
+MIPI_CAMERA2_CLK_M0/SPDIF1_TX
+_M0/PCIE30X2_PERSTN_M3/HDMI_R
+X_CEC_M2/SATA2_ACT_LED_M1/I2C
+5_SDA_M3/UART1_RX_M1/PWM13_
+M2/GPIO1_B7_u
+MIPI_CAMERA1_CLK_M0/SPDIF0_TX
+_M0/PCIE30X2_WAKEN_M3/HDMI_R
+X_HPDOUT_M2/I2C5_SCL_M3/UART1
+_TX_M1/GPIO1_B6_d
+MIPI_CAMERA4_CLK_M0/PCIE30X2_
+CLKREQN_M3/HDMI_RX_SDA_M2/I2
+C8_SDA_M2/UART1_CTSN_M1/PWM1
+5_IR_M3/GPIO1_D7_u
+MIPI_CAMERA3_CLK_M0/HDMI_RX_
+SCL_M2/I2C8_SCL_M2/UART1_RTSN
+_M1/PWM14_M2/GPIO1_D6_u
+IOMUX2
+I2S1_SDO1_M1/I2C0_SDA_M2/UART
+1_RX_M2/HDMI_RX_SCL_M0/SPI3_M
+OSI_M2/PCIE30X2_WAKEN_M0/HDM
+I_TX1_CEC_M1/GPIO0_D2_u
+I2S1_SDO0_M1/CPU_BIG0_AVS/I2C
+0_SCL_M2/UART0_CTSN/UART1_TX_
+M2/HDMI_RX_SDA_M0/SPI0_CS0_M
+0/PCIE30X2_CLKREQN_M0/HDMI_TX
+0_CEC_M1/GPIO0_D1_u
+I2S1_SDI3_M1/PDM0_SDI1_M1/I2C
+6_SCL_M0/UART1_CTSN_M2/PWM7_
+IR_M0/SPI3_MISO_M2/PCIE30X4_PE
+RSTN_M0/GPIO0_D0_d
+I2S1_SDI2_M1/PDM0_SDI0_M1/I2C
+6_SDA_M0/UART1_RTSN_M2/PWM6_
+M0/SPI0_MISO_M0/PCIE30X4_WAKE
+N_M0/GPIO0_C7_d
+
+BUS_IOC_GPIO1B_IOM
+UX_SEL_H[15:12] =
+4’ha
+BUS_IOC_GPIO1B_IOM
+UX_SEL_H[11:8] = 4’ha
+BUS_IOC_GPIO1D_IOM
+UX_SEL_H[15:12] =
+4’ha
+BUS_IOC_GPIO1D_IOM
+UX_SEL_H[11:8] = 4’ha
+BUS_IOC_GPIO0D_IOM
+UX_SEL_L[11:8] = 4’ha
+PMU2_IOC_GPIO0D_IO
+MUX_SEL_L[11:8] =
+4’h8
+BUS_IOC_GPIO0D_IOM
+UX_SEL_L[7:4] = 4’ha
+PMU2_IOC_GPIO0D_IO
+MUX_SEL_L[7:4] = 4’h8
+BUS_IOC_GPIO0D_IOM
+UX_SEL_L[3:0] = 4’ha
+PMU2_IOC_GPIO0D_IO
+MUX_SEL_L[3:0] = 4’h8
+BUS_IOC_GPIO0C_IOM
+UX_SEL_H[15:12] =
+4’ha
+PMU2_IOC_GPIO0C_IO
+MUX_SEL_H[15:12] =
+4’h8
+
+Table 19-3 UART2 Interface Description
+Module Pin
+
+Direction
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+Pad Name
+IOMUX0
+I2S1_SCLK_M1/JTAG_TMS_M2/I2C1_
+SDA_M0/UART2_RX_M0/PCIE30X1_1
+_WAKEN_M0/GPIO0_B6_d
+I2S1_MCLK_M1/JTAG_TCK_M2/I2C1_
+SCL_M0/UART2_TX_M0/PCIE30X1_1
+_CLKREQN_M0/GPIO0_B5_d
+
+uart_cts_n
+
+I
+
+uart_rts_n
+
+O
+
+GMAC1_TXD1/I2S2_MCLK_M1/UART
+2_CTSN/GPIO3_B4_u
+GMAC1_TXD0/I2S2_SDO_M1/UART2
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+IOMUX Setting
+BUS_IOC_GPIO0B_IOM
+UX_SEL_H[11:8] = 4’ha
+PMU2_IOC_GPIO0B_IO
+MUX_SEL_H[11:8] =
+4’h8
+BUS_IOC_GPIO0B_IOM
+UX_SEL_H[7:4] = 4’ha
+PMU2_IOC_GPIO0B_IO
+MUX_SEL_H[7:4] =
+4’ha
+BUS_IOC_GPIO3B_IOM
+UX_SEL_H[3:0] = 4’ha
+BUS_IOC_GPIO3B_IOM
+
+1458
+
+RK3588 TRM-Part1
+_RTSN/GPIO3_B3_u
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+IOMUX1
+SDMMC_D1/PDM1_SDI2_M0/JTAG_T
+MS_M1/I2C3_SDA_M4/UART2_RX_M
+1/PWM9_M1/GPIO4_D1_u
+SDMMC_D0/PDM1_SDI3_M0/JTAG_T
+CK_M1/I2C3_SCL_M4/UART2_TX_M1
+/PWM8_M1/GPIO4_D0_u
+IOMUX2
+GMAC1_TXER/I2S2_SDI_M1/UART2_
+RX_M2/PWM3_IR_M1/GPIO3_B2_d
+GMAC1_RXDV_CRS/MIPI_CAMERA4_
+CLK_M1/UART2_TX_M2/PWM2_M1/G
+PIO3_B1_d
+
+UX_SEL_L[15:12] =
+4’ha
+BUS_IOC_GPIO4D_IOM
+UX_SEL_L[7:4] = 4’ha
+BUS_IOC_GPIO4D_IOM
+UX_SEL_L[3:0] = 4’ha
+BUS_IOC_GPIO3B_IOM
+UX_SEL_L[11:8] = 4’ha
+BUS_IOC_GPIO3B_IOM
+UX_SEL_L[7:4] = 4’ha
+
+Table 19-4 UART3 Interface Description
+Module Pin
+
+Direction
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+uart_cts_n
+
+I
+
+uart_rts_n
+
+O
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+Pad Name
+IOMUX0
+I2C3_SDA_M0/UART3_RX_M0/SPI4_
+MISO_M0/GPIO1_C0_z
+I2C3_SCL_M0/UART3_TX_M0/SPI4_
+MOSI_M0/GPIO1_C1_z
+I2S0_SCLK/I2C6_SCL_M1/UART3_CT
+SN/PWM7_IR_M2/SPI4_CS0_M0/GPI
+O1_C3_d
+I2S0_MCLK/I2C6_SDA_M1/UART3_R
+TSN/PWM3_IR_M2/SPI4_CLK_M0/GP
+IO1_C2__d
+IOMUX1
+GMAC1_MCLKINOUT/II2S2_LRCK_M1
+/CAN1_TX_M0/UART3_RX_M1/PWM1
+3_M0/GPIO3_B6_d
+GMAC1_TXEN/I2S2_SCLK_M1/CAN1_
+RX_M0/UART3_TX_M1/PWM12_M0/G
+PIO3_B5_u
+IOMUX2
+CIF_D6/BT1120_D6/I2S1_SDI1_M0/
+PCIE30X2_CLKREQN_M1/I2C5_SCL_
+M2/UART3_RX_M2/SPI2_CLK_M1/GPI
+O4_A6_d
+CIF_D5/BT1120_D5/I2S1_SDI0_M0/
+PCIE30X1_0_PERSTN_M1/I2C3_SDA
+_M2/UART3_TX_M2/SPI2_MOSI_M1/
+GPIO4_A5_d
+
+IOMUX Setting
+BUS_IOC_GPIO1C_IOM
+UX_SEL_L[3:0] = 4’ha
+BUS_IOC_GPIO1C_IOM
+UX_SEL_L[7:4] = 4’ha
+BUS_IOC_GPIO1C_IOM
+UX_SEL_L[15:12] =
+4’ha
+BUS_IOC_GPIO1C_IOM
+UX_SEL_L[11:8] = 4’ha
+
+BUS_IOC_GPIO3B_IOM
+UX_SEL_H[11:8] = 4’ha
+BUS_IOC_GPIO3B_IOM
+UX_SEL_H[7:4] = 4’ha
+
+BUS_IOC_GPIO4A_IOM
+UX_SEL_H[11:8] = 4’ha
+BUS_IOC_GPIO4A_IOM
+UX_SEL_H[7:4] = 4’ha
+
+Table 19-5 UART4 Interface Description
+Module Pin
+
+Direction
+
+uart_rx
+
+I
+
+Pad Name
+IOMUX0
+I2S0_SDI1/PDM0_SDI3_M0/I2C1_SD
+A_M4/UART4_RX_M0/PWM1_M1/SPI1
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+IOMUX Setting
+BUS_IOC_GPIO1D_IOM
+UX_SEL_L[15:12] =
+
+1459
+
+RK3588 TRM-Part1
+uart_tx
+
+O
+
+uart_cts_n
+
+I
+
+uart_rts_n
+
+O
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+_CS0_M2/GPIO1_D3_d
+I2S0_SDO3/I2S0_SDI2/PDM0_SDI2_
+M0/I2C1_SCL_M4/UART4_TX_M0/PW
+M0_M1/SPI1_CLK_M2/GPIO1_D2_d
+I2S0_SDO0/I2C4_SCL_M4/UART4_C
+TSN/GPIO1_C7_d
+I2S0_LRCK/I2C2_SCL_M3/UART4_RT
+SN/GPIO1_C5_d
+IOMUX1
+CIF_D12/PCIE20X1_2_WAKEN_M0/H
+DMI_TX0_SDA_M2/I2C5_SDA_M0/UA
+RT4_RX_M1/PWM8_M2/SPI3_CLK_M
+3/GPIO3_D0_u
+CIF_D13/PCIE20X1_2_PERSTN_M0/H
+DMI_RX_CEC_M1/UART4_TX_M1/PW
+M9_M2/SPI0_MISO_M3/GPIO3_D1_d
+IOMUX2
+PDM1_SDI3_M1/PCIE30X4_PERSTN_
+M3/UART4_RX_M2/SPI0_MOSI_M2/G
+PIO1_B2_d
+PDM1_CLK1_M1/PCIE30X1_0_WAKE
+N_M2/SATA0_ACT_LED_M1/UART4_T
+X_M2/SPI0_CLK_M2/GPIO1_B3_d
+
+4’ha
+BUS_IOC_GPIO1D_IOM
+UX_SEL_L[11:8] = 4’ha
+BUS_IOC_GPIO1C_IOM
+UX_SEL_H[15:12] =
+4’ha
+BUS_IOC_GPIO1C_IOM
+UX_SEL_H[7:4] = 4’ha
+
+BUS_IOC_GPIO3D_IOM
+UX_SEL_L[3:0] = 4’ha
+BUS_IOC_GPIO3D_IOM
+UX_SEL_L[7:4] = 4’ha
+
+BUS_IOC_GPIO1B_IOM
+UX_SEL_L[11:8] = 4’ha
+BUS_IOC_GPIO1B_IOM
+UX_SEL_L[15:12] =
+4’ha
+
+Table 19-6 UART5 Interface Description
+Module Pin
+
+Direction
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+uart_cts_n
+
+I
+
+uart_rts_n
+
+O
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+uart_cts_n
+
+I
+
+uart_rts_n
+
+O
+
+Pad Name
+IOMUX0
+SDMMC_CMD/PDM1_CLK1_M0/MCU_
+JTAG_TCK_M0/CAN0_TX_M1/UART5_
+RX_M0/PWM7_IR_M1/GPIO4_D4_u
+SDMMC_CLK/PDM1_CLK0_M0/TEST_
+CLKOUT_M0/MCU_JTAG_TMS_M0/CA
+N0_RX_M1/UART5_TX_M0/GPIO4_D5
+_d
+SDMMC_D2/PDM1_SDI1_M0/JTAG_T
+CK_M0/I2C8_SCL_M0/UART5_CTSN_
+M0/GPIO4_D2_u
+SDMMC_D3/PDM1_SDI0_M0/JTAG_T
+MS_M0/I2C8_SDA_M0/UART5_RTSN
+_M0/PWM10_M1/GPIO4_D3_u
+IOMUX1
+CIF_D9/FSPI_CS1N_M2/PCIE30X4_W
+AKEN_M2/HDMI_TX1_SDA_M1/CAN2
+_TX_M0/UART5_RX_M1/SPI3_CS1_M
+3/GPIO3_C5_u
+CIF_D8/FSPI_CS0N_M2/PCIE30X4_C
+LKREQN_M2/HDMI_TX1_CEC_M2/CA
+N2_RX_M0/UART5_TX_M1/SPI3_CS0
+_M3/GPIO3_C4_u
+EMMC_DATA_STROBE/I2C2_SDA_M2
+/UART5_CTSN_M1/GPIO2_A2_d
+EMMC_RSTN/I2C2_SCL_M2/UART5_R
+TSN_M1/GPIO2_A3_d
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+IOMUX Setting
+BUS_IOC_GPIO4D_IOM
+UX_SEL_H[3:0] = 4’ha
+BUS_IOC_GPIO4D_IOM
+UX_SEL_H[7:4] = 4’ha
+BUS_IOC_GPIO4D_IOM
+UX_SEL_L[11:8] = 4’ha
+BUS_IOC_GPIO4D_IOM
+UX_SEL_L[15:12] =
+4’ha
+
+BUS_IOC_GPIO3C_IOM
+UX_SEL_H[7:4] = 4’ha
+BUS_IOC_GPIO3C_IOM
+UX_SEL_H[3:0] = 4’ha
+BUS_IOC_GPIO2A_IOM
+UX_SEL_L[11:8] = 4’ha
+BUS_IOC_GPIO2A_IOM
+UX_SEL_L[15:12] =
+1460
+
+RK3588 TRM-Part1
+4’ha
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+IOMUX2
+EMMC_D4/I2C1_SCL_M3/UART5_RX_
+M2/GPIO2_D4_u
+EMMC_D5/I2C1_SDA_M3/UART5_TX
+_M2/GPIO2_D5_u
+
+BUS_IOC_GPIO2D_IOM
+UX_SEL_H[3:0] = 4’ha
+BUS_IOC_GPIO2D_IOM
+UX_SEL_H[7:4] = 4’ha
+
+Table 19-7 UART6 Interface Description
+Module Pin
+
+Direction
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+uart_cts_n
+
+I
+
+uart_rts_n
+
+O
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+uart_cts_n
+
+I
+
+uart_rts_n
+
+O
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+Pad Name
+IOMUX0
+GMAC0_RXD2/SDIO_D0_M0/FSPI_D
+0_M1/UART6_RX_M0/GPIO2_A6_u
+GMAC0_RXD3/SDIO_D1_M0/FSPI_D
+1_M1/UART6_TX_M0/GPIO2_A7_u
+GMAC0_TXD2/SDIO_D3_M0/FSPI_D3
+_M1/I2C8_SDA_M1/UART6_CTSN_M
+0/GPIO2_B1_u
+GMAC0_RXCLK/SDIO_D2_M0/FSPI_D
+2_M1/I2C8_SCL_M1/UART6_RTSN_M
+0/GPIO2_B0_u
+IOMUX1
+PCIE30X1_1_CLKREQN_M2/DP0_HPD
+IN_M2/I2C2_SDA_M4/UART6_RX_M1
+/SPI4_MISO_M2/GPIO1_A0_d
+PCIE30X1_1_WAKEN_M2/DP1_HPDI
+N_M2/SATA1_ACT_LED_M1/I2C2_SC
+L_M4/UART6_TX_M1/SPI4_MOSI_M2
+/GPIO1_A1_d
+HDMI_TX1_SDA_M2/I2C4_SCL_M3/U
+ART6_CTSN_M1/PWM1_M2/SPI4_CS
+0_M2/GPIO1_A3_d
+VOP_POST_EMPTY/I2C4_SDA_M3/UA
+RT6_RTSN_M1/PWM0_M2/SPI4_CLK_
+M2/GPIO1_A2_d
+IOMUX2
+I2S0_SDO2/I2S0_SDI3/PDM0_SDI1_
+M0/I2C7_SDA_M0/UART6_RX_M2/SP
+I1_MOSI_M2/GPIO1_D1_d
+I2S0_SDO1/I2C7_SCL_M0/UART6_T
+X_M2/SPI1_MISO_M2/GPIO1_D0_d
+
+IOMUX Setting
+BUS_IOC_GPIO2A_IOM
+UX_SEL_H[11:8] = 4’ha
+BUS_IOC_GPIO2A_IOM
+UX_SEL_H[15:12] =
+4’ha
+BUS_IOC_GPIO2B_IOM
+UX_SEL_L[7:4] = 4’ha
+BUS_IOC_GPIO2B_IOM
+UX_SEL_L[3:0] = 4’ha
+
+BUS_IOC_GPIO1A_IOM
+UX_SEL_L[3:0] = 4’ha
+BUS_IOC_GPIO1A_IOM
+UX_SEL_L[7:4] = 4’ha
+BUS_IOC_GPIO1A_IOM
+UX_SEL_L[15:12] =
+4’ha
+BUS_IOC_GPIO1A_IOM
+UX_SEL_L[11:8] = 4’ha
+
+BUS_IOC_GPIO1D_IOM
+UX_SEL_L[7:4] = 4’ha
+BUS_IOC_GPIO1D_IOM
+UX_SEL_L[3:0] = 4’ha
+
+Table 19-8 UART7 Interface Description
+Module Pin
+
+Direction
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+uart_cts_n
+
+I
+
+Pad Name
+IOMUX0
+GMAC0_PTP_REFCLK/FSPI_CS0N_M1
+/HDMI_TX1_SDA_M0/I2C4_SDA_M1/
+UART7_RX_M0/GPIO2_B4_u
+GMAC0_PPSTRING/FSPI_CS1N_M1/H
+DMI_TX1_SCL_M0/I2C4_SCL_M1/UA
+RT7_TX_M0/GPIO2_B5_u
+GMAC0_TXER/I2C0_SDA_M1/UART7_
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+IOMUX Setting
+BUS_IOC_GPIO2B_IOM
+UX_SEL_H[3:0] = 4’ha
+BUS_IOC_GPIO2B_IOM
+UX_SEL_H[7:4] = 4’ha
+BUS_IOC_GPIO4C_IOM
+1461
+
+RK3588 TRM-Part1
+
+uart_rts_n
+
+O
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+uart_cts_n
+
+I
+
+uart_rts_n
+
+O
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+CTSN_M0/PWM7_IR_M3/SPI3_CLK_
+M0/GPIO4_C6_d
+GMAC0_RXDV_CRS/UART7_RTSN_M0
+/PWM2_M2/SPI3_CS0_M0/GPIO4_C2
+_d
+IOMUX1
+GMAC1_PPSCLK/PCIE30X2_BUTTON_
+RSTN/UART7_RX_M1/SPI1_CLK_M1/
+GPIO3_C1_d
+GMAC1_PPSTRIG/I2C3_SDA_M1/UAR
+T7_TX_M1/SPI1_MISO_M1/GPIO3_C
+0_d
+GMAC1_MDIO/MIPI_TE1/I2C8_SDA_
+M4/UART7_CTSN_M1/PWM15_IR_M0
+/SPI1_CS1_M1/GPIO3_C3_d
+GMAC1_MDC/MIPI_TE0/I2C8_SCL_M
+4/UART7_RTSN_M1/PWM14_M0/SPI1
+_CS0_M1/GPIO3_C2_d
+IOMUX2
+PDM1_CLK0_M1/PCIE30X1_0_PERST
+N_M2/UART7_RX_M2/SPI0_CS0_M2/
+GPIO1_B4_u
+PCIE30X1_0_CLKREQN_M2/UART7_T
+X_M2/SPI0_CS1_M2/GPIO1_B5_u
+
+UX_SEL_H[11:8] = 4’ha
+BUS_IOC_GPIO4C_IOM
+UX_SEL_L[11:8] = 4’ha
+
+BUS_IOC_GPIO3C_IOM
+UX_SEL_L[7:4] = 4’ha
+BUS_IOC_GPIO3C_IOM
+UX_SEL_L[3:0] = 4’ha
+BUS_IOC_GPIO3C_IOM
+UX_SEL_L[15:12] =
+4’ha
+BUS_IOC_GPIO3C_IOM
+UX_SEL_L[11:8] = 4’ha
+
+BUS_IOC_GPIO1B_IOM
+UX_SEL_H[3:0] = 4’ha
+BUS_IOC_GPIO1B_IOM
+UX_SEL_H[7:4] = 4’ha
+
+Table 19-9 UART8 Interface Description
+Module Pin
+
+Direction
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+uart_cts_n
+
+I
+
+uart_rts_n
+
+O
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+Pad Name
+IOMUX0
+MIPI_CAMERA0_CLK_M0/SPDIF1_TX
+_M1/I2S1_SDO0_M0/PCIE30X1_0_B
+UTTON_RSTN/SATA2_ACT_LED_M0/I
+2C6_SCL_M3/UART8_RX_M0/SPI0_C
+S1_M1/GPIO4_B1_u
+CIF_CLKIN/BT1120_CLKOUT/I2S1_S
+DI3_M0/PCIE30X2_PERSTN_M1/I2C6
+_SDA_M3/UART8_TX_M0/SPI2_CS1_
+M1/GPIO4_B0_d
+CIF_VSYNC/BT1120_D9/I2S1_SDO2_
+M0/PCIE20X1_2_BUTTON_RSTN/I2C7
+_SDA_M3/UART8_CTSN_M0/PWM15_
+IR_M1/CAN1_TX_M1/GPIO4_B3_u
+CIF_HREF/BT1120_D8/I2S1_SDO1_M
+0/PCIE30X1_1_BUTTON_RSTN/I2C7_
+SCL_M3/UART8_RTSN_M0/PWM14_M
+1/SPI0_CS0_M1/CAN1_RX_M1/GPIO
+4_B2_u
+IOMUX1
+GMAC1_RXD3/SDIO_D3_M1/I2S3_S
+DO/AUDDSM_RN/FSPI_D3_M2/UART
+8_RX_M1/SPI4_CS0_M1/GPIO3_A3_
+u
+GMAC1_RXD2/SDIO_D2_M1/I2S3_LR
+CK/AUDDSM_LP/FSPI_D2_M2/UART8
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+IOMUX Setting
+
+BUS_IOC_GPIO4B_IOM
+UX_SEL_L[7:4] = 4’ha
+
+BUS_IOC_GPIO4B_IOM
+UX_SEL_L[3:0] = 4’ha
+BUS_IOC_GPIO4B_IOM
+UX_SEL_L[15:12] =
+4’ha
+BUS_IOC_GPIO4B_IOM
+UX_SEL_L[11:8] = 4’ha
+
+BUS_IOC_GPIO3A_IOM
+UX_SEL_L[15:12] =
+4’ha
+BUS_IOC_GPIO3A_IOM
+UX_SEL_L[11:8] = 4’ha
+
+1462
+
+RK3588 TRM-Part1
+uart_cts_n
+
+uart_rts_n
+
+I
+
+O
+
+_TX_M1/SPI4_CLK_M1/GPIO3_A2_u
+GMAC1_RXCLK/SDIO_CLK_M1/MIPI_
+CAMERA0_CLK_M1/FSPI_CLK_M2/I2
+C4_SDA_M0/UART8_CTSN_M1/GPIO
+3_A5_d
+GMAC1_TXCLK/SDIO_CMD_M1/I2S3_
+SDI/AUDDSM_RP/UART8_RTSN_M1/S
+PI4_CS1_M1/GPIO3_A4_d
+
+BUS_IOC_GPIO3A_IOM
+UX_SEL_H[7:4] = 4’ha
+BUS_IOC_GPIO3A_IOM
+UX_SEL_H[3:0] = 4’ha
+
+Table 19-10 UART9 Interface Description
+Module
+Pin
+
+Direction
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+uart_cts_n
+
+I
+
+uart_rts_n
+
+O
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+uart_cts_n
+
+I
+
+uart_rts_n
+
+O
+
+uart_rx
+
+I
+
+uart_tx
+
+O
+
+uart_cts_n
+
+I
+
+Pad Name
+IOMUX0
+GMAC0_PPSCLK/TEST_CLKOUT_M1/
+HDMI_TX1_CEC_M0/UART9_RX_M0/
+SPI1_CS1_M0/GPIO2_C4_d
+GMAC0_RXD1/I2C6_SDA_M2/UART9
+_TX_M0/SPI1_MOSI_M0/GPIO2_C2_
+d
+GMAC0_MDIO/I2C0_SCL_M1/UART9_
+CTSN_M0/PWM6_M2/SPI3_MOSI_M0
+/GPIO4_C5_d
+GMAC0_MDC/I2C7_SDA_M1/UART9_
+RTSN_M0/PWM5_M2/SPI3_MISO_M0
+/GPIO4_C4_d
+IOMUX1
+BT1120_D11/PCIE30X4_WAKEN_M1/
+HDMI_RX_CEC_M0/SATA1_ACT_LED_
+M0/UART9_RX_M1/PWM12_M1/SPI3_
+MISO_M1/GPIO4_B5_d
+CIF_CLKOUT/BT1120_D10/I2S1_SDO
+3_M0/PCIE30X4_CLKREQN_M1/DP0_
+HPDIN_M0/SPDIF0_TX_M1/UART9_T
+X_M1/PWM11_IR_M1/GPIO4_B4_u
+CIF_D1/BT1120_D1/I2S1_SCLK_M0/
+PCIE30X1_1_WAKEN_M1/UART9_CTS
+N_M1/SPI0_MOSI_M1/GPIO4_A1_d
+CIF_D0/BT1120_D0/I2S1_MCLK_M0/
+PCIE30X1_1_CLKREQN_M1/UART9_R
+TSN_M1/SPI0_MISO_M1/GPIO4_A0_
+d
+IOMUX2
+HDMI_TX0_HPD_M1/PCIE30X2_PERS
+TN_M2/HDMI_RX_HPDOUT_M1/MCU_
+JTAG_TCK_M1/UART9_RX_M2/SPI0_
+CS0_M3/GPIO3_D4_d
+PCIE30X4_BUTTON_RSTN/DP1_HPDI
+N_M0/MCU_JTAG_TMS_M1/UART9_T
+X_M2/PWM11_IR_M3/SPI0_CS1_M3/
+GPIO3_D5_d
+CIF_D15/PCIE30X2_WAKEN_M2/HDM
+I_RX_SDA_M1/I2C7_SDA_M2/UART9
+_CTSN_M2/PWM10_M2/SPI0_CLK_M
+3/GPIO3_D3_d
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+IOMUX Setting
+
+BUS_IOC_GPIO2C_IOM
+UX_SEL_H[3:0] = 4’ha
+BUS_IOC_GPIO2C_IOM
+UX_SEL_L[11:8] = 4’ha
+BUS_IOC_GPIO4C_IOM
+UX_SEL_H[7:4] = 4’ha
+BUS_IOC_GPIO4C_IOM
+UX_SEL_H[3:0] = 4’ha
+
+BUS_IOC_GPIO4B_IOM
+UX_SEL_H[7:4] = 4’ha
+BUS_IOC_GPIO4B_IOM
+UX_SEL_H[3:0] = 4’ha
+BUS_IOC_GPIO4A_IOM
+UX_SEL_L[7:4] = 4’ha
+BUS_IOC_GPIO4A_IOM
+UX_SEL_L[3:0] = 4’ha
+
+BUS_IOC_GPIO3D_IOM
+UX_SEL_H[3:0] = 4’ha
+BUS_IOC_GPIO3D_IOM
+UX_SEL_H[7:4] = 4’ha
+BUS_IOC_GPIO3D_IOM
+UX_SEL_L[15:12] =
+4’ha
+
+1463
+
+RK3588 TRM-Part1
+Module
+Pin
+uart_rts_n
+
+Direction
+O
+
+Pad Name
+
+IOMUX Setting
+
+CIF_D14/PCIE30X2_CLKREQN_M2/H
+DMI_RX_SCL_M1/I2C7_SCL_M2/UAR
+T9_RTSN_M2/SPI0_MOSI_M3/GPIO3
+_D2_d
+
+BUS_IOC_GPIO3D_IOM
+UX_SEL_L[11:8] = 4’ha
+
+Notes: I=input, O=output, I/O=input/output, bidirectional.
+
+19.6 Application Notes
+19.6.1 None FIFO Mode Transfer Flow
+IDLE
+
+Set LCR[7] to
+select DLL,DLH
+Set LCR[1:0] to
+select data width
+
+Set DLL,DLH to
+decide baud rate
+
+Write data to THR
+Set MCR to start
+the transfer
+
+Wait transfer
+end
+
+Fig. 19-7 UART none fifo mode
+
+19.6.2 FIFO Mode Transfer Flow
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1464
+
+RK3588 TRM-Part1
+IDLE
+
+Set LCR[7] to
+select DLL,DLH
+Set LCR[1:0] to
+select data width
+
+Set FCR to enable
+fifo mode
+
+Set DLL,DLH to
+decide baud rate
+
+Write data to
+THR/STHR
+Set MCR to start
+the transfer
+
+Wait transfer
+end
+
+Fig. 19-8 UART fifo mode
+The UART is an APB slave performing:
+Serial-to-parallel conversion on data received from a peripheral device. Parallel-to-serial
+conversion on data transmitted to the peripheral device. The CPU reads and writes data and
+control/status information through the APB interface. The transmitting and receiving paths
+are buffered with internal FIFO memories enabling up to 64-bytes to be stored
+independently in both transmit and receive modes. A baud rate generator can generate a
+common transmit and receive internal clock input. The baud rates will depend on the
+internal clock frequency. The UART will also provide transmit, receive and exception
+interrupts to system. A DMA interface is implemented for improving the system
+performance.
+
+19.6.3 Baud Rate Calculation
+
+UART clock generation
+The following figures shows the UART clock generation. UARTs source clocks can be selected
+from different PLL outputs. UART clocks can be generated by 1 to 64 division of its source
+clock, or can be fractionally divided again, or be provided by XIN24M.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1465
+
+RK3588 TRM-Part1
+xin_osc0_func
+
+sclk_uart0_en
+uart0
+G2[5]{0}
+sclk_uart0
+
+sclk_uart1_en
+uart1
+G12[13]{0}
+sclk_uart1
+
+sclk_uart2_en
+uart2
+G13[0]{0}
+sclk_uart2
+
+sclk_uart3_en
+uart3
+G13[3]{0}
+sclk_uart3
+
+sclk_uart4_sel
+S49[1:0]{2}
+
+clk_cpll_mux
+1.5G
+
+clk_uart4_src_sel
+S47[7]{0}
+
+clk_gpll_mux
+1.2G
+
+clk_uart0_frac_div
+FRACB_S4[31:0]{1311710}
+
+sclk_uart3_sel
+S47[1:0]{2}
+
+clk_cpll_mux
+1.5G
+
+clk_uart3_src_sel
+S45[7]{0}
+
+clk_gpll_mux
+1.2G
+
+clk_uart0_frac_en
+G2[4]{0}
+
+sclk_uart2_sel
+S45[1:0]{2}
+
+clk_cpll_mux
+1.5G
+
+clk_uart2_src_sel
+S43[7]{0}
+
+clk_gpll_mux
+1.2G
+
+clk_uart0_src_div
+S3[11:7]{1}
+
+sclk_uart1_sel
+S43[1:0]{2}
+
+clk_cpll_mux
+1.5G
+
+clk_uart1_src_sel
+S41[14]{0}
+
+clk_gpll_mux
+1.2G
+
+clk_uart0_en
+G2[3]{0}
+
+sclk_uart0_sel
+S5[1:0]{2}
+
+clk_cpll_mux
+1.5G
+
+sclk_uart4_en
+uart4
+G13[6]{0}
+sclk_uart4
+
+xin_osc0_func
+
+clk_uart1_en
+G12[11]{0}
+
+clk_uart1_src_div
+S41[13:9]{1}
+
+clk_uart1_frac_en
+G12[12]{0}
+
+clk_uart1_frac_div
+FRACB_S42[31:0]{1311710}
+
+xin_osc0_func
+
+clk_uart2_en
+G12[14]{0}
+
+clk_uart2_src_div
+S43[6:2]{1}
+
+clk_uart2_frac_en
+G12[15]{0}
+
+clk_uart2_frac_div
+FRACB_S44[31:0]{1311710}
+
+xin_osc0_func
+
+clk_uart3_en
+G13[1]{0}
+
+clk_uart3_src_div
+S45[6:2]{1}
+
+clk_uart3_frac_en
+G13[2]{0}
+
+clk_uart3_frac_div
+FRACB_S46[31:0]{1311710}
+
+xin_osc0_func
+
+clk_uart4_en
+G13[4]{0}
+
+clk_uart4_src_div
+S47[6:2]{1}
+
+clk_uart4_frac_en
+G13[5]{0}
+
+clk_uart4_frac_div
+FRACB_S48[31:0]{1311710}
+
+Fig. 19-9 UART0-UART4 clock generation
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1466
+
+RK3588 TRM-Part1
+
+clk_uart5_frac_div
+FRACB_S50[31:0]{1311710}
+
+sclk_uart5_en
+uart5
+G13[9]{0}
+sclk_uart5
+
+sclk_uart6_en
+uart6
+G13[12]{0}
+sclk_uart6
+
+sclk_uart7_en
+uart7
+G13[15]{0}
+sclk_uart7
+
+sclk_uart8_en
+uart8
+G14[2]{0}
+sclk_uart8
+
+sclk_uart9_sel
+S59[1:0]{2}
+
+clk_cpll_mux
+1.5G
+
+clk_uart9_src_sel
+S57[7]{0}
+
+clk_gpll_mux
+1.2G
+
+clk_uart5_frac_en
+G13[8]{0}
+
+sclk_uart8_sel
+S57[1:0]{2}
+
+clk_cpll_mux
+1.5G
+
+clk_uart8_src_sel
+S55[7]{0}
+
+clk_gpll_mux
+1.2G
+
+clk_uart5_src_div
+S49[6:2]{1}
+
+sclk_uart7_sel
+S55[1:0]{2}
+
+clk_cpll_mux
+1.5G
+
+clk_uart7_src_sel
+S53[7]{0}
+
+clk_gpll_mux
+1.2G
+
+clk_uart5_en
+G13[7]{0}
+
+sclk_uart6_sel
+S53[1:0]{2}
+
+clk_cpll_mux
+1.5G
+
+clk_uart6_src_sel
+S51[7]{0}
+
+clk_gpll_mux
+1.2G
+
+xin_osc0_func
+
+sclk_uart5_sel
+S51[1:0]{2}
+
+clk_cpll_mux
+1.5G
+
+clk_uart5_src_sel
+S49[7]{0}
+
+clk_gpll_mux
+1.2G
+
+sclk_uart9_en
+uart9
+G14[5]{0}
+sclk_uart9
+
+xin_osc0_func
+
+clk_uart6_en
+G13[10]{0}
+
+clk_uart6_src_div
+S51[6:2]{1}
+
+clk_uart6_frac_en
+G13[11]{0}
+
+clk_uart6_frac_div
+FRACB_S52[31:0]{1311710}
+
+xin_osc0_func
+
+clk_uart7_en
+G13[13]{0}
+
+clk_uart7_src_div
+S53[6:2]{1}
+
+clk_uart7_frac_en
+G13[14]{0}
+
+clk_uart7_frac_div
+FRACB_S54[31:0]{1311710}
+
+xin_osc0_func
+
+clk_uart8_en
+G14[0]{0}
+
+clk_uart8_src_div
+S55[6:2]{1}
+
+clk_uart8_frac_en
+G14[1]{0}
+
+clk_uart8_frac_div
+FRACB_S56[31:0]{1311710}
+
+xin_osc0_func
+
+clk_uart9_en
+G14[3]{0}
+
+clk_uart9_src_div
+S57[6:2]{1}
+
+clk_uart9_frac_en
+G14[4]{0}
+
+clk_uart9_frac_div
+FRACB_S58[31:0]{1311710}
+
+Fig. 19-10 UART5-UART9 clock generation
+UART baud rate configuration
+The following table provides some reference configuration for different UART baud rates.
+Table 19-11 UART baud rate configuration
+Baud Rate
+115.2 Kbps
+460.8 Kbps
+921.6 Kbps
+1.5 Mbps
+3 Mbps
+4 Mbps
+
+Reference Configuration
+Configure PLL to get 648MHz clock output; Divide 648MHz clock by
+1152/50625 to get 14.7456MHz clock; Configure UART_DLL to 8.
+Configure PLL to get 648MHz clock output; Divide 648MHz clock by
+1152/50625 to get 14.7456MHz clock; Configure UART_DLL to 2.
+Configure PLL to get 648MHz clock output; Divide 648MHz clock by
+1152/50625 to get 14.7456MHz clock; Configure UART_DLL to 1.
+Choose PLL to get 384MHz clock output; Divide 384MHz clock by 16 to
+get 24MHz clock; Configure UART_DLL to 1.
+Choose PLL to get 384MHz clock output; Divide 384MHz clock by 8 to
+get 48MHz clock; Configure UART_DLL to 1.
+Configure PLL to get 384MHz clock output; Divide 384MHz clock by 6 to
+get 64MHz clock; Configure UART_DLL to 1.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1467
+
+RK3588 TRM-Part1
+

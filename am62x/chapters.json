@@ -1,0 +1,89 @@
+{
+ "chapters": [
+  {
+   "num": 1,
+   "title": "Introduction",
+   "start": 12,
+   "end": 30
+  },
+  {
+   "num": 2,
+   "title": "Memory Map",
+   "start": 31,
+   "end": 69
+  },
+  {
+   "num": 3,
+   "title": "System Interconnect",
+   "start": 70,
+   "end": 96
+  },
+  {
+   "num": 4,
+   "title": "Module Integration",
+   "start": 97,
+   "end": 469
+  },
+  {
+   "num": 5,
+   "title": "Initialization",
+   "start": 470,
+   "end": 526
+  },
+  {
+   "num": 6,
+   "title": "Device Configuration",
+   "start": 527,
+   "end": 641
+  },
+  {
+   "num": 7,
+   "title": "Processors and Accelerators",
+   "start": 642,
+   "end": 785
+  },
+  {
+   "num": 8,
+   "title": "Interprocessor Communication (IPC)",
+   "start": 786,
+   "end": 800
+  },
+  {
+   "num": 9,
+   "title": "Memory Controllers",
+   "start": 801,
+   "end": 818
+  },
+  {
+   "num": 10,
+   "title": "Interrupts",
+   "start": 819,
+   "end": 865
+  },
+  {
+   "num": 11,
+   "title": "Data Movement Architecture",
+   "start": 866,
+   "end": 1022
+  },
+  {
+   "num": 12,
+   "title": "Peripherals",
+   "start": 1023,
+   "end": 2014
+  },
+  {
+   "num": 13,
+   "title": "On-Chip Debug",
+   "start": 2015,
+   "end": 2028
+  },
+  {
+   "num": 15,
+   "title": "Revision History",
+   "start": 2029,
+   "end": 2030
+  }
+ ],
+ "total_pages": 2031
+}

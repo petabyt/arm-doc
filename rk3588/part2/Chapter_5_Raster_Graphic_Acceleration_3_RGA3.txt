@@ -1,0 +1,5439 @@
+Chapter 5 Raster Graphic Acceleration 3 (RGA3)
+5.1 Overview
+
+RGA3 is a separate 2D graphics accelerator, used to accelerate basic operations, including:
+image position transformation (rotation, mirroring), size transformation (scale down, scale
+up), format conversion, FBC encoding and decoding, TILE encoding and decoding, and
+window overlap.
+
+5.2 Feature
+5.2.1 Image input mode and data format
+⚫
+
+⚫
+
+⚫
+
+Raster mode
+◼ ARGB8888/RGB888/RGB565
+◼ YUV420(8bit & 10bit)/YUV422(8bit &10bit)/YUYV(8bit)
+◼ YUV support semi-planer
+◼ YUV10bit support compacted/uncompacted, little/big endian
+FBCD mode
+◼ ARGB8888/RGB888/RGB565
+◼ YUV420(8bit & 10bit)/YUV422(8bit & 10bit)
+Tile8x8 mode
+◼ YUV420(8bit & 10bit)/YUV422(8bit & 10bit)
+◼ YUV 10bit support compacted
+
+5.2.2 Image output mode and data format
+⚫
+
+⚫
+
+⚫
+
+Raster mode
+◼ ARGB8888/RGB888/RGB565
+◼ YUV420(8bit &10bit)/YUV422(8bit &10bit)/YUYV(8bit)
+◼ YUV support semi-planer
+◼ YUV10bit support compacted/uncompacted, little/big endian
+FBCE mode
+◼ ARGB8888/RGB888/RGB565
+◼ YUV420(8&10bit)/YUV422(8bit &10bit)
+◼ FBCE payload support sparse/unsparse mode
+Tile8x8 mode
+◼ YUV420(8bit &10bit)/YUV422(8bit &10bit)
+◼ YUV support semi-planer
+◼ YUV10bit support compacted/uncompacted, little/big endian
+
+5.2.3 Support 9 path
+⚫
+⚫
+⚫
+⚫
+⚫
+⚫
+⚫
+⚫
+⚫
+
+RASTER -> RASTER
+RASTER -> FBCE
+RASTER -> TILE
+FBCD -> RASTER
+FBCD -> FBCE
+FBCD -> TILE
+TILE -> RASTER
+TILE -> FBCE
+TILE -> TILE
+
+5.2.4 Support 2 layers and CSC
+⚫
+⚫
+⚫
+
+Y2R: BT601L, BT601R, BT709,BT2020
+R2Y: BT601L, BT601R, BT709, BT2020
+RB swap, UV swap, YC swap(YUV422)
+
+5.2.5 Input/Output resolution
+⚫
+⚫
+⚫
+
+Min input/output resolution is 128x128
+Max input resolution is (8192-16) x (8192-16)
+Max output resolution is (8192-64) x (8192-64)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+701
+
+RK3588 TRM-Part2
+⚫
+
+Max virtual width is 8192 word
+
+5.2.6 Resize
+⚫
+⚫
+
+Scale down: Average, max ratio is 8
+Scale up: Bicubic, max ratio is 8
+
+5.2.7 Orient
+⚫
+⚫
+⚫
+⚫
+⚫
+⚫
+⚫
+⚫
+
+Normal
+Ymirror
+Xmirror
+Rot180(xmirror+ymirror)
+Rot90
+Rot90+ymirror(xmirror+rot90)
+Rot90+xmirror(xmirror+rot270)
+Rot270
+
+5.2.8 Overlap
+⚫
+⚫
+
+2 overlap mode: ABB and ABC
+Support YUV field and RGB field
+
+5.2.9 Config
+⚫
+⚫
+
+Support 32bit AHB configuration setting
+support AXI command configuration setting
+
+5.2.10 Others
+⚫
+⚫
+⚫
+⚫
+
+Support level interrupt
+Support 128bit AXI
+Support 128bit MMU, max mapping to 32G DDR
+4pixel/cycle when resize is bypass, 2pixel/cycle when resize is scale up/ scale down
+
+5.3 Block Diagram
+
+Fig. 5-1 RGA3 Block Diagram
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+702
+
+RK3588 TRM-Part2
+AHB 32-bit
+
+Interrupt
+controller
+
+AXI 128-bit
+
+AXI master
+
+AHB slave
+
+MMU
+
+RGA3
+
+RGA_intr
+
+Fig. 5-2 RGA3 in SOC
+
+5.4 Function Description
+5.4.1 RGA3 Size
+
+RGA3 common size relationship show as below:
+
+5.4.2 Raster mode
+
+Fig. 5-3 RGA3 Size
+
+RGA3 support Raster mode for input and output, which is stored in DDR as
+below:
+1) rd_format/wr_format = 1 semi-planer format
+YUV semi-planer format, we need two buffers in DDR(Y buffer, C buffer):
+⚫
+
+Fig. 5-4 Raster semi-planer buffer in DDR
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+703
+
+RK3588 TRM-Part2
+According to different format, data will be stored in different ways as below:
+
+Fig. 5-5 Different format in DDR
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+704
+
+RK3588 TRM-Part2
+2) rd_format/wr_format = 2 interleave format
+RGB or YVYU format, we need only one buffer in DDR:
+
+Fig. 5-6 Raster interleave buffer in DDR
+According to different format, data will be stored in different ways as below:
+
+Fig. 5-7 Different format in DDR
+
+5.4.3 FBCD mode
+
+This compression format is designed to be used for textures and frame buffers. It has been
+optimized to decrease external bandwidth as well as being random access and decodable at
+line speed for the texture cache.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+705
+
+RK3588 TRM-Part2
+Random access is available to individual 16x16 blocks, which in turn index individual 4x4
+blocks. This is done using a structure where a header block is stored for each 16x16 block at
+a predictable memory address in what is referred to as the header buffer. If the horizontal size
+is given by “width” and A is the start address of the head buff, the address of the header for
+the 16x16 block containing a given pixel at position x, y is given by
+A+16*(x/16+((y/16)*(width/16))). A consequence of the 16x16 block structure is that only
+multiples of 16 are allowed as width and height as shown below.
+The data that is used to store the individual 4x4 blocks in a 16x16 block is referred to as the
+payload data for that block. It is stored continuously in body buff from the offset that is
+supplied in the header. Each section in the body buffer contains payload data which is used to
+decode a 16x16 block. The header contains an offset to the payload that resides inside of the
+body buffer, which is typically allocated after allocated after the header buffer in the memory.
+The offset to the payload data is relative to the start of the header buffer. In some cases it
+may sense to store payload data inside the header buffer, such as when encoding blocks that
+are less than 16x16 in size and not all sub block sizes are used in a header.
+
+5.4.4 Tile8x8 mode
+
+Fig. 5-8 FBC buffer in DDR
+
+RGA3 support Tile8x8 mode for input and output(only support YUV420SP/YUV422SP/
+YUV420SP 10bit/YUV422SP 10bit), we need two buffers in DDR as below:
+
+Fig. 5-9 Tile buffer in DDR
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+706
+
+RK3588 TRM-Part2
+
+8x8
+
+tile基本单元块
+8x8对应的luma
+
+8x8对应的chroma
+
+8
+
+8
+4
+
+1、yuv420 format：
+
+8
+
+u0 v0 u1 v1 u2 v2 u3 v3
+u0 v0 u1 v1 u2 v2 u3 v3
+u0 v0 u1 v1 u2 v2 u3 v3
+u0 v0 u1 v1 u2 v2 u3 v3
+
+Chroma
+
+Luma
+Yuv420 format
+
+8
+
+2、yuv422 format：
+
+8
+
+8
+
+8
+
+Chroma
+
+u0 v0 u1 v1 u2 v2 u3 v3
+u0 v0 u1 v1 u2 v2 u3 v3
+u0 v0 u1 v1 u2 v2 u3 v3
+u0 v0 u1 v1 u2 v2 u3 v3
+u0 v0 u1 v1 u2 v2 u3 v3
+u0 v0 u1 v1 u2 v2 u3 v3
+u0 v0 u1 v1 u2 v2 u3 v3
+u0 v0 u1 v1 u2 v2 u3 v3
+
+Yuv422 format
+
+Fig. 5-10 Tile8x8 in DDR
+According to different format, data will be stored in different ways as below:
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+707
+
+RK3588 TRM-Part2
+
+Fig. 5-11 Different format in DDR
+
+5.4.5 Orient
+
+RGA3 support rot/xmirror/ymirror, which can show as below:
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+708
+
+RK3588 TRM-Part2
+rot, xmirror,ymirror
+
+original
+
+Orient
+
+0，0，0
+normal
+
+0，0，1
+ymirror
+
+0，1，0
+xmirror
+
+0，1，1
+rot180
+
+1，0，0
+rot90
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+709
+
+RK3588 TRM-Part2
+rot, xmirror,ymirror
+
+original
+
+Orient
+
+1，0，1
+rot90+ymirror
+
+1，1，0
+rot90+xmirror
+
+1，1，1
+rot-90
+
+5.4.6 CSC
+
+The red, green, and blue(RGB) color space is widely used for computer graphics and displays.
+Red, green and blue are three primary additive colors. The YCbCr color space is used by the
+PAL and NTSC composite color video standards. The black-and-white system used only luma(Y)
+information. Color information(Cb and Cr) was added in such a way that a black-and-white
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+710
+
+RK3588 TRM-Part2
+receiver would still display a normal black-and-white picture. Color receivers decoded the
+additional color information to display a color picture.
+There are four equations used to convert between RGB and YCbCr space.
+YUV2RGB:
+1) YUV to RGB (BT601L)
+R = 1.164(Y-16) + 1.596(V-128)
+G = 1.164(Y-16) - 0.391(U-128) - 0.813(V-128)
+B = 1.164(Y-16) + 2.018(U-128)
+2) YUV to RGB (BT601F)
+R = (Y-16) + 1.402(V-128)
+G = (Y-16) - 0.344(U-128) - 0.714(V-128)
+B = (Y-16) + 1.772(U-128)
+3) YUV to RGB (BT709L)
+R = 1.164(Y-16) + 1.793(V-128)
+G = 1.164(Y-16) - 0.213(U-128) - 0.534(V-128)
+B = 1.164(Y-16) + 2.115(U-128)
+4) YUV to RGB (BT2020)
+R = 1.1636(Y-64) + 1.6778(V-512)
+G = 1.1636(Y-64) - 0.1872(U-512) - 0.6501(V-512)
+B = 1.1636(Y-64) + 2.1406(U-512)
+RGB2YUV:
+1) RGB to YUV (BT601L)
+
+2) RGB to YUV (BT601F)
+
+Y = 0.257R + 0.504G + 0.098B + 16
+Cb =-0.148R - 0.291G + 0.439B + 128
+Cr = 0.439R - 0.368G - 0.071B + 128
+
+Y = 0.299R + 0.5870G + 0.1140B + 0
+Cb = -0.1687R - 0.3313G + 0.5000B + 512
+Cr = 0.500R - 0.4187G - 0.0813B + 512
+3) RGB to YUV (BT709L)
+Y = 0.183R + 0.614G + 0.062B + 16
+Cb =-0.101R - 0.338G + 0.439B + 128
+Cr = 0.439R - 0.399G - 0.040B + 128
+4) RGB to YUV (BT2020)
+Y
+= 0.2250R + 0.5807G + 0.0508B + 64
+Cb = -0.1223R - 0.3157G + 0.4380B + 512
+Cr = 0.4380R - 0.4028G - 0.0352B + 512
+
+5.4.7 Resize
+
+Horizontal can be scale up, scale down, bypass, vertical can be scale up, scale down,
+bypass, max ratio is 1/8 ~ 8:
+Scale down:
+factor = int(65536*(dst-1)/(src-1)) + 1
+Scale up:
+if((dst-1) % (src-1) == 0)
+factor = int(65536*(dst-1)/(src-1)) - 1
+else
+factor = int(65536*(dst-1)/(src-1));
+Scale down: s0~s11 is source pixel, d0~d3 is destination pixel, factor = 0.3, factor = 0.4,
+factor = 0.9:
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+711
+
+RK3588 TRM-Part2
+
+Fig. 5-12 factor = 0.3/0.4/0.9 scale down
+Scale up: s0~s11 is source pixel, d0~d3 is destination pixel, factor = 0.3, factor = 0.4,
+factor = 0.9:
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+712
+
+RK3588 TRM-Part2
+
+Fig. 5-13 factor = 0.3/0.5/0.9 scale up
+
+5.4.8 Scan/Overlap
+5.4.8.1 Overlap mode
+
+RGA3 support win0/win1 layers overlap, after then can write to original DDR address or new
+DDR address. So RGA3 is ABB/ABC two overlap mode:
+1) ABB: A+B->B
+2) ABC: A+B->C
+ABC mode：
+
+Fig. 5-14 ABC mode
+ABB mode:
+1) WIN0 = RASTER: win0 act_xoff, act_yoff must aligned to 4pixel by software setting when
+input format is 10bit, otherwise no limit is required
+2) WIN0 = TILE: win0 act_xoff, act_yoff must aligned to 8pixel by software setting
+3) WIN0 = FBCE: only support sparse mode, win0 act_xoff, act_yoff must aligned to 16pixel
+by software setting
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+713
+
+RK3588 TRM-Part2
+
+Fig. 5-15 ABB mode
+
+5.4.8.2 Scan
+
+Split and expand destination image using 64x32 block, as show below：
+1) mi_wr_mode is fbce mode, horizontal must be aligned to 16pixel
+2) mi_wr_mode is tile mode, horizontal and vertical must be aligned to 8pixel
+
+Fig. 5-16 Scan mode with 64x32
+According to mi_wr_mode, will generate different scan timing, as below:
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+714
+
+RK3588 TRM-Part2
+
+Fig. 5-17 Scan timing for raster/fbce/tile
+
+5.4.8.3 Alpha blending
+
+Alpha calculation flow as below：
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+715
+
+RK3588 TRM-Part2
+(SrcPer-pixelAlphaValue)
+
+(DstPer-pixelAlphaValue)
+
+As0
+
+Ad0
+
+SrcAlphaMode0:
+1'b0: As
+1'b1: 255-As (SrcGlobalAlphaValue)
+
+DstAlphaMode0:
+1'b0: Ad
+1'b1: 255-Ad (DstGlobalAlphaValue)
+
+Ags
+
+As0’
+
+Agd
+
+Ad0’
+
+SrcGlobalAlphaMode0:
+2'b00: Ags
+2'b01: As0'
+2'b10: (As0'*Ags)>>8
+
+DstGlobalAlphaMode0:
+2'b00: Agd
+2'b01: Ad0'
+2'b10: (Ad0'*Agd)>>8
+
+As0_’’
+
+Ad0_’’
+
+SrcAlphaSelectMode0:
+1'b0: As0_" + (As0_">>7)
+1'b1: As0_"
+
+DstAlphaSelectMode0:
+1'b0: Ad0_" + (Ad0_">>7)
+1'b1: Ad0_"
+
+Cs
+
+As0’’
+DstFactorMode0:
+3'b000: 0
+3'b001: 256
+3'b010: As0''
+3'b011: (256-As0'')
+3'b100: Ad0''
+
+SrcFactorMode0:
+3'b00: 0
+3'b01: 256
+3'b10: Ad0''
+3'b11: (256-Ad0'')
+3'b100: As0''
+
+SrcColorMode:
+1'b0: Cs
+1'b1: Cs*As0''
+
+Fd0
+
+Cs’
+
+Cd = Fs0 * Cs'+ Fd0 * Cd'
+
+Cd
+
+Ad0’’
+
+DstColorMode0:
+1'b0: Cd
+1'b1: Cd*Ad0''
+
+Fs0
+
+Cd’
+
+(1)
+
+(Cd – dst color, Fs0 – color src factor0, Cs’ – src color’, Fd0 – color dst factor0, Cd’ – dst color’)
+
+Fig. 5-18 layer0 alpha blending calculate flow
+(DstPer-pixelAlphaValue)
+
+(SrcPer-pixelAlphaValue)
+
+Ad1
+
+As1
+SrcAlphaMode1:
+1'b0: As
+1'b1: 255-As (SrcGlobalAlphaValue)
+
+SrcGlobalAlphaMode1:
+2'b00: Ags
+2'b01: As1'
+2'b10: (As1'*Ags)>>8
+
+DstGlobalAlphaMode1:
+2'b00: Agd
+2'b01: Ad1'
+2'b10: (Ad1'*Agd)>>8
+
+Ad1_’’
+
+As1_’’
+SrcAlphaSelectMode1:
+1'b0: As1_" + (As1_">>7)
+1'b1: As_"
+
+DstAlphaSelectMode:
+1'b0: Ad_" + (Ad_">>7)
+1'b1: Ad_"
+
+Ad1’’
+
+As1’’
+
+SrcFactorMode1:
+3'b000: 0
+3'b001: 256
+3'b010: Ad1''
+3'b011: (256-Ad1'')
+3'b100: As1''
+
+DstFactorMode1:
+3'b000: 0
+3'b001: 256
+3'b010: As1''
+3'b011: (256-As1'')
+3'b100: Ad1''
+
+Fs1
+
+Fd1
+Ad = Fs 1 * As 1"+Fd 1 * Ad 1"
+
+Agd
+
+Ad1’
+
+Ags
+
+As1’
+
+DstAlphaMode1:
+1'b0: Ad
+1'b1: 255-Ad (DstGlobalAlphaValue)
+
+(2)
+
+(Ad – dst alpha, Fs1 – alpha src factor1, As1’’ – src alpha’’, Fd1 – alpha dst factor1, Ad1’ – dst alpha’’)
+
+Fig. 5-19 layer1 alpha blending calculate flow
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+716
+
+RK3588 TRM-Part2
+
+5.5 Register Description
+5.5.1 Registers Summary
+Name
+
+Offset
+
+Size
+
+Reset
+Value
+
+Description
+
+RGA3_SYS_CTRL
+
+0x0000
+
+W
+
+0x00000000 System control
+
+RGA3_CMD_CTRL
+
+0x0004
+
+W
+
+0x00000000 Command control
+
+RGA3_CMD_ADDR
+
+0x0008
+
+W
+
+0x00000000 Command address
+
+RGA3_MI_GROUP_CTRL
+
+0x000C
+
+W
+
+0x00000000 DMA read group control
+
+RGA3_ARQOS_CTRL
+
+0x0010
+
+W
+
+0x00000331 DMA read qos control
+
+RGA3_VERSION_NUM
+
+0x0018
+
+W
+
+0x00000000 RGA3 version number
+
+RGA3_VERSION_TIM
+
+0x001C
+
+W
+
+0x00000000 RGA3 version time
+
+RGA3_INT_EN
+
+0x0020
+
+W
+
+0x00000000 Interrupt enable
+
+RGA3_INT_RAW
+
+0x0024
+
+W
+
+0x00000000 Interrupt raw status
+
+RGA3_INT_MSK
+
+0x0028
+
+W
+
+0x00000000 Interrupt mask
+
+RGA3_INT_CLR
+
+0x002C
+
+W
+
+0x00000000 Interrupt clear
+
+RGA3_RO_SRST
+
+0x0030
+
+W
+
+0x00000000 RGA soft reset done
+
+RGA3_STATUS0
+
+0x0034
+
+W
+
+0x00000000 RGA3 status
+
+RGA3_CMD_STATE
+
+0x0040
+
+W
+
+0x00000000 Command state
+
+RGA3_WIN0_CTRL
+
+0x0100
+
+W
+
+0x00000000 Win0 control
+
+W
+
+Base address of input picture y or
+0x00000000 RGB or header(FBCD mode)
+component ring buffer
+
+W
+
+Base address of input picture c or
+0x00000000 payload (FBCD mode) component
+ring buffer
+
+RGA3_WIN0_VIR_STRIDE 0x011C
+
+W
+
+Virtual stride of input picture y or
+0x00000000 RGB or header (FBCD mode)
+component ring buffer
+
+RGA3_WIN0_FBC_OFF
+
+0x0120
+
+W
+
+0x00000000 Win0 FBCD offset
+
+RGA3_WIN0_SRC_SIZE
+
+0x0124
+
+W
+
+0x00000000 Win0 source size
+
+RGA3_WIN0_ACT_OFF
+
+0x0128
+
+W
+
+0x00000000 Win0 actual offset
+
+RGA3_WIN0_ACT_SIZE
+
+0x012C
+
+W
+
+0x00000000 Win0 actual size
+
+RGA3_WIN0_DST_SIZE
+
+0x0130
+
+W
+
+0x00000000 Win0 destination size
+
+RGA3_WIN0_SCL_FAC
+
+0x0134
+
+W
+
+0x00000000 Win0 scale factor
+
+RGA3_WIN0_C_VIR_STRI
+0x0138
+DE
+
+W
+
+0x00000000 Win0 uv virtual stride
+
+RGA3_WIN1_CTRL
+
+W
+
+0x00000000 Win1 control
+
+RGA3_WIN0_Y_BASE
+
+RGA3_WIN0_C_BASE
+
+0x0110
+
+0x0114
+
+0x0140
+
+RGA3_WIN1_Y_BASE
+
+0x0150
+
+W
+
+Base address of input picture y or
+0x00000000 RGB or header (FBCD mode)
+component ring buffer
+
+RGA3_WIN1_C_BASE
+
+0x0154
+
+W
+
+Base address of input picture c or
+0x00000000 payload (FBCD mode) component
+ring buffer
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+717
+
+RK3588 TRM-Part2
+Name
+
+Offset
+
+Size
+
+Reset
+Value
+
+Description
+
+RGA3_WIN1_VIR_STRIDE 0x015C
+
+W
+
+Virtual stride of input picture y or
+0x00000000 RGB or header (FBCD mode)
+component ring buffer
+
+RGA3_WIN1_FBC_OFF
+
+0x0160
+
+W
+
+0x00000000 Win1 FBCD offset
+
+RGA3_WIN1_SRC_SIZE
+
+0x0164
+
+W
+
+0x00000000 Win1 source size
+
+RGA3_WIN1_ACT_OFF
+
+0x0168
+
+W
+
+0x00000000 Win1 actual offset
+
+RGA3_WIN1_ACT_SIZE
+
+0x016C
+
+W
+
+0x00000000 Win1 actual size
+
+RGA3_WIN1_DST_SIZE
+
+0x0170
+
+W
+
+0x00000000 Win1 destination size
+
+RGA3_WIN1_SCL_FAC
+
+0x0174
+
+W
+
+0x00000000 Win1 scale factor
+
+RGA3_WIN1_C_VIR_STRI
+0x0178
+DE
+
+W
+
+0x00000000 Win1 uv virtual stride
+
+RGA3_OVLP_CTRL
+
+0x0180
+
+W
+
+0x00000000 Overlap control
+
+RGA3_OVLP_OFF
+
+0x0184
+
+W
+
+0x00000000 Overlap offset
+
+RGA3_OVLP_TOP_KEY_MI
+0x0188
+N
+
+W
+
+0x00000000 Overlap top key min value
+
+RGA3_OVLP_TOP_KEY_M
+AX
+
+0x018C
+
+W
+
+0x00000000 Overlap top key max value
+
+RGA3_OVLP_TOP_COLOR
+0x0190
+_CTRL
+
+W
+
+0x00000000 Overlap top color control
+
+RGA3_OVLP_BOT_COLOR
+0x0194
+_CTRL
+
+W
+
+0x00000000 Overlap bottom color control
+
+RGA3_OVLP_TOP_ALPHA_
+0x0198
+CTRL
+
+W
+
+0x00000000 Overlap top alpha control
+
+RGA3_OVLP_BOT_ALPHA_
+0x019C
+CTRL
+
+W
+
+0x00000000 Overlap bottom alpha control
+
+RGA3_WR_CTRL
+
+0x01A0
+
+W
+
+0x00000000 DMA write control
+
+RGA3_WR_FBCE_CTRL
+
+0x01A4
+
+W
+
+0x00000000 DMA FBCE write control
+
+RGA3_WR_VIR_STRIDE
+
+0x01A8
+
+W
+
+0x00000000 Write virtual stride
+
+RGA3_WR_PL_VIR_STRID
+0x01AC
+E
+
+W
+
+0x00000000 Write payload virtual stride
+
+RGA3_WR_Y_BASE
+
+0x01B0
+
+W
+
+0x00000000 Write y base address
+
+RGA3_WR_C_BASE
+
+0x01B4
+
+W
+
+0x00000000 Write c base address
+
+RGA3_MMU_DTE_ADDR
+
+0x0F00
+
+W
+
+0x00000000 MMU current page Table address
+
+RGA3_MMU_STATUS
+
+0x0F04
+
+W
+
+0x00000018 MMU status
+
+RGA3_MMU_COMMAND
+
+0x0F08
+
+W
+
+0x00000000 MMU command
+
+RGA3_MMU_PAGE_FAULT
+0x0F0C
+_ADDR
+
+W
+
+0x00000000 MMU address of last page fault
+
+RGA3_MMU_ZAP_ONE_LI
+0x0F10
+NE
+
+W
+
+0x00000000
+
+RGA3_MMU_INT_RAWSTA
+0x0F14
+T
+
+W
+
+0x00000000 MMU interrupt raw
+
+RGA3_MMU_INT_CLEAR
+
+0x0F18
+
+W
+
+0x00000000 MMU interrupt clear
+
+RGA3_MMU_INT_MASK
+
+0x0F1C
+
+W
+
+0x00000000 MMU interrupt mask
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+MMU address to be invalidated
+from the page table cache
+
+718
+
+RK3588 TRM-Part2
+Name
+
+Offset
+
+Reset
+Value
+
+Size
+
+Description
+
+RGA3_MMU_INT_STATUS 0x0F20
+
+W
+
+0x00000000 MMU interrupt status
+
+RGA3_MMU_AUTO_GATIN
+0x0F24
+G
+
+W
+
+0x00000002 MMU auto gating
+
+RGA3_MMU_REG_LOAD_E
+0x0F28
+N
+
+W
+
+0x00000001 MMU register load enable
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access
+
+5.5.2 Detail Register Description
+RGA3_SYS_CTRL
+Address: Operational Base + offset (0x0000)
+Bit
+
+Attr Reset Value
+
+31:12 RO
+
+0x00000
+
+Description
+reserved
+
+RW 0x0
+
+sw_frmend_auto_rstn_en
+Auto reset after frame done
+
+10:9
+
+RW 0x0
+
+sw_rga_bic_mode
+Bicubic mode:
+2'b00: Precise
+2'b01: Spline
+2'b10: Catrom
+2'b11: Mitchell
+
+8
+
+RW 0x0
+
+sw_rga_ram_clk_on
+RGA ram clock always on
+
+7:5
+
+RO
+
+reserved
+
+4
+
+RW 0x0
+
+sw_cclk_sreset
+Core clock soft reset
+
+3
+
+RW 0x0
+
+sw_aclk_sreset
+Aclk soft reset
+
+2
+
+RW 0x0
+
+sw_rga_lgc_clk_on
+RGA logic clock always on
+
+1
+
+RW 0x0
+
+sw_cmd_mode
+Configuration mode
+1'b0: Slave mode use AHB write
+1'b1: Master mode use AXI read
+
+0
+
+W1
+C
+
+rga_start
+RGA start
+
+11
+
+0x0
+
+0x0
+
+RGA3_CMD_CTRL
+Address: Operational Base + offset (0x0004)
+Bit
+
+Attr Reset Value
+
+31:13 RO
+12:3
+
+0x00000
+
+RW 0x000
+
+Description
+reserved
+sw_cmd_incr_num
+Command increase start max number
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+719
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+Description
+
+2
+
+RW 0x0
+
+sw_cmd_stop_mode
+Command stop mode:
+1'b0: Disable
+1'b1: Enable
+
+1
+
+RW 0x0
+
+cmd_incr_valid_p
+Command increase start pulse
+
+RW 0x0
+
+cmd_line_st_p
+Command line start pulse, clear itself
+1'b0: Master mode no start
+1'b1: Master mode start
+
+0
+
+RGA3_CMD_ADDR
+Address: Operational Base + offset (0x0008)
+Bit
+31:0
+
+Attr Reset Value
+
+Description
+
+RW 0x00000000
+
+sw_cmd_base
+Command address when using master configuration mode, 16B
+aligned
+
+RGA3_MI_GROUP_CTRL
+Address: Operational Base + offset (0x000C)
+Bit
+
+Attr Reset Value
+
+Description
+
+31
+
+RW 0x0
+
+sw_mi_rd_group_dis
+AXI read command group disable
+1'b0: Disable
+1'b1: Enable
+
+30:3
+
+RO
+
+reserved
+
+2:0
+
+0x0000000
+
+RW 0x0
+
+sw_mi_rd_group_num
+AXI read command group number
+3'b000: fill internal fifo to full
+3'b001: Burst*2
+3'b010: Burst*3
+3'b011: Burst*4
+3'b100: Burst*5
+3'b101: Burst*6
+3'b110: Burst*7
+3'b111: Burst*8
+
+RGA3_ARQOS_CTRL
+Address: Operational Base + offset (0x0010)
+Bit
+
+Attr Reset Value
+
+31:11 RO
+
+10:8
+
+0x000000
+
+RW 0x3
+
+Description
+reserved
+sw_noc_hurry_value
+NOC hurry value
+3'b000: The Low priority to NOC
+3'b111: The first High priority to NOC
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+720
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+7
+
+RO
+
+6:4
+
+RW 0x3
+
+sw_ar_mmu_qos
+Read qos, configure 0 to 7, default 3
+
+3:1
+
+RO
+
+reserved
+
+0
+
+0x0
+
+Description
+
+0x0
+
+RW 0x1
+
+reserved
+
+sw_ar_qos_en
+All bus channel AXI read qos enable
+1'b0: Disable
+1'b1: Enable
+
+RGA3_VERSION_NUM
+Address: Operational Base + offset (0x0018)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:28 RW 0x0
+
+major
+RGA3 major number
+
+27:20 RW 0x00
+
+minor
+RGA3 minor number
+
+19:0
+
+svnbulid
+RGA3 svn build number
+
+RW 0x00000
+
+RGA3_VERSION_TIM
+Address: Operational Base + offset (0x001C)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RW 0x0000
+
+year
+RGA3 year
+
+15:8
+
+RW 0x00
+
+month
+RGA3 month
+
+7:0
+
+RW 0x00
+
+date
+RGA3 date
+
+RGA3_INT_EN
+Address: Operational Base + offset (0x0020)
+Bit
+
+Attr Reset Value
+
+31:30 RO
+
+29
+
+28
+
+27
+
+0x0
+
+Description
+reserved
+
+RW 0x0
+
+int_en_win1_ver_fifo_ren_err
+RGA3 win1 vertical FIFO read error enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_en_win1_ver_fifo_wen_err
+RGA3 win1 vertical FIFO write error enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_en_win1_hor_fifo_ren_err
+RGA3 win1 horizontal FIFO read error enable
+1'b0: Disable
+1'b1: Enable
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+721
+
+RK3588 TRM-Part2
+Bit
+
+26
+
+25
+
+24
+
+Attr Reset Value
+
+RW 0x0
+
+int_en_win1_hor_fifo_wen_err
+RGA3 win1 horizontal FIFO write error enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_en_win1_in_fifo_ren_err
+RGA3 win1 in FIFO read error enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_en_win1_in_fifo_wen_err
+RGA3 win1 in FIFO write error enable
+1'b0: Disable
+1'b1: Enable
+
+23:22 RO
+
+21
+
+20
+
+19
+
+18
+
+17
+
+16
+
+15
+
+14
+
+Description
+
+0x0
+
+reserved
+
+RW 0x0
+
+int_en_win0_ver_fifo_ren_err
+RGA3 win0 vertical FIFO read error enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_en_win0_ver_fifo_wen_err
+RGA3 win0 vertical FIFO write error enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_en_win0_hor_fifo_ren_err
+RGA3 win0 horizontal FIFO read error enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_en_win0_hor_fifo_wen_err
+RGA3 win0 horizontal FIFO write error enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_en_win0_in_fifo_ren_err
+RGA3 win0 in FIFO read error enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_en_win0_in_fifo_wen_err
+RGA3 win0 in FIFO write error enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_en_rga_mi_wr_bus_err
+RGA3 mi_wr bus error enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_en_rga_mi_wr_in_herr
+RGA3 mi_wr horizontal error enable
+1'b0: Disable
+1'b1: Enable
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+722
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+Description
+
+13
+
+RW 0x0
+
+int_en_rga_mi_wr_in_verr
+RGA3 mi_wr vertical error enable
+1'b0: Disable
+1'b1: Enable
+
+12
+
+RO
+
+reserved
+
+11
+
+10
+
+9
+
+8
+
+7
+
+6
+
+5
+
+4
+
+3
+
+2
+
+0x0
+
+RW 0x0
+
+int_en_win1_v_err
+RGA3 win1 vertical error enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_en_win1_h_err
+RGA3 win1 horizontal error enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_en_win1_fbcd_dec_err
+RGA3 win1 FBCD decoder error enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_en_win1_rd_frm_end
+RGA3 win1 read frame end enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_en_win0_v_err
+RGA3 win0 vertical error enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_en_win0_h_err
+RGA3 win0 horizontal error enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_en_win0_fbcd_dec_err
+RGA3 win0 FBCD decoder error enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_en_win0_rd_frm_end
+RGA3 win0 read frame end enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_en_cmd_line_finish
+RGA3 command line finish enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_en_rga_mi_rd_bus_err
+RGA3 DMA read bus error enable
+1'b0: Disable
+1'b1: Enable
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+723
+
+RK3588 TRM-Part2
+Bit
+
+1
+
+0
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+int_en_rga_mmu_intr
+RGA3 MMU interrupt enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_en_frm_done
+RGA3 frame done enable
+1'b0: Disable
+1'b1: Enable
+
+RGA3_INT_RAW
+Address: Operational Base + offset (0x0024)
+Bit
+
+Attr Reset Value
+
+31:30 RO
+
+0x0
+
+Description
+reserved
+
+RW 0x0
+
+int_raw_win1_ver_fifo_ren_err
+RGA3 win1 vertical FIFO read error interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RO
+
+0x0
+
+int_raw_win1_ver_fifo_wen_err
+RGA3 win1 vertical FIFO write error interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+0x0
+
+int_raw_win1_hor_fifo_ren_err
+RGA3 win1 horizontal FIFO read error interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+0x0
+
+int_raw_win1_hor_fifo_wen_err
+RGA3 win1 horizontal FIFO write error interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+0x0
+
+int_raw_win1_in_fifo_ren_err
+RGA3 win1 in FIFO read error interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RO
+
+0x0
+
+int_raw_win1_in_fifo_wen_err
+RGA3 win1 in FIFO write error interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+23:22 RO
+
+0x0
+
+reserved
+
+29
+
+28
+
+27
+
+26
+
+25
+
+24
+
+21
+
+RO
+
+RO
+
+RO
+
+RW 0x0
+
+int_raw_win0_ver_fifo_ren_err
+RGA3 win0 vertical FIFO read error interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+724
+
+RK3588 TRM-Part2
+Bit
+
+20
+
+19
+
+18
+
+17
+
+16
+
+15
+
+14
+
+Attr Reset Value
+
+RO
+
+RO
+
+RO
+
+RO
+
+RO
+
+RO
+
+RO
+
+Description
+
+0x0
+
+int_raw_win0_ver_fifo_wen_err
+RGA3 win0 vertical FIFO write error interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+0x0
+
+int_raw_win0_hor_fifo_ren_err
+RGA3 win0 horizontal FIFO read error interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+0x0
+
+int_raw_win0_hor_fifo_wen_err
+RGA3 win0 horizontal FIFO write error interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+0x0
+
+int_raw_win0_in_fifo_ren_err
+RGA3 win0 in FIFO read error interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+0x0
+
+int_raw_win0_in_fifo_wen_err
+RGA3 win0 in FIFO write error interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+0x0
+
+int_raw_rga_mi_wr_bus_err
+RGA3 mi_wr bus error interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+0x0
+
+int_raw_rga_mi_wr_in_herr
+RGA3 mi_wr horizontal error interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+13
+
+RW 0x0
+
+int_raw_rga_mi_wr_in_verr
+RGA3 mi_wr vertical error interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+12
+
+RO
+
+0x0
+
+reserved
+
+0x0
+
+int_raw_win1_v_err
+RGA3 win1 vertical error interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+0x0
+
+int_raw_win1_h_err
+RGA3 win1 horizontal error interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+0x0
+
+int_raw_win1_fbcd_dec_err
+RGA3 win1 FBCD decoder error interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+11
+
+10
+
+9
+
+RO
+
+RO
+
+RO
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+725
+
+RK3588 TRM-Part2
+Bit
+
+8
+
+Attr Reset Value
+
+RO
+
+7
+
+RO
+
+6
+
+RO
+
+5
+
+4
+
+3
+
+0x0
+
+int_raw_win0_h_err
+RGA3 win0 horizontal error interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RO
+
+0x0
+
+int_raw_win0_rd_frm_end
+RGA3 win0 read frame end interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+0x0
+
+int_raw_cmd_line_finish
+RGA3 command line finish interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+0x0
+
+int_raw_rga_mi_rd_bus_err
+RGA3 DMA read bus error interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+0x0
+
+int_raw_rga_mmu_intr
+RGA3 MMU interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+0x0
+
+int_raw_frm_done
+RGA3 frame done interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RO
+
+0
+
+0x0
+
+int_raw_win0_v_err
+RGA3 win0 vertical error interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RW 0x0
+
+RO
+
+1
+
+0x0
+
+int_raw_win1_rd_frm_end
+RGA3 win1 read frame end interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+int_raw_win0_fbcd_dec_err
+RGA3 win0 FBCD decoder error interrupt raw status
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RO
+
+2
+
+Description
+
+RO
+
+RGA3_INT_MSK
+Address: Operational Base + offset (0x0028)
+Bit
+
+Attr Reset Value
+
+31:30 RO
+
+29
+
+0x0
+
+RW 0x0
+
+Description
+reserved
+int_msk_win1_ver_fifo_ren_err
+RGA3 win1 vertical FIFO read error interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+726
+
+RK3588 TRM-Part2
+Bit
+
+28
+
+27
+
+26
+
+25
+
+24
+
+Attr Reset Value
+
+RW 0x0
+
+int_msk_win1_ver_fifo_wen_err
+RGA3 win1 vertical FIFO write error interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RW 0x0
+
+int_msk_win1_hor_fifo_ren_err
+RGA3 win1 horizontal FIFO read error interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RW 0x0
+
+int_msk_win1_hor_fifo_wen_err
+RGA3 win1 horizontal FIFO write error interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RW 0x0
+
+int_msk_win1_in_fifo_ren_err
+RGA3 win1 in FIFO read error interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RW 0x0
+
+int_msk_win1_in_fifo_wen_err
+RGA3 win1 in FIFO write error interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+23:22 RO
+
+21
+
+20
+
+19
+
+18
+
+17
+
+16
+
+Description
+
+0x0
+
+reserved
+
+RW 0x0
+
+int_msk_win0_ver_fifo_ren_err
+RGA3 win0 vertical FIFO read error interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RW 0x0
+
+int_msk_win0_ver_fifo_wen_err
+RGA3 win0 vertical FIFO write error interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RW 0x0
+
+int_msk_win0_hor_fifo_ren_err
+RGA3 win0 horizontal FIFO read error interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RW 0x0
+
+int_msk_win0_hor_fifo_wen_err
+RGA3 win0 horizontal FIFO write error interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RW 0x0
+
+int_msk_win0_in_fifo_ren_err
+RGA3 win0 in FIFO read error interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RW 0x0
+
+int_msk_win0_in_fifo_wen_err
+RGA3 win0 in FIFO write error interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+727
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+int_msk_rga_mi_wr_bus_err
+RGA3 mi_wr bus error interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RW 0x0
+
+int_msk_rga_mi_wr_in_herr
+RGA3 mi_wr horizontal error interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+13
+
+RW 0x0
+
+int_msk_rga_mi_wr_in_verr
+RGA3 mi_wr vertical error interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+12
+
+RO
+
+reserved
+
+15
+
+14
+
+11
+
+10
+
+9
+
+8
+
+7
+
+6
+
+5
+
+4
+
+0x0
+
+RW 0x0
+
+int_msk_win1_v_err
+RGA3 win1 vertical error interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RW 0x0
+
+int_msk_win1_h_err
+RGA3 win1 horizontal error interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RW 0x0
+
+int_msk_win1_fbcd_dec_err
+RGA3 win1 FBCD decoder error interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RW 0x0
+
+int_msk_win1_rd_frm_end
+RGA3 win1 read frame end interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RW 0x0
+
+int_msk_win0_v_err
+RGA3 win0 vertical error interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RW 0x0
+
+int_msk_win0_h_err
+RGA3 win0 horizontal error interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RW 0x0
+
+int_msk_win0_fbcd_dec_err
+RGA3 win0 FBCD decoder error interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RW 0x0
+
+int_msk_win0_rd_frm_end
+RGA3 win0 read frame end interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+728
+
+RK3588 TRM-Part2
+Bit
+
+3
+
+2
+
+1
+
+0
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+int_msk_cmd_line_finish
+RGA3 command line finish interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RW 0x0
+
+int_msk_rga_mi_rd_bus_err
+RGA3 DMA read bus error interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RW 0x0
+
+int_msk_rga_mmu_intr
+RGA3 MMU interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RW 0x0
+
+int_msk_frm_done
+RGA3 frame done interrupt mask
+1'b0: Interrupt invalid
+1'b1: Interrupt valid
+
+RGA3_INT_CLR
+Address: Operational Base + offset (0x002C)
+Bit
+
+Attr Reset Value
+
+31:30 RO
+
+29
+
+28
+
+27
+
+26
+
+25
+
+24
+
+0x0
+
+Description
+reserved
+
+RW 0x0
+
+int_clr_win1_ver_fifo_ren_err
+RGA3 win1 vertical FIFO read error interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+R/W
+0x0
+SC
+
+int_clr_win1_ver_fifo_wen_err
+RGA3 win1 vertical FIFO write error interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+R/W
+0x0
+SC
+
+int_clr_win1_hor_fifo_ren_err
+RGA3 win1 horizontal FIFO read error interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+R/W
+0x0
+SC
+
+int_clr_win1_hor_fifo_wen_err
+RGA3 win1 horizontal FIFO write error interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_clr_win1_in_fifo_ren_err
+RGA3 win1 in FIFO read error interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+R/W
+0x0
+SC
+
+int_clr_win1_in_fifo_wen_err
+RGA3 win1 in FIFO write error interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+729
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+23:22 RO
+
+0x0
+
+Description
+reserved
+
+RW 0x0
+
+int_clr_win0_ver_fifo_ren_err
+RGA3 win0 vertical FIFO read error interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_clr_win0_ver_fifo_wen_err
+RGA3 win0 vertical FIFO write error interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+R/W
+0x0
+SC
+
+int_clr_win0_hor_fifo_ren_err
+RGA3 win0 horizontal FIFO read error interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_clr_win0_hor_fifo_wen_err
+RGA3 win0 hor horizontal FIFO write error interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+R/W
+0x0
+SC
+
+int_clr_win0_in_fifo_ren_err
+RGA3 win0 in FIFO read error interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_clr_win0_in_fifo_wen_err
+RGA3 win0 in FIFO write error interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+R/W
+0x0
+SC
+
+int_clr_rga_mi_wr_bus_err
+RGA3 mi_wr bus error interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+R/W
+0x0
+SC
+
+int_clr_rga_mi_wr_in_herr
+RGA3 mi_wr horizontal error interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+13
+
+R/W
+0x0
+SC
+
+int_clr_rga_mi_wr_in_verr
+RGA3 mi_wr vertical error interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+12
+
+RO
+
+reserved
+
+21
+
+20
+
+19
+
+18
+
+17
+
+16
+
+15
+
+14
+
+11
+
+0x0
+
+RW 0x0
+
+int_clr_win1_v_err
+RGA3 win1 vertical error interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+730
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+Description
+
+R/W
+0x0
+SC
+
+int_clr_win1_h_err
+RGA3 win1 horizontal error interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+R/W
+0x0
+SC
+
+int_clr_win1_fbcd_dec_err
+RGA3 win1 FBCD decoder error interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+R/W
+0x0
+SC
+
+int_clr_win1_rd_frm_end
+RGA3 win1 read frame end interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+R/W
+0x0
+SC
+
+int_clr_win0_v_err
+RGA3 win0 vertical error interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+R/W
+0x0
+SC
+
+int_clr_win0_h_err
+RGA3 win0 horizontal error interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+R/W
+0x0
+SC
+
+int_clr_win0_fbcd_dec_err
+RGA3 win0 FBCD decoder error interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+R/W
+0x0
+SC
+
+int_clr_win0_rd_frm_end
+RGA3 win0 read frame end interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+3
+
+R/W
+0x0
+SC
+
+int_clr_cmd_line_finish
+RGA3 command line finish interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+2
+
+R/W
+0x0
+SC
+
+int_clr_rga_mi_rd_bus_err
+RGA3 DMA read bus error interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+R/W
+0x0
+SC
+
+int_clr_rga_mmu_intr
+RGA3 MMU interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+R/W
+0x0
+SC
+
+int_clr_frm_done
+RGA3 frame done interrupt clear
+1'b0: Disable
+1'b1: Enable
+
+10
+
+9
+
+8
+
+7
+
+6
+
+5
+
+4
+
+1
+
+0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+731
+
+RK3588 TRM-Part2
+RGA3_RO_SRST
+Address: Operational Base + offset (0x0030)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:6
+
+RO
+
+0x0000000
+
+reserved
+
+5:0
+
+RO
+
+0x00
+
+ro_srst_done
+RGA soft reset done
+
+RGA3_STATUS0
+Address: Operational Base + offset (0x0034)
+Bit
+
+Attr Reset Value
+
+31:20 RO
+
+19
+
+18
+
+17
+
+16
+
+15
+
+14
+
+13
+
+12
+
+0x000
+
+Description
+reserved
+
+RW 0x0
+
+ovlp_ack
+Ovlp_ack
+1'b0: Signal is low
+1'b1: Signal is high
+
+RO
+
+0x0
+
+ovlp_val
+Ovlp_val
+1'b0: Signal is low
+1'b1: Signal is high
+
+0x0
+
+scan_ack
+Scan_ack
+1'b0: Signal is low
+1'b1: Signal is high
+
+RW 0x0
+
+scan_val
+Scan_val
+1'b0: Signal is low
+1'b1: Signal is high
+
+RO
+
+0x0
+
+win1_ver_ack
+Win1_ver_ack
+1'b0: Signal is low
+1'b1: Signal is high
+
+0x0
+
+win1_ver_val
+Win1_ver_val
+1'b0: Signal is low
+1'b1: Signal is high
+
+0x0
+
+win1_hor_ack
+Win1_hor_ack
+1'b0: Signal is low
+1'b1: Signal is high
+
+0x0
+
+win1_hor_val
+Win1_hor_val
+1'b0: Signal is low
+1'b1: Signal is high
+
+RO
+
+RO
+
+RO
+
+RO
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+732
+
+RK3588 TRM-Part2
+Bit
+
+11
+
+10
+
+9
+
+8
+
+7
+
+6
+
+5
+
+4
+
+3
+
+2
+
+1
+
+Attr Reset Value
+
+RO
+
+RO
+
+RO
+
+RO
+
+RO
+
+RO
+
+RO
+
+RO
+
+RO
+
+RO
+
+RO
+
+Description
+
+0x0
+
+win1_src_ack
+Win1_src_ack
+1'b0: Signal is low
+1'b1: Signal is high
+
+0x0
+
+win1_src_val
+Win1_src_val
+1'b0: Signal is low
+1'b1: Signal is high
+
+0x0
+
+win1_in_ack
+Win1_in_ack
+1'b0: Signal is low
+1'b1: Signal is high
+
+0x0
+
+win1_in_val
+Win1_in_val
+1'b0: Signal is low
+1'b1: Signal is high
+
+0x0
+
+win0_ver_ack
+Win0_ver_ack
+1'b0: Signal is low
+1'b1: Signal is high
+
+0x0
+
+win0_ver_val
+Win0_ver_val
+1'b0: Signal is low
+1'b1: Signal is high
+
+0x0
+
+win0_hor_ack
+Win0_hor_ack
+1'b0: Signal is low
+1'b1: Signal is high
+
+0x0
+
+win0_hor_val
+Win0_hor_val
+1'b0: Signal is low
+1'b1: Signal is high
+
+0x0
+
+win0_src_ack
+Win0_src_ack
+1'b0: Signal is low
+1'b1: Signal is high
+
+0x0
+
+win0_src_val
+Win0_src_val
+1'b0: Signal is low
+1'b1: Signal is high
+
+0x0
+
+win0_in_ack
+Win0_in_ack
+1'b0: Signal is low
+1'b1: Signal is high
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+733
+
+RK3588 TRM-Part2
+Bit
+
+0
+
+Attr Reset Value
+
+RO
+
+0x0
+
+Description
+win0_in_val
+Win0_in_val
+1'b0: Signal is low
+1'b1: Signal is high
+
+RGA3_CMD_STATE
+Address: Operational Base + offset (0x0040)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:28 RO
+
+0x0
+
+reserved
+
+27:16 RO
+
+0x000
+
+cmd_cnt_cur
+Command current frame counter
+
+15:1
+
+0x0000
+
+reserved
+
+0x0
+
+cmd_working
+Command working status
+1'b0: RGA is idle
+1'b1: RGA is working
+
+0
+
+RO
+
+RO
+
+RGA3_WIN0_CTRL
+Address: Operational Base + offset (0x0100)
+Bit
+31
+
+Attr Reset Value
+RO
+
+0x0
+
+Description
+reserved
+
+RW 0x0
+
+sw_win0_rd_align_dis
+Raster read mode align disable
+1'b0: Enable
+1'b1: Disable
+
+29
+
+RW 0x0
+
+sw_win0_perf_opt_dis
+AXI read performance optimization disable
+1'b0: Enable
+1'b1: Disable
+
+28
+
+RO
+
+reserved
+
+30
+
+0x0
+
+27:26 RW 0x0
+
+sw_win0_csc_mode
+Color space conversion
+2'b00: BT601_L
+2'b01: BT709
+2'b10: BT601_F
+2'b11: BT2020
+
+25
+
+RW 0x0
+
+sw_win0_r2y_en
+Win RGB to YUV transfer, if input is RGB, overlap field is YUV
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+sw_win0_y2r_en
+Win YUV to RGB transfer, if input is YUV, overlap field is RGB
+1'b0: Disable
+1'b1: Enable
+
+24
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+734
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+sw_win_ver_up
+Win vertical up scale
+1'b0: No scale up
+1'b1: Scale up
+
+RW 0x0
+
+sw_win0_ver_by
+Win vertical bypass
+1'b0: No bypass
+1'b1: Bypass
+
+RW 0x0
+
+sw_win0_hor_up
+Win horizontal up scale
+1'b0: No scale up
+1'b1: Scale up
+
+20
+
+RW 0x0
+
+sw_win0_hor_by
+Win horizontal bypass
+1'b0: No bypass
+1'b1: Bypass
+
+19
+
+RO
+
+reserved
+
+23
+
+22
+
+21
+
+18
+
+17
+
+16
+
+RW 0x0
+
+sw_win0_ymirror
+Input picture y-mirror enable
+1'b0: No y-mirror
+1'b1: Y-mirror
+
+RW 0x0
+
+sw_win0_xmirror
+Input picture x-mirror enable
+1'b0: No x-mirror
+1'b1: X-mirror
+
+RW 0x0
+
+sw_win0_rot
+Input picture rotation enable
+1'b0: No rotation
+1'b1: Rotation
+Note: YUV422 (or YUYV) does not support rotation
+
+15:14 RO
+13
+
+12
+
+11
+
+10
+
+0x0
+
+0x0
+
+reserved
+
+RW 0x0
+
+sw_win0_yc_swap
+YC swap, used by YUYV
+
+RW 0x0
+
+sw_win0_pix_swap
+Input data pixel swap.
+If RGB mode, do RB swap, else do UV swap
+
+RW 0x0
+
+sw_win0_endian_mode
+Input YUV10bit incompact data endian mode in DDR for raster
+mode
+1'b0: Little-endian
+1'b1: Big-endian
+
+RW 0x0
+
+sw_win0_yuv10b_compact
+Input YUV10bit data is compact in DDR for raster mode
+1'b0: Incompact
+1'b1: Compact
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+735
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+sw_win0_rd_format
+Defines how YUV picture data is read from DDR
+2'b00: Reserved
+2'b01: Semi planar, for YUV 4:2:x
+2'b10: Interleaved, RGB or YUYV(YUV422 8bti)
+2'b11: Reserved
+
+7:4
+
+RW 0x0
+
+sw_win0_pic_format
+Input picture format
+4'b0000: YUV420 8bit
+4'b0001: YUV422 8bit
+4'b0010: YUV420 10bit
+4'b0011: YUV422 10bit
+4'b0100: RGB565
+4'b0101: RGB888
+4'b0110: ARGB8888
+4'b0111: RGBA8888
+4'b1000: ABGR8888
+4'b1001: BGRA8888
+4'b1010~4'b1111: Reserved
+
+3
+
+RO
+
+reserved
+
+9:8
+
+2:1
+
+0
+
+0x0
+
+RW 0x0
+
+sw_win0_rd_mode
+Win0 read mode
+2'b00: Raster mode
+2'b01: FBCD mode
+2'b10: Tile8x8 mode
+2'b11: Reserved
+
+RW 0x0
+
+sw_win0_enable
+Win0 enable
+1'b0: Win0 disable
+1'b1: Win0 enable
+
+RGA3_WIN0_Y_BASE
+Address: Operational Base + offset (0x0110)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:4
+
+RW 0x0000000
+
+sw_win0_y_base
+Base address of input picture Y or RGB or header (FBCD mode)
+component ring buffer
+Note: 16byte aligned
+
+3:0
+
+RO
+
+reserved
+
+0x0
+
+RGA3_WIN0_C_BASE
+Address: Operational Base + offset (0x0114)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+736
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+Description
+
+31:4
+
+RW 0x0000000
+
+sw_win0_c_base
+Base address of input picture C or payload (FBCD mode)
+component ring buffer
+Note: 16byte aligned
+
+3:0
+
+RO
+
+reserved
+
+0x0
+
+RGA3_WIN0_VIR_STRIDE
+Address: Operational Base + offset (0x011C)
+Bit
+
+Attr Reset Value
+
+31:15 RO
+
+14:0
+
+0x00000
+
+RW 0x0000
+
+Description
+reserved
+sw_win0_vir_stride
+Virtual stride of input picture y or RGB or header (FBCD mode)
+component ring buffer
+Note: Word unit, 16byte align. If header, the recommended
+configuration is 0.
+
+RGA3_WIN0_FBC_OFF
+Address: Operational Base + offset (0x0120)
+Bit
+
+Attr Reset Value
+
+31:29 RO
+
+0x0
+
+Description
+reserved
+
+28:16 RW 0x0000
+
+sw_win0_fbc_yoff
+Source picture FBCD up y-offset for src_height + fbc_yoff is
+16pixel align.
+
+15:13 RO
+
+reserved
+
+12:0
+
+0x0
+
+RW 0x0000
+
+sw_win0_fbc_xoff
+Source picture FBCD left x-offset for src_width + fbc_xoff is
+16pixel align.
+
+RGA3_WIN0_SRC_SIZE
+Address: Operational Base + offset (0x0124)
+Bit
+
+Attr Reset Value
+
+31:29 RO
+
+0x0
+
+Description
+reserved
+
+28:16 RW 0x0000
+
+sw_win0_src_height
+Input source picture height
+
+15:13 RO
+
+reserved
+
+12:0
+
+0x0
+
+RW 0x0000
+
+sw_win0_src_width
+Input source picture width
+
+RGA3_WIN0_ACT_OFF
+Address: Operational Base + offset (0x0128)
+Bit
+
+Attr Reset Value
+
+31:29 RO
+
+0x0
+
+28:16 RW 0x0000
+
+Description
+reserved
+sw_win0_act_yoff
+Actual input picture y-offset
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+737
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+15:13 RO
+12:0
+
+0x0
+
+RW 0x0000
+
+Description
+reserved
+sw_win0_act_xoff
+Actual input picture x-offset
+
+RGA3_WIN0_ACT_SIZE
+Address: Operational Base + offset (0x012C)
+Bit
+
+Attr Reset Value
+
+31:29 RO
+
+0x0
+
+Description
+reserved
+
+28:16 RW 0x0000
+
+sw_win0_act_height
+Actual picture height
+
+15:13 RO
+
+reserved
+
+12:0
+
+0x0
+
+RW 0x0000
+
+sw_win0_act_width
+Actual picture width
+
+RGA3_WIN0_DST_SIZE
+Address: Operational Base + offset (0x0130)
+Bit
+
+Attr Reset Value
+
+31:29 RO
+
+0x0
+
+Description
+reserved
+
+28:16 RW 0x0000
+
+sw_win0_dst_height
+Destination picture height
+
+15:13 RO
+
+reserved
+
+12:0
+
+0x0
+
+RW 0x0000
+
+sw_win0_dst_width
+Destination picture width
+
+RGA3_WIN0_SCL_FAC
+Address: Operational Base + offset (0x0134)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RW 0x0000
+
+sw_win0_ver_fac
+Scale down
+int(65536*(dst-1)/(src-1)) + 1
+scale up
+if((dst-1) % (src-1) == 0)
+int(65536*(dst-1)/(src-1)) - 1
+else
+int(65536*(dst-1)/(src-1));
+
+15:0
+
+sw_win0_hor_fac
+Scale down
+int(65536*(dst-1)/(src-1)) + 1
+scale up
+if((dst-1) % (src-1) == 0)
+int(65536*(dst-1)/(src-1)) - 1
+else
+int(65536*(dst-1)/(src-1));
+
+RW 0x0000
+
+RGA3_WIN0_C_VIR_STRIDE
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+738
+
+RK3588 TRM-Part2
+Address: Operational Base + offset (0x0138)
+Bit
+
+Attr Reset Value
+
+31:15 RO
+14:0
+
+0x00000
+
+RW 0x0000
+
+Description
+reserved
+sw_win0_uv_vir_stride
+Virtual stride of input picture uv component ring buffer
+Note: Word unit, 16byte align
+
+RGA3_WIN1_CTRL
+Address: Operational Base + offset (0x0140)
+Bit
+31
+
+Attr Reset Value
+RO
+
+0x0
+
+Description
+reserved
+
+RW 0x0
+
+sw_win1_rd_align_dis
+Raster read mode align disable
+1'b0: Enable
+1'b1: Disable
+
+29
+
+RW 0x0
+
+sw_win1_perf_opt_dis
+AXI read performance optimization disable
+1'b0: Enable
+1'b1: Disable
+
+28
+
+RO
+
+reserved
+
+30
+
+0x0
+
+27:26 RW 0x0
+
+sw_win1_csc_mode
+Color space conversion
+2'b00: BT601_L
+2'b01: BT709
+2'b10: BT601_F
+2'b11: BT2020
+
+25
+
+RW 0x0
+
+sw_win1_r2y_en
+Win RGB to YUV transfer, if input is RGB, overlap field is YUV
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+sw_win1_y2r_en
+Win YUV to RGB transfer, if input is YUV, overlap field is RGB
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+sw_win1_ver_up
+Win vertical up scale
+1'b0: No scale up
+1'b1: Scale up
+
+RW 0x0
+
+sw_win1_ver_by
+Win vertical bypass
+1'b0: No bypass
+1'b1: Bypass
+
+RW 0x0
+
+sw_win1_hor_up
+Win horizontal up scale
+1'b0: No scale up
+1'b1: Scale up
+
+24
+
+23
+
+22
+
+21
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+739
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+Description
+
+20
+
+RW 0x0
+
+sw_win1_hor_by
+Win horizontal bypass
+1'b0: No bypass
+1'b1: Bypass
+
+19
+
+RO
+
+reserved
+
+18
+
+17
+
+16
+
+RW 0x0
+
+sw_win1_ymirror
+Input picture y-mirror enable
+1'b0: No y-mirror
+1'b1: Y-mirror
+
+RW 0x0
+
+sw_win1_xmirror
+Input picture x-mirror enable
+1'b0: No x-mirror
+1'b1: X-mirror
+
+RW 0x0
+
+sw_win1_rot
+Input picture rotation enable
+1'b0: No rotation
+1'b1: Rotation
+Note: YUV422 (or YUYV) does not support rotation
+
+15:14 RO
+13
+
+12
+
+11
+
+10
+
+9:8
+
+0x0
+
+0x0
+
+reserved
+
+RW 0x0
+
+sw_win1_yc_swap
+YC swap, used by YUYV
+
+RW 0x0
+
+sw_win1_pix_swap
+Input data pixel swap.
+If RGB mode, do RB swap, else do UV swap
+
+RW 0x0
+
+sw_win1_endian_mode
+Input YUV10bit incompact data endian mode in DDR for raster
+mode
+1'b0: Little-endian
+1'b1: Big-endian
+
+RW 0x0
+
+sw_win1_yuv10b_compact
+Input YUV10bit data is compact in DDR for raster mode
+1'b0: Incompact
+1'b1: Compact
+
+RW 0x0
+
+sw_win1_rd_format
+Defines how YUV picture data is read from DDR
+2'b00: Reserved
+2'b01: Semi planar, for YUV 4:2:x
+2'b10: Interleaved, RGB or YUYV(YUV422 8bit)
+2'b11: Reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+740
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+Description
+
+7:4
+
+RW 0x0
+
+sw_win1_pic_format
+Input picture format
+4'b0000: YUV420 8bit
+4'b0001: YUV422 8bit
+4'b0010: YUV420 10bit
+4'b0011: YUV422 10bit
+4'b0100: RGB565
+4'b0101: RGB888
+4'b0110: ARGB8888
+4'b0111: RGBA8888
+4'b1000: ABGR8888
+4'b1001: BGRA8888
+4'b1010~4'b1111: reserved
+
+3
+
+RO
+
+reserved
+
+2:1
+
+0
+
+0x0
+
+RW 0x0
+
+sw_win1_rd_mode
+Win1 read mode
+2'b00: Raster mode
+2'b01: FBCD mode
+2'b10: Tile8x8 mode
+2'b11: Reserved
+
+RW 0x0
+
+sw_win1_enable
+Win1 enable
+1'b0: Win1 disable
+1'b1: Win1 enable
+
+RGA3_WIN1_Y_BASE
+Address: Operational Base + offset (0x0150)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:4
+
+RW 0x0000000
+
+sw_win1_y_base
+Base address of input picture Y or RGB or header (FBCD mode)
+component ring buffer
+Note: 16byte aligned
+
+3:0
+
+RO
+
+reserved
+
+0x0
+
+RGA3_WIN1_C_BASE
+Address: Operational Base + offset (0x0154)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:4
+
+RW 0x0000000
+
+sw_win1_u_base
+Base address of input picture uv or payload (FBCD mode)
+component ring buffer
+Note: 16byte aligned
+
+3:0
+
+RO
+
+reserved
+
+0x0
+
+RGA3_WIN1_VIR_STRIDE
+Address: Operational Base + offset (0x015C)
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+741
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+31:15 RO
+
+14:0
+
+0x00000
+
+RW 0x0000
+
+Description
+reserved
+sw_win1_vir_stride
+Virtual stride of input picture Y or RGB or header (FBCD mode)
+component ring buffer
+Note: Word unit, 16byte align. If header, the recommended
+configuration is 0.
+
+RGA3_WIN1_FBC_OFF
+Address: Operational Base + offset (0x0160)
+Bit
+
+Attr Reset Value
+
+31:29 RO
+
+0x0
+
+Description
+reserved
+
+28:16 RW 0x0000
+
+sw_win1_fbc_yoff
+Source picture fbcd up y-offset for src_height + fbc_yoff is16pixel
+align
+
+15:13 RO
+
+reserved
+
+12:0
+
+0x0
+
+RW 0x0000
+
+sw_win1_fbc_xoff
+Source picture fbcd left x-offset for src_width + fbc_xoff is16pixel
+align
+
+RGA3_WIN1_SRC_SIZE
+Address: Operational Base + offset (0x0164)
+Bit
+
+Attr Reset Value
+
+31:29 RO
+
+0x0
+
+Description
+reserved
+
+28:16 RW 0x0000
+
+sw_win1_src_height
+Input source picture height
+
+15:13 RO
+
+reserved
+
+12:0
+
+0x0
+
+RW 0x0000
+
+sw_win1_src_width
+Input source picture width
+
+RGA3_WIN1_ACT_OFF
+Address: Operational Base + offset (0x0168)
+Bit
+
+Attr Reset Value
+
+31:29 RO
+
+0x0
+
+Description
+reserved
+
+28:16 RW 0x0000
+
+sw_win1_act_yoff
+Actual input picture y-offset
+
+15:13 RO
+
+reserved
+
+12:0
+
+0x0
+
+RW 0x0000
+
+sw_win1_act_xoff
+Actual input picture x-offset
+
+RGA3_WIN1_ACT_SIZE
+Address: Operational Base + offset (0x016C)
+Bit
+
+Attr Reset Value
+
+31:29 RO
+
+0x0
+
+Description
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+742
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+Description
+
+28:16 RW 0x0000
+
+sw_win1_act_height
+Actual picture height
+
+15:13 RO
+
+reserved
+
+12:0
+
+0x0
+
+RW 0x0000
+
+sw_win1_act_width
+Actual picture width
+
+RGA3_WIN1_DST_SIZE
+Address: Operational Base + offset (0x0170)
+Bit
+
+Attr Reset Value
+
+31:29 RO
+
+0x0
+
+Description
+reserved
+
+28:16 RW 0x0000
+
+sw_win1_dst_height
+Destination picture height
+
+15:13 RO
+
+reserved
+
+12:0
+
+0x0
+
+RW 0x0000
+
+sw_win1_dst_width
+Destination picture width
+
+RGA3_WIN1_SCL_FAC
+Address: Operational Base + offset (0x0174)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RW 0x0000
+
+sw_win1_ver_fac
+Scale down
+int(65536*(dst-1)/(src-1)) + 1
+scale up
+if((dst-1) % (src-1) == 0)
+int(65536*(dst-1)/(src-1)) - 1
+else
+int(65536*(dst-1)/(src-1));
+
+15:0
+
+sw_win1_hor_fac
+Scale down
+int(65536*(dst-1)/(src-1)) + 1
+scale up
+if((dst-1) % (src-1) == 0)
+int(65536*(dst-1)/(src-1)) - 1
+else
+int(65536*(dst-1)/(src-1));
+
+RW 0x0000
+
+RGA3_WIN1_C_VIR_STRIDE
+Address: Operational Base + offset (0x0178)
+Bit
+
+Attr Reset Value
+
+31:15 RO
+14:0
+
+0x00000
+
+RW 0x0000
+
+Description
+reserved
+sw_win1_uv_vir_stride
+Virtual stride of input picture uv component ring buffer
+Note: Word unit, 16byte aligned
+
+RGA3_OVLP_CTRL
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+743
+
+RK3588 TRM-Part2
+Address: Operational Base + offset (0x0180)
+Bit
+
+Attr Reset Value
+
+31:20 RO
+
+0x000
+
+Description
+reserved
+
+RW 0x0000
+
+sw_top_key_en
+Top key enable
+1'b0: Disable
+1'b1: Enable
+
+4
+
+RW 0x0
+
+sw_top_alpha_en
+Top alpha enable
+1'b0: Disable
+1'b1: Enable
+
+3
+
+RO
+
+reserved
+
+19:5
+
+2
+
+1:0
+
+0x0
+
+RW 0x0
+
+sw_ovlp_field
+Overlap field
+1'b0: RGB field
+1'b1: YUV field
+
+RW 0x0
+
+sw_ovlp_mode
+Overlap mode
+1'b0: ABC mode
+1'b1: ABB mode
+
+RGA3_OVLP_OFF
+Address: Operational Base + offset (0x0184)
+Bit
+
+Attr Reset Value
+
+31:29 RO
+
+0x0
+
+Description
+reserved
+
+28:16 RW 0x0000
+
+sw_ovlp_yoff
+Overlap y-offset
+
+15:13 RO
+
+reserved
+
+12:0
+
+0x0
+
+RW 0x0000
+
+sw_ovlp_xoff
+Overlap x-offset
+
+RGA3_OVLP_TOP_KEY_MIN
+Address: Operational Base + offset (0x0188)
+Bit
+
+Attr Reset Value
+
+31:30 RO
+
+0x0
+
+Description
+reserved
+
+29:20 RW 0x000
+
+sw_top_key_vr_min
+Color key vr min value, if RGB or YUV 8bit, then shift left 2bits
+
+19:10 RW 0x000
+
+sw_top_key_ub_min
+Color key ub min value, if RGB or YUV 8bit, then shift left 2bits
+
+9:0
+
+sw_top_key_yg_min
+Color key yg min value, if RGB or YUV 8bit, then shift left 2bits
+
+RW 0x000
+
+RGA3_OVLP_TOP_KEY_MAX
+Address: Operational Base + offset (0x018C)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+744
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+31:30 RO
+
+0x0
+
+Description
+reserved
+
+29:20 RW 0x000
+
+sw_top_key_vr_max
+Color key vr max value, if RGB or YUV 8bit, then shift left 2bits
+
+19:10 RW 0x000
+
+sw_top_key_ub_max
+Color key ub max value, if RGB or YUV 8bit, then shift left 2bits
+
+9:0
+
+sw_top_key_yg_max
+Color key yg max value, if RGB or YUV 8bit, then shift left 2bits
+
+RW 0x000
+
+RGA3_OVLP_TOP_COLOR_CTRL
+Address: Operational Base + offset (0x0190)
+Bit
+
+Attr Reset Value
+
+31:24 RO
+
+0x00
+
+Description
+reserved
+
+23:16 RW 0x00
+
+sw_top_global_alpha
+Source global alpha value(Ags)
+
+15:8
+
+reserved
+
+7:5
+
+4
+
+3:2
+
+1
+
+0
+
+RO
+
+0x00
+
+RW 0x0
+
+sw_top_factor_m0
+Source factor of color channel
+3'b000: 0
+3'b001: 256
+3'b010: Ad0"
+3'b011: 256-Ad0"
+3'b100: As0"
+3'b101: Ags
+
+RW 0x0
+
+sw_top_alpha_cal_m0
+Source alpha select mode of color channel
+1'b0: As0_"+As0_">>7
+1'b1: As0_"
+
+RW 0x0
+
+sw_top_blend_m0
+Source alpha blending mode of color channel
+2'b00: Ags
+2'b01: As0'
+2'b10: (As0'*Ags)>>8
+
+RW 0x0
+
+sw_top_alpha_m0
+Source alpha mode of color channel
+1'b0: As
+1'b1: 255-As
+
+RW 0x0
+
+sw_top_color_m0
+Source color mode
+1'b0: Cs
+1'b1: Cs*As0"
+
+RGA3_OVLP_BOT_COLOR_CTRL
+Address: Operational Base + offset (0x0194)
+Bit
+
+Attr Reset Value
+
+31:24 RO
+
+0x00
+
+Description
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+745
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+Description
+
+23:16 RW 0x00
+
+sw_bot_global_alpha
+Destination global alpha value(Agd)
+
+15:8
+
+reserved
+
+7:5
+
+4
+
+3:2
+
+1
+
+0
+
+RO
+
+0x00
+
+RW 0x0
+
+sw_bot_factor_m0
+Destination factor of color channel
+3'b000: 0
+3'b001: 256
+3'b010: As0
+3'b011: 256-As0
+3'b100: Ad0
+3'b101: Ads
+
+RW 0x0
+
+sw_bot_alpha_cal_m0
+Destination alpha select mode of color channel
+1'b0: Ad0_"+Ad0_">> 7
+1'b1: Ad0_"
+
+RW 0x0
+
+sw_bot_blend_m0
+Destination alpha blending mode of color channel
+2'b00: Agd
+2'b01: Ad0'
+2'b10: (Ad0'*Agd)>>8
+
+RW 0x0
+
+sw_bot_alpha_m0
+Destination alpha mode of color channel
+1'b0: Ad
+1'b1: 255-Ad
+
+RW 0x0
+
+sw_bot_color_m0
+Destination color mode
+1'b0: Cd
+1'b1: Cd*Ad0"
+
+RGA3_OVLP_TOP_ALPHA_CTRL
+Address: Operational Base + offset (0x0198)
+Bit
+31:8
+
+7:5
+
+4
+
+Attr Reset Value
+RO
+
+0x000000
+
+Description
+reserved
+
+RW 0x0
+
+sw_top_factor_m1
+Source factor of alpha channel
+3'b000: 0
+3'b001: 256
+3'b010: Ad0"
+3'b011: 256-Ad0"
+3'b100: As0"
+3'b101: Ags
+
+RW 0x0
+
+sw_top_alpha_cal_m1
+Source alpha select mode of alpha channel
+1'b0: As0_"+As0_">>7
+1'b1: As0_"
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+746
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+sw_top_blend_m1
+Source alpha blending mode of alpha channel
+2'b00: Ag
+2'b01: As0
+2'b10: (As0'*Ags)>>8
+
+1
+
+RW 0x0
+
+sw_top_alpha_m1
+Source alpha mode of alpha channel
+1'b0: As
+1'b1: 255-As
+
+0
+
+RO
+
+reserved
+
+3:2
+
+0x0
+
+RGA3_OVLP_BOT_ALPHA_CTRL
+Address: Operational Base + offset (0x019C)
+Bit
+31:8
+
+Attr Reset Value
+RO
+
+0x000000
+
+Description
+reserved
+
+RW 0x0
+
+sw_bot_factor_m1
+Destination factor of alpha channel
+3'b000: 0
+3'b001: 256
+3'b010: As0"
+3'b011: 256-As0"
+3'b100: Ad0"
+3'b101: Ads
+
+RW 0x0
+
+sw_bot_alpha_cal_m1
+Destination alpha select mode of alpha channel
+1'b0: Ad0_"+Ad0_">>7
+1'b1: Ad0_"
+
+RW 0x0
+
+sw_bot_blend_m1
+Destination alpha blending mode of alpha channel
+2'b00: Ag
+2'b01: Ad0"
+2'b10: (Ad0"*Agd)>>8
+
+1
+
+RW 0x0
+
+sw_bot_alpha_m1
+Destination alpha mode of alpha channel
+1'b0: Ad
+1'b1: 255-Ad
+
+0
+
+RO
+
+reserved
+
+7:5
+
+4
+
+3:2
+
+0x0
+
+RGA3_WR_CTRL
+Address: Operational Base + offset (0x01A0)
+Bit
+
+Attr Reset Value
+
+31:21 RO
+
+0x000
+
+Description
+reserved
+
+20
+
+RW 0x0
+
+sw_wr_yc_swap
+YC swap, used by YUYV
+
+19
+
+RO
+
+reserved
+
+0x0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+747
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+Description
+
+18:13 RW 0x00
+
+sw_outstanding_max
+MI write ddr outstanding: 6'd0~6'd63
+
+12
+
+RW 0x0
+
+sw_wr_pix_swap
+Output data pixel swap.
+If RGB mode, do RB swap, else do UV swap
+
+RW 0x0
+
+sw_wr_endian_mode
+Output YUV10bit incompact data endian mode in DDR
+1'b0: Little-endiab
+1'b1: Big-endian
+
+RW 0x0
+
+sw_wr_yuv10b_compact
+Output YUV10bit data is compact in DDR
+1'b0: Incompact
+1'b1: Compact
+
+RW 0x0
+
+sw_wr_format
+Defines how YUV picture data is written to DDR
+2'b00: Reserved
+2'b01: Semi planar, for YUV 4:2:x
+2'b10: Interleaved, for RGB or YUYV(YUV422 8bit)
+2'b11: Reserved
+
+7:4
+
+RW 0x0
+
+sw_wr_pic_format
+Output picture format
+4'b0000: YUV420 8bit
+4'b0001: YUV422 8bit
+4'b0010: YUV420 10bit
+4'b0011: YUV422 10bit
+4'b0100: RGB565
+4'b0101: RGB888
+4'b0110: ARGB8888
+others: Reserved
+
+3
+
+RO
+
+reserved
+
+11
+
+10
+
+9:8
+
+2
+
+1:0
+
+0x0
+
+RW 0x0
+
+sw_wr_fbce_sparse_en
+Write fbce payload sparse mode enable
+1'b0: Non-sparse mode
+1'b1: Sparse mode
+
+RW 0x0
+
+sw_wr_mode
+Write mode
+2'b00: Raster mode
+2'b01: FBCE mode
+2'b10: Tile8x8 mode
+2'b11: Reserved
+
+RGA3_WR_FBCE_CTRL
+Address: Operational Base + offset (0x01A4)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+748
+
+RK3588 TRM-Part2
+Bit
+
+31
+
+Attr Reset Value
+
+RW 0x0
+
+30:14 RO
+
+0x00000
+
+Description
+sw_wr_fbce_size_align_dis
+FBCE output payload size align
+1'b0: FBCE 16x16 block payload aligned to 16B
+1'b1: FBCE 16x16 block payload not aligned to 16B
+Note: only valid when YUV420 10bit output
+reserved
+
+13:8
+
+RW 0x00
+
+sw_wr_fbce_pl_fifo1_watermark
+FBCE payload fifo0 watermark, default is 6
+
+7:2
+
+RW 0x00
+
+sw_wr_fbce_pl_fifo0_watermark
+FBCE payload fifo0 watermark, default is 6
+
+RW 0x0
+
+sw_wr_fbce_head_off_dis
+Write FBCE payload sparse mode enable
+1'b0: Payload offset in head
+1'b1: Payload no offset in head
+
+RW 0x0
+
+sw_wr_fbce_blk_opt_dis
+FBCE block optimize for DDR
+1'b0: Disable
+1'b1: Enable
+
+1
+
+0
+
+RGA3_WR_VIR_STRIDE
+Address: Operational Base + offset (0x01A8)
+Bit
+
+Attr Reset Value
+
+31:17 RO
+
+16:0
+
+0x0000
+
+RW 0x00000
+
+Description
+reserved
+sw_wr_vir_stride
+Virtual stride of output picture Y or RGB or header (FBCE mode)
+component ring buffer
+Note: Word unit, 16byte align. If header, the recommended
+configuration is 0.
+
+RGA3_WR_PL_VIR_STRIDE
+Address: Operational Base + offset (0x01AC)
+Bit
+
+Attr Reset Value
+
+31:17 RO
+
+16:0
+
+0x0000
+
+RW 0x00000
+
+Description
+reserved
+sw_wr_pl_vir_stride
+Virtual stride of input picture uv or payload (FBCE compact mode)
+component ring buffer
+Note: Word unit, 16byte align
+
+RGA3_WR_Y_BASE
+Address: Operational Base + offset (0x01B0)
+Bit
+
+31:0
+
+Attr Reset Value
+
+Description
+
+RW 0x00000000
+
+sw_wr_y_base
+Base address of output picture Y or RGB or header (FBCE mode)
+component ring buffer
+Note: 16byte align
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+749
+
+RK3588 TRM-Part2
+
+RGA3_WR_C_BASE
+Address: Operational Base + offset (0x01B4)
+Bit
+
+31:0
+
+Attr Reset Value
+
+RW 0x00000000
+
+Description
+sw_wr_u_base
+Base address of output picture UV or payload (FBCE mode)
+component ring buffer
+Note: 16byte align
+
+RGA3_MMU_DTE_ADDR
+Address: Operational Base + offset (0x0F00)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:4
+
+RW 0x0000000
+
+MMU_DTE_ADDR
+MMU current page Table address
+
+3:0
+
+RW 0x0
+
+reserved
+Reserved
+
+RGA3_MMU_STATUS
+Address: Operational Base + offset (0x0F04)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:11 RO
+
+0x000000
+
+reserved
+
+10:6
+
+0x00
+
+PAGE_FAULT_BUS_ID
+Index of master responsible for last page fault
+
+RO
+
+5
+
+RW 0x0
+
+PAGE_FAULT_IS_WRITE
+The direction of access for last page fault
+1'b0: Read
+1'b1: Write
+
+4
+
+RO
+
+0x1
+
+REPLAY_BUFFER_EMPTY
+The MMU replay buffer is empty.
+
+3
+
+RO
+
+0x1
+
+MMU_IDLE
+The MMU is idle when accesses are being translated and there are
+no unfinished translated accesses.
+
+0x0
+
+STAIL_ACTIVE
+MMU stall mode currently enabled. The mode is enabled by
+command.
+
+2
+
+RO
+
+1
+
+RO
+
+0x0
+
+PAGE_FAULT_ACTIVE
+MMU page fault mode currently enabled. The mode is enabled by
+command.
+
+0
+
+RO
+
+0x0
+
+PAGING_ENABLED
+Paging is enabled.
+
+RGA3_MMU_COMMAND
+Address: Operational Base + offset (0x0F08)
+Bit
+31:3
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+750
+
+RK3588 TRM-Part2
+Bit
+
+2:0
+
+Attr Reset Value
+
+WO 0x0
+
+Description
+MMU_CMD
+MMU_CMD. This can be:
+3'b000: MMU_ENABLE_PAGIN
+3'b001: MMU_DISABLE_PAGIN
+3'b010: MMU_ENABLE_STAL
+3'b011: MMU_DISABLE_STAL
+3'b100: MMU_ZAP_CACH
+3'b101: MMU_PAGE_FAULT_DON
+3'b110: MMU_FORCE_RESET
+
+RGA3_MMU_PAGE_FAULT_ADDR
+Address: Operational Base + offset (0x0F0C)
+Bit
+31:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+PAGE_FAULT_ADDR
+MMU address of last page fault
+
+RGA3_MMU_ZAP_ONE_LINE
+Address: Operational Base + offset (0x0F10)
+Bit
+
+Attr Reset Value
+
+31:0
+
+WO 0x00000000
+
+Description
+MMU_ZAP_ONE_LINE
+MMU address to be invalidated from the page table cache
+
+RGA3_MMU_INT_RAWSTAT
+Address: Operational Base + offset (0x0F14)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:2
+
+RO
+
+0x00000000
+
+reserved
+
+1
+
+RO
+
+0x0
+
+READ_BUS_ERROR
+Read bus error
+
+0
+
+RO
+
+0x0
+
+PAGE_FAULT
+Page fault
+
+RGA3_MMU_INT_CLEAR
+Address: Operational Base + offset (0x0F18)
+Bit
+
+Attr Reset Value
+0x00000000
+
+Description
+
+31:2
+
+RO
+
+reserved
+
+1
+
+WO 0x0
+
+READ_BUS_ERROR
+Read bus error
+
+0
+
+WO 0x0
+
+PAGE_FAULT
+Page fault
+
+RGA3_MMU_INT_MASK
+Address: Operational Base + offset (0x0F1C)
+Bit
+31:2
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+751
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+Description
+
+1
+
+RW 0x0
+
+READ_BUS_ERROR
+Read bus error
+
+0
+
+RW 0x0
+
+PAGE_FAULT
+Page fault
+
+RGA3_MMU_INT_STATUS
+Address: Operational Base + offset (0x0F20)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:2
+
+RO
+
+0x00000000
+
+reserved
+
+1
+
+RO
+
+0x0
+
+READ_BUS_ERROR
+Read bus error
+
+0
+
+RW 0x0
+
+PAGE_FAULT
+Page fault
+
+RGA3_MMU_AUTO_GATING
+Address: Operational Base + offset (0x0F24)
+Bit
+
+Attr Reset Value
+
+Description
+
+31
+
+RW 0x0
+
+mmu_bug_fixed_disable
+MMU bug fixed disable, must be 1
+
+30:2
+
+RO
+
+0x00000000
+
+reserved
+
+1
+
+RO
+
+0x1
+
+mmu_cfg_mode
+MMU configuration mode
+
+0
+
+RW 0x0
+
+mmu_auto_gating
+When it is 1'b1, the MMU will auto gate itself.
+
+RGA3_MMU_REG_LOAD_EN
+Address: Operational Base + offset (0x0F28)
+Bit
+
+Attr Reset Value
+
+31:1
+
+RO
+
+0x00000000
+
+0
+
+RW 0x1
+
+Description
+reserved
+reg_load_mmu_en
+Register load enable
+
+5.6 Application Notes
+5.6.1 Register Partition
+
+RGA3 contains two types of command modes: slave mode, master mode. The registers at
+the end of the address space (0x0-0xFC) are system registers, including command mode,
+command parameters, RGA3 status, interrupts and other related registers. Other registers
+(starting from 0x100) are the parameter configuration registers of the function.
+
+Sys_reg
+
+0x000
+...
+0x0FC
+0x100
+...
+
+Op_reg
+0x1BC
+
+Fig. 5-20 RGA3 software main register-region
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+752
+
+RK3588 TRM-Part2
+
+5.6.2 Command Modes
+
+1) slave mode(using AHB Bus)
+setting RGA3_SYS_CTRL[1] = 1’b0
+setting RGA3_SYS_CTRL[0] = 1’b1 (frame start) when all configuration is set done
+2) master mode(using AXI Bus)
+setting RGA3_SYS_CTRL[1] = 1’b1
+setting RGA3_CMD_ADDR
+setting AXI INCR burst number RGA3_CMD_CTRL[12:3]
+setting RGA3_CMD_CTRL[1]=1’b1 to fetch configuration from DDR:
+Task 1
+Command
+line 1
+
+Command 1
+
+...
+
+Command start addr
+Command incr number = m
+Command
+total number
+Command
+counter
+
+Task 2
+Command m
+
+Command
+m+1
+
+Command incr number = n
+m
+
+0
+
+...
+
+1
+
+Task 3
+Command
+m+n
+
+Command
+m+n+1
+
+m
+
+Command
+m+n+k
+
+Command incr number = k
+m+n
+
+...
+
+...
+
+m+1
+
+m+n+k
+
+...
+
+m+n
+
+m+n+1
+
+...
+
+Fig. 5-21 RGA3 command line and command counter
+
+5.6.3 Some special application constraint
+
+1) When input format is YUV422 or YUYV, only xmirror/ymirror is supported, rotation must
+not be set
+2) sw_win_fbc_xoff, sw_win_fbc_yoff only using when rd_mode is FBCD, and then
+sw_win_fbc_xoff + sw_win_src_width must be aligned to 16pixel
+sw_win_fbc_yoff + sw_win_src_height must be aligned to 16pixel
+3) act_xoff/act_yoff/act_width/act_height constrain
+input format = YUV420 8 bit: act_xoff/act_yoff/act_width/act_height must be aligned to
+2pixel
+input format = YUV420 10bit: act_xoff/act_width must be aligned to 4pixel, act_yoff
+/act_height must be aligned to 2pixel；
+input format = YUV422 8bit: act_xoff/act_width must be aligned to 2pixel
+input format = YUV422 10bit: act_xoff/act_width must be aligned to 4pixel
+4) Overlap constrain
+sw_win0_dst_width >= sw_win1_dst_width
+sw_win0_dst_height >= sw_win1_dst_height
+5) Other ABB constrains:
+a) B must not be set orient or resize
+b) B is fbcd layers(16x16), only support spared FBCD, and act_xoffset must be
+aligned to 16pixel, act_yoffset must be aligned to 16pixel, act_width must be
+aligned to 16pixel, act_height must be aligned to 16pixel
+c) B is tile layer(8x8), act_xoffset must be aligned to
+8pixel, act_yoffset must be aligned to 8pixel, act_width must
+aligned to 8pixel, act_height must be aligned to 8pixel
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+753
+
+RK3588 TRM-Part2
+

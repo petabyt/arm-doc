@@ -1,0 +1,3412 @@
+=== Page 70 ===
+This chapter describes the device system interconnect.
+3.1 System Interconnect Overview.................................................................................................................................71
+Chapter 3
+System Interconnect
+
+=== Page 71 ===
+3.1 System Interconnect Overview
+The SoC level interconnect consists of multiple types of components:
+•
+CBASS: this is a crossbar module to provide physical connection among the initiators and targets
+•
+VBUSP interface: a single-issue interface
+•
+VBUSM interface: a multi-issue interface
+•
+Channel ID: channel ID for interface indicates a logical flow. All the transactions with the same channel ID
+coming from the same initiator interface are consider orthogonal and independent flow.
+•
+RouteID: a unique identification of a particular initiator interface
+•
+OrderID: a 4 bits value associated with each transaction. All the transactions from the same initiator to the
+same target end point with the same orderID needs to be executed in order. OrderID is also to be used to
+select real-time and non-real time path for the transaction. OrderID 8-15 reserved for real-time path.
+•
+Asel: Address Selection. Asel can be either used for select a unique memory map or be used to indicate the
+IO coherent transactions.
+•
+PrivID: indicates the security access group. PrivID is assigned by the ISC block.
+•
+ISC: stands for Initiator Security Control. It is a part of the CBASS configuration parameter. Each initiator port
+can optionally enable ISC feature in the CBASS configuration. It provides privID and secure side band signal
+overwrite value for the transactions sent by the initiator. ISC can provide the overwrite value either based on
+the memory address or channel ID value the transaction carries. The configuration of the ISC is done through
+the VBUSP configuration port from the CBASS IP.
+•
+Region based firewall: this is firewall block based on address region.
+•
+Channelized firewall: firewall block with finer granularity down to register level with fixed region size.
+•
+QoS: Quality of Service block is a feature which can be enabled for each CBA initiator port connecting to
+the CBASS. Each initiator can choose to enable the QoS feature in the CBA configuration file. The QoS
+block provides some QoS related sideband signals if the initiator does not provide, such as orderID, priority,
+epriority and etc. If the initiator port supports channel ID, the QoS block provides priority and order ID for
+each channel, otherwise all the transactions from that initiator port share the same priority and order ID value.
+CAUTION
+Since OrderID is used for ordering purpose in CBASS, changing the order ID when the system is
+running can cause system deadlock. Therefore, QoS configuration shall be part of the initialization
+steps, if the application wants to change the QoS setting from the default value.
+•
+Initiator timeout gasket: Initiator timeout gasket is to prevent the fault propagation from the upstream
+interconnect, which can’t provide transaction completion notification.
+•
+Target timeout gasket: target timeout gasket is used to prevent the fault propagation from the downstream
+interconnect, which enters into a fault state and no longer is able to accept any new transactions.
+3.1.1 Domain Partition
+SoC is partition into several domains, which are connected by CBASS modules:
+•
+MAIN domain: there are multiple CBASS components providing the connectivity among initiators and target
+interfaces for the processors and peripherals in the main domain. The main application processor such as
+A53SS is located.
+•
+WKUP domain: this is where the device manger R5FSS is located. This is the domain active during
+deepsleep mode.
+•
+MCU domain: this is where the MCU M4FSS is located. MCU domain can be isolated from the rest of SoC
+during safety use case
+All the modules connected to CBASS_wkup_infra can belong to both MCU domain and the wkup domain
+depending on the use case. For the deep sleep low power mode, it is in WKUP domain. However, when the mcu
+domain is running safety use case, all the modules connect to CBASS_wkup_safe are in the MCU domain.
+
+=== Page 72 ===
+Figure 3-1. System Interconnect Overview
+3.1.2 IO Coherency Support
+There are 4 bits for Asel sideband signals, which enables a single SoC to support up to 16 different memory
+maps. Asel=0 is default to the regular SoC memory map, which CBASS is used for address decoding purpose.
+Non-zero Asel value is assigned to the target end point, which can be bypass the normal address decoding. All
+the transactions with asel 0 go through address decoding based on the address the transactions carry. However,
+the non-zero Asel value can be assigned to the transactions through either DMA configuration for both BCDMA
+and pktDMA transaction or through the QoS block inserted for each initiator interface. Asel value 14 and 15 are
+dedicated to route any transactions requiring IO coherency to A53SS’s ACP interface. The transactions with Asel
+value 1-13 will be routed to the null end point for graceful termination.
+Transactions with asel=14 and 15 are routed to ACP port
+•
+Write transaction with Asel=14 causes A53SS L2 cache allocation: for cache warming feature
+•
+Write transactions with Asel=15 does not cause A53SS L2 cache allocation
+•
+Read transactions with Asel=14 and 15 does not cause L2 cache allocation
+•
+All the transactions to ACP port can be protected by firewall if firewall is inserted by the SoC level CBASS
+A53SS cluster checks security on the transactions from the ACP port. However, it does not have the supervisor
+and user mode check. If different permission is needed for supervisor and user mode transactions, the region-
+based firewall logic should be used to grant different access permission.
+
+=== Page 73 ===
+The transaction from the following processor do not have IO coherency support:
+•
+HSM
+•
+R5FSS in WKUP domain
+•
+PRUSS-M
+•
+MCU M4FSS
+3.1.3 Timeout Gasket
+In the system with mixture level of safety requirements, it is important to isolation the impact from the fault from
+the lower safety level spreading to the domain with higher safety level. When there are non-recoverable faults in
+the domain with lower safety level, the safety processor should either have the capability to diagnostic the fault
+and/or reset the fault components.
+When the fault happens on the target interface side, the target time out gasket provides the capability to
+gracefully terminate the transactions and return error status back to the initiator, so the interconnect is not stalled
+due to the fault at the target side.
+When the fault happens on the initiator interface side, the initiator time out gasket shall provide the capability to
+flush out all the pending transactions while prevent the fault initiator interface issues more transactions. It also
+has logic to track the idle state when all the pending transactions are completed. The IP can’t be brought down
+or reset unless the initiator time out gaskets enters idle state. All the control mechanism for the initiator side time
+out gasket comes from chip level MMR. By default, the time out gasket is disabled. It requires safety processor
+to enable it.
+All the time out gaskets assert interrupt when there are any time out happen, and those interrupts are routed to
+ESM and further routed to safety processor MCU M4FSS.
+MCU M4FSS is designed to be a safety processor and it is responsible to manage all the time out events from
+the timeout gasket logic.
+When MCU M4FSS is running safety application, the components connected to CBASS_MCU and
+CBASS_wkup_safe are part of the safety domain, which can be isolated from the rest of SoC. The timeout
+gaskets are inserted around CBASS_MCU and CBASS_wkup_safe to prevent the fault outside these two
+CBASS propagated into the safety domain.
+
+=== Page 74 ===
+Figure 3-2. Timeout Module to Prevent Fault Propagation
+•
+Target side time out gasket: it is inserted to protect the path from MCU M4FSS to access the end points
+outside safety domain. The configuration of the target side timeout module is done through a dedicated
+configuration interface.
+•
+Initiator side time out gasket: it is inserted to protect the path from the initiator interfaces outside of the safety
+domain to access the safety domain (the modules connected to cbass_mcu and cbass_wkup_safe). If any
+fault outside the safety domain causes either data or status could no longer return back, the initiator timeout
+gasket can flush this data/status return to allow safety domain progress. This initiator gasket is reset when
+the domain it connects to goes through reset. The configuration of the initiator side timeout gasket is through
+the registers in mcu_ctrl_mmr.
+By default, the timeout gasket is not enabled. Before MCU M4FSS runs safety application, MCU M4FSS needs
+to enable the timeout gasket functionality.
+3.1.3.1 Software Sequence to Enable Timeout Gasket
+MCU M4FSS shall be the only processor to enable the timeout gasket function.
+The following software sequence shall be followed to enable the target timeout gasket inserted between
+cbass_mcu and cbass_central.
+
+=== Page 75 ===
+1.
+Check whether LPSC_mcu2main_ISO in mcu_psc is disable state or not. If this LPSC is not in the disable
+state, MCU M4FSS configures LPSC_mcu2main to be OFF.
+2.
+After LPSC_mcu2main is in disable state,
+a.
+If main domain is under reset, MCU M4FSS waits until the main domain out of reset
+b.
+MCU M4FSS triggers a software flush to the target timeout gasket
+3.
+MCU M4FSS configures mcu_PSC to enable LPSC_mcu2main_ISO. This allows the transactions from mcu
+domain can reach main domain.
+4.
+MCU M4FSS enables target timeout gasket
+The above SW sequence needs to be repeated to enable the target side timeout gasket inserted from
+cbass_mcu to cbass_wkup_dm path controlled by LPSC_mcu2DM_ISO
+The following software sequence shall be followed by enabling the initiator side timeout gasket:
+1.
+MCU M4FSS check whether LPSC_main2mcu_ISO is in disable state. If it is not in disable state, configure
+mcu_psc to put LPSC_main2mcu in disable state
+2.
+Wait until LPSC_main2mcu_ISO in disable state ( which means no pending transactions from main domain
+to mcu domain)
+3.
+MCU M4FSS triggers a flush operation in initiator timeout gasket through mcu_ctrl_mmr
+4.
+MCU M4FSS configure/enable initiator timeout gasket by defining proper timeout period through
+mcu_ctrl_mmr.
+5.
+MCU M4FSS enables LPSC_main2mcu_ISO
+The initiator side timeout gasket inserted between Cbass_wkup_dm and cbass_wkup_safe shall follow the
+similar steps.
+3.1.4 Route ID Allocation
+Each transaction in the system carries a 12 bits route ID value. The route ID is used by the CBASS to route
+return status/data back to transaction initiator. The transaction with the same route ID indicates the originator of
+the transaction in the system. And each originator of the transaction in the SoC has a unique route ID value.
+Route ID value is also used by ddr16ss to remap the arbitration priority inside ddr16ss.
+Table 3-1. Route ID Table
+Module Name
+Initiator Interface
+Which CBASS it is
+connected to
+RouteID value
+Able to access ACP port
+for IO coherency
+A53SS
+A53 core 0 non-cacheable
+read
+cbass0
+16
+N
+A53 core 1 non-cacheable
+read
+cbass0
+17
+N
+A53 core 2 non-cacheable
+read
+cbass0
+18
+N
+A53 core 3 non-cacheable
+read
+cbass0
+19
+N
+Cacheable read from all
+A53 cores
+cbass0
+20
+N
+A53 core 0 non-cacheable
+write
+cbass0
+0
+N
+A53 core 1 non-cacheable
+write
+cbass0
+1
+N
+A53 core 2 non-cacheable
+write
+cbass0
+2
+N
+A53 core 3 non-cacheable
+write
+cbass0
+3
+N
+Cacheable read from all
+A53 write
+cbass0
+4
+N
+MMCSD0
+write interface
+cbass0
+269
+Y
+read interface
+cbass0
+270
+Y
+
+=== Page 76 ===
+Table 3-1. Route ID Table (continued)
+Module Name
+Initiator Interface
+Which CBASS it is
+connected to
+RouteID value
+Able to access ACP port
+for IO coherency
+MMCSD1
+write interface
+cbass0
+271
+Y
+read interface
+cbass0
+272
+Y
+MMCSD2
+write interface
+cbass0
+256
+Y
+read interface
+cbass0
+257
+Y
+ICSSM_0
+pru0
+cbass_central
+456
+N
+pru1
+cbass_central
+457
+N
+GIC
+write interface
+cbass0
+302
+Y
+read interface
+cbass0
+303
+Y
+USB_0
+read interface
+cbass0
+304
+Y
+USB_0
+write interface
+cbass0
+305
+Y
+USB_1
+read interface
+cbass0
+306
+Y
+USB_1
+write interface
+cbass0
+307
+Y
+LED
+cbass0
+334
+N
+debugss
+read interface
+cbass0
+258
+Y
+debugss
+write interface
+cbass0
+259
+Y
+R5FSS
+read interface
+cbass_wkup_dm
+4088
+Y
+write interface
+cbass_wkup_dm
+4089
+Y
+Dedicated Peripheral
+Interface( both read and
+write)
+cbass_wkup_dm
+4090
+N
+dmss0
+read interface from
+BCDMA
+cbass0
+128
+Y
+write interface from
+BCDMA
+cbass0
+129
+Y
+pktDMA interface
+cbass0
+130
+Y
+PDMA0
+write interface
+cbass_misc_peri
+3010
+N
+read interface
+cbass_misc_peri
+3011
+N
+PDMA1
+write interface
+cbass_misc_peri
+3012
+N
+read interface
+cbass_misc_peri
+3013
+N
+PDMA2
+write interface
+cbass_mcasp
+3001
+N
+read interface
+cbass_mcasp
+3002
+N
+MCU M4FSS
+Both read and write
+cbass_mcu
+4092
+N
+TIFS
+Both read and write
+cbass_central
+448-451
+N
+HSM
+Both read and write
+cbass_central
+452-455
+N
+DSS
+Both read and write
+cbass0
+160
+Y
+GPU
+write interface
+cbass0
+64
+Y
+read interface
+cbass0
+65
+Y
+sa3_SS_sa_ul_0
+Both read and write
+cbass0
+277
+Y
+sa3ss_pktdma_0
+Both read and write
+cbass_ipcss
+481
+Y
+3.1.5 Quality of Service (QoS)
+Majority of the initiator has a dedicated QoS block to provide the configurability of the transaction characteristic,
+such as orderID, priority/epriority, asel and etc.
+OrderID is a 4 bits value, which is associated with each transaction. By default, all the transactions have
+orderID value set to 0x0. The orderID is used as a mechanism to load balance the traffic to DDR through two
+
+=== Page 77 ===
+parallel paths. The transactions with order ID 0-7 share one path, while transactions with 8-15 share a separate
+path. The OrderID value can be changed through QoS block for the initiators or through BCDMA and pktDMA
+configuration.
+Each transaction in the system carries 3 bits priority information. The priority information is used for cbass for
+arbitration decision, which implements typical priority based round robin. Priority value 0x0 is the highest priority,
+while 0x7 is the lowest priority. By default, QoS has priority value set to 0x7( lowest priority).
+Some of the modules such as DSS is able to adjust the priority of the transaction based on the system
+congestion condition. But majority of the transactions have static priority level set by the QoS block. But the
+priority setting through QoS block can be tuned to fit certain use case scenarios.
+CAUTION
+Priority, orderID and asel value from the QoS block shall only be modified as part of the initialization
+steps, when the SoC is idle. Changing the QoS block configuration during the run time is prohibited,
+and may cause system error or other undefined behavior.
+Each QoS block has a unique identification, which is correspondent to the configuration address for that QoS
+block. If the QoS block’s index is x, then the configuration address for that QoS block is 0x45D0_0000+ 1KB*x.
+
+=== Page 78 ===
+Table 3-2. QoS Summary Table
+Module
+Name
+Initiator
+Interface
+QoS Index
+Config
+address for
+QoS block
+# of
+Channels
+the initiator
+support
+Atype can
+be
+overwritten
+?
+Can Virtid
+be
+overwritten
+?
+Can Asel be
+over
+written?
+Can
+Orderid be
+overwritten
+?
+Can
+Epriority be
+overwritten
+A53SS
+A53 core 0
+non-
+cacheable
+read
+129
+0X45D2040
+0
+1
+No
+No
+Yes
+Yes
+Yes
+A53 core 1
+non-
+cacheable
+read
+A53 core 2
+non-
+cacheable
+read
+A53 core 3
+non-
+cacheable
+read
+Cacheable
+read from all
+A53 cores
+A53 core 0
+non-
+cacheable
+write
+130
+0X45D2080
+0
+1
+No
+No
+Yes
+Yes
+Yes
+A53 core 1
+non-
+cacheable
+write
+A53 core 2
+non-
+cacheable
+write
+A53 core 3
+non-
+cacheable
+write
+Cacheable
+read from all
+A53 write
+MMCSD0
+write
+interface
+138
+0X45D2280
+0
+1
+No
+No
+Yes
+Yes
+Yes
+read
+interface
+139
+0X45D22C0
+0
+1
+No
+No
+Yes
+Yes
+Yes
+MMCSD1
+write
+interface
+140
+0X45D2300
+0
+1
+No
+No
+Yes
+Yes
+Yes
+read
+interface
+141
+0X45D2340
+0
+1
+No
+No
+Yes
+Yes
+Yes
+MMCSD2
+write
+interface
+142
+0X45D2380
+0
+1
+No
+No
+Yes
+Yes
+Yes
+read
+interface
+143
+0X45D23C0
+0
+1
+No
+No
+Yes
+Yes
+Yes
+ICSSM_0
+pru0
+16
+0X45D0400
+0
+1
+No
+No
+Yes
+Yes
+Yes
+pru1
+17
+0X45D0440
+0
+1
+No
+No
+Yes
+Yes
+Yes
+
+=== Page 79 ===
+Table 3-2. QoS Summary Table (continued)
+Module
+Name
+Initiator
+Interface
+QoS Index
+Config
+address for
+QoS block
+# of
+Channels
+the initiator
+support
+Atype can
+be
+overwritten
+?
+Can Virtid
+be
+overwritten
+?
+Can Asel be
+over
+written?
+Can
+Orderid be
+overwritten
+?
+Can
+Epriority be
+overwritten
+GIC
+write
+interface
+136
+0X45D2200
+0
+1
+No
+No
+Yes
+Yes
+Yes
+read
+interface
+137
+0X45D2240
+0
+1
+No
+No
+Yes
+Yes
+Yes
+USB_0
+read
+interface
+145
+0X45D2440
+0
+1
+No
+No
+Yes
+Yes
+Yes
+write
+interface
+144
+0X45D2400
+0
+1
+No
+No
+Yes
+Yes
+Yes
+USB_1
+read
+interface
+146
+0X45D2480
+0
+1
+No
+No
+Yes
+Yes
+Yes
+write
+interface
+147
+0X45D24C0
+0
+1
+No
+No
+Yes
+Yes
+Yes
+debugss
+read
+interface
+135
+0X45D21C0
+0
+1
+No
+No
+Yes
+Yes
+Yes
+write
+interface
+134
+0X45D2180
+0
+1
+No
+No
+Yes
+Yes
+Yes
+R5FSS
+read
+interface
+80
+0X45D1400
+0
+1
+No
+No
+Yes
+Yes
+Yes
+write
+interface
+81
+0X45D1440
+0
+1
+No
+No
+Yes
+Yes
+Yes
+Dedicated
+Peripheral
+Interface
+(both read
+and write)
+82
+0X45D1480
+0
+1
+No
+No
+Yes
+Yes
+Yes
+dmss0
+read
+interface
+from
+BCDMA
+Do not have QoS. The configuration is done through DMA configuration for the transfer
+write
+interface
+from
+BCDMA
+Do not have QoS. The configuration is done through DMA configuration for the transfer
+pktDMA
+interface
+Do not have QoS. The configuration is done through DMA configuration for the transfer
+PDMA0
+write
+interface
+Do not have QoS block. The configuration is done through DMA configuration for the transfer
+read
+interface
+PDMA1
+write
+interface
+read
+interface
+PDMA2
+write
+interface
+read
+interface
+MCU
+M4FSS
+Both read
+and write
+96
+0X45D1800
+0
+1
+No
+No
+Yes
+No
+Yes
+HSM
+Both read
+and write
+Do not have QoS block. The priority is 0x7 and all the other above sideband signal is 0x0
+
+=== Page 80 ===
+Table 3-2. QoS Summary Table (continued)
+Module
+Name
+Initiator
+Interface
+QoS Index
+Config
+address for
+QoS block
+# of
+Channels
+the initiator
+support
+Atype can
+be
+overwritten
+?
+Can Virtid
+be
+overwritten
+?
+Can Asel be
+over
+written?
+Can
+Orderid be
+overwritten
+?
+Can
+Epriority be
+overwritten
+DSS
+Both read
+and write
+148
+0X45D2500
+0
+4
+No
+No
+Yes
+Yes
+No
+GPU
+write
+interface
+132
+0X45D2100
+0
+6
+No
+No
+Yes
+Yes
+Yes
+read
+interface
+133
+0X45D2140
+0
+6
+No
+No
+Yes
+Yes
+Yes
+sa3_SS_sa_
+ul_0
+Both read
+and write
+149
+0X45D2540
+0
+1
+No
+No
+Yes
+Yes
+Yes
+sa3ss_pktd
+ma_0
+Both read
+and write
+Do not have QoS. The configuration is done through DMA configuration for the transfer
+
+=== Page 81 ===
+3.1.6 Initiator-Side Security Controls and Firewalls
+Firewalls (FW) and Initiator-side Security Controls (ISC) are important interconnect components that enable
+hardware isolation for freedom from interference or security uses. ISCs enable every transaction to be identified
+and tagged to precisely assign the source ID. Firewalls are downstream (target) components that provide the
+ability to filtering transactions based on the sideband information.
+The device protection depends on firewalls. They are used to protect data and configuration spaces by
+managing the accesses to these memory regions.There are two types of firewalls - region based and
+channelized. There are no channelized firewalls on system level. Only LPSC_SMS, LPSC_HSM_ISO,
+LPSC,_SA3_UL, LPSC_TIFS, and LPSC_HSM have channelized firewalls for MDCTL MMRs. Only region
+based firewalls are available on system level. See Section 3.1.6.2.1.1 and Section 3.1.6.2.2.1 for description of
+the region based and channelized firewalls.
+On devices supporting secure boot, these components allow the SoC to support multi-tier security and provide
+segregation of secure and non-secure worlds. All configuration of ISCs and FWs are under exclusive control of
+Device Mamager, using a dedicated interconnect.
+The number of ISC and Firewall blocks and placement of these blocks are based on the topology of each device.
+ISC and Firewall blocks are placed in host modules (AXI to VBUSM.C Bridge); or part of the interconnect (for
+example: CBASS).
+Figure 3-3 presents a generic view of ISCs and Firewalls in SoC.
+Figure 3-3. ISC and Firewall in SoC
+
+=== Page 82 ===
+3.1.6.1 Initiator-Side Security Controls (ISC)
+Initiator-Side Security Control (ISC) modules are hosted at the initiator side where the transactions are sourced.
+ISC controls the security sideband attributes that are applied to outgoing transactions and have ability to override
+security values under exclusive control of the SMS.
+ISC Capabilities:
+•
+Attach Priv-ID to each bus transaction.
+•
+Priv-ID is a source ID attached to identify the source of a transaction in the system.
+•
+By default, each initiator in the system has a unique Priv-ID.
+•
+Multiple modules can be assigned the same Priv-ID to form logical groups.
+•
+Assert, De-assert or pass-through secure bit.
+•
+Assert, De-assert or pass through Priv-bits.
+ISCs are connected to the dedicated security VBUSP interconnect and can be exclusively configured by SMS.
+ISC optionally can support region and channel number based security control, where, based on incoming
+channel or address, the associated security controls, are applied.
+
+=== Page 83 ===
+Figure 3-4 presents ISC config registers per region.
+ISC Control Regs
+region
+per
+E = Enable Region (0xA = Enabled)
+L = Lock Config
+C = Use Channel number, not address
+D = Default region indicator
+S = Make outgoing transaction secure (0xA = Enabled)
+N = Make outgoing transaction Non-secure
+R = Reserved
+P = Do not replace Priv-ID, pass through PrivID
+Region Physical Start Address, 4KB resolution (48-bits) / Channel number (12-bits)
+Region Physical End Address, 4KB resolution (32-bits)
+Lower 12-bits valid in case of channel number
+Not valid in case of channel number
+R P N
+S
+(4-
+bits)
+Priv-ID (8)
+R D C L
+E
+(4-
+bits)
+SA-SPRUIM0-014
+Figure 3-4. ISC Config Registers per Region
+3.1.6.1.1 Priv-ID
+Priv-ID is used to identify the logical source of transaction and is attached by ISC. The Priv-IDs are allocated
+based on subsystem as part of platform definition.
+Table 3-3. Priv-ID
+Inititator
+Reset Priv-ID
+COMPUTE_CLUSTER0
+4
+MCU_M4FSS0
+100
+MMCSD0
+128
+MMCSD1
+129
+MMCSD2
+130
+ICSSM0
+138
+SA3_SS0
+152
+GICSS0
+154
+USB0
+155
+USB1
+156
+DSS0
+173
+DEBUGSS_WRAP0
+177
+GPU0
+187
+WKUP_R5FSS0
+212
+3.1.6.1.2 Special System Level Priv-ID
+This section describes Special Priv-IDs. These Priv-ID when encountered by various blocks like firewall have
+special meaning.
+Table 3-4 presents Special Priv-IDs.
+Table 3-4. Special Priv-IDs
+Special Priv-IDs
+Hex Value
+Decimal Value
+System Reserved Priv-ID
+0xC1, 0xC2, 0xC4, 0xC6, 0xC7
+193, 194, 196, 198, 199
+
+=== Page 84 ===
+Table 3-4. Special Priv-IDs (continued)
+Special Priv-IDs
+Hex Value
+Decimal Value
+Wild card Priv ID
+0xC3
+195
+Block Priv ID
+0xC5
+197
+DMA Reserved Priv-ID
+0xC0
+192
+3.1.6.2 Firewalls (FW)
+Firewalls play an important role in implementing overall SoC security by providing a means to allow or restrict
+access to device resources to any given controller entity or Secure/Non-Secure/Priv/User world. Firewalls are
+placed at various data path points throughout the SoC to control access to protected asset (Peripheral, memory
+and so forth).
+Firewalls ensure that assets can be protected and are only accessible by allowed controller and in selected
+operation mode (Secure, Non-Secure, Priv, User, write, read and so forth). In case of firewall violations, the
+transaction is dropped and the appropriate violation code is registered with associated parameters.
+There are three types of firewalls, Peripheral firewalls, Memory firewalls (referred as one group Region Based
+Firewall in the device-specific TRM) and Channelized firewalls.
+Each Firewall module in the SoC has a unique Firewall ID that allows software to decode the source of each
+violation. The Firewall IDs are allocated based on subsystem as part of platform definition. The full SoC view of
+Firewall IDs for various Firewall modules are captured in Section 3.1.6.2.1.2.
+3.1.6.2.1 Region-based Firewalls
+Region-based firewalls are designed to protect peripherals, Memory (SRAM/DDR and so forth) and data regions
+(GPMC and so forth). Region-based firewalls have a defined firewall region count so that the peripheral/memory
+can be partitioned into multiple firewall regions.
+Region-based firewalls can have either 1 or 3 Priv-ID slots per region, with associated permissions. The number
+of Priv-ID slots is determined based on placement of firewall block. Each region in this type of firewall is defined
+by a physical start and end address.
+Figure 3-5 presents Region-based firewall config registers with 3 Priv-ID slots per region.
+
+=== Page 85 ===
+Firewall Control Regs
+region
+per
+E = Enable Region (4-bits), 0xA = Enabled
+L = Lock Config
+B = Background Region
+C = Cache Mode
+Region Physical Start Address, 4KB resolution (48-bits)
+Region Physical End Address, 4KB resolution (48-bits)
+C B
+Reserved (3)
+L
+E(4)
+W = Write
+R = Read
+C = Cacheable
+D = Debug
+D C
+Reserved (16)
+Priv-ID (8)
+R W
+D C R W
+D C R W
+D C R W
+User
+Priv
+Non-Secure
+User
+Priv
+Secure
+W = Write
+R = Read
+C = Cacheable
+D = Debug
+D C
+Reserved (16)
+Priv-ID (8)
+R W
+D C R W
+D C R W
+D C R W
+User
+Priv
+Non-Secure
+User
+Priv
+Secure
+W = Write
+R = Read
+C = Cacheable
+D = Debug
+D C
+Reserved (16)
+Priv-ID (8)
+R W
+D C R W
+D C R W
+D C R W
+User
+Priv
+Non-Secure
+User
+Priv
+Secure
+SA-SPRUIM0-018
+Figure 3-5. Region-based Firewall Config Registers with 3 Priv-ID slot per Region
+
+=== Page 86 ===
+Figure 3-6 presents Region-based firewall config registers with 1 Priv-ID slot per region.
+Firewall Control Regs
+region
+per
+E = Enable Region (4-bits), 0xA = Enabled
+L = Lock Config
+B = Background Region
+C = Cache Mode
+Region Physical Start Address, 4KB resolution (48-bits)
+Region Physical End Address, 4KB resolution (48-bits)
+C B
+Reserved (3)
+L
+E(4)
+W = Write
+R = Read
+C = Cacheable
+D = Debug
+D C
+Reserved (16)
+Priv-ID (8)
+R W
+D C R W
+D C R W
+D C R W
+User
+Priv
+Non-Secure
+User
+Priv
+Secure
+SA-SPRUIM0-019
+Figure 3-6. Region-based Firewall Config Registers with 1 Priv-ID slot per Region
+Figure 3-7 presents firewall regions.
+
+=== Page 87 ===
+Figure 3-7. Firewall Regions
+The Region-based firewall is configured using dedicated VBUSP port to CBASS/AXI to VBUSM.C Bridge/DRU
+that connects to the SMS private VBUSP interconnect.
+3.1.6.2.1.1 Region Based Firewall Functional Description
+The region based firewall provides a memory region based protection and isolation mechanism. For each
+defined memory region, it checks the transaction attributes such as secure vs non-secure, debug vs non-debug,
+supervisor vs user mode, read vs write and so on. The transaction is dropped, if it does not match the
+configuration and appropriate violation code is registered with offending parameters.
+Host modules (for example, AXI2VBUSMC bridge or CBASSes) provide transaction attributes that are checked
+by the firewalls, which then determine if the transaction should be blocked or passed. The firewall implements
+filtering algorithm that compares these host incoming transaction parameters against the region policy to give
+block indication to the host. Firewall region registers configure the filtering mechanism which includes setting
+region address range, region permission registers and region control register. There are also firewall exception
+registers used for violation reporting and logging.
+The region based firewall supports multiple regions. Each one is defined by address range and associated
+access permission. The minimum memory region size is 4KB. The firewall concurrently checks the incoming
+transaction against all enabled regions looking for violations.
+Each firewall is associated with the following registers:
+•
+CBASS_FW_REGION_i_CONTROL
+•
+CBASS_FW_REGION_i_PERMISSION_0 to CBASS_FW_REGION_i_PERMISSION_2
+•
+CBASS_FW_REGION_i_START_ADDRESS_L and CBASS_FW_REGION_i_START_ADDRESS_H
+•
+CBASS_FW_REGION_i_END_ADDRESS_L and CBASS_FW_REGION_i_END_ADDRESS_H
+Each region is defined by start and end physical address and associated permission and control
+registers. A firewall can have 1-24 regions. In case there is more than 1 region, then these
+registers are duplicated for all regions. Setting the CBASS_FW_REGION_i_CONTROL[3-0] ENABLE
+field to 0xA enables the region and makes firewall check active for this region. Setting to 0x1
+the CBASS_FW_REGION_i_CONTROL[8] BACKGROUND bit indicates to the firewall that the region
+is background region. Setting to 0x1 the CBASS_FW_REGION_i_CONTROL[9] CACHE_MODE bit
+
+=== Page 88 ===
+ignores cacheable check, so that it cannot fail. In this case the access check is performed based
+on the READ and WRITE bits in CBASS_FW_REGION_i_PERMISSION_x. Clearing CACHE_MODE
+enables the cacheable check, so that cacheable transactions are allowed only when the corresponding
+cacheable permission bit (CBASS_FW_REGION_i_PERMISSION_x [y_CACHEABLE]) is set. If the
+CBASS_FW_REGION_i_CONTROL[4] LOCK bit is set to 0x1, then the region configuration cannot be changed
+at all. This is one-time change. This bit is typically used for primary controller to consume and lock its resources
+and then pass firewall control to secondary controller.
+In case two regions overlap, the CBASS_FW_REGION_i_CONTROL[8] BACKGROUND bit is used to select the
+appropriate permission to be used. The region whose BACKGROUND bit is 0x0 (foreground) takes precedence
+and its permissions are taken into effect. The background region is ignored.
+Note
+There can be only one background region per firewall. Foreground regions can have overlapping
+addresses only with the background region.
+It is a software mistake to have overlapping regions with the BACKGROUND bit set to the same value
+(either background or foreground). Software must be careful to not configure two overlapping regions
+with the BACKGROUND bit set to the same value.
+The firewall also checks if the transaction crosses a 4KB boundary. If so, the transaction is blocked regardless of
+any matching regions.
+When a region is set to be debugable through the corresponding CBASS_FW_REGION_i_PERMISSION_x
+[y_DEBUG] bit, the firewall ignores the read and write checks for any debug transactions, so that it cannot fail.
+This allows debug breakpoints to be written out to code even in read-only regions.
+When a region is set to be cacheable through the corresponding CBASS_FW_REGION_i_PERMISSION_x
+[y_CACHEABLE] bit and CACHE_MODE = 0x0, the firewall ignores the read and write checks for any
+transaction (cacheable or not), so that it cannot fail due to these checks. This allows a write allocated cache
+to read a cache line even in write-only regions. Due to caches not protecting user and supervisor data from
+each other, the firewall allows cacheable access to the region when either the user cacheable permission or the
+supervisor cacheable permission is set.
+The firewall notifies the host that the transaction is blocked in case of the following violation conditions:
+•
+All regions are disabled.
+•
+Incoming address does not hit any region.
+•
+Non-secure incoming read transaction attempting to access configured secure-only write/read region.
+•
+Non-secure incoming write transaction attempting to access configured secure-only write/read region.
+•
+Secure incoming read transaction attempting to access configured non-secure-only write/read region.
+•
+Secure incoming write transaction attempting to access configured non-secure region.
+•
+Incoming secure write transaction attempting to access configured secure read region. This check is ignored
+if the region is configured as cacheable.
+•
+Incoming secure read transaction attempting to access configured secure write region. This check is ignored
+if the region is configured as cacheable.
+•
+Incoming non-secure write transaction attempting to access configured non-secure read region. This check is
+ignored if the region is configured as cacheable.
+•
+Incoming non-secure read transaction attempting to access configured non-secure write region. This check is
+ignored if the region is configured as cacheable.
+•
+Incoming non-secure debug access to non-debugable secure region.
+•
+Incoming non-secure debug access to non-debugable non-secure region.
+•
+Incoming secure debug access to non-debugable secure region.
+•
+Incoming secure debug access to non-debugable non-secure region.
+•
+Incoming cacheable transaction attempting to access non-cacheable configured region.
+
+=== Page 89 ===
+All violation parameters caused the exception are logged in the firewall exception registers described in Firewall
+Exception Registers. Table 3-5 shows the mapping between the register fields and violation parameters. If the
+CBASS_EXCEPTION_LOGGING_CONTROL[0] DISABLE_F bit is set to 0x1, logging is disabled.
+If violation occurs, the corresponding firewall notifies the Security Manager (SMS) driving high a
+dedicated signal. The notification (that is, the signal) can be masked by setting to 0x1 the
+CBASS_EXCEPTION_LOGGING_CONTROL[1] DISABLE_PEND bit. The firewall exception notification signal
+gets automatically cleared when the CBASS_EXCEPTION_LOGGING_DATA3 register is read. That signal
+can be manually set via the CBASS_EXCEPTION_PEND_SET[0] PEND_SET bit and cleared via the
+CBASS_EXCEPTION_PEND_CLEAR[0] PEND_CLR bit. Reading one of these two bits returns the status of
+the signal (that is, violation occurred or not).
+Table 3-5. Firewall Violation Parameters
+Field
+Value
+Description
+CBASS_EXCEPTION_LOGGING_HEADER0[31-24]
+TYPE_F
+0x1
+Exception type for firewall violation. This is fixed for the SoC firewalls
+and is used by software to detect that this corresponding violation
+comes from a firewall.
+CBASS_EXCEPTION_LOGGING_HEADER0[23-8]
+SRC_ID
+0x-
+Firewall ID. Unique for each firewall. This is used to identify the exact
+firewall that issued violation so that software detects the precise
+source.
+CBASS_EXCEPTION_LOGGING_HEADER0[7-0]
+DEST_ID
+0x-
+Destination ID of node where the firewall violation has be to routed.
+CBASS_EXCEPTION_LOGGING_HEADER1[31-24]
+GROUP
+0x0
+Exception group. This is used to group exceptions to category. All
+firewall exceptions are in one group.
+CBASS_EXCEPTION_LOGGING_HEADER1[23-16]
+CODE
+Exception code:
+0x0
+Reserved.
+0x1
+No region enabled.
+0x2
+Incoming address does not hit any active region and transaction is
+dropped.
+0x3
+Reserved.
+0x4
+Cacheable error. A cacheable transaction attempting to read/write
+non-cached marked region.
+0x5
+Debug error. A debug transaction attempting to read/write a non-
+allowed debug region.
+0x6
+Read error. A Read transaction attempting to read from non-allowed
+read region.
+0x7
+Write error. A Write transaction attempting to write from non-allowed
+write region.
+0x8
+4KB crossing error. A transaction attempting to cross a 4KB
+boundary.
+CBASS_EXCEPTION_LOGGING_DATA0[31-0] ADDR_L
+0x-
+Lower 32 address bits (31:0) of the incoming transaction
+CBASS_EXCEPTION_LOGGING_DATA1[15-0]
+ADDR_H
+0x-
+Upper 16 address bits (47:32) of the incoming transaction
+
+=== Page 90 ===
+Table 3-5. Firewall Violation Parameters (continued)
+Field
+Value
+Description
+CBASS_EXCEPTION_LOGGING_DATA2[7-0] PRIV_ID
+Not used
+Incoming transaction parameters
+CBASS_EXCEPTION_LOGGING_DATA2[8] SECURE
+0x-
+CBASS_EXCEPTION_LOGGING_DATA2[9] PRIV
+0x-
+CBASS_EXCEPTION_LOGGING_DATA2[10]
+CACHEABLE
+0x-
+CBASS_EXCEPTION_LOGGING_DATA2[11] DEBUG
+0x-
+CBASS_EXCEPTION_LOGGING_DATA2[12] READ
+0x-
+CBASS_EXCEPTION_LOGGING_DATA2[13] WRITE
+0x-
+CBASS_EXCEPTION_LOGGING_DATA2[27-16]
+ROUTEID
+0x-
+CBASS_EXCEPTION_LOGGING_DATA3[9-0]
+BYTECNT
+0x-
+Byte count of the incoming transaction
+3.1.6.2.1.2 Region Based Firewalls
+Table 3-6. Region Based Firewalls
+Firewall
+ID
+Firewall Physical
+Address
+Firewall
+Regions
+Number
+of Priv
+IDs per
+Region
+Protected Instance
+Start Address
+Region Size
+ASEL
+Capable
+1
+0x45000400
+8
+3
+DDR16SS0
+0x80000000
+0x80000000
+No
+2
+0x45000800
+8
+3
+COMPUTE_CLUSTER0
+Yes
+3
+0x45000C00
+56
+3
+DEBUGSS_WRAP0
+0x700000000
+0x1000
+No
+8
+0x45002000
+16
+3
+PDMA0
+0xC00000
+0x400
+No
+9
+0x45002400
+24
+3
+DMASS0_ECC_AGGR_0
+0x3F005000
+0x400
+No
+10
+0x45002800
+8
+3
+CBASS_DBG0
+0x200000
+0x400
+No
+11
+0x45002C00
+16
+3
+CBASS_MCASP0
+0x240000
+0x400
+No
+32
+0x45008000
+4
+3
+WKUP_R5FSS0_CORE0
+0x74000000
+0x800000
+No
+33
+0x45008400
+16
+3
+PSRAMECC0
+0x0
+0x400
+No
+34
+0x45008800
+8
+3
+WKUP_GTC0
+0xA80000
+0x400
+No
+35
+0x45008C00
+16
+3
+WKUP_PSC0
+0x4000000
+0x1000
+No
+64
+0x45010000
+4
+3
+PSRAMECC_16K0
+0x70000000
+0x10000
+No
+65
+0x45010400
+8
+3
+MCU_TIMEOUT0
+0x4300000
+0x400
+No
+66
+0x45010800
+4
+3
+CBASS_FW0
+0x220000
+0x400
+No
+160
+0x45028000
+8
+3
+DMASS0_SEC_PROXY_0
+0x4D000000
+0x80000
+No
+161
+0x45028400
+8
+3
+SA3_SS0_SEC_PROXY_0
+0x43600000
+0x10000
+No
+3.1.6.2.2 Channelized Firewalls
+A Channelized firewall is designed to protect modules that have logical channels (Ring Accelerator and so
+forth, for example). These firewalls operate at the resolution of a channel and have no association with physical
+addresses. Each channel is defined as a logical control entity.
+In case of channelized firewalls, the number of regions are less than or equal to number of logical channels and
+each typical channel/region is very small memory space (typically in Bytes, like 16 bytes). A channel is owned by
+one processing entity, hence only 1 Priv-ID slot is provided for each Channelized firewall along with associated
+permissions.
+
+=== Page 91 ===
+Figure 3-8 presents Channelized firewall config registers with 1 Priv-ID slot per region.
+Firewall Control Regs
+region
+per
+E = Enable Region (4-bits), 0xA = Enabled
+L = Lock Config
+B = Background Region
+C = Cache Mode
+C B
+Reserved (3)
+L
+E(4)
+W = Write
+R = Read
+C = Cacheable
+D = Debug
+D C
+Reserved (16)
+Priv-ID (8)
+R W
+D C R W
+D C R W
+D C R W
+User
+Priv
+User
+Priv
+SA-SPRUIM0-020
+Figure 3-8. Channelized Firewall Config Registers with 1 Priv-ID slot per Region
+The Channelized firewall is configured using dedicated VBUSP port to CBASS/Bridges that connects to the
+Device Manager private VBUSP interconnect.
+Note
+For more information about the interconnect firewalls, see Interconnect Firewalls.
+3.1.6.2.2.1 Channelized Firewall Functional Description
+The channelized firewall protects an address space that consists of multiple channels where each channel
+needs its own permissions. This is in contrast to the region based firewall which implements a number of regions
+that can protect a programmed address range. The channelized firewall extends this to a larger number of
+ranges that can be protected, but each range is no longer programmable and is instead fixed to a particular
+channel address range. This allows each channel to be owned and protected individually. The channels within
+same memory region have same size. The system can allocate each channel to a particular owner or owner
+groups with certain permissions and guarantee that others cannot access that channel. This protection is useful
+for either accessing data resources, or control for each resource. The channelized firewall provides an efficient
+way to implement access protection and isolation requiring finer granularity than the region based firewall.
+Same as the region based firewall, the channelized firewall may also support multiple regions. Each region
+contains a number of channels that need to be protected individually and has size in bytes equal to the channel's
+data to protect. This allows multiple regions so that the firewall can protect a module containing multiple sets
+of registers that are each channelized and need separate protections, such as data access as well as control
+setup.
+The transaction addresses are compared against region addresses to identify which region is being accessed.
+Then the offset within the region is used to identify the particular channel being accessed. If a valid channelized
+region is not decoded during the firewall check, then the transaction is passed through unmodified because the
+module may have other regions which are not channelized, but accesses to them are already protected by a
+region based firewall so the channelized one should not block them.
+The permission check is performed just like for a region based firewall. The channelized firewall checks for
+user or supervisor priviledge levels. It also checks for transactions that cross important boundaries and gives
+errors if violated. The first check is for a transaction crossing a 4KB address boundary. This is illegal on the
+bus, so the firewall checks for compliance. The second check is if the transaction crosses a channel boundary.
+The channelized firewall blocks a transaction accessing multiple channels in the same burst, as it cannot check
+the permission for the entire range of channels. The channelized firewall also supports error logging when a
+transaction fails the checks. It sends information about the type of error and the transaction that caused it.
+The channelized firewall is associated with the following registers:
+
+=== Page 92 ===
+•
+*_CH_i_CONTROL, where "i" can be from 0 to 63 and denotes the channel.
+•
+*_ CH_i_PERMISSION_x, where "i" can be from 0 to 63 and denotes the channel and "x" can be 0 to 2.
+Table 3-7. Channelized Firewall Configuration
+Channelized Region
+which register inside PSC0 is protected
+0
+MDCTL27 register inside PSC0 to control LPSC_SMS_common
+2
+MDCTL30 register inside PSC0 to control LPSC_HSM
+3
+MDCTL31 register inside PSC0 to control LPSC_Sa3ul
+4
+MDCTL32 register inside PSC0 to control LPSC_HSM_ISO
+3.1.7 Interconnect Error Reporting Feature
+CBASS routes the transaction to null end point for graceful termination under the following situation:
+•
+There is no physical connection between initiator and target end points
+•
+Or target interface is in disabled state
+•
+Or the transaction is sent to an unpopulated address
+The null end point returns the error status back to the initiator to prevent the interconnect hang. At the
+same time, CBASS module logs this transaction information in err_reg region and issues an error interrupt
+(default_err_intr). This default_err_intr is sent to all the application processors for debug purpose.
+If the transaction is sent to a valid target interface, however the firewall in front of the target interface can
+prohibit the transaction, the transaction will be logged in the glb_regs region and cbass will assert a default_exp
+interrupt.
+3.1.8 Connectivity Table
+Whether an initiator can access certain target or not depends on following factors:
+•
+Whether there is a physical connection between the initiator and the target end point, which is identified with
+unique memory address.
+•
+For MCU MCUSSand R5FSS: those native 32bit processors have slightly different memory map view. And
+RAT block may need to be programmed to be able to access some target endpoints
+•
+Majority of the target end points are protected by firewall. The firewall needs to be proper configured to make
+sure that transactions from the initiator can reach the final target end point.
+Table 3-8 shows the physical connectivity between initiator and the target end points.
+Table 3-8. Connectivity Table among Initiators and Targets
+Target Interfaces
+Initiators
+A53SS
+WKUP R5FSS
+MCU M4FSS
+TIFS
+HSM
+GPU
+MMCSD0/1/2
+ICSSM0
+GIC
+USB0/1
+debugss_wrap
+dmss0 ( BCDMA and pktDMA)
+PDMA0(SPI)
+PDMA1(UART)
+PDMA2(MCASP)
+DSS
+sa3_SS_sa_ul_0
+sa3ss_pktdma
+A53's ACP
+N
+N
+N
+N
+N
+Y
+Y
+N
+Y
+Y
+Y
+Y
+N
+N
+N
+Y
+Y
+Y
+Compute_cluster0 config
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+UART0/1/2/3/4/5/6
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+MCU_UART0
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+WKUP_UART0
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+
+=== Page 93 ===
+Table 3-8. Connectivity Table among Initiators and Targets (continued)
+Target Interfaces
+Initiators
+A53SS
+WKUP R5FSS
+MCU M4FSS
+TIFS
+HSM
+GPU
+MMCSD0/1/2
+ICSSM0
+GIC
+USB0/1
+debugss_wrap
+dmss0 ( BCDMA and pktDMA)
+PDMA0(SPI)
+PDMA1(UART)
+PDMA2(MCASP)
+DSS
+sa3_SS_sa_ul_0
+sa3ss_pktdma
+SPI0/1/2
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+Y
+N
+N
+N
+Y
+Y
+MCU_SPI0/1
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+TIMEOUT0
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+MCU_TIMEOUT0/1
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+Wkup_TIMEOUT0
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+MCU_MCRC64_0
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+MCRC64_0
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+DCC0/1/2/3/4/5/6
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+MCU_DCC0
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+TIMER0/1/2/3/4/5/6/7
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+MCUTIMER0/1/2/3
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+WKUP_TIMER0/1
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+MCU_M4FSS
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+I2C0/1/2/3
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+MCU_I2C0
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+WKUP_I2C0
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+MCANSS0
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+Y
+N
+N
+N
+Y
+Y
+MCU_MCANSS0/1
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+All ECC_AGGR
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+ELM0
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+N
+N
+N
+Y
+Y
+Y
+CPSW
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+ddr16ss
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+N
+N
+N
+Y
+Y
+Y
+MMCSD0/1/2
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+GIC
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+RTI
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+Y
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+MCU_RTI
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+WKUP_RTI
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+ALL cbass
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+DEBUGSS0
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+DEBUGSS_WRAP0
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+FSS0 Data
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+N
+N
+N
+Y
+Y
+Y
+FSS0 Config
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+DMASS0 cfg
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+STM0
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+Y
+Y
+N
+N
+N
+Y
+Y
+Y
+USB0/1
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+Y
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+
+=== Page 94 ===
+Table 3-8. Connectivity Table among Initiators and Targets (continued)
+Target Interfaces
+Initiators
+A53SS
+WKUP R5FSS
+MCU M4FSS
+TIFS
+HSM
+GPU
+MMCSD0/1/2
+ICSSM0
+GIC
+USB0/1
+debugss_wrap
+dmss0 ( BCDMA and pktDMA)
+PDMA0(SPI)
+PDMA1(UART)
+PDMA2(MCASP)
+DSS
+sa3_SS_sa_ul_0
+sa3ss_pktdma
+all PBIST CFG
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+DSS
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+CSI_RX
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+DPHY_RX
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+TIFS
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+N
+N
+N
+Y
+Y
+Y
+HSM
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+N
+N
+N
+Y
+Y
+Y
+GPU
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+BW_LIMITERS
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+ROM
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+WKUP_R5FSS TCM
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+N
+N
+N
+Y
+Y
+Y
+WKUP_R5FSS config
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+MCU_M4FSS
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+N
+N
+N
+Y
+Y
+Y
+ICSSM0
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+N
+N
+N
+Y
+Y
+Y
+GTC
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+PSRAMECC
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+Y
+Y
+Y
+PSRAMECC_16k
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+Y
+N
+N
+N
+Y
+Y
+Y
+MAILBOX
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+SA_UL
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+all INTR_routers
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+PSC0
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+MCU_PSC0
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+CTRL_MMR
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+MCU_CTRL_MMR
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+WKUP_CTRL_MMR
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+EFUSE0
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+PLL0
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+MCU_PLL
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+PADCFG_CTRL
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+MCU_PADCFG_CTRL
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+DDPA0
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+DFTSS0
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+GPIO0/1
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+MCU_GPIO0
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+PLLCTRL0
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+MCU_PLLCTRL0
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+PDMA0/1/2 ECC_AGGR CFG
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+
+=== Page 95 ===
+Table 3-8. Connectivity Table among Initiators and Targets (continued)
+Target Interfaces
+Initiators
+A53SS
+WKUP R5FSS
+MCU M4FSS
+TIFS
+HSM
+GPU
+MMCSD0/1/2
+ICSSM0
+GIC
+USB0/1
+debugss_wrap
+dmss0 ( BCDMA and pktDMA)
+PDMA0(SPI)
+PDMA1(UART)
+PDMA2(MCASP)
+DSS
+sa3_SS_sa_ul_0
+sa3ss_pktdma
+ECAP0/1/2
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+EQEP0/1/2
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+EPWM0/1/2
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+McASP0/1/2
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+Y
+N
+Y
+Y
+sa3ss_DMSS_HSM0
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+DMSS0
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+ESM
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+MCU_ESM
+Y
+Y
+Y
+Y
+Y
+Y
+N
+Y
+N
+N
+Y
+Y
+N
+N
+N
+N
+Y
+Y
+3.1.9 QoS Programming Guide
+The QoS MMR is integrated as part of data plane CBASS to provide programmability of priority, orderID and
+CoS sideband signals for each initiator port in the data plane. Currently CoS sideband signal is not used for any
+routing or schedule purpose. For most of the initiator ports, it has only one setting of the orderID and CoS field.
+For the initiator port supports with multiple channels, the transactions in each channel can be programmed to
+have different sets of priority, orderID and CoS. The orderID is a four-bit field value. All the transactions coming
+from the same initiator ports with the same orderID expect to receive the read data in order.
+In the previous generation of the CBASS, how the traffic is split among parallel paths to the same end points
+is hard coded. The traffic from a certain initiator port is hard coded to choose one of the parallel paths. Due to
+the nature of hard coded, the system can’t do load balancing based on the use case. Keystone3 removes this
+limitation through splitting traffic using OrderID value. Since the orderID value for the traffic from each initiator
+port is programmable, the user can load balance based on the use case scenario.
+Each target port in each SCR has its own arbiter. The SoC CBASS arbitration is based on epriority. For the ports
+with equal epriority, the arbiter uses round robin to break the tie.
+DDR EMIF also uses orderID to maintain transaction ordering. All the transactions with the same orderID sent
+to EMIF will be executed in order. In order to maximize the EMIF performance, user shall carefully use the
+full range of 16 orderID values. Therefore, EMIF can utilize its re-ordering mechanism to improve the EMIF
+utilization.
+Inside EMIF controller, there are mapping register to map CBA priority to AXI priority. EMIF controller schedule
+transaction using strict priority scheme based on AXI priority. In order to maximize the DDR utilization to reduce
+the memory page open/close and read and write turn around penalty, it is suggested to map to a single AXI
+priority.
+AM62 has two real-time peripherals DSS and CSI_RX, both of them have real time deadline. DSS has internal
+mflag, which can be used to change the priority level of the transaction based on the FIFO depth. CSI_RX is
+serviced by block copy DMA. In order to maintain the CSI_RX bandwidth to prevent CSI_RX data overflow, the
+high performance DMA block channel shall be used to issue up to 512B write data to DDR. In addition, the
+priority for the block copy DMA channel shall use the highest priority.
+
+=== Page 96 ===
+In addition, GPU can burst out a long back to back burst of transactions to completely exhaust the DDR
+bandwidth. In order to mitigate the risk of missing real-time peripheral deadline, bandwidth limiters are added to
+AM62 to control the transactions from both GPU and A53. User can configure and tune the bandwidth limiter
+parameters based on the use cases.
+3.1.10 Performance Considerations
+3.1.10.1 Initiator Timeout Gasket
+In the normal condition, the initiator gasket does not add additional latency to the transaction. However, if the
+score board which tracks the pending transaction is full, the transaction may be temporarily stalled until the
+previous transactions are returned.
+3.1.10.2 Target Timeout Gasket
+Target side gasket adds latency on both forward path and return paths. On the forward path, one cycle latency
+is added for each command. If it is a write transaction, it also adds one cycle for the write data. On the response
+path, additional 2 cycles are added for read return data and 2 cycles added on write status return. In addition,
+the target timeout gasket also stalls the transaction if there is no free slot in the scoreboard for tracking pending
+transactions:
+•
+If a write command comes in and there are no free slots in the write scoreboard, the entire command bus and
+write data bus will stall
+•
+If a read command comes in and there are no free slots in the read scoreboard, the entire command bus will
+stall
+If the target timeout gasket enters the time out condition:
+•
+If a write transaction is being timed out, then the write status bus will stall while the write scoreboard flushes
+the command
+•
+If a read transaction is being timed out, then the read data bus will stall while the read scoreboard flushes the
+command
+Therefore, the target timeout gasket shall be configured properly to avoid stalls due to lack of scoreboard.
+In addition, all the target side time out gaskets are for VBUSM interface. If a VBUSP target interface needs
+isolation, it requires a M2P bridge added, which future increases the latency.
+3.1.10.3 Latency Introduced by Auto Clock Gating Control
+Auto clock gating feature is also called nogate control. It is a technique to reduce the dynamic power for SoC.
+When nogate control is set to 1b0, it means that the CBA clock will be automatically shut off after 12 cycles idle.
+After the clock is auto shut off, the first future transaction will have additional pipe latency for each hop. The
+subsequence transaction will not have this latency penalty if it is arrived within 12 clock cycle windows. When
+nogate control is set to 1b1, the CBA clock will not shut off automatically.
+The auto clock gating control can be modified during device initialization time through register CLKGATE_CTRL
+in wkup_ctrl_mmr block.
+

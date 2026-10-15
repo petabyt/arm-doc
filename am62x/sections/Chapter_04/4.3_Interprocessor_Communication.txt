@@ -1,0 +1,427 @@
+4.3 Interprocessor Communication
+=== Page 111 ===
+4.3.1 Mailbox
+This section contains the integration details for the Mailbox module on this device. For Further information, see
+the Deep Mailbox section of the Interprocessor Communications chapter
+4.3.1.1 Mailbox Unsupported Features
+The following features are not supported on this family of devices:
+•
+'User' protection of mailbox in hardware - Must be implemented by software if required
+4.3.1.2 Reference
+Table 4-21. Mailbox Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+MAILBOX0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_SMS_C
+OMMON
+27
+ON
+YES
+LPSC_MAIN_A
+LWAYSON
+Table 4-22. Mailbox Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+MAILBOX0
+VCLK_CLK
+MAIN_PLL15_HSDIV0_C
+LKOUT
+MAILBOX0 clock. This
+clock is used for all
+interface and functional
+operations.
+Table 4-23. Mailbox Integration Resets
+Module Instance
+Source
+Description
+MAILBOX0
+PSC0
+MAILBOX0 reset
+Table 4-24. Mailbox Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_0
+MCU_M4FSS0_COR
+E0_nvic_IN_50
+MCU_M4FSS0_COR
+E0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_0
+GICSS0_spi_IN_108
+GICSS0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_0
+GICSS0_spi_IN_109
+GICSS0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_0
+R5FSS0_CORE0_intr
+_IN_254
+R5FSS0_CORE0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_0
+R5FSS0_CORE0_intr
+_IN_255
+R5FSS0_CORE0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_0
+TIFS0_nvic_IN_77
+TIFS0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+=== Page 112 ===
+Table 4-24. Mailbox Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_0
+HSM0_nvic_IN_77
+HSM0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_1
+MCU_M4FSS0_COR
+E0_nvic_IN_50
+MCU_M4FSS0_COR
+E0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_1
+GICSS0_spi_IN_108
+GICSS0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_1
+GICSS0_spi_IN_109
+GICSS0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_1
+R5FSS0_CORE0_intr
+_IN_254
+R5FSS0_CORE0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_1
+R5FSS0_CORE0_intr
+_IN_255
+R5FSS0_CORE0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_1
+TIFS0_nvic_IN_77
+TIFS0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_1
+HSM0_nvic_IN_77
+HSM0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_2
+MCU_M4FSS0_COR
+E0_nvic_IN_50
+MCU_M4FSS0_COR
+E0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_2
+GICSS0_spi_IN_108
+GICSS0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_2
+GICSS0_spi_IN_109
+GICSS0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_2
+R5FSS0_CORE0_intr
+_IN_254
+R5FSS0_CORE0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_2
+R5FSS0_CORE0_intr
+_IN_255
+R5FSS0_CORE0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_2
+TIFS0_nvic_IN_77
+TIFS0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_2
+HSM0_nvic_IN_77
+HSM0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+=== Page 113 ===
+Table 4-24. Mailbox Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_3
+MCU_M4FSS0_COR
+E0_nvic_IN_50
+MCU_M4FSS0_COR
+E0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_3
+GICSS0_spi_IN_108
+GICSS0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_3
+GICSS0_spi_IN_109
+GICSS0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_3
+R5FSS0_CORE0_intr
+_IN_254
+R5FSS0_CORE0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_3
+R5FSS0_CORE0_intr
+_IN_255
+R5FSS0_CORE0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_3
+TIFS0_nvic_IN_77
+TIFS0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+MAILBOX0
+MAILBOX0_CLUSTE
+R_0_mailbox_cluster
+_pend_3
+HSM0_nvic_IN_77
+HSM0
+MAILBOX0_CLUSTE
+R_0 interrupt request
+level
+=== Page 114 ===
+4.3.2 Spinlock
+This section contains the integration details for the Spinlock module on this device. For Further information, see
+the Spinlock section of the Peripherals chapter
+4.3.2.1 SPINLOCK Unsupported Features
+The following features are not supported on this family of devices:
+•
+ARM Architectural Spinlock Instructions (LDREX,STREX)
+•
+Any use model other than binary mutex (ex. counting semaphore, lockless programming) - Spinlock MMR is
+a single binary 0,1 implemented by a state machine
+•
+64 bit accesses - Spinlock MMRs are aligned on 32-bit boundaries meaning a 64 bit access affects the state
+of 2 spinlocks
+4.3.2.2 Module Allocations
+Table 4-25. Spinlock Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+SPINLOCK0
+✓
+4.3.2.3 Resets, Interrupts, and Clocks
+Table 4-26. Spinlock Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+SPINLOCK0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_SMS_C
+OMMON
+27
+ON
+YES
+LPSC_MAIN_A
+LWAYSON
+Table 4-27. Spinlock Resets
+Module Instance
+Source
+Description
+SPINLOCK0
+PSC0
+SPINLOCK0 reset
+Table 4-28. Spinlock Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+SPINLOCK0
+NONE
+Table 4-29. Spinlock Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+SPINLOCK0
+VBUS_FCLK
+MAIN_PLL15_HSDIV0_C
+LKOUT/2
+=== Page 115 ===

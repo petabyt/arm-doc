@@ -1,0 +1,4175 @@
+Chapter 10 CRYPTO
+10.1 Overview
+
+CRYPTO is a hardware accelerator for encrypting or decrypting. It supports the most
+commonly used algorithm: DES/3DES, AES, SHA1, SHA256, MD5 and PKA.
+The CRYPTO is divided into NSCRYPTO(CRYPTO for nonsecure) and SCRYPTO(CRYPTO for
+secure). NSCRYPTO is different from SCRYPTO base address and has the same function.
+SCRYPTO has more characteristics than NSCRYPTO.
+The CRYPTO supports following features:
+⚫ Support Link List Item (LLI) DMA transfer
+⚫ Support SHA-1, SHA-256/224, SHA-512/384, MD5, SM3 with hardware padding
+⚫ Support HMAC of SHA-1, SHA-256, SHA-512, MD5, SM3 with hardware padding
+⚫ Support AES-128, AES-192, AES-256 encrypt & decrypt cipher
+⚫ Support DES & TDES cipher
+⚫ Support AES ECB/CBC/OFB/CFB/CTR/CTS/XTS/CCM/GCM/CBC-MAC/CMAC mode
+⚫ Support SM4 ECB/CBC/OFB/CFB/CTR/CTS/XTS/CCM/GCM/CBC-MAC/CMAC mode
+⚫ Support DES/TDES ECB/CBC/OFB/CFB mode
+⚫ Support up to 4096 bits PKA mathematical operations for RSA/ECC/SM2
+⚫ Support up to 8-channels configuration
+⚫ Support generating random numbers
+⚫ SCRYPTO AES/DES/TDES/SM4/HASH supports lockstep error monitoring
+⚫ SCRYPTO AES/DES/TDES/SM4 supports anti side channel attack
+⚫ SCRYPTO supports receiving KEY from KEYLAD
+
+10.2 Block Diagram
+
+Fig. 10-1 CRYPTO Architecture
+CRYPTO contains several modules: AHB_Slave, DMA, CIPHER, PKA. SCRYPTO also contains a
+special module: KEY_Table.
+AHB_Slave
+AHB_Slave is used to configure registers. This module is in HCLK domain.
+DMA
+DMA is used to transfer data from external memory to RX_FIFO, or from TX_FIFO to
+external memory. DMA uses 64-bits AXI3 protocol with max burst length to 16. LLI transfer
+is also supported for performance and convenience consideration. This module is in ACLK
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1147
+
+RK3588 TRM-Part2
+domain.
+CIPHER
+CIPHER contains AES, SM4, DES/TDES and HASH engines. And it also supports various
+mode operations. The source data is either from RX_FIFO, or from other engine output. The
+result data is sending either to TX_FIFO, or Registers in module AHB_Slave. This module is
+in CLK_CORE domain.
+PKA
+PKA is used to accelerate mathematical operations for big numbers. It supports - Modular
+arithmetic (addition, subtraction, multiplication and division), Regular arithmetic (addition,
+subtraction, multiplication and division), Modular inversion, Modular exponentiation,
+Logical operations (AND, OR, XOR, SHIFT). PKA has a SRAM which is used to store source,
+result and intermediate data for PKA operations. The software driver could use PKA
+operations to implement complicate calculation, such as RSA, ECC etc. It could support up to
+4096 bits RSA modular exponentiation calculation. This module is in CLK_PKA domain.
+TRNG
+TRNG is used to collects random bits from the ring oscillator, up to 256 random bits per
+time. In SCRYPTO, TRNG also provides CIPHER with mask to prevent side channel attack.
+This module is in CLK_RNG domain.
+KEY_Table
+KEY Table is an extra module of SCRYPTO compared with NSCRYPTO. KEY Table is used to
+receive and temporarily store the KEY sent by KEYLAD through APB, and provide the KEY to
+CIPHER operation. This module is in PCLK domain.
+
+10.3 Register Description
+
+10.3.1 Internal Address Mapping
+
+Slave address can be divided into different length for different usage, which is shown as
+follows.
+
+10.3.2 Registers Summary
+
+The register prefixed with CRYPTO is the same function register of NSCRYPTO and SCRYPTO.
+The register with prefix of NSCRYPTO and SCRYPTO is the register that NSCRYPTO and
+SCRYPTO are different or need to be distinguished.
+Reset
+Name
+Offset Size
+Description
+Value
+CRYPTO_CLK_CTL
+0x0000 W
+0x00000001 Clock Control Register
+CRYPTO_RST_CTL
+0x0004 W
+0x00000000 Reset Control Register
+NSCRYPTO_DMA_INT_EN
+0x0008 W
+0x00000000 DMA Interrupt Enable Register
+SCRYPTO_DMA_INT_EN
+0x0008 W
+0x00000000 DMA Interrupt Enable Register
+NSCRYPTO_DMA_INT_ST
+0x000C W
+0x00000000 DMA Interrupt Status Register
+SCRYPTO_DMA_INT_ST
+0x000C W
+0x00000000 DMA Interrupt Status Register
+CRYPTO_DMA_CTL
+0x0010 W
+0x00000000 DMA Control Register
+DMA LIST Start Address
+CRYPTO_DMA_LLI_ADDR
+0x0014 W
+0x00000000
+Register
+CRYPTO_DMA_ST
+0x0018 W
+0x00000000 DMA Status Register
+CRYPTO_DMA_STATE
+0x001C W
+0x00000000 DMA State Register
+CRYPTO_DMA_LLI_RADDR
+0x0020 W
+0x00000000 DMA LLI Read Address Register
+DMA Source Data Read
+CRYPTO_DMA_SRC_RADDR
+0x0024 W
+0x00000000
+Address Register
+DMA Destination Data Read
+CRYPTO_DMA_DST_WADDR
+0x0028 W
+0x00000000
+Address Register
+CRYPTO_DMA_ITEM_ID
+0x002C W
+0x00000000 DMA Descriptor ID Register
+CRYPTO_FIFO_CTL
+0x0040 W
+0x00000003 FIFO Control Register
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1148
+
+RK3588 TRM-Part2
+Name
+CRYPTO_BC_CTL
+CRYPTO_HASH_CTL
+CRYPTO_CIPHER_ST
+CRYPTO_CIPHER_STATE
+CRYPTO_CHn_IV_0
+CRYPTO_CHn_IV_1
+CRYPTO_CHn_IV_2
+CRYPTO_CHn_IV_3
+CRYPTO_CHn_KEY_0
+CRYPTO_CHn_KEY_1
+CRYPTO_CHn_KEY_2
+CRYPTO_CHn_KEY_3
+CRYPTO_CHn_PC_LEN_0
+CRYPTO_CHn_PC_LEN_1
+
+Offset Size
+0x0044 W
+0x0048 W
+0x004C W
+0x0050 W
+0x0100
+W
++n*0x10
+0x0104
+W
++n*0x10
+0x0108
+W
++n*0x10
+0x010C
+W
++n*0x10
+0x0180
+W
++n*0x10
+0x0184
+W
++n*0x10
+0x0188
+W
++n*0x10
+0x018C
+W
++n*0x10
+0x0280
+W
++n*0x8
+0x0284
+W
++n*0x8
+
+Reset
+Description
+Value
+0x00000000 Block Cipher Control Register
+0x00000004 Hash Control Register
+0x00000000 Cipher Status Register
+0x00000400 Cipher Current State Register
+0x00000000 Channel n IV Register 0
+0x00000000 Channel n IV Register 1
+0x00000000 Channel n IV Register 2
+0x00000000 Channel n IV Register 3
+0x00000000 Channel n KEY Register 0
+0x00000000 Channel n KEY Register 1
+0x00000000 Channel n KEY Register 2
+0x00000000 Channel n KEY Register 3
+0x00000000 Channel n PC Length Register 0
+0x00000000 Channel n PC Length Register 1
+
+CRYPTO_CHn_AAD_LEN_0
+
+0x02C0
++n*0x8
+
+W
+
+0x00000000
+
+Channel n AAD Length Register
+0
+
+CRYPTO_CHn_AAD_LEN_1
+
+0x02C4
++n*0x8
+
+W
+
+0x00000000
+
+Channel n AAD Length Register
+1
+
+CRYPTO_CHn_IV_LEN_0
+CRYPTO_CHn_TAG_0
+CRYPTO_CHn_TAG_1
+CRYPTO_CHn_TAG_2
+CRYPTO_CHn_TAG_3
+CRYPTO_HASH_DOUT_n
+CRYPTO_TAG_VALID
+CRYPTO_HASH_VALID
+NSCRYPTO_RNG_CTL
+SCRYPTO_RNG_CTL
+CRYPTO_RNG_SAMPLE_CNT
+CRYPTO_RNG_DOUT_n
+CRYPTO_RAM_CTL
+CRYPTO_RAM_ST
+CRYPTO_DEBUG_CTL
+CRYPTO_DEBUG_ST
+
+0x0300
+W
++n*0x4
+0x0320
+W
++n*0x10
+0x0324
+W
++n*0x10
+0x0328
+W
++n*0x10
+0x032C
+W
++n*0x10
+0x03A0
+W
++n*0x4
+0x03E0 W
+0x03E4 W
+0x0400 W
+0x0400 W
+0x0404 W
+0x0410
+W
++n*0x4
+0x0480 W
+0x0484 W
+0x04A0 W
+0x04A4 W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+0x00000000 Channel n IV Length Register 0
+0x00000000 Channel n Tag Register 0
+0x00000000 Channel n Tag Register 1
+0x00000000 Channel n Tag Register 2
+0x00000000 Channel n Tag Register 3
+0x00000000 HASH Data Output Register n
+0x00000000 TAG Valid Register
+0x00000000 HASH Output Valid Register
+0x0000000C RNG Control Register
+0x00000019 RNG Control Register
+0x00000000 RNG Sample Counter Register
+0x00000000 RNG Data Output Register n
+0x00000000 RAM Control Register
+0x00000001 RAM Status Register
+0x00000000 PKA Debug Control Register
+0x00000001 PKA Debug Status Register
+
+1149
+
+RK3588 TRM-Part2
+Name
+
+Offset Size
+
+CRYPTO_DEBUG_MONITOR
+
+0x04A8
+
+W
+
+SCRYPTO_RNG_START
+SCRYPTO_RNG_ST
+SCRYPTO_RNG_INTEN
+SCRYPTO_RNG_INTST
+SCRYPTO_KEY_SEL
+SCRYPTO_LOCKSTEP_FLAG
+SCRYPTO_LOCKSTEP_EN
+
+0x0520
+0x0524
+0x0528
+0x052C
+0x0610
+0x0618
+0x061C
+
+W
+W
+W
+W
+W
+W
+W
+
+NSCRYPTO_AES_VERSION
+
+0x0680
+
+W
+
+SCRYPTO_AES_VERSION
+
+0x0680
+
+W
+
+NSCRYPTO_DES_VERSION
+
+0x0684
+
+W
+
+SCRYPTO_DES_VERSION
+
+0x0684
+
+W
+
+NSCRYPTO_SM4_VERSION
+
+0x0688
+
+W
+
+SCRYPTO_SM4_VERSION
+
+0x0688
+
+W
+
+NSCRYPTO_HASH_VERSION
+
+0x068C
+
+W
+
+SCRYPTO_HASH_VERSION
+
+0x068C
+
+W
+
+NSCRYPTO_HMAC_VERSION
+
+0x0690
+
+W
+
+SCRYPTO_HMAC_VERSION
+
+0x0690
+
+W
+
+NSCRYPTO_RNG_VERSION
+
+0x0694
+
+W
+
+SCRYPTO_RNG_VERSION
+
+0x0694
+
+W
+
+NSCRYPTO_PKA_VERSION
+
+0x0698
+
+W
+
+SCRYPTO_PKA_VERSION
+
+0x0698
+
+W
+
+NSCRYPTO_CRYPTO_VERSION 0x06F0
+
+W
+
+SCRYPTO_CRYPTO_VERSION
+
+W
+
+CRYPTO_PKA_MEM_MAPn
+CRYPTO_PKA_OPCODE
+CRYPTO_N_NP_T0_T1_ADDR
+CRYPTO_PKA_STATUS
+CRYPTO_PKA_SW_RESET
+CRYPTO_PKA_Ln
+
+0x06F0
+0x0800
++n*0x4
+0x0880
+0x0884
+0x0888
+0x088C
+0x0890
++n*0x4
+
+Description
+
+PKA Debug Monitor Bus
+Register
+0x00000000 RNG start
+0x00000000 RNG work status
+0x00000000 RNG interrupt enable
+0x00000000 RNG interrupt status
+0x00000000 Operation key select
+0x00000000 Lockstep mistake flag
+0x00000000 Lockstep check enable
+AES_VERSION code is
+0x000707FF
+0x0007_07ff
+AES_VERSION code is
+0x000707FF
+0x0007_07ff
+DES_VERSION code is
+0x00030033
+0x0003_0033
+DES_VERSION code is
+0x00030033
+0x0003_0033
+SM4_VERSION code is
+0x000007FF
+0x0000_07ff
+SM4_VERSION code is
+0x000007FF
+0x0000_07ff
+HASH_VERSION code is
+0x000001FF
+0x0000_01ff
+HASH_VERSION code is
+0x000001FF
+0x0000_01ff
+HMAC_VERSION code is
+0x0000001F
+0x0000_001f
+HMAC_VERSION code is
+0x0000001F
+0x0000_001f
+RNG_VERSION code is
+0x01000000
+0x0100_0000
+RNG_VERSION code is
+0x02000000
+0x0200_0000
+PKA_VERSION code is
+0x01000000
+0x0100_0000
+PKA_VERSION code is
+0x01000000
+0x0100_0000
+CRYPTO_VERSION code is
+0x02000001
+0x0200_0001
+CRYPTO_VERSION code is
+0x02000002
+0x0200_0002
+0x0000FEEF
+
+W
+
+0x00000000 PKA Memory Map n Register
+
+W
+W
+W
+W
+
+0x00000000 PKA Operation Code Register
+0x000FF820 N_NP_T0_T1_ADDR Register
+0x00000001 PKA Status Register
+0x00000000 software reset of PKA
+
+W
+
+0x00000000 PKA Length n Register
+0x00000001
+
+CRYPTO_PKA_PIPE_RDY
+
+0x08B0
+
+W
+
+CRYPTO_PKA_DONE
+CRYPTO_PKA_MON_SELECT
+
+0x08B4
+0x08B8
+
+W
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Reset
+Value
+
+PKA pipe is ready for new
+opcode
+0x00000001 PKA Done Register
+0x00000000 PKA Monitor Select Register
+
+1150
+
+RK3588 TRM-Part2
+Name
+
+Offset Size
+
+CRYPTO_PKA_DEBUG_REG_EN 0x08BC
+
+W
+
+CRYPTO_DEBUG_CNT_ADDR
+
+0x08C0
+
+W
+
+CRYPTO_DEBUG_EXT_ADDR
+CRYPTO_PKA_DEBUG_HALT
+CRYPTO_PKA_MON_READ
+CRYPTO_PKA_INT_ENA
+CRYPTO_PKA_INT_ST
+CRYPTO_SRAM_ADDR
+
+0x08C4
+0x08C8
+0x08D0
+0x08D4
+0x08D8
+0x1000
+
+W
+W
+W
+W
+W
+W
+
+Reset
+Description
+Value
+0x00000000 PKA Debug Enable Register
+Debug Counter Address
+0x00000000
+Register
+0x00000000 Debug Extra Address Register
+0x00000000 PKA Debug Halt State Register
+0x0000FEEF PKA Monitor Read Register
+0x00000000 PKA Interrupt Enable Register
+0x00000000 PKA Interrupt Status Register
+0x00000000 SRAM Base Address
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+10.3.3 Detail Registers Description
+
+CRYPTO_CLK_CTL
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+31:17 RO 0x0000
+reserved
+write_enable
+Write enable for lower 16bits, each bit is individual
+16
+WO 0x0
+1’b0: Write access disable
+1’b1: Write access enable
+15:1 RO 0x0000
+reserved
+auto_clkgate_en
+CRYPTO will gate unused Block Cipher and HASH module
+0
+RW 0x1
+automatically
+1'b0: Disable
+1'b1: Enable
+CRYPTO_RST_CTL
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+31:19 RO 0x0000
+reserved
+write_enable
+Write enable for lower 16bits, each bit is individual
+18:16 RW 0x0
+1’b0: Write access disable
+1’b1: Write access enable
+15:3 RO 0x0000
+reserved
+sw_pka_reset
+R/W
+2
+0x0
+Software set this bit to start a reset to PKA module. After the
+SC
+reset is done, CRYPTO will clear this bit.
+sw_rng_reset
+R/W
+1
+0x0
+Software set this bit to start a reset to TRNG module. After the
+SC
+reset is done, CRYPTO will clear this bit.
+sw_cc_reset
+R/W
+0
+0x0
+Software set this bit to start a reset to Symmetric Cipher and
+SC
+HASH module. After the reset is done, CRYPTO will clear this bit.
+NSCRYPTO_DMA_INT_EN
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+31:7 RO 0x0000000
+reserved
+zero_len_int_en
+6
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1151
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+list_err_int_en
+1'b0: Disable
+1'b1: Enable
+src_err_int_en
+1'b0: Disable
+1'b1: Enable
+dst_err_int_en
+1'b0: Disable
+1'b1: Enable
+src_item_done_int_en
+1'b0: Disable
+1'b1: Enable
+dst_item_done_int_en
+1'b0: Disable
+1'b1: Enable
+list_done_int_en
+1'b0: Disable
+1'b1: Enable
+
+SCRYPTO_DMA_INT_EN
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+lockstep_int_en
+7
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+zero_len_int_en
+6
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+list_err_int_en
+5
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+src_err_int_en
+4
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+dst_err_int_en
+3
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+src_item_done_int_en
+2
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+dst_item_done_int_en
+1
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+list_done_int_en
+0
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+NSCRYPTO_DMA_INT_ST
+Address: Operational Base + offset (0x000C)
+Bit Attr Reset Value
+31:7 RO 0x0000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+Description
+
+1152
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+6
+
+W1
+C
+
+0x0
+
+5
+
+W1
+C
+
+0x0
+
+4
+
+W1
+C
+
+0x0
+
+3
+
+W1
+C
+
+0x0
+
+2
+
+W1
+C
+
+0x0
+
+1
+
+W1
+C
+
+0x0
+
+0
+
+W1
+C
+
+0x0
+
+Description
+zero_len
+1'b1: Indicate that DMA has met an 0 byte source transfer length
+in list descriptors. After the bit is read, the application should
+write 1 to clear this bit for next time use
+1'b0: Nothing
+list_err
+1'b1: Indicate that DMA has met an error response when transfer
+list descriptors. The state machine will exit current transfer and
+then return to IDLE state. After the bit is read, the application
+should write 1 to clear this bit for next time use
+1'b0: Nothing
+src_err
+1'b1: Indicate that DMA has met an error response when transfer
+source data. The state machine will exit current transfer and then
+return to IDLE state. After the bit is read, the application should
+write 1 to clear this bit for next time use
+1'b0: Nothing
+dst_err
+1'b1: Indicate that DMA has met an error response when transfer
+destination data. The state machine will exit current transfer and
+then return to IDLE state. After the bit is read, the application
+should write 1 to clear this bit for next time use
+1'b0: Nothing
+src_item_done
+1'b1:Indicate that DMA has completed a read transfers which the
+current list descriptor pointed to. After the bit is read, the
+application should write 1 to clear this bit for next time use
+1'b0: Nothing
+dst_item_done
+1'b1: Indicate that DMA has completed a write transfers which
+the current list descriptor pointed to. After the bit is read, the
+application should write 1 to clear this bit for next time use
+1'b0: Nothing
+list_done
+1'b1: Indicate that DMA has completed all the transfers which the
+list descriptors pointed to. After the bit is read, the application
+should write 1 to clear this bit for next time use
+1'b0: Nothing
+
+SCRYPTO_DMA_INT_ST
+Address: Operational Base + offset (0x000C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+lockstep_flag
+W1
+7
+0x0
+1'b0: Nothing
+C
+1'b1: Indicate that crypto was attacked
+zero_len
+1'b0: nothing
+6
+RW 0x0
+1'b1: indicate that DMA has met an 0 byte source transfer length
+in list descriptors. After the bit is read, the application should
+write 1 to clear this bit for next time use
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1153
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+5
+
+RW 0x0
+
+4
+
+W1
+C
+
+0x0
+
+3
+
+W1
+C
+
+0x0
+
+2
+
+W1
+C
+
+0x0
+
+1
+
+W1
+C
+
+0x0
+
+0
+
+W1
+C
+
+0x0
+
+Description
+list_err
+1'b0: Nothing
+1'b1: Indicate that DMA has met an error response when transfer
+list descriptors. The state machine will exit current transfer and
+then return to IDLE state. After the bit is read, the application
+should write 1 to clear this bit for next time use
+src_err
+1'b0: Nothing
+1'b1: Indicate that DMA has met an error response when transfer
+source data. The state machine will exit current transfer and then
+return to IDLE state. After the bit is read, the application should
+write 1 to clear this bit for next time use
+dst_err
+1'b0: Nothing
+1'b1: Indicate that DMA has met an error response when transfer
+destination data. The state machine will exit current transfer and
+then return to IDLE state. After the bit is read, the application
+should write 1 to clear this bit for next time use
+src_item_done
+1'b0: Nothing
+1'b1: Indicate that DMA has completed a read transfers which the
+current list descriptor pointed to. After the bit is read, the
+application should write 1 to clear this bit for next time use
+dst_item_done
+1'b0: Nothing
+1'b1: Indicate that DMA has completed a write transfers which
+the current list descriptor pointed to. After the bit is read, the
+application should write 1 to clear this bit for next time use
+list_done
+1'b0: Nothing
+1'b1: Indicate that DMA has completed all the transfers which the
+list descriptors pointed to. After the bit is read, the application
+should write 1 to clear this bit for next time use
+
+CRYPTO_DMA_CTL
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+Description
+31:18 RO 0x0000
+reserved
+write_enable
+Write enable for lower 16bits, each bit is individual
+17:16 WO 0x0
+1’b0: Write access disable
+1’b1: Write access enable
+15:2 RO 0x0000
+reserved
+dma_restart
+If DMA data for next stage is not ready, application could pause
+R/W
+DMA by descriptor commands. DMA will stop prefetching next
+1
+0x0
+SC
+descriptor. The application could restart DMA by asserting this bit
+when DMA data for next state is ready. CRYPTO will continue with
+previous transfer, and clear the bit automatically.
+dma_start
+R/W
+0
+0x0
+DMA asserts the bit to start DMA transfer, then CRYPTO will clear
+SC
+the bit automatically.
+CRYPTO_DMA_LLI_ADDR
+Address: Operational Base + offset (0x0014)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1154
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+dma_lli_addr
+When DMA_CTL start asserted, CRYPTO will read the address to
+get the 1'st descriptor. It should be 8-bytes align. We suggest
+dma_lli_addr 64-byte align for best performance consideration.
+
+CRYPTO_DMA_ST
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+31:1 RO 0x00000000 reserved
+dma_busy
+0
+RO 0x0
+1'b0: DMA idle
+1'b1: DMA busy
+CRYPTO_DMA_STATE
+Address: Operational Base + offset (0x001C)
+Bit Attr Reset Value
+31:6 RO 0x0000000
+reserved
+dma_lli_state
+For debug use only
+2'b00: IDLE STATE
+5:4
+RO 0x0
+2'b01: FETCH STATE
+2'b10: WORK STATE
+Others: Reserved
+dma_src_state
+For debug use only
+2'b00: IDLE STATE
+3:2
+RO 0x0
+2'b01: LOAD STATE
+2'b10: WORK STATE
+Others: Reserved
+dma_dst_state
+For debug use only
+2'b00: IDLE STATE
+1:0
+RO 0x0
+2'b01: LOAD STATE
+2'b10: WORK STATE
+Others: Reserved
+
+Description
+
+Description
+
+CRYPTO_DMA_LLI_RADDR
+Address: Operational Base + offset (0x0020)
+Bit Attr Reset Value
+Description
+dma_lli_raddr
+31:0 RO 0x00000000 For debug use only
+It indicates the current DMA LLI read address
+CRYPTO_DMA_SRC_RADDR
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+Description
+dma_src_raddr
+31:0 RO 0x00000000 For debug use only
+It indicates the current DMA source read address
+CRYPTO_DMA_DST_WADDR
+Address: Operational Base + offset (0x0028)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1155
+
+RK3588 TRM-Part2
+Bit
+31:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+dma_dst_waddr
+For debug use only
+It indicates the current DMA destination write address
+
+CRYPTO_DMA_ITEM_ID
+Address: Operational Base + offset (0x002C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+dma_item_id
+7:0
+RO 0x00
+For debug use only
+It indicates the current descriptor ID
+CRYPTO_FIFO_CTL
+Address: Operational Base + offset (0x0040)
+Bit Attr Reset Value
+Description
+31:18 RO 0x0000
+reserved
+write_enable
+Write enable for lower 16bits, each bit is individual
+17:16 WO 0x0
+1’b0: Write access disable
+1’b1: Write access enable
+15:2 RO 0x0000
+reserved
+dout_byteswap
+1
+RW 0x1
+1'b0: Little endian
+1'b1: Big endian
+din_byteswap
+0
+RW 0x1
+1'b0: Little endian
+1'b1: Big endian
+CRYPTO_BC_CTL
+Address: Operational Base + offset (0x0044)
+Bit Attr Reset Value
+Description
+31:26 RO 0x00
+reserved
+write_enable
+Write enable for lower 16bits, each bit is individual
+25:16 WO 0x000
+1’b0: Write access disable
+1’b1: Write access enable
+15:10 RO 0x00
+reserved
+bc_cipher_sel
+2'b00: AES
+9:8
+RW 0x0
+2'b01: SM4
+2'b10: DES
+2'b11: TDES
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1156
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+7:4
+
+RW 0x0
+
+3:2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+mode
+For AES
+4'h0: ECB
+4'h1: CBC
+4'h2: CTS
+4'h3: CTR
+4'h4: CFB
+4'h5: OFB
+4'h6: XTS
+4'h7: CCM
+4'h8: GCM
+4'h9: CMAC
+4'hA: CBC-MAC
+Others: Reserved
+For TDES/DES
+4'h0: ECB
+4'h1: CBC
+4'h4: CFB
+4'h5: OFB
+Others: Reserved
+key_size
+For AES
+2'b00: 128 bit
+2'b01: 192 bit
+2'b10: 256 bit
+2'b11: reserved
+For TDES/DES, it is reserved
+decrypt
+1'b0: Encrypt
+1'b1: Decrypt
+bc_enable
+1'b0: Disable
+1'b1: Enable
+
+CRYPTO_HASH_CTL
+Address: Operational Base + offset (0x0048)
+Bit Attr Reset Value
+Description
+31:24 RO 0x00
+reserved
+write_enable
+Write enable for lower 16bits, each bit is individual
+23:16 WO 0x00
+1’b0: Write access disable
+1’b1: Write access enable
+15:8 RO 0x00
+reserved
+hash_cipher_sel
+4'h0: SHA-1
+4'h1: MD-5
+4'h2: SHA-256
+4'h3: SHA-224
+7:4
+RW 0x0
+4'h4: SM3
+4'h8: SHA-512
+4'h9: SHA-384
+4'hA: SHA-512/224
+4'hB: SHA-512/256
+Others: Reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1157
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+3
+
+RW 0x0
+
+2
+
+RW 0x1
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+hmac_enable
+CRYPTO supports HMAC-SHA1, HMAC-SHA256, HMAC_SHA512,
+HMAC-MD5, HMAC-SM3
+1'b0: Disable
+1'b1: Enable
+Note:
+If hmac_enable set '1'
+hash_cipher_sel must set 0x6 when chose HMAC-SM3 mode
+hash_cipher_sel set the corresponding value when chose other
+mode
+hw_pad_enable
+1'b0: Disable
+1'b1: Enable
+hash_src_sel
+1'b0: From RX-FIFO
+1'b1: From TX-FIFO
+hash_enable
+1'b0: Disable
+1'b1: Enable
+
+CRYPTO_CIPHER_ST
+Address: Operational Base + offset (0x004C)
+Bit Attr Reset Value
+Description
+31:3 RO 0x00000000 reserved
+otp_key_valid
+Indicate if otp_key is valid.
+2
+RO 0x0
+1'b0: Invalid
+1'b1: Valid
+hash_busy
+1
+RO 0x0
+1'b0: Idle
+1'b1: Busy
+block_cipher_busy
+0
+RO 0x0
+1'b0: Idle
+1'b1: Busy
+CRYPTO_CIPHER_STATE
+Address: Operational Base + offset (0x0050)
+Bit Attr Reset Value
+31:15 RO 0x00000
+reserved
+hash_state
+For debug use only
+5'h01: IDLE State
+14:10 RO 0x01
+5'h02: IPAD State
+5'h04: TEXT State
+5'h08: OPAD State
+5'h10: OPAD EXT State
+gcm_state
+For debug use only
+2'b00: IDLE State
+9:8
+RO 0x0
+2'b01: PRE State
+2'b10: NA State
+2'b11: PC State
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1158
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+7:6
+
+RO
+
+0x0
+
+5:4
+
+RO
+
+0x0
+
+3:2
+
+RO
+
+0x0
+
+1:0
+
+RO
+
+0x0
+
+Description
+ccm_state
+For debug use only
+2'b00: IDLE State
+2'b01: PRE State
+2'b10: NA State
+2'b11: PC State
+parallel_state
+For debug use only
+2'b00: IDLE State
+2'b01: PRE State
+2'b10: BULK State
+Others: Reserved
+mac_state
+For debug use only
+2'b00: IDLE State
+2'b01: PRE State
+2'b10: BULK State
+Others: Reserved
+serial_state
+For debug use only
+2'b00: IDLE State
+2'b01: PRE State
+2'b10: BULK State
+2'b11: Reserved
+
+CRYPTO_CHn_IV_0
+Address: Operational Base + offset (0x0100+n*0x10)
+Bit Attr Reset Value
+Description
+chn_iv_0
+Channel n range from 0 to 7
+31:0 RW 0x00000000 CHn_IV_0 address = 0x0100 + 0x10 * n
+For CTR Mode, IV stands for counter
+For XTS Mode, IV stands for tweak
+CRYPTO_CHn_IV_1
+Address: Operational Base + offset (0x0104+n*0x10)
+Bit Attr Reset Value
+Description
+chn_iv_1
+Channel n range from 0 to 7
+31:0 RW 0x00000000 CHn_IV_1 address = 0x0104 + 0x10 * n
+For CTR Mode, IV stands for counter
+For XTS Mode, IV stands for tweak
+CRYPTO_CHn_IV_2
+Address: Operational Base + offset (0x0108+n*0x10)
+Bit Attr Reset Value
+Description
+chn_iv_2
+Channel n range from 0 to 7
+31:0 RW 0x00000000 CHn_IV_2 address = 0x0108 + 0x10 * n
+For CTR Mode, IV stands for counter
+For XTS Mode, IV stands for tweak
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1159
+
+RK3588 TRM-Part2
+CRYPTO_CHn_IV_3
+Address: Operational Base + offset (0x010C+n*0x10)
+Bit Attr Reset Value
+Description
+chn_iv_3
+Channel n range from 0 to 7
+31:0 RW 0x00000000 CHn_IV_3 address = 0x010c + 0x10 * n
+For CTR Mode, IV stands for counter
+For XTS Mode, IV stands for tweak
+CRYPTO_CHn_KEY_0
+Address: Operational Base + offset (0x0180+n*0x10)
+Bit Attr Reset Value
+Description
+chn_key_0
+31:0 WO 0x00000000 Channel n range from 0 to 7
+CHn_KEY_0 address = 0x0180 + 0x10 * n
+CRYPTO_CHn_KEY_1
+Address: Operational Base + offset (0x0184+n*0x10)
+Bit Attr Reset Value
+Description
+chn_key_1
+31:0 WO 0x00000000 Channel n range from 0 to 7
+CHn_KEY_1 address = 0x0184 + 0x10 * n
+CRYPTO_CHn_KEY_2
+Address: Operational Base + offset (0x0188+n*0x10)
+Bit Attr Reset Value
+Description
+chn_key_2
+31:0 WO 0x00000000 Channel n range from 0 to 7
+CHn_KEY_2 address = 0x0188 + 0x10 * n
+CRYPTO_CHn_KEY_3
+Address: Operational Base + offset (0x018C+n*0x10)
+Bit Attr Reset Value
+Description
+chn_key_3
+31:0 WO 0x00000000 Channel n range from 0 to 7
+CHn_KEY_3 address = 0x018c + 0x10 * n
+CRYPTO_CHn_PC_LEN_0
+Address: Operational Base + offset (0x0280+n*0x8)
+Bit Attr Reset Value
+Description
+chn_pc_len_0
+Channel n range from 0 to 7
+31:0 RW 0x00000000
+CHn_PC_LEN_0 address = 0x0280 + 0x8 * n
+Length in byte unit
+CRYPTO_CHn_PC_LEN_1
+Address: Operational Base + offset (0x0284+n*0x8)
+Bit Attr Reset Value
+Description
+31:29 RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1160
+
+RK3588 TRM-Part2
+Bit
+28:0
+
+Attr Reset Value
+RW 0x00000000
+
+Description
+chn_pc_len_1
+Channel n range from 0 to 7
+CHn_PC_LEN_1 address = 0x0284 + 0x8 * n
+Length in byte unit
+
+CRYPTO_CHn_AAD_LEN_0
+Address: Operational Base + offset (0x02C0+n*0x8)
+Bit Attr Reset Value
+Description
+chn_aad_len_0
+Channel n range from 0 to 7
+31:0 RW 0x00000000
+CHn_AAD_LEN_0 address = 0x02c0 + 0x8 * n
+Length in byte unit
+CRYPTO_CHn_AAD_LEN_1
+Address: Operational Base + offset (0x02C4+n*0x8)
+Bit Attr Reset Value
+Description
+31:29 RO 0x0
+reserved
+chn_aad_len_1
+Channel n range from 0 to 7
+28:0 RW 0x00000000
+CHn_AAD_LEN_1 address = 0x02c4 + 0x8 * n
+Length in byte unit
+CRYPTO_CHn_IV_LEN_0
+Address: Operational Base + offset (0x0300+n*0x4)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+chn_iv_len
+Channel n range from 0 to 7
+4:0
+RW 0x00
+CHn_IV_LEN_0 address = 0x0300 + 0x4 * n
+Length in byte unit. Up to 16 byte IV for GCM
+CRYPTO_CHn_TAG_0
+Address: Operational Base + offset (0x0320+n*0x10)
+Bit Attr Reset Value
+Description
+chn_tag_0
+Channel n range from 0 to 7
+31:0 RO 0x00000000
+CHn_TAG_0 address = 0x0320 + 0x10 * n
+When the corresponding TAG_VALID is high, TAG value is valid
+CRYPTO_CHn_TAG_1
+Address: Operational Base + offset (0x0324+n*0x10)
+Bit Attr Reset Value
+Description
+chn_tag_1
+Channel n range from 0 to 7
+31:0 RO 0x00000000
+CHn_TAG_1 address = 0x0324 + 0x10 * n
+When the corresponding TAG_VALID is high, TAG value is valid
+CRYPTO_CHn_TAG_2
+Address: Operational Base + offset (0x0328+n*0x10)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1161
+
+RK3588 TRM-Part2
+Bit
+31:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+chn_tag_2
+Channel n range from 0 to 7
+CHn_TAG_2 address = 0x0328 + 0x10 * n
+When the corresponding TAG_VALID is high, TAG value is valid
+
+CRYPTO_CHn_TAG_3
+Address: Operational Base + offset (0x032C+n*0x10)
+Bit Attr Reset Value
+Description
+chn_tag_3
+Channel n range from 0 to 7
+31:0 RO 0x00000000
+CHn_TAG_3 address = 0x032c + 0x10 * n
+When the corresponding TAG_VALID is high, TAG value is valid
+CRYPTO_HASH_DOUT_n
+Address: Operational Base + offset (0x03A0+n*0x4)
+Bit Attr Reset Value
+Description
+hash_dout_n
+HASH dout n range from 0 to 15
+31:0 RO 0x00000000
+HASH_DOUT_n address = 0x03a0 + 0x4 * n
+n'th output word for all hash function, in big endian
+CRYPTO_TAG_VALID
+Address: Operational Base + offset (0x03E0)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ch7_tag_valid
+When channel 7 tag calculation is finished, CRYPTO will set this
+W1
+bit. After the bit is read by application, it should be cleared by
+7
+0x0
+C
+writing 1 to this bit
+1'b0: Channel 7 tag is invalid
+1'b1: Channel 7 tag is valid
+ch6_tag_valid
+When channel 6 tag calculation is finished, CRYPTO will set this
+W1
+bit. After the bit is read by application, it should be cleared by
+6
+0x0
+C
+writing 1 to this bit
+1'b0: Channel 6 tag is invalid
+1'b1: Channel 6 tag is valid
+ch5_tag_valid
+When channel 5 tag calculation is finished, CRYPTO will set this
+W1
+bit. After the bit is read by application, it should be cleared by
+5
+0x0
+C
+writing 1 to this bit
+1'b0: Channel 5 tag is invalid
+1'b1: Channel 5 tag is valid
+ch4_tag_valid
+When channel 4 tag calculation is finished, CRYPTO will set this
+W1
+bit. After the bit is read by application, it should be cleared by
+4
+0x0
+C
+writing 1 to this bit
+1'b0: Channel 4 tag is invalid
+1'b1: Channel 4 tag is valid
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1162
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+3
+
+W1
+C
+
+0x0
+
+2
+
+W1
+C
+
+0x0
+
+1
+
+W1
+C
+
+0x0
+
+0
+
+W1
+C
+
+0x0
+
+Description
+ch3_tag_valid
+When channel 3 tag calculation is finished, CRYPTO will set this
+bit. After the bit is read by application, it should be cleared by
+writing 1 to this bit
+1'b0: Channel 3 tag is invalid
+1'b1: Channel 3 tag is valid
+ch2_tag_valid
+When channel 2 tag calculation is finished, CRYPTO will set this
+bit. After the bit is read by application, it should be cleared by
+writing 1 to this bit.
+1'b0: Channel 2 tag is invalid
+1'b1: Channel 2 tag is valid
+ch1_tag_valid
+When channel 1 tag calculation is finished, CRYPTO will set this
+bit. After the bit is read by application, it should be cleared by
+writing 1 to this bit
+1'b0: Channel 1 tag is invalid
+1'b1: Channel 1 tag is valid
+ch0_tag_valid
+When channel 0 tag calculation is finished, CRYPTO will set this
+bit. After the bit is read by application, it should be cleared by
+writing 1 to this bit
+1'b0: Channel 0 tag is invalid
+1'b1: Channel 0 tag is valid
+
+CRYPTO_HASH_VALID
+Address: Operational Base + offset (0x03E4)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+hash_valid
+When HASH calculation is finished, CRYPTO will set this bit. After
+W1
+the bit is read by application, it should be cleared by writing 1 to
+0
+0x0
+C
+this bit
+1'b0: HASH_DOUT is invalid
+1'b1: HASH_DOUT is valid
+NSCRYPTO_RNG_CTL
+Address: Operational Base + offset (0x0400)
+Bit Attr Reset Value
+Description
+31:22 RO 0x000
+reserved
+write_enable
+Write enable for lower 16bits, each bit is individual
+21:16 WO 0x00
+1’b0: Write access disable
+1’b1: Write access enable
+15:6 RO 0x000
+reserved
+rng_len
+2'b00: 64 bit
+5:4
+RW 0x0
+2'b01: 128 bit
+2'b10: 192 bit
+2'b11: 256 bit
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1163
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+3:2
+
+RW 0x3
+
+1
+
+RW 0x0
+
+0
+
+R/W
+0x0
+SC
+
+Description
+ring_sel
+There are 4 OSC rings choice to decide the RNG output data
+2'b00: Slowest OSC ring
+2'b01: Faster than OSC ring 0
+2'b10: Faster than OSC ring 1
+2'b11: Fastest OSC ring
+rng_enable
+1'b0: Disable
+1'b1: Enable
+rng_start
+The application triggers this bit to start collect RNG output data.
+After RNG is started, CRYPTO will clear the bit automatically
+1'b0: Do nothing
+1'b1: Start
+
+SCRYPTO_RNG_CTL
+Address: Operational Base + offset (0x0400)
+Bit Attr Reset Value
+Description
+31:28 RO 0x0
+reserved
+write_enable
+Write enable for lower 16bits, each bit is individual
+27:16 WO 0x000
+1’b0: Write access disable
+1’b1: Write access enable
+15:8 RO 0x00
+reserved
+mode
+Register for RNG mode selected
+7:5
+RW 0x0
+If want to generate random numbers, this bit segment must be
+0x4
+rng_len
+TRNG output length select
+2'b00: 64 bit
+4:3
+RW 0x3
+2'b01: 128 bit
+2'b10: 192 bit
+2'b11: 256 bit
+ring_sel
+There are 4 OSC rings choice to decide the RNG output data
+2'b00: Slowest OSC ring
+2:1
+RW 0x0
+2'b01: Faster than OSC ring 0
+2'b10: Faster than OSC ring 1
+2'b11: Fastest OSC ring
+rng_enable
+TRNG OSC ring enable
+0
+RW 0x1
+1'b0: Disable
+1'b1: Enable
+CRYPTO_RNG_SAMPLE_CNT
+Address: Operational Base + offset (0x0404)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+rng_sample_cnt
+RNG collects OSC ring output bit every rng_sample_cnt time. The
+15:0 RW 0x0000
+value of rng_sample_cnt affects RNG output data rate, the value
+more bigger, the rate more slower.
+CRYPTO_RNG_DOUT_n
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1164
+
+RK3588 TRM-Part2
+Address: Operational Base + offset (0x0410+n*0x4)
+Bit Attr Reset Value
+Description
+rng_dout_n
+RNG dout n range from 0 to 7
+31:0 RO 0x00000000
+RNG_DOUT_n address = 0x0410 + 0x4 * n
+The 32'th OSC ring bit is captured in RNG_DOUT_0.bit31
+CRYPTO_RAM_CTL
+Address: Operational Base + offset (0x0480)
+Bit Attr Reset Value
+Description
+31:17 RO 0x0000
+reserved
+write_enable
+Write enable for lower 16bits, each bit is individual
+16
+WO 0x0
+1’b0: Write access disable
+1’b1: Write access enable
+15:1 RO 0x0000
+reserved
+ram_pka_rdy
+Indicate whether ram is controlled by PKA engine
+0
+RW 0x0
+1'b0: RAM is controlled by CPU
+1'b1: RAM is controlled by CRYPTO PKA engine
+CRYPTO_RAM_ST
+Address: Operational Base + offset (0x0484)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+clk_ram_rdy
+Indicate whether clk_ram is stable, and ready for use
+0
+RO 0x1
+1'b0: Not stable
+1'b1: Stable
+CRYPTO_DEBUG_CTL
+Address: Operational Base + offset (0x04A0)
+Bit Attr Reset Value
+Description
+31:17 RO 0x0000
+reserved
+write_enable
+Write enable for lower 16bits, each bit is individual
+16
+WO 0x0
+1’b0: Write access disable
+1’b1: Write access enable
+15:1 RO 0x0000
+reserved
+pka_debug_mode
+0
+RW 0x0
+1'b0: PKA is in normal mode
+1'b1: PKA is in debug mode
+CRYPTO_DEBUG_ST
+Address: Operational Base + offset (0x04A4)
+Bit Attr Reset Value
+31:1 RO 0x00000000 reserved
+pka_debug_clk_en
+For debug use only
+0
+RO 0x1
+1'b0: Disable
+1'b1: Enable
+
+Description
+
+CRYPTO_DEBUG_MONITOR
+Address: Operational Base + offset (0x04A8)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1165
+
+RK3588 TRM-Part2
+Bit
+31:0
+
+Attr Reset Value
+RW 0x0000feef
+
+Description
+pka_monitor_bus
+For debug use only.
+
+SCRYPTO_RNG_START
+Address: Operational Base + offset (0x0520)
+Bit Attr Reset Value
+Description
+31:17 RO 0x0000
+reserved
+write_enable
+Write enable for lower 16bits, each bit is individual
+16
+RW 0x0
+1’b0: Write access disable
+1’b1: Write access enable
+15:1 RO 0x0000
+reserved
+rng_start
+The application triggers this bit to make RNG working. After RNG
+0
+RW 0x0
+is started, CRYPTO will clear the bit automatically.
+1'b0: Do nothing
+1'b1: Start
+SCRYPTO_RNG_ST
+Address: Operational Base + offset (0x0524)
+Bit Attr Reset Value
+31:1 RO 0x00000000 reserved
+rng_st
+W1
+RNG work state
+0
+0x0
+1'b0: IDLE
+C
+1'b1: BUSY
+
+Description
+
+SCRYPTO_RNG_INTEN
+Address: Operational Base + offset (0x0528)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+cpinten
+Mode completed interrupt enable
+0
+RW 0x0
+1'b0: Disable the interrupt
+1'b1: Enable the interrupt
+SCRYPTO_RNG_INTST
+Address: Operational Base + offset (0x052C)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+cpints
+Mode completed interrupt status
+W1
+0
+0x0
+1'b0: Interrupt is inactive
+C
+1'b1: Interrupt is active
+Write 1 clear to 0
+SCRYPTO_KEY_SEL
+Address: Operational Base + offset (0x0610)
+Bit Attr Reset Value
+Description
+key_sel
+Select which key to use as the operation key
+31:0 RW 0x00000000
+32'h5a5a5a5a: Key table key
+Others: Normal key
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1166
+
+RK3588 TRM-Part2
+SCRYPTO_LOCKSTEP_FLAG
+Address: Operational Base + offset (0x0618)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+lockstep_flag
+Indicates whether CIPHER has been attacked
+0
+RO 0x0
+1'b0: Not under attack
+1'b1: Under attack
+SCRYPTO_LOCKSTEP_EN
+Address: Operational Base + offset (0x061C)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+lockstep_en
+Enable lockstep check
+1'b0: Disable
+0
+RW 0x0
+1'b1: Enable
+If disable, lockstep_flag field of DMA_INT_ST register will never
+pull up
+NSCRYPTO_AES_VERSION
+Address: Operational Base + offset (0x0680)
+Bit Attr Reset Value
+Description
+31:19 RO 0x0000
+reserved
+aes256_flag
+Whether the AES supports AES256
+18
+RO 0x1
+1'b0: No support
+1'b1: Support
+aes192_flag
+Whether the AES supports AES192
+17
+RO 0x1
+1'b0: No support
+1'b1: Support
+aes128_flag
+Whether the AES supports AES128
+16
+RO 0x1
+1'b0: No support
+1'b1: Support
+15:11 RO 0x00
+reserved
+cbc-mac_flag
+Whether the AES supports CBC-MAC
+10
+RO 0x1
+1'b0: No support
+1'b1: Support
+cmac_flag
+Whether the AES supports CMAC
+9
+RO 0x1
+1'b0: No support
+1'b1: Support
+gcm_flag
+Whether the AES supports GCM
+8
+RO 0x1
+1'b0: No support
+1'b1: Support
+ccm_flag
+Whether the AES supports CCM
+7
+RO 0x1
+1'b0: No support
+1'b1: Support
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1167
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+6
+
+RO
+
+0x1
+
+5
+
+RO
+
+0x1
+
+4
+
+RO
+
+0x1
+
+3
+
+RO
+
+0x1
+
+2
+
+RO
+
+0x1
+
+1
+
+RO
+
+0x1
+
+0
+
+RO
+
+0x1
+
+Description
+xts_flag
+Whether the AES supports XTS
+1'b0: No support
+1'b1: Support
+ofb_flag
+Whether the AES supports OFB
+1'b0: No support
+1'b1: Support
+cfb_flag
+Whether the AES supports CFB
+1'b0: No support
+1'b1: Support
+ctr_flag
+Whether the AES supports CTR
+1'b0: No support
+1'b1: Support
+cts_flag
+Whether the AES supports CTS
+1'b0: No support
+1'b1: Support
+cbc_flag
+Whether the AES supports CBC
+1'b0: No support
+1'b1: Support
+ecb_flag
+Whether the AES supports ECB
+1'b0: No support
+1'b1: Support
+
+SCRYPTO_AES_VERSION
+Address: Operational Base + offset (0x0680)
+Bit Attr Reset Value
+Description
+31:19 RO 0x0000
+reserved
+aes256_flag
+Whether the AES supports AES256
+18
+RO 0x1
+1'b0: No support
+1'b1: Support
+aes192_flag
+Whether the AES supports AES192
+17
+RO 0x1
+1'b0: No support
+1'b1: Support
+aes128_flag
+Whether the AES supports AES128
+16
+RO 0x1
+1'b0: No support
+1'b1: Support
+15:11 RO 0x00
+reserved
+cbc-mac_flag
+Whether the AES supports CBC-MAC
+10
+RO 0x1
+1'b0: No support
+1'b1: Support
+cmac_flag
+Whether the AES supports CMAC
+9
+RO 0x1
+1'b0: No support
+1'b1: Support
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1168
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+8
+
+RO
+
+0x1
+
+7
+
+RO
+
+0x1
+
+6
+
+RO
+
+0x1
+
+5
+
+RO
+
+0x1
+
+4
+
+RO
+
+0x1
+
+3
+
+RO
+
+0x1
+
+2
+
+RO
+
+0x1
+
+1
+
+RO
+
+0x1
+
+0
+
+RO
+
+0x1
+
+Description
+gcm_flag
+Whether the AES supports GCM
+1'b0: No support
+1'b1: Support
+ccm_flag
+Whether the AES supports CCM
+1'b0: No support
+1'b1: Support
+xts_flag
+Whether the AES supports XTS
+1'b0: No support
+1'b1: Support
+ofb_flag
+Whether the AES supports OFB
+1'b0: No support
+1'b1: Support
+cfb_flag
+Whether the AES supports CFB
+1'b0: No support
+1'b1: Support
+ctr_flag
+Whether the AES supports CTR
+1'b0: No support
+1'b1: Support
+cts_flag
+Whether the AES supports CTS
+1'b0: No support
+1'b1: Support
+cbc_flag
+Whether the AES supports CBC
+1'b0: No support
+1'b1: Support
+ecb_flag
+Whether the AES supports ECB
+1'b0: No support
+1'b1: Support
+
+NSCRYPTO_DES_VERSION
+Address: Operational Base + offset (0x0684)
+Bit Attr Reset Value
+Description
+31:18 RO 0x0000
+reserved
+eee_flag
+Whether the DES supports EEE mode
+17
+RO 0x1
+1'b0: No support
+1'b1: Support
+tdes_flag
+Whether the DES supports TDES
+16
+RO 0x1
+1'b0: No support
+1'b1: Support
+15:6 RO 0x000
+reserved
+ofb_flag
+Whether the DES supports OFB
+5
+RO 0x1
+1'b0: No support
+1'b1: Support
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1169
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+4
+
+RO
+
+0x1
+
+3:2
+
+RO
+
+0x0
+
+1
+
+RO
+
+0x1
+
+0
+
+RO
+
+0x1
+
+Description
+cfb_flag
+Whether the DES supports CFB
+1'b0: No support
+1'b1: Support
+reserved
+cbc_flag
+Whether the DES supports CBC
+1'b0: No support
+1'b1: Support
+ecb_flag
+Whether the DES supports ECB
+1'b0: No support
+1'b1: Support
+
+SCRYPTO_DES_VERSION
+Address: Operational Base + offset (0x0684)
+Bit Attr Reset Value
+Description
+31:18 RO 0x0000
+reserved
+eee_flag
+Whether the DES supports EEE mode
+17
+RO 0x1
+1'b0: No support
+1'b1: Support
+tdes_flag
+Whether the DES supports TDES
+16
+RO 0x1
+1'b0: No support
+1'b1: Support
+15:6 RO 0x000
+reserved
+ofb_flag
+Whether the DES supports OFB
+5
+RO 0x1
+1'b0: No support
+1'b1: Support
+cfb_flag
+Whether the DES supports CFB
+4
+RO 0x1
+1'b0: No support
+1'b1: Support
+3:2
+RO 0x0
+reserved
+cbc_flag
+Whether the DES supports CBC
+1
+RO 0x1
+1'b0: No support
+1'b1: Support
+ecb_flag
+Whether the DES supports ECB
+0
+RO 0x1
+1'b0: No support
+1'b1: Support
+
+NSCRYPTO_SM4_VERSION
+Address: Operational Base + offset (0x0688)
+Bit Attr Reset Value
+Description
+31:11 RO 0x000000
+reserved
+cbc-mac_flag
+Whether the SM4 supports CBC-MAC
+10
+RO 0x1
+1'b0: No support
+1'b1: Support
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1170
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+9
+
+RO
+
+0x1
+
+8
+
+RO
+
+0x1
+
+7
+
+RO
+
+0x1
+
+6
+
+RO
+
+0x1
+
+5
+
+RO
+
+0x1
+
+4
+
+RO
+
+0x1
+
+3
+
+RO
+
+0x1
+
+2
+
+RO
+
+0x1
+
+1
+
+RO
+
+0x1
+
+0
+
+RO
+
+0x1
+
+Description
+cmac_flag
+Whether the SM4 supports CMAC
+1'b0: No support
+1'b1: Support
+gcm_flag
+Whether the SM4 supports GCM
+1'b0: No support
+1'b1: Support
+ccm_flag
+Whether the SM4 supports CCM
+1'b0: No support
+1'b1: Support
+xts_flag
+Whether the SM4 supports XTS
+1'b0: No support
+1'b1: Support
+ofb_flag
+Whether the SM4 supports OFB
+1'b0: No support
+1'b1: Support
+cfb_flag
+Whether the SM4 supports CFB
+1'b0: No support
+1'b1: Support
+ctr_flag
+Whether the SM4 supports CTR
+1'b0: No support
+1'b1: Support
+cts_flag
+Whether the SM4 supports CTS
+1'b0: No support
+1'b1: Support
+cbc_flag
+Whether the SM4 supports CBC
+1'b0: No support
+1'b1: Support
+ecb_flag
+Whether the SM4 supports ECB
+1'b0: No support
+1'b1: Support
+
+SCRYPTO_SM4_VERSION
+Address: Operational Base + offset (0x0688)
+Bit Attr Reset Value
+Description
+31:11 RO 0x000000
+reserved
+cbc-mac_flag
+Whether the SM4 supports CBC-MAC
+10
+RO 0x1
+1'b0: No support
+1'b1: Support
+cmac_flag
+Whether the SM4 supports CMAC
+9
+RO 0x1
+1'b0: No support
+1'b1: Support
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1171
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+8
+
+RO
+
+0x1
+
+7
+
+RO
+
+0x1
+
+6
+
+RO
+
+0x1
+
+5
+
+RO
+
+0x1
+
+4
+
+RO
+
+0x1
+
+3
+
+RO
+
+0x1
+
+2
+
+RO
+
+0x1
+
+1
+
+RO
+
+0x1
+
+0
+
+RO
+
+0x1
+
+Description
+gcm_flag
+Whether the SM4 supports GCM
+1'b0: No support
+1'b1: Support
+ccm_flag
+Whether the SM4 supports CCM
+1'b0: No support
+1'b1: Support
+xts_flag
+Whether the SM4 supports XTS
+1'b0: No support
+1'b1: Support
+ofb_flag
+Whether the SM4 supports OFB
+1'b0: No support
+1'b1: Support
+cfb_flag
+Whether the SM4 supports CFB
+1'b0: No support
+1'b1: Support
+ctr_flag
+Whether the SM4 supports CTR
+1'b0: No support
+1'b1: Support
+cts_flag
+Whether the SM4 supports CTS
+1'b0: No support
+1'b1: Support
+cbc_flag
+Whether the SM4 supports CBC
+1'b0: No support
+1'b1: Support
+ecb_flag
+Whether the SM4 supports ECB
+1'b0: No support
+1'b1: Support
+
+NSCRYPTO_HASH_VERSION
+Address: Operational Base + offset (0x068C)
+Bit Attr Reset Value
+Description
+31:9 RO 0x000000
+reserved
+sm3_flag
+Whether the HASH supports SM3
+8
+RO 0x1
+1'b0: No support
+1'b1: Support
+md5_flag
+Whether the HASH supports MD5
+7
+RO 0x1
+1'b0: No support
+1'b1: Support
+sha512-256_flag
+Whether the HASH supports SHA-512/256
+6
+RO 0x1
+1'b0: No support
+1'b1: Support
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1172
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+5
+
+RO
+
+0x1
+
+4
+
+RO
+
+0x1
+
+3
+
+RO
+
+0x1
+
+2
+
+RO
+
+0x1
+
+1
+
+RO
+
+0x1
+
+0
+
+RO
+
+0x1
+
+Description
+sha512-224_flag
+Whether the HASH supports SHA-512/224
+1'b0: No support
+1'b1: Support
+sha512_flag
+Whether the HASH supports SHA-512
+1'b0: No support
+1'b1: Support
+sha384_flag
+Whether the HASH supports SHA-384
+1'b0: No support
+1'b1: Support
+sha256_flag
+Whether the HASH supports SHA-256
+1'b0: No support
+1'b1: Support
+sha224_flag
+Whether the HASH supports SHA-224
+1'b0: No support
+1'b1: Support
+sha1_flag
+Whether the HASH supports SHA-1
+1'b0: No support
+1'b1: Support
+
+SCRYPTO_HASH_VERSION
+Address: Operational Base + offset (0x068C)
+Bit Attr Reset Value
+Description
+31:9 RO 0x000000
+reserved
+sm3_flag
+Whether the HASH supports SM3
+8
+RO 0x1
+1'b0: No support
+1'b1: Support
+md5_flag
+Whether the HASH supports MD5
+7
+RO 0x1
+1'b0: No support
+1'b1: Support
+sha512-256_flag
+Whether the HASH supports SHA-512/256
+6
+RO 0x1
+1'b0: No support
+1'b1: Support
+sha512-224_flag
+Whether the HASH supports SHA-512/224
+5
+RO 0x1
+1'b0: No support
+1'b1: Support
+sha512_flag
+Whether the HASH supports SHA-512
+4
+RO 0x1
+1'b0: No support
+1'b1: Support
+sha384_flag
+Whether the HASH supports SHA-384
+3
+RO 0x1
+1'b0: No support
+1'b1: Support
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1173
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+2
+
+RO
+
+0x1
+
+1
+
+RO
+
+0x1
+
+0
+
+RO
+
+0x1
+
+Description
+sha256_flag
+Whether the HASH supports SHA-256
+1'b0: No support
+1'b1: Support
+sha224_flag
+Whether the HASH supports SHA-224
+1'b0: No support
+1'b1: Support
+sha1_flag
+Whether the HASH supports SHA-1
+1'b0: No support
+1'b1: Support
+
+NSCRYPTO_HMAC_VERSION
+Address: Operational Base + offset (0x0690)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+sm3_flag
+Whether the HMAC supports SM3
+4
+RO 0x1
+1'b0: No support
+1'b1: Support
+md5_flag
+Whether the HMAC supports MD5
+3
+RO 0x1
+1'b0: No support
+1'b1: Support
+sha512_flag
+Whether the HMAC supports SHA-512
+2
+RO 0x1
+1'b0: No support
+1'b1: Support
+sha256_flag
+Whether the HMAC supports SHA-256
+1
+RO 0x1
+1'b0: No support
+1'b1: Support
+sha1_flag
+Whether the HMAC supports SHA-1
+0
+RO 0x1
+1'b0: No support
+1'b1: Support
+SCRYPTO_HMAC_VERSION
+Address: Operational Base + offset (0x0690)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+sm3_flag
+Whether the HMAC supports SM3
+4
+RO 0x1
+1'b0: No support
+1'b1: Support
+md5_flag
+Whether the HMAC supports MD5
+3
+RO 0x1
+1'b0: No support
+1'b1: Support
+sha512_flag
+Whether the HMAC supports SHA-512
+2
+RO 0x1
+1'b0: No support
+1'b1: Support
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1174
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+1
+
+RO
+
+0x1
+
+0
+
+RO
+
+0x1
+
+Description
+sha256_flag
+Whether the HMAC supports SHA-256
+1'b0: No support
+1'b1: Support
+sha1_flag
+Whether the HMAC supports SHA-1
+1'b0: No support
+1'b1: Support
+
+NSCRYPTO_RNG_VERSION
+Address: Operational Base + offset (0x0694)
+Bit Attr Reset Value
+Description
+rng_version_code
+31:0 RO 0x01000000
+RNG version code is 0x0100_0000.
+SCRYPTO_RNG_VERSION
+Address: Operational Base + offset (0x0694)
+Bit Attr Reset Value
+Description
+rng_version_code
+31:0 RW 0x02000000
+RNG version code is 0x0200_0000.
+NSCRYPTO_PKA_VERSION
+Address: Operational Base + offset (0x0698)
+Bit Attr Reset Value
+Description
+pka_version_code
+31:0 RO 0x01000000
+PKA version code is 0x0100_0000.
+SCRYPTO_PKA_VERSION
+Address: Operational Base + offset (0x0698)
+Bit Attr Reset Value
+Description
+pka_version_code
+31:0 RW 0x01000000
+PKA version code is 0x0100_0000.
+NSCRYPTO_CRYPTO_VERSION
+Address: Operational Base + offset (0x06F0)
+Bit Attr Reset Value
+Description
+nscrypto_version_code
+31:0 RO 0x02000001
+NSCRYPTO version code is 0x0200_0001.
+SCRYPTO_CRYPTO_VERSION
+Address: Operational Base + offset (0x06F0)
+Bit Attr Reset Value
+Description
+scrypto_version_code
+31:0 RW 0x02000002
+SCRYPTO version code is 0x0200_0002.
+CRYPTO_PKA_MEM_MAPn
+Address: Operational Base + offset (0x0800+n*0x4)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+memory_mapn
+MAP n range from 0 to 31
+11:2 RW 0x000
+PKA_MEM_MAPn address = 0x0800 + 0x4 * n
+Memory map n [11:2], bit[1:0] is stuck to 0
+1:0
+RO 0x0
+reserved
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1175
+
+RK3588 TRM-Part2
+
+CRYPTO_PKA_OPCODE
+Address: Operational Base + offset (0x0880)
+Bit Attr Reset Value
+Description
+opcode
+Defines the PKA operation
+5'h04: Add, Inc
+5'h05: Sub, Dec, Neg
+5'h06: ModAdd, ModInc
+5'h07: ModSub, ModDec, ModNeg
+5'h08: AND, TST0, CLR0
+5'h09: OR, COPY, SET0
+5'h0A: XOR, FLIP0, INVERT, COMPARE
+5'h0B: SHR0
+31:27 WO 0x00
+5'h0D: SHR1
+5'h0E: SHL0
+5'h0F: SHL1
+5'h10: MulLow
+5'h11: ModMul
+5'h12: ModMulN
+5'h13: ModExp
+5'h14: Division
+5'h15: Div
+5'h16: ModDiv
+5'h00: Terminate
+len
+The virtual length address 0-7
+Virtual address 0 point to PKA_L0
+26:24 WO 0x0
+Virtual address 1 point to PKA_L1
+...
+Virtual address 7 point to PKA_L7
+reg_a
+Operand A virtual address 0-15
+Virtual address 0 point to PKA_MEM_MAP0
+23:18 WO 0x00
+Virtual address 1 point to PKA_MEM_MAP1
+...
+Virtual address 15 point to PKA_MEM_MAP15
+reg_b
+Operand B virtual address 0-15
+Virtual address 0 point to PKA_MEM_MAP0
+17:12 WO 0x00
+Virtual address 1 point to PKA_MEM_MAP1
+...
+Virtual address 15 point to PKA_MEM_MAP15
+reg_r
+Result register virtual address 0-15
+Virtual address 0 point to PKA_MEM_MAP0
+11:6 WO 0x00
+Virtual address 1 point to PKA_MEM_MAP1
+...
+Virtual address 15 point to PKA_MEM_MAP15
+tag
+5:0
+WO 0x00
+Tag
+CRYPTO_N_NP_T0_T1_ADDR
+Address: Operational Base + offset (0x0884)
+Bit Attr Reset Value
+31:20 RO 0x000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1176
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+19:15 RW 0x1f
+
+14:10 RW 0x1e
+
+9:5
+
+RW 0x01
+
+4:0
+
+RW 0x00
+
+Description
+reg_t1
+Virtual address of temporary register number 1
+Virtual address 0 point to PKA_MEM_MAP0
+Virtual address 1 point to PKA_MEM_MAP1
+...
+Virtual address 15 point to PKA_MEM_MAP15
+reg_t0
+Virtual address of temporary register number 0
+Virtual address 0 point to PKA_MEM_MAP0
+Virtual address 1 point to PKA_MEM_MAP1
+...
+Virtual address 15 point to PKA_MEM_MAP15
+reg_np
+Virtual address of register np
+Virtual address 0 point to PKA_MEM_MAP0
+Virtual address 1 point to PKA_MEM_MAP1
+...
+Virtual address 15 point to PKA_MEM_MAP15
+reg_n
+Virtual address of register n
+Virtual address 0 point to PKA_MEM_MAP0
+Virtual address 1 point to PKA_MEM_MAP1
+...
+Virtual address 15 point to PKA_MEM_MAP15
+
+CRYPTO_PKA_STATUS
+Address: Operational Base + offset (0x0888)
+Bit Attr Reset Value
+Description
+31:20 RO 0x000
+reserved
+tag
+19:14 RO 0x00
+Tag of the Last Operation
+opcode
+13:9 RO 0x00
+The last OPCODE
+pka_cpu_busy
+8
+RO 0x0
+PKA is busy memory control is by PKA
+modinv_of_zero
+7
+RO 0x0
+Modular inverse of zero flag
+alu_sign_out
+6
+RO 0x0
+Sign of the last operation(MSB)
+alu_carry
+5
+RO 0x0
+Carry of the last ALU operation
+div_by_zero
+4
+RO 0x0
+Division by 0
+alu_mod_ovflw
+3
+RO 0x0
+Modular overflow flag
+alu_out_zero
+2
+RO 0x0
+ALU out is 0
+pka_busy
+1
+RO 0x0
+PKA is busy
+pipe_is_busy
+PKA ready signal
+0
+RO 0x1
+1'b0: Pipe full
+1'b1: PKA ready for new command
+CRYPTO_PKA_SW_RESET
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1177
+
+RK3588 TRM-Part2
+Address: Operational Base + offset (0x088C)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+pka_sw_reset
+0
+WO 0x0
+PKA software reset the reset mechanism will take about four PKA
+clocks until the reset line is de-asserted.
+CRYPTO_PKA_Ln
+Address: Operational Base + offset (0x0890+n*0x4)
+Bit Attr Reset Value
+Description
+31:13 RO 0x00000
+reserved
+pka_ln
+Length n range from 0 to 7
+12:0 RW 0x0000
+PKA_Ln address = 0x0890 + 0x4 * n
+PKA length n, in bit unit
+CRYPTO_PKA_PIPE_RDY
+Address: Operational Base + offset (0x08B0)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+pka_pipe_rdy
+0
+RO 0x1
+PKA pipe is ready for new opcode.
+CRYPTO_PKA_DONE
+Address: Operational Base + offset (0x08B4)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+pka_done
+0
+RO 0x1
+PKA operation is completed and pipe is empty.
+CRYPTO_PKA_MON_SELECT
+Address: Operational Base + offset (0x08B8)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+pka_mon_select
+3:0
+RW 0x0
+PKA monitor select which PKA FSM monitor is being output.
+CRYPTO_PKA_DEBUG_REG_EN
+Address: Operational Base + offset (0x08BC)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+pka_debug_reg_en
+0
+RW 0x0
+Enable all the debug mechanism when set.
+CRYPTO_DEBUG_CNT_ADDR
+Address: Operational Base + offset (0x08C0)
+Bit Attr Reset Value
+Description
+31:20 RO 0x000
+reserved
+debug_cnt_addr
+R/W
+19:0
+0x00000
+The clock counter initial values. clock is disabled when counter
+SC
+expires. Triggered when pka_debug_en is set.
+CRYPTO_DEBUG_EXT_ADDR
+Address: Operational Base + offset (0x08C4)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1178
+
+RK3588 TRM-Part2
+Bit
+31:1
+0
+
+Attr Reset Value
+Description
+RO 0x00000000 reserved
+debug_ext_addr
+WO 0x0
+Disable the debug Mechanism.
+
+CRYPTO_PKA_DEBUG_HALT
+Address: Operational Base + offset (0x08C8)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+pka_debug_halt
+0
+RO 0x0
+In debug mode: PKA is in halt state.
+CRYPTO_PKA_MON_READ
+Address: Operational Base + offset (0x08D0)
+Bit Attr Reset Value
+Description
+pka_mon_read
+31:0 RO 0x0000feef
+This is the PKA monitor bus register output.
+CRYPTO_PKA_INT_ENA
+Address: Operational Base + offset (0x08D4)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+pka_int_ena
+0
+RW 0x0
+1'b0: Disable pka interrupt
+1'b1: Enable pka interrupt
+CRYPTO_PKA_INT_ST
+Address: Operational Base + offset (0x08D8)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+pka_int_st
+W1
+0
+0x0
+Indicate that PKA operation completes. After the bit is read, the
+C
+application should write 1 to clear this bit for next time use.
+CRYPTO_SRAM_ADDR
+Address: Operational Base + offset (0x1000)
+Bit Attr Reset Value
+Description
+sram_addr
+Sram address starts from 0x1000 to 0x1fff. When
+31:0 RW 0x00000000
+RAM_CTL.ram_pka_rdy == 0, application could access sram.
+Otherwise, application can't.
+
+10.4 Application Note
+10.4.1 Clock & Reset
+
+There are 4 clock domains in CRYPTO. The clock and reset signals are described in the
+following table.
+
+Signal
+
+Table 10-1 CRYPTO Clock & Reset Description
+Attr
+Description
+
+hclk
+
+clock
+
+AHB clock
+
+aclk
+
+clock
+
+AXI master clock
+
+pclk(SCRYPTO only)
+
+clock
+
+APB master clock
+
+clk_core
+
+clock
+
+Cipher work clock
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1179
+
+RK3588 TRM-Part2
+Signal
+
+Attr
+
+Description
+
+clk_pka
+
+clock
+
+PKA work clock
+
+clk_rng
+
+clock
+
+TRNG work clock
+
+hresetn
+
+reset
+
+Asynchronously assert, synchronously de-assert to hclk, low
+active
+
+aresetn
+
+reset
+
+Asynchronously assert, synchronously de-assert to aclk, low
+active
+
+presetn(SCRYPTO
+only)
+
+reset
+
+Asynchronously assert, synchronously de-assert to pclk, low
+active
+
+resetn_core
+
+reset
+
+Asynchronously assert, synchronously de-assert to clk_core,
+low active
+
+resetn_pka
+
+reset
+
+Asynchronously assert, synchronously de-assert to clk_pka,
+low active
+
+resetn_rng
+
+reset
+
+Asynchronously assert, synchronously de-assert to clk_rng,
+low active
+
+Each function need different clocks. The applications could gate the un-used clock to save
+power. Please see the following table for detail information.
+Table 10-2 CRYPTO Clock & Reset Description
+Operation
+HCLK
+ACLK
+CLK_CORE CLK_PKA
+AES
+
+ON
+
+ON
+
+ON
+
+OFF
+
+DES/TDES
+
+ON
+
+ON
+
+ON
+
+OFF
+
+SM4
+
+ON
+
+ON
+
+ON
+
+OFF
+
+HASH/HMAC
+
+ON
+
+ON
+
+ON
+
+OFF
+
+PKA
+
+ON
+
+OFF
+
+OFF
+
+ON
+
+Even when CLK_CORE is on, CRYPTO is doing some cipher job. And CRYPTO could still be
+able to automatically gate most parts of un-used blocks to save more power, if
+CRYPTO_CLK_CTL. auto_clkgate_en is set to ‘1’. The default value for this bit is also ‘1’.
+Application could do a soft reset to a certain clock domain. Please refer to “Chapter CRU” for
+more details.
+
+10.4.2 Performance
+
+Cipher performance is shown in the following table.
+
+Algorithm
+DES
+TDES
+AES-128
+AES-192
+AES-256
+SM4
+SM3
+SHA-1
+
+Table 10-3 CRYPTO Performance Description
+block
+clk_core
+serial max
+size
+frequency cycle throughput
+(Byte)
+(Mhz)
+(MBps)
+
+8
+8
+16
+16
+16
+16
+64
+64
+
+350
+350
+350
+350
+350
+350
+350
+350
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+18
+55
+12
+14
+16
+34
+66
+81
+
+155
+50
+466
+400
+350
+164
+339
+276
+
+parallel max
+throughput
+(MBps)
+622
+203
+1866
+1600
+1400
+658
+NA
+NA
+
+1180
+
+RK3588 TRM-Part2
+
+Algorithm
+
+block
+size
+(Byte)
+64
+64
+
+MD5
+SHA-256/224
+SHA-512/384/
+512_224/
+128
+512_256
+RSA-2048
+
+NA
+
+clk_core
+frequency cycle
+(Mhz)
+350
+65
+350
+65
+
+serial max
+parallel max
+throughput
+throughput
+(MBps)
+(MBps)
+344
+NA
+344
+NA
+
+350
+
+81
+
+553
+
+NA
+
+350
+
+130K
+
+NA
+
+NA
+
+There are 2 column throughput rates in the table, 1 is serial mode, the other is parallel
+mode. In parallel mode, there are 4 engines working at the same time. So the speed is 4
+times than serial mode. Parallel mode includes ECB/CTR/XTS both encryption and decryption
+mode, CFB/CBC/CTS only decryption mode. Other modes are serial. HASH doesn’t have
+parallel mode.
+For RSA-2048, the time-consuming MODEXP operation needs about 130K clock cycles.
+
+10.4.3 DMA
+
+DMA supports Link List Item (LLI) DMA transaction.
+⚫ Each item contains 8 bytes, and start address should be 8 bytes align
+⚫ We suggest that DATA start address is 8 bytes align
+⚫ Total DATA length is byte align
+⚫ Support segmenting HASH/HMAC DATA into multi sections. We suggest that each
+section DATA length is a multiple of 64 bytes, except this section is the last section
+
+Crypto Registers
+
+LIST
+
+DATA
+
+CRYPTO_DMA
+LLI_ADDR
+
+LLI Item_0
+
+DATA_Sec_0
+
+LLI Item_1
+
+DATA_Sec_1
+
+LLI Item_n
+
+DATA_Sec_n
+
+Fig. 10-2 LLI DMA Usage
+As shown in the Figure above, Register CRYPTO_DMA_LLI_ADDR points to 1’st LLI item in
+external memory. Each LLI item contains DATA address, length, control information and next
+LLI item pointer, except the last LLI item. The last item doesn’t have the next LLI Item
+pointer. After the last LLI item is finished, DMA will go to idle state.
+LLI item definition is shown in the following table.
+Table 10-4 LLI Item Description
+offset
+Def
+Description
+0x00
+
+SRC_ADDRESS[31:0]
+
+Source data start address
+
+0x04
+
+SRC_LENGTH[31:0]
+
+Source data length, in byte unit
+
+0x08
+
+DST_ADDRESS[31:0]
+
+Destination data start address
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1181
+
+RK3588 TRM-Part2
+offset
+
+Def
+
+Description
+
+0x0c
+
+DST_LENGTH[31:0]
+
+Destination data length, in byte unit
+
+0x10
+
+USER_DEFINE[31:0]
+
+Used in cipher block
+
+0x14
+
+IV_OFFSET
+
+IV offset
+
+0x18
+
+DMA_CTRL[31:0]
+
+Used in DMA block
+
+NEXT_ADDRESS[31:0]
+
+Next LLI item address. When
+DMA_CTRL.LAST = “1”, NEXT_ADDRESS is
+invalid
+
+0x1c
+
+DMA_CTRL: the definition is shown in the following table.
+Table 10-5 LLI Item dma_ctl Description
+Bit
+Def
+Definition
+[31:24]
+
+ITEM_ID[7:0]
+
+Used to identify LLI items
+
+[23:16]
+
+Reserved
+
+Reserved
+
+[15:11]
+
+Reserved
+
+Reserved
+
+10
+
+Source_item_done enable
+
+When source data fetch is completed,
+CRYPTO_DMA_INT_ST.source_item_done will assert
+if this bit is set
+
+9
+
+Dst_item_done enable
+
+When destination data fetch is completed,
+CRYPTO_DMA_INT_ST.dst_item_done will assert if
+this bit is set
+
+8
+
+List_done enable
+
+When all LLI items transfer is completed,
+CRYPTO_DMA_INT_ST.list_done will assert if this
+bit is set
+
+[7:2]
+
+Reserved
+
+Reserved
+
+1
+
+PAUSE
+
+Indicate DMA will hold on after executes current
+item. DMA won’t go on unless
+CRYPTO_DMA_CTL.restart is configured
+
+0
+
+LAST
+
+Indicate current item is the last one. After executes
+current item, DMA will return to IDLE state
+
+Bit
+31:7
+6:4
+
+Signal
+Reserved
+Chnl_num
+
+3
+
+String_attr
+
+2
+1
+0
+
+String_last
+String_start
+Cipher_start
+
+Table 10-6 LLI Item user_define Description
+Description
+
+Reserved
+Channel number, from 0 to 7
+Indicate current item's attribution
+1: ADA; 0: PC(plaintext or ciphertext)
+Indicate current item is the string last item
+Indicate current item is the string first item
+Indicate current item is the cipher first item
+
+10.4.4 Hash and cipher operation
+
+NSCRYPTO and SCRYPTO have the same function of hash and cipher.
+
+10.4.5 TRNG
+
+⚫ How to start
+After configuring other registers, NSCRYPTO starts random number generation after
+configuring rng_start bit segment of register NSCRYPTO_RNG_CTL. For SCRYPTO, after other
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1182
+
+RK3588 TRM-Part2
+register are configured and rng_enable bit segment of register SCRYPTO_RNG_CTL is
+configured, SCRYPTO_RNG_START register must be configured to start random number
+generation.
+⚫ First start in SCRYPTO
+SCRYPTO will automatically generate a random number after reset release. Only after the
+first random number generation is completed can the register be configured to generate a
+new random number.
+⚫ Interrupt in SCRYPTO
+SCRYPTO will set register SCRYPTO_RNG_INTEN after generating random number. If register
+SCRYPTO_RNG_INTST is configured, SCRYPTO will set interrupt signal.
+
+10.4.6 Lockstep in SCRYPTO
+
+When SCRYPTO’s SCRYPTO_LOCKSTEP_EN register is configured,
+SCRYPTO_LOCKSTEP_FLAG register will be set when SCRYPTO is attacked. When
+SCRYPTO_LOCKSTEP_FLAG register is set, only reset SCRYPTO can clear the register.
+
+10.4.7 KEY Table in SCRYPTO
+
+KEY Table is used to receive and temporarily store the KEY sent by KEYLAD through APB,
+and provide the KEY to CIPHER operation. If SCRYPTO uses the KEY in the KEY Table as the
+KEY of the CIPHER operation, it also needs to configure the SCRYPTO_KEY_SEL register to
+be the value of 0x5a5a5a5a.
+
+10.4.8 Multi-Channel Map
+
+There are 8-channel configurations for AES or DES/TDES operation. For different key-size,
+the map is different. Please find the register map in the following table.
+Table 10-7 LLI Item user_define Description
+Cipher sel
+
+key
+
+iv(tag/…)
+
+0
+
+CH0_KEY0-3/
+CH0_KEY0-1
+
+CH0_IV0-3/
+CH0_IV0-1
+
+n
+
+CHn_KEY0-3/
+CHn_KEY0-1
+
+CHn_IV0-3/
+CHn_IV0-1
+
+7
+
+CH7_KEY0-3/
+CH7_KEY0-1
+
+CH7_IV0-3/
+CH7_IV0-1
+
+0
+
+CH0_KEY0-3,
+CH1_KEY0-1
+
+CH0_IV0-3/
+CH0_IV0-1
+
+1
+
+CH2_KEY0-3,
+CH3_KEY0-1
+
+CH1_IV0-3/
+CH1_IV0-1
+
+2
+
+CH4_KEY0-3,
+CH5_KEY0-1
+
+CH2_IV0-3/
+CH2_IV0-1
+
+AES-192/
+TDES
+
+3
+
+CH6_KEY0-3,
+CH7_KEY0-1
+
+CH3_IV0-3/
+CH3_IV0-1
+
+AES-192/
+TDES
+
+4-7
+
+not supported
+
+not supported
+
+0
+
+CH0_KEY0-3,
+CH1_KEY0-3
+
+CH0_IV0-3/
+CH0_IV0-1
+
+1
+
+CH2_KEY0-3,
+CH3_KEY0-3
+
+CH1_IV0-3/
+CH1_IV0-1
+
+AES-128/
+DES
+AES-128/
+DES
+AES-128/
+DES
+AES-192/
+TDES
+AES-192/
+TDES
+AES-192/
+TDES
+
+AES-256
+AES-256
+
+chnl num
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1183
+
+RK3588 TRM-Part2
+Cipher sel
+
+chnl num
+
+key
+
+iv(tag/…)
+CH2_IV0-3/
+CH2_IV0-1
+
+AES-256
+
+2
+
+CH4_KEY0-3,
+CH5_KEY0-3
+
+AES-256
+
+3
+
+CH6_KEY0-3,
+CH7_KEY0-3
+
+CH3_IV0-3/
+CH3_IV0-1
+
+AES-256
+
+4-7
+
+not supported
+
+not supported
+
+In AES-XTS mode, there are 2 keys, and only AES-128 and AES-256 mode are. Please refer
+to the following table for detail information.
+Table 10-8 LLI Item user_define Description
+Cipher
+
+chnl
+
+sel
+
+num
+
+key1
+
+key2
+
+tweak
+
+AES-128
+
+0
+
+CH0_KEY0-3
+
+CH4_KEY0-3
+
+CH0_IV0-3
+
+AES-128
+
+1
+
+CH1_KEY0-3
+
+CH5_KEY0-3
+
+CH1_IV0-3
+
+AES-128
+
+2
+
+CH2_KEY0-3
+
+CH6_KEY0-3
+
+CH2_IV0-3
+
+AES-128
+
+3
+
+CH3_KEY0-3
+
+CH7_KEY0-3
+
+CH3_IV0-3
+
+AES-128
+
+4-7
+
+not supported
+
+AES-128
+
+NA
+
+not supported
+
+AES-256
+
+0
+
+AES-256
+
+1
+
+AES-256
+
+2-7
+
+not
+supported
+not
+supported
+
+CH0_KEY0-3,
+
+CH4_KEY0-
+
+CH1_KEY0-3
+
+CH5_KEY3
+
+CH2_KEY0-3,
+
+CH6_KEY0-
+
+CH3_KEY0-3
+
+CH7_KEY3
+
+not supported
+
+not
+supported
+
+not supported
+not supported
+CH0_IV0-3
+CH1_IV0-3
+not supported
+
+10.4.9 HASH Data Path
+
+HASH and AES could run in parallel way. There are 2 paths lead to AES-HASH function. One
+is AES-HASH-RX mode, the other is AES-HASH-TX mode.
+
+RX_FIFO
+
+AES
+
+TX_FIFO
+
+HASH
+
+Fig. 10-3 AES-HASH-RX mode
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1184
+
+RK3588 TRM-Part2
+
+RX_FIFO
+
+AES
+
+TX_FIFO
+
+HASH
+
+Fig. 10-4 AES-HASH-TX mode
+As shown in the figures above, we could facilitate operations in some cases. For example,
+secure boot, we need both AES and HASH operations for the same blocks of data. The data
+HASH gets from RX_FIFO or TX_FIFO is byte swapped if the byte swap function is
+configured.
+
+10.4.10 Program Steps
+The application could succeed various CRYPTO operations if they program properly.
+⚫ Program the LLI address to DMA_LLI_ADDR
+⚫ Program KEY, IV, or other parameter if needed
+⚫ Program BC_CTL or HASH_CTL for control information
+⚫ Prepare LLI Item
+⚫ Enable interrupt, or do nothing
+All these operations could be in any order
+⚫ Program DMA_CTL.start to start the operation
+This step should be the last configuration step. After this register is configured, other
+registers should not be changed
+⚫ Wait interrupt asserted, or just poll the DMA_INT_ST bits
+⚫ Program DMA_INT_ST to clear interrupt status, and get the result
+The application could also use LLI.pause when the next LLI item is not ready. After the new
+item is prepared, the application could program DMA_CTL.restart to continue previous
+operation
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1185
+
+RK3588 TRM-Part2
+

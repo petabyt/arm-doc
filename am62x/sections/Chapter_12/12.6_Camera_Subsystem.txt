@@ -1,0 +1,1538 @@
+12.6 Camera Subsystem
+=== Page 1732 ===
+12.6.1 Camera Serial Interface Receiver (CSI_RX_IF)
+The following sections describe the Camera Serial Interface Receiver (CSI_RX_IF) modules in the device.
+12.6.1.1 CSI_RX_IF Overview
+The integration of the CSI_RX_IF module allows the device to stream video inputs from multiple cameras to
+internal memory.
+Figure 12-386 shows the CSI_RX_IF module overview.
+Figure 12-386. CSI_RX_IF Module Overview
+12.6.1.1.1 CSI_RX_IF Features
+The CSI_RX_IF module supports the following features:
+•
+Compliant to MIPI CSI v1.3
+•
+Supports up to 16 virtual channels per input (partial MIPI CSI v2.0 feature)
+•
+Data rate up to 2.5 Gbps per lane (wire rate)
+•
+Supports 1, 2, 3, or 4 Data Lane connection to DPHY_RX
+•
+Programmable formats including YUV420, YUV422, RGB, Raw, and User Defined (over 25 different formats
+supported)
+•
+One independent (simultaneous) output stream:
+•
+One (up to 32 Channels) DMA interface through a 128-bit PSI_L connection to DMSS for transfers to
+memory:
+•
+Byte packed (32x4) format, elastic buffer mode
+•
+Max rate 1 data cycle every 4 main clocks
+•
+ByteValid per byte in Last Data Phase (LDP)
+•
+32 thread ID’s supported (virtual channel & data type combinations); Flexible number of threads (32
+Max)
+=== Page 1733 ===
+•
+Virtual channels and data types mapped via mmr to PSI_L thread ID’s
+•
+Internal FF based FIFO; RAM based buffer (2kx128)
+•
+Functional and data path error interrupts
+•
+ECC support
+12.6.1.1.2 Unsupported Features
+See the Module Integration section for information about unsupported features.
+Note
+Some features may not be available. See Module Integration for more information.
+12.6.1.2 CSI_RX_IF Environment
+The CSI_RX_IF has no dedicated pins. At the device level, video inputs come from the DPHY_RX, see Section
+12.6.2.
+12.6.1.3 Integration
+See the Module Integration section for information about clocks, resets and hardware requests.
+=== Page 1734 ===
+12.6.1.4 CSI_RX_IF Functional Description
+12.6.1.4.1 CSI_RX_IF Block Diagram
+Figure 12-387 depicts a simplified internal block diagram of the CSI_RX_IF and its surroundings.
+Figure 12-387. CSI_RX_IF Block Diagram
+The CSI2 core streams 4 channels of data to the export path.
+Stream0 (high BW DMA up to 32 channel contexts) streams 32-bits worth of data, that is re-formatted and
+sent as pixel format into 128 bits as PSIL data. There are 32 sets of MMRs/Registers that map virtual channels
+and data type to PSIL threads. Data is sent out PSIL in FIFO order as it is received. There is no priority. Data
+re-formatting is done to end up with correct data organization in memory so that other ip can use the data. The
+data type must be configured in MMRs to ensure proper reformatting. See Section 12.6.1.4.5. The large buffer of
+PSIL data (2048x128) has ECC protection, see Section 12.6.1.4.7
+12.6.1.4.2 CSI_RX_IF Hardware and Software Reset
+An active low asynchronous hardware reset is provided to CSI_RX_IF by device LPSC. It is internally
+resynchronized to the functional clock domain.
+A software reset is triggered by configuring the CSI_RX_IF_VBUS2APB_SOFT_RESET bit-fields for protocol
+reset and/or module reset.
+12.6.1.4.3 CSI_RX_IF Clock Configuration
+There are four clock domain in the CSI_RX_IF.
+1.
+The CSI_RX_MAIN_CLK clock runs the CSI2 core and PSIL DMA. The minimum clock rate for the
+CSI_RX_MAIN_CLK is 312.5MHz when DPHY is at max data rate (slower clock permissible when DPHY
+is at lower data rates). When CSI_RX_MAIN_CLK is operating lower than 312.5MHz, then the clock is
+=== Page 1735 ===
+essentially limiting the clock rate of the DPHY_RX. Said another way, CSI_RX_MAIN_CLK must be at least
+the CSI_RX_BYTE_CLK rate, else FIFOs will overflow.
+The maximum clock rate is 500MHz 16ffc, 650 Max
+f(CSI_RX_BYTE_CLK) × nb_lanes / 4; where f(CSI_RX_BYTE_CLK) is the minimum frequency of
+CSI_RX_BYTE_CLK.
+2.
+The CSI_RX_VBUS_CLK is the interface configuration clock that runs at half the speed of the
+CSI_RX_MAIN_CLK.
+3.
+The CSI_RX_BYTE_CLK is the clock supplied by the DPHY_RX PLL and is divided down to byte clock. The
+DPHY_RX is designed for max of 10gbps. This translates to a max byte clock of 312.5MHz. The clock is
+inactive when DPHY_RX is not in HS operation.
+Table 12-314 shows the CSI_RX_IF and DPHY_RX inter-clock dependencies.
+Table 12-314. CSI_RX_IF Inter-clock Dependencies
+CSI_RX_MAIN_CLK
+CSI_RX_VBUS_CLK
+CSI_RX_VP_CLK
+CSI_RX_BYTE_CLK
+Min freq
+CSI_RX_BYTE_CLK freq
+CSI_RX_MAIN_CLK / 2 freq
+CSI_RX_BYTE_CLK freq
+N/A
+Max freq
+500MHz
+CSI_RX_MAIN_CLK / 2 freq
+720MHz
+312.5MHz
+12.6.1.4.4 CSI_RX_IF Interrupt Events
+This section describes the register configuration of the interrupt events that can trigger the several CSI_RX_IF
+interrupt signals. For detailed description and mapping of the interrupt ot the device interrupt processors see
+CSI_RX_IF Integration.
+The interrupts are generally handled wihtin the INTD module of the CSI_RX_IF, although there are several
+interrupt registers in the ECC_AGGR for ECC errors and in the VBUS2APB for stream monitoring errors/flags.
+Table 12-315 lists the event generation and corresponding registers of the CSI_RX_IF controller.
+Table 12-315. CSI_RX_IF Interrupt Events Cross Table
+Event
+Mask Regsiter
+Status Register
+Description
+CSI_RX_CSI_ERR_I
+RQ
+CSI_RX_IF_VBUS2APB_ERROR_I
+RQS_MASK_CFG
+CSI_RX_IF_VBUS2APB_ERROR
+_IRQS
+Stream error detected. The CSI_RX_IF0
+will detect the error condition and
+capture the associated VC, DT and WC
+information for the packet header before
+generating an error interrupt flag on
+CSI_RX_CSI_ERR_IRQ. Read the status
+regsiter bitfields to trace the source of the
+event.
+CSI_RX_CSI_IRQ
+CSI_RX_IF_CP_INTD_ENABLE_R
+EG_LEVEL_0
+CSI_RX_IF_VBUS2APB_ERROR_I
+RQS_MASK_CFG
+CSI_RX_IF_CP_INTD_STATUS_
+REG_LEVEL_0
+CSI_RX_IF_VBUS2APB_ERROR
+_IRQS
+Global functional interrupt that various
+resynchronized sources converge into
+interrupt generation.
+CSI_RX_CSI_LEVEL
+CSI_RX_IF_VBUS2APB_MONITO
+R_IRQS_MASK_CFG
+CSI_RX_IF_VBUS2APB_STREA
+M0_FIFO_FILL_LVL
+CSI_RX_IF_VBUS2APB_STREA
+M1_FIFO_FILL_LVL
+CSI_RX_IF_VBUS2APB_STREA
+M2_FIFO_FILL_LVL
+CSI_RX_IF_VBUS2APB_STREA
+M3_FIFO_FILL_LVL
+CSI_RX_IF_VBUS2APB_STREA
+M0_FIFO_FILL_LVL
+PSI_L fifo overflow or VP0/VP1 frame/
+line mismatch (at the minimum an error
+interrupt will occur at the end of frame but
+may be issued within the frame as well).
+Read the status regsiter bitfields to trace
+the source of the event.
+CSI_RX_CORR_LEV
+EL
+CSI_RX_IF_VBUS2APB_ASF_INT
+_MASK
+CSI_RX_IF_VBUS2APB_ASF_IN
+T_STATUS
+This interrupt is for checking the interface
+signals of the CSI_RX_IF0 controller for
+parity.
+CSI_RX_UNCORR_L
+EVEL
+CSI_RX_IF_VBUS2APB_ASF_INT
+_MASK
+CSI_RX_IF_VBUS2APB_ASF_IN
+T_STATUS
+This interrupt is for checking the interface
+signals of the CSI_RX_IF0 controller for
+parity.
+=== Page 1736 ===
+Table 12-315. CSI_RX_IF Interrupt Events Cross Table (continued)
+Event
+Mask Regsiter
+Status Register
+Description
+CSI_RX_CSI_FATAL
+CSI_RX_IF_VBUS2APB_ASF_INT
+_MASK
+CSI_RX_IF_VBUS2APB_ASF_IN
+T_STATUS
+ASF port fatal interrupt. Level sensitive.
+Set
+CSI_RX_IF_VBUS2APB_ASF_FATAL_N
+ONFATAL_SELECT for whether fatal or
+non-fatal ASF interrupt is triggered. If any
+of the
+CSI_RX_IF_VBUS2APB_ASF_INT_STAT
+US bit is set, the CSI_RX_CSI_FATAL or
+CSI_RX_CSI_NONFATAL event signal is
+asserted.
+CSI_RX_CSI_NONFA
+TAL
+CSI_RX_IF_VBUS2APB_ASF_INT
+_MASK
+CSI_RX_IF_VBUS2APB_ASF_IN
+T_STATUS
+ASF port non-fatal interrupt. Level
+sensitive. Set
+CSI_RX_IF_VBUS2APB_ASF_FATAL_N
+ONFATAL_SELECT to whether fatal or
+non-fatal ASF interrupt is triggered. If any
+of the
+CSI_RX_IF_VBUS2APB_ASF_INT_STAT
+US bit is set, the CSI_RX_CSI_FATAL or
+CSI_RX_CSI_NONFATAL event signal is
+asserted.
+12.6.1.4.5 CSI_RX_IF Data Memory Organization Details
+Figure 12-388 shows the YUV422-8 data organization in memory.
+csi_rx_if-007
+Y1
+YUV422-8
+Address
+MODE
+0x0
+10
+01
+00
+0x0
+0x0
+0x0
+V0
+Y0
+U0
+24
+16
+8
+0
+Y1
+U0
+Y0
+V0
+24
+16
+8
+0
+V0
+Y1
+U0
+Y0
+24
+16
+8
+0
+U0
+Y1
+V0
+Y0
+24
+16
+8
+0
+11
+Figure 12-388. CSI_RX_IF YUV422-8 Memory Data Organization
+Figure 12-389 shows the YUV422-10 data organization in memory.
+=== Page 1737 ===
+Y0
+YUV422-10
+Address
+MODE
+0x0
+11
+0x4
+U0
+24
+16
+8
+0
+Y1
+V0
+24
+16
+8
+0
+Y0
+0x0
+10
+0x4
+V0
+24
+16
+8
+0
+Y1
+U0
+24
+16
+8
+0
+U0
+0x0
+01
+0x4
+Y0
+24
+16
+8
+0
+V0
+Y1
+24
+16
+8
+0
+V0
+0x0
+00
+0x4
+Y0
+24
+16
+8
+0
+U0
+Y1
+24
+16
+8
+0
+csi_rx_if-008
+Figure 12-389. CSI_RX_IF YUV422-10 memory data organization
+Figure 12-390 shows the YUV420-8 data organization in memory.
+=== Page 1738 ===
+csi_rx_if-009
+Y1
+YUV420-8
+Address
+MODE
+0x0
+ODD
+0x0
+V0
+Y0
+U0
+24
+16
+8
+0
+Y3
+Y2
+Y1
+Y0
+24
+16
+8
+0
+EVEN
+Figure 12-390. CSI_RX_IF YUV420-8 memory data organization
+Figure 12-391 shows the YUV420-10 data organization in memory.
+Y0
+YUV420-10
+Address
+MODE
+0x0
+EVEN
+0x4
+U0
+24
+16
+8
+0
+Y1
+V0
+24
+16
+8
+0
+Y1
+0x0
+ODD
+0x4
+Y0
+24
+16
+8
+0
+Y3
+Y2
+24
+16
+8
+0
+csi_rx_if-010
+Figure 12-391. CSI_RX_IF YUV420-10 memory data organization
+Figure 12-392 shows the RAW data organization in memory.
+=== Page 1739 ===
+csi_rx_if-011
+R3
+RAW(8-6)
+Address
+0x0
+R2
+R1
+R0
+24
+16
+8
+0
+R1
+RAW(16-9)
+Address
+0x0
+R0
+24
+16
+8
+0
+R3
+0x4
+R2
+24
+16
+8
+0
+0’s
+RAW(20)
+Address
+0x0
+R0
+21
+16
+8
+0
+Figure 12-392. CSI_RX_IF RAW (UNPACKED) memory data organization
+Figure 12-393 shows the RGB data organization in memory.
+=== Page 1740 ===
+R
+G
+B
+csi_rx_if-012
+0000
+RGB444
+Address
+0x0
+24
+16
+8
+0
+28
+20
+12
+4
+R
+G
+B
+0000
+R
+G
+B
+0
+RGB555
+0x0
+26
+16
+10
+0
+31
+21
+15
+5
+R
+G
+B
+0
+R
+G
+B
+RGB565
+0x0
+16
+11
+0
+27
+21
+5
+R
+G
+B
+R
+G
+R
+G
+R
+R
+G
+B
+R
+G
+R
+G
+R
+0’s
+RGB666
+0x0
+6
+0
+18
+12
+R
+G
+B
+R
+G
+B
+0’s
+RGB888
+0x0
+8
+0
+24
+16
+R
+G
+B
+Figure 12-393. CSI_RX_IF RGB memory data organization
+Figure 12-394 shows the RAW12 (PACKED) data organization in memory.
+=== Page 1741 ===
+RAW12[7:0]
+RAW12, PACKED
+Address
+0x0
+0x4
+24
+12
+0
+...RAW12
+RAW12[11:8]
+16
+4
+0
+csi_rx_if-012
+0xN
+RAW12
+RAW12
+0’s
+RAW12...
+16
+4
+0
+RAW12
+A.
+Where data does not fill out to a byte boundary it is zero extended.
+Figure 12-394. CSI_RX_IF RAW12 (PACKED) memory data organization
+12.6.1.4.6 CSI_RX_IF PSI_L (DMA) Interface
+Note
+This section describes CSI_RX_IF PSI_L specific functionality related to the camera interface. The
+general PSI_L functional description and registers are described in the PSI_L specific chapter (see
+PSIL Subsystem (PSILSS)).
+12.6.1.4.6.1 PSI_L DMA framing
+The CSI_RX_IF stream interface provides the usual VSYNC/HSYNC signals. The signals are per virtual channel
+where the transition from 1-to-0 or 0-to-1 represents SOF/EOF or SOL/EOL. VSYNC/HSYNC transition is usually
+not coincident with a valid data phase, though there are use cases where it can be. Because of the nature of
+CSI protocol, the VSYNC and HSYNC transactions require at least a single clock cycle and can only transition
+sequentially (important fact in handling of VSYNC events).
+There is a rarely used mode of CSI where an entire frame is passed in a single packets without line breaks. In
+this mode, there are no HSYNC transitions at line starts/ends.
+Lastly, there is redundant information provided with each CSI packet where the packet length is supplied in
+bytes.
+To overcome these framing restrictions, the CSI_RX_IF PSILSS0 passes metadata through the DMA FIFO.
+Anytime metadata is inserted into the FIFO, the CSI_RX_IF stream is stalled for a clock cycle. The forms of
+supported meta tags are:
+•
+SOF for a given virtChan
+•
+EOF for a given virtChan
+•
+Packet length in bytes for a given dmaCntx
+The PSILSS0 will disregard the HSYNC signal entirely. The long packet beginning is used as SOL and the EOL
+will be "counted" using the packet length provided. In the special case where packets are of FRAME length, the
+SOL/EOL handling is identical.
+The PSILSS0 solution for VSYNC handling is to create the concept of metadata FIFO entry which is indicated
+by a metadata bit. The SOF or EOF VSYNC information plus the virtualChan index is fed into the FIFO. On the
+output of the FIFO, the SOF is saved for each context of that virtualChan type. The very next data phase of that
+channel context will be marked as SOF. Additionally a state bit per context is maintained indicating the channel is
+MOP (middle of packet). Once the EOF arrives at the FIFO output, all contexts of that type virtual channel (and
+currently in MOP state) will receive a PSI_EOP with zero active bytes of data.
+=== Page 1742 ===
+CAUTION
+The line and frame size is not known outside the CSI core (i.e. not passed to the DMA interface).
+Therefore any mismatches at system level programming will be unknown. If the DMA line/frame size
+does not match the CSI_RX_IF line/frame size, it is assumed the DMA will not result in any adverse
+side affects as a result of not enough data or too much data.
+12.6.1.4.6.2 PSI_L DMA error handling due to FIFO overflow
+The DMA error handling is also called a PSI_L protocol enforcer. It is intended to prevent hang of the PSILSS0.
+Unnatural packet size should not cause hang so only SOP/SOL/EOL/EOP framing is enforced. The following list
+highlights the error handling mechanism:
+•
+For context cleanup the protocol enforcer:
+•
+cycle through each context index checking if context is in MOL or MOP
+•
+close out MOP with EOP and MOL&MOP with EOL&EOP
+•
+dropOnFloor SOP if currently in MOPstate
+•
+dropOnFloor EOP if not currently in MOPstate
+•
+dropOnFloor FIFO data
+•
+EOL context if EOP and MOLstate
+•
+After closing out all open contexts the PSILSS0 logic will then wait till end of frame per virtual channel. Once
+a new frame starts it will then start sending out data from that new frame
+12.6.1.4.7 CSI_RX_IF ECC Protection Support
+ECC is a mechanism for providing increased system reliability (via reduction of memory soft errors) by allowing
+single bit errors to be detected and corrected and double bit errors to be detected.
+The ECC protection on the CSI_RX_IF RAM provides Single Error Correction and Double Error Detection (SEC/
+DED). This logic detects and corrects a single bit error (1 bit error per ECC word or per ECC data segment).
+For memories that contain critical and/or persistent data, automatic (immediate or delayed) write-back of the
+corrected data to the corresponding memory address is supported. In addition, the ECC also supports multiple
+options for partial word writes, such as read-modify-write or multiple ECC code segments per word.
+The ECC protection also provides Double Error Detection (DED). This logic only detects (does not correct)
+double errors (2 bit errors per ECC word or per ECC data segment).
+The ECC aggregator in the CSI_RX_IF subsystem level consolidates the ECC configuration and status bits for
+all the ECC supported memories in the subsystem. It provides a single EOI-handshake based interrupt to the
+interrupt processors (for both single and double error detections) and a standard 32-bit VBUSP interface for
+configuring and querying the ECC register set, see CSI_RX_IS_ECC_AGGR_0 Registers. For complete details
+on the features and functions of the ECC aggregator, see chapter ,ECC Aggregator.
+12.6.1.4.8 CSI_RX_IF Programming Guide
+12.6.1.4.8.1 Overview
+This section details specific steps on how to program the CSI_RX_IF controller.
+12.6.1.4.8.2 Controller Configuration
+The CSI_RX_IF streams will default to accept all virtual channels and all data types after reset, so the user must
+program the stream configuration and pixel interface to match the system use case.
+Note
+The CSI_RX_IF controller can be configured so that the reset values can adopt the users Power_On
+state. This can reduce the programming steps required by the system.
+=== Page 1743 ===
+The CSI_RX_IF controller is designed to operate all the defined streams with all virtual channels and all data
+types passed to the pixel interface. Also, the connection to the front interface adopts reset values that will allow
+the connection of the lanes to expect no remapping.
+The basic system configuration steps are then programming the number of enabled data lanes and starting the
+streams.
+The system can also decrease the virtual channel and data type processed by
+the stream by configuring the data config (CSI_RX_IF_VBUS2APB_STREAM0_DATA_CFG -
+CSI_RX_IF_VBUS2APB_STREAM3_DATA_CFG) registers.
+The user must perform a read from the stream config register (CSI_RX_IF_VBUS2APB_STREAM0_CFG -
+CSI_RX_IF_VBUS2APB_STREAM3_CFG) at power up to identify the number of streams and pixel interface
+mode. The stream FIFO depth must be determined from the system configuration information defined at build
+time to ensure that any programmed [31-16] FIFO_FILL level is valid for the available FIFO depth.
+12.6.1.4.8.3 Power on Configuration
+The CSI_RX_IF requires the system to perform the configuration of the DPHY_RX interface before starting the
+streams of the controller. The default configuration of the controller and each stream can be identified by reading
+the device ID CSI_RX_IF_VBUS2APB_DEVICE_CONFIG register.
+The FW must read the CSI_RX_IF_VBUS2APB_DEVICE_CONFIG register at power up. This will provide the
+FW the number of streams that will need to be configured, and all the default system information for the FIFO
+structures in the available streams.
+Table 12-316. CSI_RX_IF_VBUS2APB_DEVICE_CONFIG bitfield details
+STREAMx_NUM_PIXELS
+The width of the pixel interface and the bits per pixel for the selected datatype will determine
+how many pixels can be output in a single cycle.
+Default will be 1 pixel per clock.
+00 -> 1 pixel per clock
+01 -> 2 pixels per clock
+10 -> 4 pixels per clock
+DATAPATH_SIZE
+Internal Datapath width 00 - 32 bit, all other values are reserved.
+NUM_STREAMS
+Number of Stream interfaces (1-4) = (value+1)
+MAX_LANE_NB
+Max Number of Lanes (1-4) = (value+1)
+Figure 12-395 shows the minimal sequence of registers that will configure the DPHY_RX and then start the
+stream; this will output all the pixel information for all virtual channels and all data types detected in the link data
+stream.
+Active Data
+LS
+LE
+FS
+00
+Active Data
+LS
+LE
+00
+FE
+Active Data
+Frame N
+Frame M
+STREAM_CTRL START
+STREAM_CTRL STOP
+START
+STOP
+DPHY Config
+STREAM_STATUS IDLE
+Figure 12-395. Minimal Stream Control - Start and Stop
+=== Page 1744 ===
+12.6.1.4.8.4 Stream Start and Stop
+The CSI_RX_IF will perform management of the stop and halt control to the pixel stream during functional
+operation to allow any stream to change the virtual channel or data type information that the stream will process.
+•
+The FW will use the stream control register (CSI_RX_IF_VBUS2APB_STREAM0_CTRL -
+CSI_RX_IF_VBUS2APB_STREAM3_CTRL) to perform a stop (set bit 1) and wait for the end of any current
+frame, and wait for the stream to return its state to IDLE, which can be read from stream status register
+register (CSI_RX_IF_VBUS2APB_STREAM0_STATUS - CSI_RX_IF_VBUS2APB_STREAM3_STATUS)[31]
+RUNNING = 1.
+•
+The FW will use the stream control register to perform an abort and wait for the end of any current line,
+and wait for the stream to return its state to IDLE, which can be read from register STREAM_STATUS[31]
+RUNNING = 1.
+Active Data
+LS
+LE
+FS
+00
+Active Data
+LS
+00
+FE
+Active Data
+Frame N
+Frame M
+STREAM_CTRL START
+STREAM_CTRL STOP
+Active Data
+LS
+LE
+FS
+00
+Active Data
+LS
+LE
+00
+FE
+Active Data
+Frame M
+Frame P
+STREAM_CTRL START
+STREAM_CTRL STOP
+STREAM_CFG VC1 DT1
+STOP
+STOP
+START
+START
+STREAM0- VC0 _DT1
+STREAM0- VC1 _DT1
+STREAM_CFG VC0 DT1
+STREAM_STATUS IDLE
+STREAM_STATUS IDLE
+LE
+Figure 12-396. Stream Reconfiguration Using Start Stop Start Flow
+The CSI_RX_IF will use the monitor control or STOP mechanism to stop the stream processing at the end of
+the active frame. The stream monitor, configuration and interrupt registers can be redefined and then the stream
+restarted. The pixel interface will begin processing at the next frame start.
+=== Page 1745 ===
+Active Data
+LS
+LE
+FS
+00
+Active Data
+LS
+LE
+00
+FE
+Active Data
+Frame N
+Frame M
+START
+STOP
+FCC CTRL START N STOP M
+STREAM_CTRL START
+MONITOR FRAME = N
+MONITOR FRAME = M
+MONITOR_IRQ
+STREAM_STATUS IDLE
+Figure 12-397. Stream Start and Stop Using Monitor Control
+12.6.1.4.8.5 Error Control With Soft Resets
+The CSI_RX_IF will perform control of the soft reset either for error event recovery or to clear a stream FIFO or
+internal state machine.
+•
+The FRONT block can be soft reset if the DPHY_RX becomes unresponsive and the controller wishes to
+maintain its configuration. In this case the DPHY_RX resets can be applied and the DPHY_RX enabled to
+begin the transfer again.
+•
+The Protocol block can be soft reset if the FRONT soft reset is required, and the protocol is not in the IDLE
+state.
+•
+The stream soft resets (CSI_RX_IF_VBUS2APB_STREAM0_CTRL -
+CSI_RX_IF_VBUS2APB_STREAM3_CTRL)[4] SOFT_RST can be used to clear the stream to the stop state
+and reset all the stream state machines and FIFO. If the system has a failure and wishes to clear the stream
+FIFO and return to a safe state on the pixel interface, the stream soft reset should be asserted.
+12.6.1.4.8.6 Stream Error Detected ± No Error Bypass Mode
+The CSI_RX_IF will default to stop processing the frame whenever a header Reserved DT or ECC error is
+detected, or when a long packet payload CRC is identified.
+The CSI_RX_IF will detect the error condition and capture the associated VC, DT and WC information for the
+packet header before generating an error interrupt flag on CSI_RX_IF_VBUS2APB_ERROR_IRQS.
+The CSI_RX_IF will stop processing the current frame and stop the stream.
+=== Page 1746 ===
+Active Data
+LS
+LE
+FS
+00
+Active Data
+LS
+LE
+00
+FE
+BAD Data
+Frame N
+Frame N+1
+STREAM_CTRL START
+ERR_IRQ
+STOP
+START
+Figure 12-398. Stream Error Detection Causing Stop
+12.6.1.4.8.7 Stream Error Detected ± Error Bypass Mode
+The CSI_RX_IF will detect the error condition and capture the associated VC, DT and WC information for the
+packet header before generating an error interrupt flag on CSI_RX_IF_VBUS2APB_ERROR_IRQS.
+The CSI_RX_IF will continue processing the current frame and continue the stream when a header Reserved DT
+or a long packet payload CRC error is detected.
+The CSI_RX_IF will stop processing the current frame and continue the stream when a packet header ECC error
+is detected, as the current frame synchronisation cannot be maintained.
+Active Data
+LS
+LE
+FS
+00
+Active Data
+LS
+LE
+00
+FE
+Frame N
+Frame N+1
+ERR_IRQ
+STOP
+ERROR BYPASS
+STREAM_CTRL START
+BAD Data
+CRC Error ±Continue with next
+payload, pass CRC to system.
+ECC ±Halt frame processing and
+start on new Frame Start
+START
+STREAM_CTRL STOP
+Figure 12-399. Stream Error Bypass - CRC Error During Payload
+12.6.1.4.8.8 Stream Error Detected ± Soft Reset Recovery
+The CSI_RX_IF will stop processing the current frame and continue the stream when a packet header ECC error
+is detected, as the current frame synchronisation cannot be maintained.
+The system can perform a soft reset on the individual stream to clear the pixel interface and payload FIFO and
+allow the system to restart the stream from the next frame start.
+=== Page 1747 ===
+Active Data
+LS
+LE
+FS
+00
+Active Data
+LS
+LE
+00
+FE
+Active Data
+Active Data
+LS
+LE
+FS
+00
+Active Data
+LS
+LE
+00
+FE
+Frame N
+Frame M
+ERR_IRQ ±ECC Unrecoverable
+STOP
+ERROR BYPASS
+STREAM_CTRL START
+BAD Data Header
+START
+STREAM_CTRL STOP
+STREAM SOFT_RESET
+STREAM_CTRL START
+Figure 12-400. Stream Soft Reset After ECC Non-Recoverable Error
+12.6.1.4.8.9 Stream Monitor Configuration
+The CSI_RX_IF will use the monitor control (CSI_RX_IF_VBUS2APB_STREAM0_MONITOR_CTRL -
+CSI_RX_IF_VBUS2APB_STREAM3_MONITOR_CTRL) or STOP mechanism to stop the stream processing at
+the end of the active frame. The stream monitor, configuration and interrupt registers can be redefined and then
+the stream restarted. The pixel interface will begin processing at the next frame start.
+Active Data
+LS
+LE
+FS
+00
+Active Data
+LS
+LE
+00
+FE
+Active Data
+Frame N
+Frame M
+START
+STOP
+FCC CTRL START N STOP M
+STREAM_CTRL START
+MONITOR FRAME = N
+MONITOR FRAME = M
+MONITOR_IRQ
+STREAM_STATUS IDLE
+Figure 12-401. Stream Start and Stop Using Monitor Control
+The FW will use the FCC config control register (CSI_RX_IF_VBUS2APB_STREAM0_FCC_CFG -
+CSI_RX_IF_VBUS2APB_STREAM3_FCC_CFG) to perform a start and stop as soon as a frame count
+is detected. The FCC config control register will define the start and stop frame count and the
+=== Page 1748 ===
+stream will identify when these values are matched. The stream output will begin when start frame
+is detected and then stop once the stop frame is reached. The virtual channel can be defined
+in CSI_RX_IF_VBUS2APB_STREAM0_FCC_CTRL - CSI_RX_IF_VBUS2APB_STREAM3_FCC_CTRL[4-1]
+FCC_VC, and must match the virtual channels that are available to the stream in the
+CSI_RX_IF_VBUS2APB_STREAM0_DATA_CFG - CSI_RX_IF_VBUS2APB_STREAM3_DATA_CFG register.
+The frame capture is enabled when CSI_RX_IF_VBUS2APB_STREAM0_FCC_CTRL -
+CSI_RX_IF_VBUS2APB_STREAM3_FCC_CTRL[0] FCC_EN is set µ1’
+The FW can check the current frame counter value from the CSI_RX_IF_VBUS2APB_STREAM0_FCC_CTRL -
+CSI_RX_IF_VBUS2APB_STREAM3_FCC_CTRL[31:16] FRAME_COUNTER
+12.6.1.4.8.10 Stream Monitor Frame Capture Control
+To use Monitor Frame Capture Control Start and Stop operations:
+1.
+Set Stop and Start values in config register (CSI_RX_IF_VBUS2APB_STREAM0_FCC_CFG -
+CSI_RX_IF_VBUS2APB_STREAM3_FCC_CFG). Set to µ0’ for free-running.
+a.
+[31:16] FRAME_COUNT_STOP -> define desired value
+b.
+[15:0] FRAME_COUNT_START -> define desired value
+2.
+Set the Virtual Channel to the one that is enabled and the enable in register
+CSI_RX_IF_VBUS2APB_STREAM0_FCC_CTRL - CSI_RX_IF_VBUS2APB_STREAM3_FCC_CTRL.
+a.
+[4:1] FCC_VC -> define VC used
+b.
+[0] FCC_EN -> set to µ1’
+This will allow visual checking, by setting the Start/Stop as the following examples, this is the behaviour to be
+observed:
+•
+Stop = 1 / Start = 1: Output (i.e. display) will show a Frame of the Input (i.e. camera)
+•
+Stop = F / Start = 1: Output will show live image from the input during 14 frames and then will freeze in the
+last one.
+Optionally software can read back the frame count value from register
+(CSI_RX_IF_VBUS2APB_STREAM0_FCC_CTRL - CSI_RX_IF_VBUS2APB_STREAM3_FCC_CTRL).
+In order to do that, software will first need to enable the monitor control register.
+1.
+Define the same Virtual Channel as above and enable the
+monitor control register (CSI_RX_IF_VBUS2APB_STREAM0_MONITOR_CTRL -
+CSI_RX_IF_VBUS2APB_STREAM3_MONITOR_CTRL).
+a.
+[15] FRAME_MON_EN -> set to µ1’
+b.
+[14:11] FRAME_MON_VC -> define VC used
+2.
+Read frame_counter containing the current frame number being processed from
+CSI_RX_IF_VBUS2APB_STREAM0_FCC_CTRL - CSI_RX_IF_VBUS2APB_STREAM3_FCC_CTRL (only
+when frame numbers are coming from the protocol, not when internal counter)
+a.
+[31:16] FRAME_COUNTER -> read frame number value
+The easiest way to check that the frame number matches the Start and/or Stop values defined, is to use the
+interrupts in CSI_RX_IF_VBUS2APB_MONITOR_IRQS register. To be able to do that you will need to allow
+those interrupts through the mask register CSI_RX_IF_VBUS2APB_MONITOR_IRQS_MASK_CFG.
+1.
+By default, the CSI_RX_IF_VBUS2APB_MONITOR_IRQS_MASK_CFG register is set to all µ0’s, meaning all
+interrupts are disabled.
+a.
+[4] STREAM0_FCC_STOP_IRQM -> set to µ1’
+b.
+[3] STREAM0_FCC_START_IRQM -> set to µ1’
+2.
+Create an interrupt handler to read from CSI_RX_IF_VBUS2APB_MONITOR_IRQS.
+a.
+[4] STREAM0_FCC_STOP_IRQ -> read, if µ1’, Stop interrupt triggered
+b.
+[3] STREAM0_FCC_START_IRQ -> read, if µ1’, Start interrupt triggered
+To ensure correct functionality, it is highly recommended that the input device (i.e. camera) should be configured
+after the CSI_RX_IF has been configured and enabled if software is using Frame Counter Control features.
+=== Page 1749 ===
+Software must make sure all the Virtual Channel fields in the registers explained above are set to the correct VC
+being used by the stream.
+Active Data
+LS
+LE
+FS
+00
+Active Data
+LS
+LE
+00
+FE
+Active Data
+Frame N
+Frame M
+START
+PIXEL OUT STOP
+FCC CTRL START N STOP M
+STREAM_CTRL START
+FRAME COUNT = N
+FRAME COUNT = M
+FCC_IRQ
+STREAM_STATUS IDLE
+FCC_IRQ
+PIXEL OUT START
+Figure 12-402. Stream Frame Capture Control Flow Diagram
+12.6.1.4.8.11 Stream Monitor Timer interrupt
+To use the Stream Monitor Timer operations:
+1.
+Set Count value in timer register (CSI_RX_IF_VBUS2APB_STREAM0_TIMER -
+CSI_RX_IF_VBUS2APB_STREAM3_TIMER). If set to 0 won’t count but interrupt will still trigger every EOF
+or SOF.
+a.
+[24-0] COUNT -> define desired value
+2.
+Set the Virtual Channel to the one that is enabled, define timer_eof and set
+enable in the monitor controll register (CSI_RX_IF_VBUS2APB_STREAM0_MONITOR_CTRL -
+CSI_RX_IF_VBUS2APB_STREAM3_MONITOR_CTRL).
+a.
+[15] FRAME_MON_EN -> set to µ1’
+b.
+[14:11] FRAME_MON_VC -> define VC used
+c.
+[10] TIMER_EOF -> set to µ1’ to count from EOF, set to µ0’ to count from SOF
+d.
+[9] TIMER_EN -> set to µ1’
+e.
+[8:5] TIMER_VC -> define VC used
+Software should now use the interrupts in register CSI_RX_IF_VBUS2APB_MONITOR_IRQS. To
+be able to do that you will need to allow those interrupts through the mask register
+CSI_RX_IF_VBUS2APB_MONITOR_IRQS_MASK_CFG.
+1.
+By default, the CSI_RX_IF_VBUS2APB_MONITOR_IRQS_MASK_CFG register is set to all µ0’, meaning all
+interrupts are disabled.
+a.
+[0] STREAM0_TIMER_IRQM -> set to µ1’
+2.
+Create an interrupt handler to read from monitor_irqs.
+a.
+[0] STREAM0_TIMER_IRQ -> read, if µ1’, timer interrupt is triggered
+To ensure correct functionality, it is highly recommended that the input device (i.e. camera) should be configured
+after the CSI_RX_IF has been configured and enabled.
+Software must make sure all the Virtual Channel fields in the registers explained above are set to the correct VC
+being used by the stream.
+=== Page 1750 ===
+Active Data
+LS
+LE
+FS
+00
+Active Data
+LS
+LE
+00
+FE
+Active Data
+Frame N
+Frame M
+START
+STREAM_CTRL START
+FRAME COUNT = N
+FRAME COUNT = M
+TIMER_IRQ
+STREAM_STATUS IDLE
+TIMER_IRQ
+FRAME COUNT = N+1
+Start Counting CLK
+Cylces if timer_eof
+Start Counting CLK
+Cylces if !timer_eof
+Figure 12-403. Timer Interrupt Flow Diagram
+12.6.1.4.8.12 Stream Monitor Line/Byte Counters Interrupt
+To use the stream Monitor Line and Byte counters operations:
+1.
+Set LineCount and ByteCount values in register (CSI_RX_IF_VBUS2APB_STREAM0_MONITOR_LB -
+CSI_RX_IF_VBUS2APB_STREAM3_MONITOR_LB).
+a.
+[31:16] LINE_COUNT -> define desired value
+b.
+[15:0] BYTE_COUNT -> define desired value
+2.
+Set the Virtual Channel to the one that is enabled, and set enable in register
+SI_RX_IF_VBUS2APB_STREAM0_MONITOR_CTRL.
+a.
+[15] FRAME_MON_EN -> set to µ1’
+b.
+[14:11] FRAME_MON_VC -> define VC used
+c.
+[4] LB_EN -> set to µ1’
+d.
+[3:0] LB_VC -> set to VC used
+Software should now use the interrupts in register CSI_RX_IF_VBUS2APB_MONITOR_IRQS. To
+be able to do that you will need to allow those interrupts through the mask register
+CSI_RX_IF_VBUS2APB_MONITOR_IRQS_MASK_CFG.
+1.
+By default, the CSI_RX_IF_VBUS2APB_MONITOR_IRQS_MASK_CFG register is set to all µ0’, meaning all
+interrupts are disabled.
+a.
+[7] STREAM0_LINE_CNT_E RROR_IRQM -> set to µ1’
+b.
+STREAM0_LB_IRQM [1] -> set to µ1’
+2.
+Create an interrupt handler to read from CSI_RX_IF_VBUS2APB_MONITOR_IRQS.
+a.
+[7] STREAM0_LINE_CNT_E RROR_IRQ -> read, if µ1’, line count error interrupt is triggered
+b.
+[1] STREAM0_LB_IRQ -> read, if µ1’, line/byte counter interrupt is triggered
+Note that the interrupt will trigger on each frame when it reaches byte number BYTE_COUNT in line number
+LINE_COUNT.
+To ensure correct functionality, it is highly recommended that the input device (i.e. camera) should be configured
+after the CSI_RX_IF has been configured and enabled.
+Software must make sure all the Virtual Channel fields in the registers explained above are set to the correct VC
+being used by the stream.
+=== Page 1751 ===
+Active Data
+LS
+LE
+FS
+00
+Active Data
+LS
+LE
+00
+FE
+Active Data
+Frame N
+Frame M
+START
+STREAM_CTRL START
+FRAME COUNT = N
+FRAME COUNT = M
+TIMER_IRQ
+STREAM_STATUS IDLE
+TIMER_IRQ
+FRAME COUNT = N+1
+Interrupt triggers when counters
+get to Line and Byte vaues
+Figure 12-404. Line/Byte Counters Interrupt Flow Diagram
+12.6.1.4.8.13 Example Controller Programming Sequence (Single Stream Operation)
+The single stream operation will provide the smallest multi-lane IP configuration with the reduced registers
+configuration removing some control and status registers. The stream will not require a large FIFO configuration
+and the clock rates will be matched to simplify the implementation to single pixel transfers using all the available
+interface bits, (i.e. up to 32).
+Lanes manager
+Control Registers
+CSI Stream 0
+APB interface
+pclk
+(APB clock)
+rx_byte_clk
+(byte clock domain)
+pixel_clk_if0
+Interrupt
+Asynchronous
+FIFO
+Channel
+Selection
+CSI Protocol
+Pixel  interface
+Lane Arbitration
+Pixel
+Protocol
+Asynchronous
+FIFO
+Monitor
+Video Timing
+Camera Cluster
+Image Processing
+DISPLAY
+System Interconnect
+FRAME BUFFER
+Single Stream:
+System Selects the active video stream by setting the
+Virtual Channel matching the camera
+pixel_rdy
+V/H sync
+Figure 12-405. Basic Single Stream Use Case Illustration
+For single pixel stream configuration, elastic buffer, RAW8 Data type on VC2, one pixel per cycle:
+1.
+Configure the number of DPHY_RX lanes:
+a.
+See CSI_RX_IF_VBUS2APB_STATIC_CFG register
+2.
+Set Error Interrupt mask:
+a.
+See CSI_RX_IF_VBUS2APB_ERROR_IRQS_MASK_CFG register
+3.
+Set the Pixel Interface and FIFO configuration. See CSI_RX_IF_VBUS2APB_STREAM0_CFG -
+CSI_RX_IF_VBUS2APB_STREAM3_CFG.
+a.
+Set [9-8] FIFO_MODE to select the elastic buffer configuration -> µ1’
+=== Page 1752 ===
+b.
+Set the FIFO fill level that will determines the FIFO depth that must be reached before data is output ->
+0x0000
+c.
+Select the number of pixels to be output on each cycle -> µ0’.
+d.
+Set the type of stream interface to „pixel“ mode -> µ0’
+4.
+Select the virtual channel and data types to be processed. See
+CSI_RX_IF_VBUS2APB_STREAM0_DATA_CFG - CSI_RX_IF_VBUS2APB_STREAM3_DATA_CFG
+register.
+a.
+Set [31-16] VC_SELECT and virtual channel bits if not supporting all virtual channels -> 1h, 2h
+b.
+Set [7] ENABLE_DT0 and [5-0] DATATYPE_SELECT0 values for one or both data types (default all DT)
+-> 0h, 1h, 2Ah
+5.
+Enable the stream to begin processing the incoming data from the DPHY_RX. See
+CSI_RX_IF_VBUS2APB_STREAM0_CTRL - CSI_RX_IF_VBUS2APB_STREAM3_CTRL.
+a.
+Set [0] START bit -> µ1’
+The stream will begin to pass pixel data matching the configuration on the next frame start.
+12.6.1.4.8.14 CSI_RX_IF Programming Restrictions
+The following CSI_RX_IF programming restrictions apply:
+•
+Full line buffer mode is not supported.
+•
+LS/LE detection has a restriction to be disabled
+•
+Only use Pixel transmit mode can be used, never packet mode
+•
+In pixel mode only single, dual, or quad mode can be used. It is not allowed to mix these based on data
+format or virtual channels.
+•
+LSB alignment only
+•
+Video port(VP) stream interfaces must be programmed in the CSI_RX_IF to meet the following restrictions:
+•
+Raw 8-16 formats only
+•
+Dual pixel mode
+•
+Filtering for single virtual channel and single data type
+Note
+CSI_RX_IF has a limitation that any line must fully be exported on its stream interface before a new
+line or even end of frame is sent on the D-PHY interface. To meet this requirement, software will need
+to take into account export rates on stream interface(single, dual, quad modes) at 500MHz versus
+D-PHY 32-bits @ byte clock frequency to know when a new line or end of frame can be sent in after
+last line was sent over D-PHY interface.
+Table 12-317 shows the CSI_RX_IF programming requirements for pixel modes and data sizes.
+Table 12-317. CSI_RX_IF Programming requirements for pixel modes and data sizes
+Format
+Pixel transmit mode used
+Size
+Details
+RAW(6-8), user defined 8-bit
+Single
+0
+RAW(6-8), user defined 8-bit
+Dual
+1
+RAW(6-8), user defined 8-bit
+Quad
+2
+RAW(10-16), user defined 16-bit
+Single
+1
+RAW(10-16), user defined 16-bit
+Dual
+2
+RAW20
+Single
+2
+YUV422-8
+Single
+0
+must set dual mode=0
+YUV422-8
+Dual
+0
+must set dual mode=1
+YUV422-10
+Single
+1
+YUV420-8
+Single
+0
+must set dual mode=0
+YUV420-8
+Dual
+0
+must set dual mode=1
+=== Page 1753 ===
+Table 12-317. CSI_RX_IF Programming requirements for pixel modes and data sizes (continued)
+Format
+Pixel transmit mode used
+Size
+Details
+YUV420-10
+Single
+1
+12.6.1.4.8.15 CSI_RX_IF Real-time operating requirements
+Care must be taken on blanking requirements for next line, end of frame, or start of frame. The previous
+packets(long or short) must be fully consumed before any new line, end of frame, or start frame can be sent
+over the CSI interface. Software will get various error conditions if these are not met. Below are some sample
+equations to determine this blanking time. Note that this is not blanking data. High level details are that the
+internal FIFO must be completely empty prior to sending any thing new into it. below are some sample equations
+to determine how much time is needed to empty the FIFO and blanking time needed. Byte clock rates, pixel data
+type, and export modes play into the calculation as well.
+Byte_clock_rate × 8 × #lanes × Tcsi = pixel_clock_rate × BPP × Tpix = total bits
+(6)
+BPP = Bits Per Pixel. This number is how many bits are sent per pixel clock cycle is based on single, dual, quad
+modes and data type.
+Tcsi = Time for csi interface to complete 1 line
+Tpix = Time for pixel interface to complete 1 line
+Tpix16 = Tpix+16/pixel_clock_rate
+(Tpix16-Tcsi) = required blanking time on CSI interface
+Tpix16-Tcsi <= 0 implies 0
+=== Page 1754 ===
+12.6.2 MIPI D-PHY Receiver (DPHY_RX)
+The following sections describe the MIPI D-PHY receiver (DPHY_RX) module(s) in the device.
+12.6.2.1 DPHY_RX Overview
+The integration of the DPHY_RX camera physical port module allows the device to grab video streams from
+external sensor cameras and other CSI2 compliant sources.
+Figure 12-406 shows the DPHY_RX module overview.
+PLL
+Controllers
+Reset signal
+Device
+csi_rx_if-003
+Reset
+Controllers
+Interface and
+functional clock
+WKUP_CBASS0
+CSI_RX_IFi
+(1)
+CBASS0
+Reset
+Clock
+PPI
+Byte
+Clock
+Data lane 0
+Data lane 1
+Data lane 2
+Data lane 3
+Clock lane
+DPHY_RXi
+(1)
+A.
+i represents a DPHY_RX instance. See the device datasheet for available domains and DPHY_RX instances.
+Figure 12-406. DPHY_RX Module Overview
+12.6.2.1.1 DPHY_RX Features
+The DPHY_RX module supports the following features:
+•
+Compliant to MIPI D-PHY standard v1.2
+•
+Supports up to 4 data and 1 clock lanes
+•
+Supports up to 2.5 Gbps (with deskew) and 1.5 Gbps (without deskew) per data lane
+•
+Clock lane control / interface logic type is CIL-SCNN for HS and low power receiving:
+1.
+(S) Peripheral
+2.
+Clock
+3.
+N/A forward, N/A reverse escape mode features
+•
+Data lane control / interface logic type is CIL-SFAN for HS and low power receiving:
+1.
+(S) Peripheral
+2.
+Forward direction only for high speed mode
+3.
+All forward direction escape mode features are supported
+4.
+No reverse direction escape mode features are supported
+=== Page 1755 ===
+•
+Data lanes can be independently operated in HS or ULP mode
+•
+Swapping of DP/DN signals within each clock/data pair (Facilitated by CSI_RX_IF controller)
+12.6.2.1.2 Unsupported Features
+See the Module Integration section for information about unsupported features.
+Note
+Some features may not be available. See Module Integration for more information.
+=== Page 1756 ===
+12.6.2.2 DPHY_RX Environment
+This section describes the DPHY_RX application fields from an environment point of view (external
+connections).
+Device
+csi_rx_if-004
+CSI_RX_IFi
+(1)
+PPI
+Byte
+Clock
+Data lane 0
+DPHY_RXi
+(1)
+CSIi_RXN0
+CSIi_RXP0
+CSIi_RXN1
+CSIi_RXP1
+CSIi_RXN2
+CSIi_RXP2
+CSIi_RXN3
+CSIi_RXP3
+Data lane 1
+Data lane 2
+Data lane 3
+CSIi_RXCLKN
+CSIi_RXCLKP
+Clock lane
+CSIi_ATB_0_H
+CSIi_ATB_1_H
+CSIi_RXRCALIB
+A.
+i represents a DPHY_RX instance. See the device datasheet for available domains and DPHY_RX instances.
+Figure 12-407. DPHY_RX Enviroment
+Table 12-318 describes the external signals of the DPHY_RX.
+=== Page 1757 ===
+Table 12-318. DPHY_RX I/O Signals
+Device Level Signal
+I/O
+Description
+DPHY_RXi(1)
+CSIi(1)_RXN0
+I
+Lane 0 Receive Differential Data (Negative)
+CSIi(1)_RXP0
+I
+Lane 0 Receive Differential Data (Positive)
+CSIi(1)_RXN1
+I
+Lane 1 Receive Differential Data (Negative)
+CSIi(1)_RXP1
+I
+Lane 1 Receive Differential Data (Positive)
+CSIi(1)_RXN2
+I
+Lane 2 Receive Differential Data (Negative)
+CSIi(1)_RXP2
+I
+Lane 2 Receive Differential Data (Positive)
+CSIi(1)_RXN3
+I
+Lane 3 Receive Differential Data (Negative)
+CSIi(1)_RXP3
+I
+Lane 3 Receive Differential Data (Positive)
+CSIi(1)_RXCLKN
+I
+Lane 3 Receive Differential Clock (Negative)
+CSIi(1)_RXCLKP
+I
+Lane 3 Receive Differential Clock (Positive)
+CSIi(1)_RXRCALIB
+A
+Pin for external calibration resistor. An external resistor must be connected
+between this pin and package ground. Refer to the device-specific Datasheet
+for a recommended resistor value.
+(1)
+i represents a DPHY_RX instance. See the device datasheet for available domains and DPHY_RX instances
+Note
+For more information about device level signals (pull-up/down resistors, buffer type, multiplexing and
+others), see tables Pin Attributes and Pin Multiplexing in the device-specific Datasheet.
+12.6.2.3 Integration
+See the Module Integration section for information about clocks, resets and hardware requests.
+=== Page 1758 ===
+12.6.2.4 DPHY_RX Functional Description
+12.6.2.4.1 DPHY_RX Programming Guide
+12.6.2.4.1.1 Overview
+This section details specific steps on how to program the DPHY_RX
+12.6.2.4.1.2 Initial Configuration Programming
+The DPHY_RX operation shows the registers that are written during the startup sequence.
+This section provides description and timing diagrams for DPHY_RX operation. Unless otherwise described in
+this subsection, the DPHY_RX PPI interface is compliant with the timing diagrams described in the MIPI D-PHY
+v1.2 specification.
+12.6.2.4.1.2.1 Start-up Sequence Timing Diagram
+The common configuration pins noted in Figure 12-408 are ipconfig_cmn, pll_ipdiv, pll_fbdiv, pll_opdiv,
+psm_clock_freq_cmn. Drive these pins as per the pin description given in PHY pin list.
+Figure 12-408. Common Power Up and Initialization Timing Diagram
+=== Page 1759 ===
+Figure 12-409. Lane Power Up and Initialization Timing Diagram
+=== Page 1760 ===
+Figure 12-410. PHY Disable Timing Diagram
+For initial set up, the DPHY_RX must be configured/set (registers and configuration input pins) for the common
+module prior to releasing it from reset, and the lane modules prior to releasing them from reset. Registers shall
+be configured (as required) between releasing the APB from reset and releasing the common / lanes from reset.
+=== Page 1761 ===
+Note that in some cases, the option exists to configure a function using either a pin or a register. In such cases,
+both options will be specified and the you can select the preferred option.
+12.6.2.4.1.3 Common Configuration
+Table 12-319. Common Configuration-Related Setup
+Configuration Register / Pin
+Configuration Requirement
+PHY Pin: psm_clock_freq
+PHY Register:
+DPHY_RX_VBUS2APB_PCS_TX_DIG_TBIT
+1
+Set the PMA state machine clock frequency divider.
+Set either the pin or the register, as specified in the respective description, for the required
+PMA state machine clock.
+PHY Pin: ipconfig_cmn
+PHY Register:
+DPHY_RX_MMR_SLV_LANE[11-9]
+IPCONFIG_CMN
+Set the clock lane configuration.
+Set as specified in the description for the required clock lane configuration.
+PMA Register:
+DPHY_RX_VBUS2APB_CMN0_CMN_DIG_T
+BIT2[0] O_CMN_SSM_EN,
+DPHY_RX_VBUS2APB_CMN0_CMN_DIG_T
+BIT2[10] O_CMN_RX_MODE_EN
+Enable the startup state machines for TX mode of operation.
+Set both register bits to 1’b1.
+PHY Register:
+DPHY_RX_VBUS2APB_PCS_TX_DIG_TBIT
+2
+Set the required power island phase 2 time.
+Set the register to 32’hAAAAAAAA.
+PHY Register:
+DPHY_RX_VBUS2APB_PCS_TX_DIG_TBIT
+3[7:4] POWER_SW_2_TIME_CL_R,
+DPHY_RX_VBUS2APB_PCS_TX_DIG_TBIT
+3[3:0] POWER_SW_2_TIME_CL_L
+Set the required power island phase 2 time.
+Set the register to 8’hAA
+12.6.2.4.1.4 Lane Configuration
+Table 12-320. Lane Configuration-Related Setup
+Configuration Register / Pin
+Configuration Requirement
+PHY Register:
+DPHY_RX_VBUS2APB_PCS_TX_DIG_TBIT
+0
+Set the lane band control value.
+Set the register fields, as specified in the register description for the required data rate.
+=== Page 1762 ===

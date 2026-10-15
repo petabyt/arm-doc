@@ -1,0 +1,3202 @@
+4.7 General Connectivity
+4.7.1 General Purpose Input/Output (GPIO)
+This section contains the integration details for the GPIO modules on this device. For Further information, see
+the General Purpose Interface section of the Peripherals chapter
+4.7.1.1 GPIO Unsupported Features
+The following features are not supported on this family of devices:
+•
+The following apply to MCU_GPIO0:
+•
+MCU_GPIO0_[143:24] are not pinned out.
+•
+Interrupts [143:24] are not pinned out.
+•
+Bank Interrupts [8:2] are not pinned out.
+•
+The following apply to GPIO0:
+•
+GPIO0_[143:92] are not pinned out.
+•
+Interrupts [143:92] are not pinned out.
+•
+Bank Interrupts [8:6] are not pinned out.
+•
+The following apply to GPIO1:
+•
+GPIO1_[143:72] are not pinned out.
+•
+Interrupts [143:72] are not pinned out.
+•
+Bank Interrupts [8:5] are not pinned out.
+4.7.1.2 Module Allocation
+Table 4-47. GPIO Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+GPIO0
+✓
+GPIO1
+✓
+MCU_GPIO0
+✓
+4.7.1.3 Resets, Interrupts, and Clocks
+Table 4-48. GPIO Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+GPIO0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_A
+LWAYSON
+0
+ON
+NO
+NONE
+GPIO1
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_A
+LWAYSON
+0
+ON
+NO
+NONE
+MCU_GPIO0
+WKUP_PSC0
+GP_CORE_CT
+L_MCU
+LPSC_MCU_AL
+WAYSON
+0
+ON
+NO
+NONE
+Table 4-49. GPIO Resets
+Module Instance
+Source
+Description
+GPIO0
+PSC0_PSC_0
+GPIO0 reset
+GPIO1
+PSC0_PSC_0
+GPIO1 reset
+MCU_GPIO0
+WKUP_PSC0
+MCU_GPIO0 reset
+=== Page 127 ===
+Table 4-50. GPIO Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+GPIO0
+GPIO0_gpio_[143:0]
+MAIN_GPIOMUX_IN
+TROUTER0_in_IN_[8
+9:0]
+MAIN_GPIOMUX_IN
+TROUTER0
+GPIO0 interrupt
+request
+pulse
+GPIO0
+GPIO0_gpio_[143:0]
+MAIN_GPIOMUX_IN
+TROUTER0_in_IN_[1
+77:176]
+MAIN_GPIOMUX_IN
+TROUTER0
+GPIO0 interrupt
+request
+pulse
+GPIO0
+GPIO0_gpio_bank_[8
+:0]
+MAIN_GPIOMUX_IN
+TROUTER0_in_IN_[1
+95:190]
+MAIN_GPIOMUX_IN
+TROUTER0
+GPIO0 interrupt
+request
+pulse
+GPIO0
+GPIO0_gpio_bank_[8
+:0]
+R5FSS0_CORE0_intr
+_IN_56
+R5FSS0_CORE0
+GPIO0 interrupt
+request
+pulse
+GPIO0
+GPIO0_gpio_bank_[8
+:0]
+R5FSS0_CORE0_intr
+_IN_57
+R5FSS0_CORE0
+GPIO0 interrupt
+request
+pulse
+GPIO1
+GPIO1_gpio_[143:0]
+MAIN_GPIOMUX_IN
+TROUTER0_in_IN_[1
+61:90]
+MAIN_GPIOMUX_IN
+TROUTER0
+GPIO1 interrupt
+request
+pulse
+GPIO1
+GPIO1_gpio_bank_[8
+:0]
+MAIN_GPIOMUX_IN
+TROUTER0_in_IN_[1
+84:180]
+MAIN_GPIOMUX_IN
+TROUTER0
+GPIO1 interrupt
+request
+pulse
+MCU_GPIO0
+MCU_GPIO0_gpio_[1
+43:0]
+WKUP_MCU_GPIOM
+UX_INTROUTER0_in
+_IN_[23:0]
+WKUP_MCU_GPIOM
+UX_INTROUTER0
+MCU_GPIO0 interrupt
+request
+pulse
+MCU_GPIO0
+MCU_GPIO0_gpio_b
+ank_[8:0]
+WKUP_MCU_GPIOM
+UX_INTROUTER0_in
+_IN_[31:30]
+WKUP_MCU_GPIOM
+UX_INTROUTER0
+MCU_GPIO0 interrupt
+request
+pulse
+MCU_GPIO0
+MCU_GPIO0_gpio_lvl
+_0
+R5FSS0_CORE0_intr
+_IN_18
+R5FSS0_CORE0
+MCU_GPIO0 interrupt
+request
+level
+MCU_GPIO0
+MCU_GPIO0_gpio_lvl
+_0
+WKUP_DEEPSLEEP
+_SOURCES0_Isam6
+2_dm_wakeup_deeps
+leep_sources_IN_2
+WKUP_DEEPSLEEP
+_SOURCES0
+MCU_GPIO0 interrupt
+request
+level
+Table 4-51. A53SS Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+GPIO0
+FICLK
+MAIN_SYSCLK0/4
+GPIO0 Functional and
+Interface Clock
+GPIO1
+FICLK
+MAIN_SYSCLK0/4
+GPIO1 Functional and
+Interface Clock
+MCU_GPIO0
+FICLK
+MCU_SYSCLK0/4
+MCU_GPIO_CLKSEL[1:0]
+MCU_GPIO0 Functional
+and Interface Clock
+LFOSC0_CLKOUT
+MCU_GPIO_CLKSEL[1:0]
+CLK_32K
+MCU_GPIO_CLKSEL[1:0]
+CLK_12M_RC
+MCU_GPIO_CLKSEL[1:0]
+=== Page 128 ===
+4.7.1.4 GPIO0 Register/Pin Mapping
+Signal
+Bank
+GPIO0_*_
+DATA
+Register
+Bit
+Signal
+Bank
+GPIO0_*_
+DATA
+Register
+Bit
+Signal
+Bank
+GPIO0_*_
+DATA
+Register
+Bit
+GPIO0_0
+Bank 0
+GPIO0_*_
+DATA
+0
+GPIO0_3
+2
+Bank 2
+GPIO0_*_
+DATA
+0
+GPIO0_6
+4
+Bank 4
+GPIO0_*_
+DATA
+0
+GPIO0_1
+Bank 0
+GPIO0_*_
+DATA
+1
+GPIO0_3
+3
+Bank 2
+GPIO0_*_
+DATA
+1
+GPIO0_6
+5
+Bank 4
+GPIO0_*_
+DATA
+1
+GPIO0_2
+Bank 0
+GPIO0_*_
+DATA
+2
+GPIO0_3
+4
+Bank 2
+GPIO0_*_
+DATA
+2
+GPIO0_6
+6
+Bank 4
+GPIO0_*_
+DATA
+2
+GPIO0_3
+Bank 0
+GPIO0_*_
+DATA
+3
+GPIO0_3
+5
+Bank 2
+GPIO0_*_
+DATA
+3
+GPIO0_6
+7
+Bank 4
+GPIO0_*_
+DATA
+3
+GPIO0_4
+Bank 0
+GPIO0_*_
+DATA
+4
+GPIO0_3
+6
+Bank 2
+GPIO0_*_
+DATA
+4
+GPIO0_6
+8
+Bank 4
+GPIO0_*_
+DATA
+4
+GPIO0_5
+Bank 0
+GPIO0_*_
+DATA
+5
+GPIO0_3
+7
+Bank 2
+GPIO0_*_
+DATA
+5
+GPIO0_6
+9
+Bank 4
+GPIO0_*_
+DATA
+5
+GPIO0_6
+Bank 0
+GPIO0_*_
+DATA
+6
+GPIO0_3
+8
+Bank 2
+GPIO0_*_
+DATA
+6
+GPIO0_7
+0
+Bank 4
+GPIO0_*_
+DATA
+6
+GPIO0_7
+Bank 0
+GPIO0_*_
+DATA
+7
+GPIO0_3
+9
+Bank 2
+GPIO0_*_
+DATA
+7
+GPIO0_7
+1
+Bank 4
+GPIO0_*_
+DATA
+7
+GPIO0_8
+Bank 0
+GPIO0_*_
+DATA
+8
+GPIO0_4
+0
+Bank 2
+GPIO0_*_
+DATA
+8
+GPIO0_7
+2
+Bank 4
+GPIO0_*_
+DATA
+8
+GPIO0_9
+Bank 0
+GPIO0_*_
+DATA
+9
+GPIO0_4
+1
+Bank 2
+GPIO0_*_
+DATA
+9
+GPIO0_7
+3
+Bank 4
+GPIO0_*_
+DATA
+9
+GPIO0_1
+0
+Bank 0
+GPIO0_*_
+DATA
+10
+GPIO0_4
+2
+Bank 2
+GPIO0_*_
+DATA
+10
+GPIO0_7
+4
+Bank 4
+GPIO0_*_
+DATA
+10
+GPIO0_1
+1
+Bank 0
+GPIO0_*_
+DATA
+11
+GPIO0_4
+3
+Bank 2
+GPIO0_*_
+DATA
+11
+GPIO0_7
+5
+Bank 4
+GPIO0_*_
+DATA
+11
+GPIO0_1
+2
+Bank 0
+GPIO0_*_
+DATA
+12
+GPIO0_4
+4
+Bank 2
+GPIO0_*_
+DATA
+12
+GPIO0_7
+6
+Bank 4
+GPIO0_*_
+DATA
+12
+GPIO0_1
+3
+Bank 0
+GPIO0_*_
+DATA
+13
+GPIO0_4
+5
+Bank 2
+GPIO0_*_
+DATA
+13
+GPIO0_7
+7
+Bank 4
+GPIO0_*_
+DATA
+13
+GPIO0_1
+4
+Bank 0
+GPIO0_*_
+DATA
+14
+GPIO0_4
+6
+Bank 2
+GPIO0_*_
+DATA
+14
+GPIO0_7
+8
+Bank 4
+GPIO0_*_
+DATA
+14
+GPIO0_1
+5
+Bank 0
+GPIO0_*_
+DATA
+15
+GPIO0_4
+7
+Bank 2
+GPIO0_*_
+DATA
+15
+GPIO0_7
+9
+Bank 4
+GPIO0_*_
+DATA
+15
+GPIO0_1
+6
+Bank 1
+GPIO0_*_
+DATA
+16
+GPIO0_4
+8
+Bank 3
+GPIO0_*_
+DATA
+16
+GPIO0_8
+0
+Bank 5
+GPIO0_*_
+DATA
+16
+GPIO0_1
+7
+Bank 1
+GPIO0_*_
+DATA
+17
+GPIO0_4
+9
+Bank 3
+GPIO0_*_
+DATA
+17
+GPIO0_8
+1
+Bank 5
+GPIO0_*_
+DATA
+17
+GPIO0_1
+8
+Bank 1
+GPIO0_*_
+DATA
+18
+GPIO0_5
+0
+Bank 3
+GPIO0_*_
+DATA
+18
+GPIO0_8
+2
+Bank 5
+GPIO0_*_
+DATA
+18
+GPIO0_1
+9
+Bank 1
+GPIO0_*_
+DATA
+19
+GPIO0_5
+1
+Bank 3
+GPIO0_*_
+DATA
+19
+GPIO0_8
+3
+Bank 5
+GPIO0_*_
+DATA
+19
+GPIO0_2
+0
+Bank 1
+GPIO0_*_
+DATA
+20
+GPIO0_5
+2
+Bank 3
+GPIO0_*_
+DATA
+20
+GPIO0_8
+4
+Bank 5
+GPIO0_*_
+DATA
+20
+=== Page 129 ===
+Signal
+Bank
+GPIO0_*_
+DATA
+Register
+Bit
+Signal
+Bank
+GPIO0_*_
+DATA
+Register
+Bit
+Signal
+Bank
+GPIO0_*_
+DATA
+Register
+Bit
+GPIO0_2
+1
+Bank 1
+GPIO0_*_
+DATA
+21
+GPIO0_5
+3
+Bank 3
+GPIO0_*_
+DATA
+21
+GPIO0_8
+5
+Bank 5
+GPIO0_*_
+DATA
+21
+GPIO0_2
+2
+Bank 1
+GPIO0_*_
+DATA
+22
+GPIO0_5
+4
+Bank 3
+GPIO0_*_
+DATA
+22
+GPIO0_8
+6
+Bank 5
+GPIO0_*_
+DATA
+22
+GPIO0_2
+3
+Bank 1
+GPIO0_*_
+DATA
+23
+GPIO0_5
+5
+Bank 3
+GPIO0_*_
+DATA
+23
+GPIO0_8
+7
+Bank 5
+GPIO0_*_
+DATA
+23
+GPIO0_2
+4
+Bank 1
+GPIO0_*_
+DATA
+24
+GPIO0_5
+6
+Bank 3
+GPIO0_*_
+DATA
+24
+GPIO0_8
+8
+Bank 5
+GPIO0_*_
+DATA
+24
+GPIO0_2
+5
+Bank 1
+GPIO0_*_
+DATA
+25
+GPIO0_5
+7
+Bank 3
+GPIO0_*_
+DATA
+25
+GPIO0_8
+9
+Bank 5
+GPIO0_*_
+DATA
+25
+GPIO0_2
+6
+Bank 1
+GPIO0_*_
+DATA
+26
+GPIO0_5
+8
+Bank 3
+GPIO0_*_
+DATA
+26
+GPIO0_9
+0
+Bank 5
+GPIO0_*_
+DATA
+26
+GPIO0_2
+7
+Bank 1
+GPIO0_*_
+DATA
+27
+GPIO0_5
+9
+Bank 3
+GPIO0_*_
+DATA
+27
+GPIO0_9
+1
+Bank 5
+GPIO0_*_
+DATA
+27
+GPIO0_2
+8
+Bank 1
+GPIO0_*_
+DATA
+28
+GPIO0_6
+0
+Bank 3
+GPIO0_*_
+DATA
+28
+GPIO0_2
+9
+Bank 1
+GPIO0_*_
+DATA
+29
+GPIO0_6
+1
+Bank 3
+GPIO0_*_
+DATA
+29
+GPIO0_3
+0
+Bank 1
+GPIO0_*_
+DATA
+30
+GPIO0_6
+2
+Bank 3
+GPIO0_*_
+DATA
+30
+GPIO0_3
+1
+Bank 1
+GPIO0_*_
+DATA
+31
+GPIO0_6
+3
+Bank 3
+GPIO0_*_
+DATA
+31
+4.7.1.5 GPIO1 Register/Pin Mapping
+Signal
+Bank
+GPIO1_*_
+DATA
+Register
+Bit
+Signal
+Bank
+GPIO1_*_
+DATA
+Register
+Bit
+Signal
+Bank
+GPIO1_*_
+DATA
+Register
+Bit
+GPIO1_0
+Bank 0
+GPIO1_*_
+DATA
+0
+GPIO1_1
+6
+Bank 1
+GPIO1_*_
+DATA
+16
+GPIO1_4
+8
+Bank 3
+GPIO1_*_
+DATA
+16
+GPIO1_1
+Bank 0
+GPIO1_*_
+DATA
+1
+GPIO1_1
+7
+Bank 1
+GPIO1_*_
+DATA
+17
+GPIO1_4
+9
+Bank 3
+GPIO1_*_
+DATA
+17
+GPIO1_2
+Bank 0
+GPIO1_*_
+DATA
+2
+GPIO1_1
+8
+Bank 1
+GPIO1_*_
+DATA
+18
+GPIO1_5
+0
+Bank 3
+GPIO1_*_
+DATA
+18
+GPIO1_3
+Bank 0
+GPIO1_*_
+DATA
+3
+GPIO1_1
+9
+Bank 1
+GPIO1_*_
+DATA
+19
+GPIO1_5
+1
+Bank 3
+GPIO1_*_
+DATA
+19
+GPIO1_4
+Bank 0
+GPIO1_*_
+DATA
+4
+GPIO1_2
+0
+Bank 1
+GPIO1_*_
+DATA
+20
+GPIO1_5
+Bank 0
+GPIO1_*_
+DATA
+5
+GPIO1_2
+1
+Bank 1
+GPIO1_*_
+DATA
+21
+GPIO1_6
+Bank 0
+GPIO1_*_
+DATA
+6
+GPIO1_2
+2
+Bank 1
+GPIO1_*_
+DATA
+22
+GPIO1_7
+Bank 0
+GPIO1_*_
+DATA
+7
+GPIO1_2
+3
+Bank 1
+GPIO1_*_
+DATA
+23
+=== Page 130 ===
+Signal
+Bank
+GPIO1_*_
+DATA
+Register
+Bit
+Signal
+Bank
+GPIO1_*_
+DATA
+Register
+Bit
+Signal
+Bank
+GPIO1_*_
+DATA
+Register
+Bit
+GPIO1_8
+Bank 0
+GPIO1_*_
+DATA
+8
+GPIO1_2
+4
+Bank 1
+GPIO1_*_
+DATA
+24
+GPIO1_9
+Bank 0
+GPIO1_*_
+DATA
+9
+GPIO1_2
+5
+Bank 1
+GPIO1_*_
+DATA
+25
+GPIO1_1
+0
+Bank 0
+GPIO1_*_
+DATA
+10
+GPIO1_2
+6
+Bank 1
+GPIO1_*_
+DATA
+26
+GPIO1_1
+1
+Bank 0
+GPIO1_*_
+DATA
+11
+GPIO1_2
+7
+Bank 1
+GPIO1_*_
+DATA
+27
+GPIO1_1
+2
+Bank 0
+GPIO1_*_
+DATA
+12
+GPIO1_2
+8
+Bank 1
+GPIO1_*_
+DATA
+28
+GPIO1_1
+3
+Bank 0
+GPIO1_*_
+DATA
+13
+GPIO1_2
+9
+Bank 1
+GPIO1_*_
+DATA
+29
+GPIO1_1
+4
+Bank 0
+GPIO1_*_
+DATA
+14
+GPIO1_3
+0
+Bank 1
+GPIO1_*_
+DATA
+30
+GPIO1_1
+5
+Bank 0
+GPIO1_*_
+DATA
+15
+GPIO1_3
+1
+Bank 1
+GPIO1_*_
+DATA
+31
+4.7.1.6 MCU_GPIO0 Register/Pin Mapping
+Signal
+Bank
+MCU_GPIO0_*
+_DATA
+Register Bit
+Signal
+Bank
+GPIO0_*_DATA=Register Bit
+MCU_GPIO0_0=Bank 0
+MCU_GPIO0_*
+_DATA
+0
+MCU_GPIO0_1
+6
+Bank 1
+MCU_GPIO0_*
+_DATA
+16
+MCU_GPIO0_1=Bank 0
+MCU_GPIO0_*
+_DATA
+1
+MCU_GPIO0_1
+7
+Bank 1
+MCU_GPIO0_*
+_DATA
+17
+MCU_GPIO0_2=Bank 0
+MCU_GPIO0_*
+_DATA
+2
+MCU_GPIO0_1
+8
+Bank 1
+MCU_GPIO0_*
+_DATA
+18
+MCU_GPIO0_3=Bank 0
+MCU_GPIO0_*
+_DATA
+3
+MCU_GPIO0_1
+9
+Bank 1
+MCU_GPIO0_*
+_DATA
+19
+MCU_GPIO0_4=Bank 0
+MCU_GPIO0_*
+_DATA
+4
+MCU_GPIO0_2
+0
+Bank 1
+MCU_GPIO0_*
+_DATA
+20
+MCU_GPIO0_5=Bank 0
+MCU_GPIO0_*
+_DATA
+5
+MCU_GPIO0_2
+1
+Bank 1
+MCU_GPIO0_*
+_DATA
+21
+MCU_GPIO0_6=Bank 0
+MCU_GPIO0_*
+_DATA
+6
+MCU_GPIO0_2
+2
+Bank 1
+MCU_GPIO0_*
+_DATA
+22
+MCU_GPIO0_7=Bank 0
+MCU_GPIO0_*
+_DATA
+7
+MCU_GPIO0_2
+3
+Bank 1
+MCU_GPIO0_*
+_DATA
+23
+MCU_GPIO0_8=Bank 0
+MCU_GPIO0_*
+_DATA
+8
+MCU_GPIO0_9=Bank 0
+MCU_GPIO0_*
+_DATA
+9
+MCU_GPIO0_1
+0
+Bank 0
+MCU_GPIO0_*
+_DATA
+10
+=== Page 131 ===
+Signal
+Bank
+MCU_GPIO0_*
+_DATA
+Register Bit
+Signal
+Bank
+GPIO0_*_DATA=Register Bit
+MCU_GPIO0_1
+1
+Bank 0
+MCU_GPIO0_*
+_DATA
+11
+MCU_GPIO0_1
+2
+Bank 0
+MCU_GPIO0_*
+_DATA
+12
+MCU_GPIO0_1
+3
+Bank 0
+MCU_GPIO0_*
+_DATA
+13
+MCU_GPIO0_1
+4
+Bank 0
+MCU_GPIO0_*
+_DATA
+14
+MCU_GPIO0_1
+5
+Bank 0
+MCU_GPIO0_*
+_DATA
+15
+=== Page 132 ===
+4.7.2 Inter-Integrated Circiuit (I2C)
+This section contains the integration details for the I2C module on this device. For Further information, see the
+Inter-Integrated Circiuit (I2C) section of the Peripherals chapter
+4.7.2.1 I2C Unsupported Features
+The following features are not supported on this family of devices:
+•
+Serial Camera Control Bus (SCCB) Protocol
+•
+DMA Mode
+•
+Full I2C electrical compliance for I2C modules using device pins with LVCMOS voltage buffers (Refer to
+chapter 4 of the device-specific Datasheet for details related to device Terminal Configuration and Functions)
+•
+High-speed (3.4-Mbps) operation for I2C modules using device pins with LVCMOS voltage buffers (Refer to
+chapter 4 of the device-specific Datasheet for details related to device Terminal Configuration and Functions)
+•
+Debug suspend mode
+•
+Asynchronous wakeup (via IO Daisy Chain) not supported by Main domain instances.
+4.7.2.2 Module Allocations
+Table 4-52. I2C Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+I2C0
+✓
+I2C1
+✓
+I2C2
+✓
+I2C3
+✓
+MCU_I2C0
+✓
+WKUP_I2C0
+✓
+4.7.2.3 Resets, Interrupts, and Clocks
+Table 4-53. I2C Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module Domain
+Index
+Default
+Controllable
+dependences
+I2C0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+I2C1
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+I2C2
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+I2C3
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+MCU_I2C0
+WKUP_PSC0
+PD_M4F
+LPSC_MCU_C
+OMMON
+9
+ON
+YES
+LPSC_DM2SAF
+E_ISO
+WKUP_I2C0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_A
+LWAYSON
+0
+ON
+NO
+NONE
+Table 4-54. I2C Resets
+Module Instance
+Source
+Description
+I2C0
+PSC0_PSC_0
+I2C0 reset
+=== Page 133 ===
+Table 4-54. I2C Resets (continued)
+Module Instance
+Source
+Description
+I2C1
+PSC0_PSC_0
+I2C1 reset
+I2C2
+PSC0_PSC_0
+I2C2 reset
+I2C3
+PSC0_PSC_0
+I2C3 reset
+MCU_I2C0
+WKUP_PSC0
+MCU_I2C0 reset
+WKUP_I2C0
+PSC0_PSC_0
+WKUP_I2C0 reset
+Table 4-55. I2C Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+I2C0
+I2C0_pointrpend_0
+GICSS0_COMMON_
+0_spi_IN_193
+GICSS0_COMMON_
+0
+I2C0 interrupt request
+level
+I2C0
+I2C0_pointrpend_0
+R5FSS0_CORE0_intr
+_IN_193
+R5FSS0_CORE0
+I2C0 interrupt request
+level
+I2C0
+I2C0_pointrpend_0
+MCU_R5FSS0_COR
+E0_cpu0_intr_IN_193
+MCU_R5FSS0_COR
+E0
+I2C0 interrupt request
+level
+I2C0
+I2C0_pointrpend_0
+C7X256V0_CLEC_gi
+c_spi_IN_161
+C7X256V0_CLEC
+I2C0 interrupt request
+level
+I2C0
+I2C0_pointrpend_0
+TIFS0_nvic_IN_97
+TIFS0
+I2C0 interrupt request
+level
+I2C0
+I2C0_pointrpend_0
+HSM0_nvic_IN_97
+HSM0
+I2C0 interrupt request
+level
+I2C1
+I2C1_pointrpend_0
+GICSS0_COMMON_
+0_spi_IN_194
+GICSS0_COMMON_
+0
+I2C1 interrupt request
+level
+I2C1
+I2C1_pointrpend_0
+R5FSS0_CORE0_intr
+_IN_194
+R5FSS0_CORE0
+I2C1 interrupt request
+level
+I2C1
+I2C1_pointrpend_0
+MCU_R5FSS0_COR
+E0_cpu0_intr_IN_194
+MCU_R5FSS0_COR
+E0
+I2C1 interrupt request
+level
+I2C1
+I2C1_pointrpend_0
+C7X256V0_CLEC_gi
+c_spi_IN_162
+C7X256V0_CLEC
+I2C1 interrupt request
+level
+I2C1
+I2C1_pointrpend_0
+TIFS0_nvic_IN_98
+TIFS0
+I2C1 interrupt request
+level
+I2C1
+I2C1_pointrpend_0
+HSM0_nvic_IN_98
+HSM0
+I2C1 interrupt request
+level
+I2C2
+I2C2_pointrpend_0
+GICSS0_COMMON_
+0_spi_IN_195
+GICSS0_COMMON_
+0
+I2C2 interrupt request
+level
+I2C2
+I2C2_pointrpend_0
+R5FSS0_CORE0_intr
+_IN_195
+R5FSS0_CORE0
+I2C2 interrupt request
+level
+I2C2
+I2C2_pointrpend_0
+MCU_R5FSS0_COR
+E0_cpu0_intr_IN_195
+MCU_R5FSS0_COR
+E0
+I2C2 interrupt request
+level
+I2C2
+I2C2_pointrpend_0
+C7X256V0_CLEC_gi
+c_spi_IN_163
+C7X256V0_CLEC
+I2C2 interrupt request
+level
+I2C2
+I2C2_pointrpend_0
+TIFS0_nvic_IN_99
+TIFS0
+I2C2 interrupt request
+level
+I2C2
+I2C2_pointrpend_0
+HSM0_nvic_IN_99
+HSM0
+I2C2 interrupt request
+level
+I2C3
+I2C3_pointrpend_0
+GICSS0_COMMON_
+0_spi_IN_196
+GICSS0_COMMON_
+0
+I2C3 interrupt request
+level
+=== Page 134 ===
+Table 4-55. I2C Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+I2C3
+I2C3_pointrpend_0
+R5FSS0_CORE0_intr
+_IN_196
+R5FSS0_CORE0
+I2C3 interrupt request
+level
+I2C3
+I2C3_pointrpend_0
+MCU_R5FSS0_COR
+E0_cpu0_intr_IN_196
+MCU_R5FSS0_COR
+E0
+I2C3 interrupt request
+level
+I2C3
+I2C3_pointrpend_0
+C7X256V0_CLEC_gi
+c_spi_IN_164
+C7X256V0_CLEC
+I2C3 interrupt request
+level
+I2C3
+I2C3_pointrpend_0
+TIFS0_nvic_IN_100
+TIFS0
+I2C3 interrupt request
+level
+I2C3
+I2C3_pointrpend_0
+HSM0_nvic_IN_100
+HSM0
+I2C3 interrupt request
+level
+MCU_I2C0
+MCU_I2C0_pointrpen
+d_0
+GICSS0_COMMON_
+0_spi_IN_139
+GICSS0_COMMON_
+0
+MCU_I2C0 interrupt
+request
+level
+MCU_I2C0
+MCU_I2C0_pointrpen
+d_0
+R5FSS0_CORE0_intr
+_IN_197
+R5FSS0_CORE0
+MCU_I2C0 interrupt
+request
+level
+MCU_I2C0
+MCU_I2C0_pointrpen
+d_0
+MCU_R5FSS0_COR
+E0_cpu0_intr_IN_197
+MCU_R5FSS0_COR
+E0
+MCU_I2C0 interrupt
+request
+level
+MCU_I2C0
+MCU_I2C0_pointrpen
+d_0
+C7X256V0_CLEC_gi
+c_spi_IN_107
+C7X256V0_CLEC
+MCU_I2C0 interrupt
+request
+level
+MCU_I2C0
+MCU_I2C0_pointrpen
+d_0
+TIFS0_nvic_IN_101
+TIFS0
+MCU_I2C0 interrupt
+request
+level
+MCU_I2C0
+MCU_I2C0_pointrpen
+d_0
+HSM0_nvic_IN_101
+HSM0
+MCU_I2C0 interrupt
+request
+level
+WKUP_I2C0
+WKUP_I2C0_clkstop
+_wakeup_0
+R5FSS0_CORE0_intr
+_IN_143
+R5FSS0_CORE0
+WKUP_I2C0 interrupt
+request
+level
+WKUP_I2C0
+WKUP_I2C0_clkstop
+_wakeup_0
+WKUP_DEEPSLEEP
+_SOURCES0_Isam6
+2_dm_wakeup_deeps
+leep_sources_IN_0
+WKUP_DEEPSLEEP
+_SOURCES0
+WKUP_I2C0 interrupt
+request
+level
+WKUP_I2C0
+WKUP_I2C0_pointrpe
+nd_0
+GICSS0_COMMON_
+0_spi_IN_197
+GICSS0_COMMON_
+0
+WKUP_I2C0 interrupt
+request
+level
+WKUP_I2C0
+WKUP_I2C0_pointrpe
+nd_0
+R5FSS0_CORE0_intr
+_IN_190
+R5FSS0_CORE0
+WKUP_I2C0 interrupt
+request
+level
+I2C0
+I2C0_pointrpend_0
+GICSS0_spi_IN_193
+GICSS0
+I2C0 interrupt request
+level
+I2C0
+I2C0_pointrpend_0
+ICSSM0_COMMON_
+0_pr1_slv_intr_IN_9
+ICSSM0_COMMON_
+0
+I2C0 interrupt request
+level
+I2C0
+I2C0_pointrpend_0
+R5FSS0_CORE0_intr
+_IN_193
+R5FSS0_CORE0
+I2C0 interrupt request
+level
+I2C0
+I2C0_pointrpend_0
+TIFS0_nvic_IN_97
+TIFS0
+I2C0 interrupt request
+level
+I2C0
+I2C0_pointrpend_0
+HSM0_nvic_IN_97
+HSM0
+I2C0 interrupt request
+level
+I2C1
+I2C1_pointrpend_0
+GICSS0_spi_IN_194
+GICSS0
+I2C1 interrupt request
+level
+I2C1
+I2C1_pointrpend_0
+R5FSS0_CORE0_intr
+_IN_194
+R5FSS0_CORE0
+I2C1 interrupt request
+level
+I2C1
+I2C1_pointrpend_0
+TIFS0_nvic_IN_98
+TIFS0
+I2C1 interrupt request
+level
+=== Page 135 ===
+Table 4-55. I2C Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+I2C1
+I2C1_pointrpend_0
+HSM0_nvic_IN_98
+HSM0
+I2C1 interrupt request
+level
+I2C2
+I2C2_pointrpend_0
+GICSS0_spi_IN_195
+GICSS0
+I2C2 interrupt request
+level
+I2C2
+I2C2_pointrpend_0
+R5FSS0_CORE0_intr
+_IN_195
+R5FSS0_CORE0
+I2C2 interrupt request
+level
+I2C2
+I2C2_pointrpend_0
+TIFS0_nvic_IN_99
+TIFS0
+I2C2 interrupt request
+level
+I2C2
+I2C2_pointrpend_0
+HSM0_nvic_IN_99
+HSM0
+I2C2 interrupt request
+level
+I2C3
+I2C3_pointrpend_0
+GICSS0_spi_IN_196
+GICSS0
+I2C3 interrupt request
+level
+I2C3
+I2C3_pointrpend_0
+R5FSS0_CORE0_intr
+_IN_196
+R5FSS0_CORE0
+I2C3 interrupt request
+level
+I2C3
+I2C3_pointrpend_0
+TIFS0_nvic_IN_100
+TIFS0
+I2C3 interrupt request
+level
+I2C3
+I2C3_pointrpend_0
+HSM0_nvic_IN_100
+HSM0
+I2C3 interrupt request
+level
+MCU_I2C0
+MCU_I2C0_pointrpen
+d_0
+MCU_M4FSS0_COR
+E0_nvic_IN_17
+MCU_M4FSS0_COR
+E0
+MCU_I2C0 interrupt
+request
+level
+MCU_I2C0
+MCU_I2C0_pointrpen
+d_0
+GICSS0_spi_IN_139
+GICSS0
+MCU_I2C0 interrupt
+request
+level
+MCU_I2C0
+MCU_I2C0_pointrpen
+d_0
+R5FSS0_CORE0_intr
+_IN_197
+R5FSS0_CORE0
+MCU_I2C0 interrupt
+request
+level
+MCU_I2C0
+MCU_I2C0_pointrpen
+d_0
+TIFS0_nvic_IN_101
+TIFS0
+MCU_I2C0 interrupt
+request
+level
+MCU_I2C0
+MCU_I2C0_pointrpen
+d_0
+HSM0_nvic_IN_101
+HSM0
+MCU_I2C0 interrupt
+request
+level
+WKUP_I2C0
+WKUP_I2C0_clkstop
+_wakeup_0
+R5FSS0_CORE0_intr
+_IN_143
+R5FSS0_CORE0
+WKUP_I2C0 interrupt
+request
+level
+WKUP_I2C0
+WKUP_I2C0_clkstop
+_wakeup_0
+WKUP_DEEPSLEEP
+_SOURCES0_Isam6
+2_dm_wakeup_deeps
+leep_sources_IN_0
+WKUP_DEEPSLEEP
+_SOURCES0
+WKUP_I2C0 interrupt
+request
+level
+WKUP_I2C0
+WKUP_I2C0_pointrpe
+nd_0
+GICSS0_spi_IN_197
+GICSS0
+WKUP_I2C0 interrupt
+request
+level
+WKUP_I2C0
+WKUP_I2C0_pointrpe
+nd_0
+R5FSS0_CORE0_intr
+_IN_190
+R5FSS0_CORE0
+WKUP_I2C0 interrupt
+request
+level
+Table 4-56. I2C Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+I2C0
+OCP_CLK
+MAIN_SYSCLK0/4
+I2C0 Interface Clock
+SYS_CLK
+MAIN_PLL1_HSDIV0_CL
+KOUT/2
+I2C0 Functional Clock
+I2C1
+OCP_CLK
+MAIN_SYSCLK0/4
+I2C1 Interface Clock
+SYS_CLK
+MAIN_PLL1_HSDIV0_CL
+KOUT/2
+I2C1 Functional Clock
+=== Page 136 ===
+Table 4-56. I2C Clocks (continued)
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+I2C2
+OCP_CLK
+MAIN_SYSCLK0/4
+I2C2 Interface Clock
+SYS_CLK
+MAIN_PLL1_HSDIV0_CL
+KOUT/2
+I2C2 Functional Clock
+I2C3
+OCP_CLK
+MAIN_SYSCLK0/4
+I2C3 Interface Clock
+SYS_CLK
+MAIN_PLL1_HSDIV0_CL
+KOUT/2
+I2C3 Functional Clock
+MCU_I2C0
+OCP_CLK
+MCU_SYSCLK0/4
+MCU_I2C0 Interface Clock
+SYS_CLK
+MCU_PLL0_HSDIV1_CLK
+OUT
+MCU_I2C0 Functional
+Clock
+WKUP_I2C0
+OCP_CLK
+DM_CLK/4
+WKUP_CLKSEL[0:0]
+WKUP_I2C0 Interface
+Clock
+SYS_CLK
+MCU_PLL0_HSDIV1_CLK
+OUT
+WKUP_I2C0 Functional
+Clock
+=== Page 137 ===
+4.7.3 Multichannel Serial Peripheral Interface (MCSPI)
+This section contains the integration details for the MCSPI module on this device. For Further information, see
+the Multichannel Serial Peripheral Interface (MCSPI) section of the Peripherals chapter
+4.7.3.1 SPI Unsupported Features
+The following features are not supported on this family of devices:
+•
+Peripheral mode wakeup.
+•
+Retention During Power Down
+4.7.3.2 Module Allocations
+Table 4-57. MCSPI Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+MCSPI0
+✓
+MCSPI1
+✓
+MCSPI2
+✓
+MCU_MCSPI0
+✓
+MCU_MCSPI1
+✓
+4.7.3.3 Resets, Interrupts, and Clocks
+Table 4-58. MCSPI Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+MCSPI0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+MCSPI1
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+MCSPI2
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+MCU_MCSPI0
+WKUP_PSC0
+PD_M4F
+LPSC_MCU_C
+OMMON
+9
+ON
+YES
+LPSC_DM2SAF
+E_ISO
+MCU_MCSPI1
+WKUP_PSC0
+PD_M4F
+LPSC_MCU_C
+OMMON
+9
+ON
+YES
+LPSC_DM2SAF
+E_ISO
+Table 4-59. MCSPI Resets
+Module Instance
+Source
+Description
+MCSPI0
+PSC0_PSC_0
+MCSPI0 reset
+MCSPI1
+PSC0_PSC_0
+MCSPI1 reset
+MCSPI2
+PSC0_PSC_0
+MCSPI2 reset
+MCU_MCSPI0
+WKUP_PSC0
+MCU_MCSPI0 reset
+MCU_MCSPI1
+WKUP_PSC0
+MCU_MCSPI1 reset
+=== Page 138 ===
+Table 4-60. MCSPI Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+MCSPI0
+MCSPI0_dma_read_
+event_[3:0]
+PDMA0_spi_main_0_
+rx_IN_[3:0]
+PDMA0
+MCSPI0 interrupt
+request
+pulse
+MCSPI0
+MCSPI0_dma_write_
+event_[3:0]
+PDMA0_spi_main_0_
+tx_IN_[3:0]
+PDMA0
+MCSPI0 interrupt
+request
+pulse
+MCSPI0
+MCSPI0_intr_spi_0
+GICSS0_spi_IN_204
+GICSS0
+MCSPI0 interrupt
+request
+level
+MCSPI0
+MCSPI0_intr_spi_0
+ICSSM0_pr1_slv_intr
+_IN_12
+ICSSM0
+MCSPI0 interrupt
+request
+level
+MCSPI0
+MCSPI0_intr_spi_0
+R5FSS0_CORE0_intr
+_IN_204
+R5FSS0_CORE0
+MCSPI0 interrupt
+request
+level
+MCSPI0
+MCSPI0_intr_spi_0
+TIFS0_nvic_IN_84
+TIFS0
+MCSPI0 interrupt
+request
+level
+MCSPI0
+MCSPI0_intr_spi_0
+HSM0_nvic_IN_84
+HSM0
+MCSPI0 interrupt
+request
+level
+MCSPI1
+MCSPI1_dma_read_
+event_[3:0]
+PDMA0_spi_main_1_
+rx_IN_[3:0]
+PDMA0
+MCSPI1 interrupt
+request
+pulse
+MCSPI1
+MCSPI1_dma_write_
+event_[3:0]
+PDMA0_spi_main_1_
+tx_IN_[3:0]
+PDMA0
+MCSPI1 interrupt
+request
+pulse
+MCSPI1
+MCSPI1_intr_spi_0
+GICSS0_spi_IN_205
+GICSS0
+MCSPI1 interrupt
+request
+level
+MCSPI1
+MCSPI1_intr_spi_0
+ICSSM0_pr1_slv_intr
+_IN_15
+ICSSM0
+MCSPI1 interrupt
+request
+level
+MCSPI1
+MCSPI1_intr_spi_0
+R5FSS0_CORE0_intr
+_IN_205
+R5FSS0_CORE0
+MCSPI1 interrupt
+request
+level
+MCSPI1
+MCSPI1_intr_spi_0
+TIFS0_nvic_IN_87
+TIFS0
+MCSPI1 interrupt
+request
+level
+MCSPI1
+MCSPI1_intr_spi_0
+HSM0_nvic_IN_87
+HSM0
+MCSPI1 interrupt
+request
+level
+MCSPI2
+MCSPI2_dma_read_
+event_[3:0]
+PDMA0_spi_main_2_
+rx_IN_[3:0]
+PDMA0
+MCSPI2 interrupt
+request
+pulse
+MCSPI2
+MCSPI2_dma_write_
+event_[3:0]
+PDMA0_spi_main_2_
+tx_IN_[3:0]
+PDMA0
+MCSPI2 interrupt
+request
+pulse
+MCSPI2
+MCSPI2_intr_spi_0
+GICSS0_spi_IN_206
+GICSS0
+MCSPI2 interrupt
+request
+level
+MCSPI2
+MCSPI2_intr_spi_0
+R5FSS0_CORE0_intr
+_IN_206
+R5FSS0_CORE0
+MCSPI2 interrupt
+request
+level
+MCSPI2
+MCSPI2_intr_spi_0
+TIFS0_nvic_IN_88
+TIFS0
+MCSPI2 interrupt
+request
+level
+MCSPI2
+MCSPI2_intr_spi_0
+HSM0_nvic_IN_88
+HSM0
+MCSPI2 interrupt
+request
+level
+MCU_MCSPI0
+MCU_MCSPI0_intr_s
+pi_0
+MCU_M4FSS0_COR
+E0_nvic_IN_22
+MCU_M4FSS0_COR
+E0
+MCU_MCSPI0
+interrupt request
+level
+=== Page 139 ===
+Table 4-60. MCSPI Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+MCU_MCSPI0
+MCU_MCSPI0_intr_s
+pi_0
+GICSS0_spi_IN_208
+GICSS0
+MCU_MCSPI0
+interrupt request
+level
+MCU_MCSPI0
+MCU_MCSPI0_intr_s
+pi_0
+R5FSS0_CORE0_intr
+_IN_207
+R5FSS0_CORE0
+MCU_MCSPI0
+interrupt request
+level
+MCU_MCSPI0
+MCU_MCSPI0_intr_s
+pi_0
+TIFS0_nvic_IN_85
+TIFS0
+MCU_MCSPI0
+interrupt request
+level
+MCU_MCSPI0
+MCU_MCSPI0_intr_s
+pi_0
+HSM0_nvic_IN_85
+HSM0
+MCU_MCSPI0
+interrupt request
+level
+MCU_MCSPI1
+MCU_MCSPI1_intr_s
+pi_0
+MCU_M4FSS0_COR
+E0_nvic_IN_23
+MCU_M4FSS0_COR
+E0
+MCU_MCSPI1
+interrupt request
+level
+MCU_MCSPI1
+MCU_MCSPI1_intr_s
+pi_0
+GICSS0_spi_IN_209
+GICSS0
+MCU_MCSPI1
+interrupt request
+level
+MCU_MCSPI1
+MCU_MCSPI1_intr_s
+pi_0
+R5FSS0_CORE0_intr
+_IN_208
+R5FSS0_CORE0
+MCU_MCSPI1
+interrupt request
+level
+MCU_MCSPI1
+MCU_MCSPI1_intr_s
+pi_0
+TIFS0_nvic_IN_86
+TIFS0
+MCU_MCSPI1
+interrupt request
+level
+MCU_MCSPI1
+MCU_MCSPI1_intr_s
+pi_0
+HSM0_nvic_IN_86
+HSM0
+MCU_MCSPI1
+interrupt request
+level
+Table 4-61. MCSPI Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+MCSPI0
+FCLK
+MAIN_SYSCLK0/10
+MCSPI0 Functional Clock
+ICLK
+MAIN_SYSCLK0/4
+MCSPI0 Interface Clock
+MCSPI1
+FCLK
+MAIN_SYSCLK0/10
+MCSPI1 Functional Clock
+ICLK
+MAIN_SYSCLK0/4
+MCSPI1 Interface Clock
+MCSPI2
+FCLK
+MAIN_SYSCLK0/10
+MCSPI2 Functional Clock
+ICLK
+MAIN_SYSCLK0/4
+MCSPI2 Interface Clock
+MCU_MCSPI0
+FCLK
+MCU_SYSCLK0/8
+MCU_MCSPI0 Functional
+Clock
+ICLK
+MCU_SYSCLK0/2
+MCU_MCSPI0 Interface
+Clock
+MCU_MCSPI1
+FCLK
+MCU_SYSCLK0/8
+MCU_MCSPI1 Functional
+Clock
+ICLK
+MCU_SYSCLK0/2
+MCU_MCSPI1 Interface
+Clock
+=== Page 140 ===
+4.7.4 Universal Asynchronous Receiver/Transmitter (UART)
+This section contains the integration details for the UART module on this device. For Further information, see the
+Universal Asynchronous Receiver/Transmitter (UART) section of the Processors and Accelerators chapter
+4.7.4.1 UART Unsupported Features
+The following features are not supported on this family of devices:
+•
+12Mbps not supported for MCU and WKUP domains.
+•
+Full modem handshaking is not available on all instances. See device datasheet for instances supporting full
+modem handshaking.
+•
+Synchronous mode - SCLK not pinned out
+•
+ISO7816 Mode
+•
+SCR DMA Mode 2
+•
+Multi-drop Transmission
+•
+9-bit Mode
+4.7.4.2 Module Allocations
+Table 4-62. UART Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+UART0
+✓
+UART1
+✓
+UART2
+✓
+UART3
+✓
+UART4
+✓
+UART5
+✓
+UART6
+✓
+MCU_UART0
+✓
+WKUP_UART0
+✓
+4.7.4.3 Resets, Interrupts, and Clocks
+Table 4-63. UART Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+MCU_UART0
+WKUP_PSC0
+PD_M4F
+LPSC_MCU_C
+OMMON
+9
+ON
+YES
+LPSC_DM2SAF
+E_ISO
+UART0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+UART1
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+UART2
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+UART3
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+UART4
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+=== Page 141 ===
+Table 4-63. UART Integration Attributes (continued)
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+UART5
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+UART6
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+WKUP_UART0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_A
+LWAYSON
+0
+ON
+NO
+NONE
+Table 4-64. UART Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+MCU_UART0
+FCLK
+MCU_PLL0_HSDIV2_CLK
+OUT
+MCU_UART0 Functional
+Clock
+CLK
+MCU_SYSCLK0/2
+MCU_UART0 Interface
+Clock
+UART0
+FCLK
+MAIN_PLL1_HSDIV0_CL
+KOUT
+USART0_CLKSEL[0:0]
+UART0 Functional Clock
+MAIN_PLL1_HSDIV1_CL
+KOUT
+USART0_CLKSEL[0:0]
+CLK
+MAIN_SYSCLK0/4
+UART0 Interface Clock
+UART1
+FCLK
+MAIN_PLL1_HSDIV0_CL
+KOUT
+USART1_CLKSEL[0:0]
+UART1 Functional Clock
+MAIN_PLL1_HSDIV1_CL
+KOUT
+USART1_CLKSEL[0:0]
+PDMA0_COMMON_0_spi
+_main_2_tx_IN_[3:0]+A28
+015:F28136
+MAIN_SYSCLK0/4
+UART1 Interface Clock
+UART2
+FCLK
+MAIN_PLL1_HSDIV0_CL
+KOUT
+USART2_CLKSEL[0:0]
+UART2 Functional Clock
+MAIN_PLL1_HSDIV1_CL
+KOUT
+USART2_CLKSEL[0:0]
+CLK
+MAIN_SYSCLK0/4
+UART2 Interface Clock
+UART3
+FCLK
+MAIN_PLL1_HSDIV0_CL
+KOUT
+USART3_CLKSEL[0:0]
+UART3 Functional Clock
+MAIN_PLL1_HSDIV1_CL
+KOUT
+USART3_CLKSEL[0:0]
+CLK
+MAIN_SYSCLK0/4
+UART3 Interface Clock
+UART4
+FCLK
+MAIN_PLL1_HSDIV0_CL
+KOUT
+USART4_CLKSEL[0:0]
+UART4 Functional Clock
+MAIN_PLL1_HSDIV1_CL
+KOUT
+USART4_CLKSEL[0:0]
+CLK
+MAIN_SYSCLK0/4
+UART4 Interface Clock
+=== Page 142 ===
+Table 4-64. UART Clocks (continued)
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+UART5
+FCLK
+MAIN_PLL1_HSDIV0_CL
+KOUT
+USART5_CLKSEL[0:0]
+UART5 Functional Clock
+MAIN_PLL1_HSDIV1_CL
+KOUT
+USART5_CLKSEL[0:0]
+CLK
+MAIN_SYSCLK0/4
+UART5 Interface Clock
+UART6
+FCLK
+MAIN_PLL1_HSDIV0_CL
+KOUT
+USART6_CLKSEL[0:0]
+UART6 Functional Clock
+MAIN_PLL1_HSDIV1_CL
+KOUT
+USART6_CLKSEL[0:0]
+CLK
+MAIN_SYSCLK0/4
+UART6 Interface Clock
+WKUP_UART0
+FCLK
+MCU_PLL0_HSDIV2_CLK
+OUT
+WKUP_UART0 Functional
+Clock
+CLK
+DM_CLK/4
+WKUP_CLKSEL[0:0]
+WKUP_UART0 Interface
+Clock
+Table 4-65. UART Resets
+Module Instance
+Source
+Description
+MCU_UART0
+WKUP_PSC0
+MCU_UART0 reset
+UART0
+PSC0_PSC_0
+UART0 reset
+UART1
+PSC0_PSC_0
+UART1 reset
+UART2
+PSC0_PSC_0
+UART2 reset
+UART3
+PSC0_PSC_0
+UART3 reset
+UART4
+PSC0_PSC_0
+UART4 reset
+UART5
+PSC0_PSC_0
+UART5 reset
+UART6
+PSC0_PSC_0
+UART6 reset
+WKUP_UART0
+PSC0_PSC_0
+WKUP_UART0 reset
+Table 4-66. UART Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+MCU_UART0
+MCU_UART0_usart_i
+rq_0
+MCU_M4FSS0_COR
+E0_nvic_IN_24
+MCU_M4FSS0_COR
+E0
+MCU_UART0
+interrupt request
+level
+MCU_UART0
+MCU_UART0_usart_i
+rq_0
+GICSS0_spi_IN_217
+GICSS0
+MCU_UART0
+interrupt request
+level
+MCU_UART0
+MCU_UART0_usart_i
+rq_0
+R5FSS0_CORE0_intr
+_IN_217
+R5FSS0_CORE0
+MCU_UART0
+interrupt request
+level
+MCU_UART0
+MCU_UART0_usart_i
+rq_0
+TIFS0_nvic_IN_96
+TIFS0
+MCU_UART0
+interrupt request
+level
+MCU_UART0
+MCU_UART0_usart_i
+rq_0
+HSM0_nvic_IN_96
+HSM0
+MCU_UART0
+interrupt request
+level
+UART0
+UART0_usart_dma_0
+PDMA1_usart_main_
+0_rx_IN_0
+PDMA1
+UART0 interrupt
+request
+level
+=== Page 143 ===
+Table 4-66. UART Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+UART0
+UART0_usart_dma_0
+PDMA1_usart_main_
+0_tx_IN_0
+PDMA1
+UART0 interrupt
+request
+level
+UART0
+UART0_usart_dma_1
+PDMA1_usart_main_
+0_rx_IN_0
+PDMA1
+UART0 interrupt
+request
+level
+UART0
+UART0_usart_dma_1
+PDMA1_usart_main_
+0_tx_IN_0
+PDMA1
+UART0 interrupt
+request
+level
+UART0
+UART0_usart_irq_0
+GICSS0_spi_IN_210
+GICSS0
+UART0 interrupt
+request
+level
+UART0
+UART0_usart_irq_0
+ICSSM0_pr1_slv_intr
+_IN_19
+ICSSM0
+UART0 interrupt
+request
+level
+UART0
+UART0_usart_irq_0
+R5FSS0_CORE0_intr
+_IN_210
+R5FSS0_CORE0
+UART0 interrupt
+request
+level
+UART0
+UART0_usart_irq_0
+TIFS0_nvic_IN_89
+TIFS0
+UART0 interrupt
+request
+level
+UART0
+UART0_usart_irq_0
+HSM0_nvic_IN_89
+HSM0
+UART0 interrupt
+request
+level
+UART1
+UART1_usart_dma_0
+PDMA1_usart_main_
+1_rx_IN_0
+PDMA1
+UART1 interrupt
+request
+level
+UART1
+UART1_usart_dma_0
+PDMA1_usart_main_
+1_tx_IN_0
+PDMA1
+UART1 interrupt
+request
+level
+UART1
+UART1_usart_dma_1
+PDMA1_usart_main_
+1_rx_IN_0
+PDMA1
+UART1 interrupt
+request
+level
+UART1
+UART1_usart_dma_1
+PDMA1_usart_main_
+1_tx_IN_0
+PDMA1
+UART1 interrupt
+request
+level
+UART1
+UART1_usart_irq_0
+GICSS0_spi_IN_211
+GICSS0
+UART1 interrupt
+request
+level
+UART1
+UART1_usart_irq_0
+ICSSM0_pr1_slv_intr
+_IN_0
+ICSSM0
+UART1 interrupt
+request
+level
+UART1
+UART1_usart_irq_0
+R5FSS0_CORE0_intr
+_IN_211
+R5FSS0_CORE0
+UART1 interrupt
+request
+level
+UART1
+UART1_usart_irq_0
+TIFS0_nvic_IN_90
+TIFS0
+UART1 interrupt
+request
+level
+UART1
+UART1_usart_irq_0
+HSM0_nvic_IN_90
+HSM0
+UART1 interrupt
+request
+level
+UART2
+UART2_usart_dma_0
+PDMA1_usart_main_
+2_rx_IN_0
+PDMA1
+UART2 interrupt
+request
+level
+UART2
+UART2_usart_dma_0
+PDMA1_usart_main_
+2_tx_IN_0
+PDMA1
+UART2 interrupt
+request
+level
+UART2
+UART2_usart_dma_1
+PDMA1_usart_main_
+2_rx_IN_0
+PDMA1
+UART2 interrupt
+request
+level
+UART2
+UART2_usart_dma_1
+PDMA1_usart_main_
+2_tx_IN_0
+PDMA1
+UART2 interrupt
+request
+level
+=== Page 144 ===
+Table 4-66. UART Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+UART2
+UART2_usart_irq_0
+GICSS0_spi_IN_212
+GICSS0
+UART2 interrupt
+request
+level
+UART2
+UART2_usart_irq_0
+ICSSM0_pr1_slv_intr
+_IN_20
+ICSSM0
+UART2 interrupt
+request
+level
+UART2
+UART2_usart_irq_0
+R5FSS0_CORE0_intr
+_IN_212
+R5FSS0_CORE0
+UART2 interrupt
+request
+level
+UART2
+UART2_usart_irq_0
+TIFS0_nvic_IN_91
+TIFS0
+UART2 interrupt
+request
+level
+UART2
+UART2_usart_irq_0
+HSM0_nvic_IN_91
+HSM0
+UART2 interrupt
+request
+level
+UART3
+UART3_usart_dma_0
+PDMA1_usart_main_
+3_rx_IN_0
+PDMA1
+UART3 interrupt
+request
+level
+UART3
+UART3_usart_dma_0
+PDMA1_usart_main_
+3_tx_IN_0
+PDMA1
+UART3 interrupt
+request
+level
+UART3
+UART3_usart_dma_1
+PDMA1_usart_main_
+3_rx_IN_0
+PDMA1
+UART3 interrupt
+request
+level
+UART3
+UART3_usart_dma_1
+PDMA1_usart_main_
+3_tx_IN_0
+PDMA1
+UART3 interrupt
+request
+level
+UART3
+UART3_usart_irq_0
+GICSS0_spi_IN_213
+GICSS0
+UART3 interrupt
+request
+level
+UART3
+UART3_usart_irq_0
+R5FSS0_CORE0_intr
+_IN_213
+R5FSS0_CORE0
+UART3 interrupt
+request
+level
+UART3
+UART3_usart_irq_0
+TIFS0_nvic_IN_92
+TIFS0
+UART3 interrupt
+request
+level
+UART3
+UART3_usart_irq_0
+HSM0_nvic_IN_92
+HSM0
+UART3 interrupt
+request
+level
+UART4
+UART4_usart_dma_0
+PDMA1_usart_main_
+4_rx_IN_0
+PDMA1
+UART4 interrupt
+request
+level
+UART4
+UART4_usart_dma_0
+PDMA1_usart_main_
+4_tx_IN_0
+PDMA1
+UART4 interrupt
+request
+level
+UART4
+UART4_usart_dma_1
+PDMA1_usart_main_
+4_rx_IN_0
+PDMA1
+UART4 interrupt
+request
+level
+UART4
+UART4_usart_dma_1
+PDMA1_usart_main_
+4_tx_IN_0
+PDMA1
+UART4 interrupt
+request
+level
+UART4
+UART4_usart_irq_0
+GICSS0_spi_IN_214
+GICSS0
+UART4 interrupt
+request
+level
+UART4
+UART4_usart_irq_0
+R5FSS0_CORE0_intr
+_IN_214
+R5FSS0_CORE0
+UART4 interrupt
+request
+level
+UART4
+UART4_usart_irq_0
+TIFS0_nvic_IN_93
+TIFS0
+UART4 interrupt
+request
+level
+UART4
+UART4_usart_irq_0
+HSM0_nvic_IN_93
+HSM0
+UART4 interrupt
+request
+level
+=== Page 145 ===
+Table 4-66. UART Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+UART5
+UART5_usart_dma_0
+PDMA1_usart_main_
+5_rx_IN_0
+PDMA1
+UART5 interrupt
+request
+level
+UART5
+UART5_usart_dma_0
+PDMA1_usart_main_
+5_tx_IN_0
+PDMA1
+UART5 interrupt
+request
+level
+UART5
+UART5_usart_dma_1
+PDMA1_usart_main_
+5_rx_IN_0
+PDMA1
+UART5 interrupt
+request
+level
+UART5
+UART5_usart_dma_1
+PDMA1_usart_main_
+5_tx_IN_0
+PDMA1
+UART5 interrupt
+request
+level
+UART5
+UART5_usart_irq_0
+GICSS0_spi_IN_215
+GICSS0
+UART5 interrupt
+request
+level
+UART5
+UART5_usart_irq_0
+R5FSS0_CORE0_intr
+_IN_215
+R5FSS0_CORE0
+UART5 interrupt
+request
+level
+UART5
+UART5_usart_irq_0
+TIFS0_nvic_IN_94
+TIFS0
+UART5 interrupt
+request
+level
+UART5
+UART5_usart_irq_0
+HSM0_nvic_IN_94
+HSM0
+UART5 interrupt
+request
+level
+UART6
+UART6_usart_dma_0
+PDMA1_usart_main_
+6_rx_IN_0
+PDMA1
+UART6 interrupt
+request
+level
+UART6
+UART6_usart_dma_0
+PDMA1_usart_main_
+6_tx_IN_0
+PDMA1
+UART6 interrupt
+request
+level
+UART6
+UART6_usart_dma_1
+PDMA1_usart_main_
+6_rx_IN_0
+PDMA1
+UART6 interrupt
+request
+level
+UART6
+UART6_usart_dma_1
+PDMA1_usart_main_
+6_tx_IN_0
+PDMA1
+UART6 interrupt
+request
+level
+UART6
+UART6_usart_irq_0
+GICSS0_spi_IN_216
+GICSS0
+UART6 interrupt
+request
+level
+UART6
+UART6_usart_irq_0
+R5FSS0_CORE0_intr
+_IN_216
+R5FSS0_CORE0
+UART6 interrupt
+request
+level
+UART6
+UART6_usart_irq_0
+TIFS0_nvic_IN_95
+TIFS0
+UART6 interrupt
+request
+level
+UART6
+UART6_usart_irq_0
+HSM0_nvic_IN_95
+HSM0
+UART6 interrupt
+request
+level
+WKUP_UART0
+WKUP_UART0_clkst
+op_wakeup_0
+R5FSS0_CORE0_intr
+_IN_144
+R5FSS0_CORE0
+WKUP_UART0
+interrupt request
+level
+WKUP_UART0
+WKUP_UART0_clkst
+op_wakeup_0
+WKUP_DEEPSLEEP
+_SOURCES0_Isam6
+2_dm_wakeup_deeps
+leep_sources_IN_1
+WKUP_DEEPSLEEP
+_SOURCES0
+WKUP_UART0
+interrupt request
+level
+WKUP_UART0
+WKUP_UART0_usart
+_irq_0
+GICSS0_spi_IN_218
+GICSS0
+WKUP_UART0
+interrupt request
+level
+WKUP_UART0
+WKUP_UART0_usart
+_irq_0
+R5FSS0_CORE0_intr
+_IN_219
+R5FSS0_CORE0
+WKUP_UART0
+interrupt request
+level
+=== Page 146 ===

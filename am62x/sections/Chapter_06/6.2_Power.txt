@@ -1,0 +1,2849 @@
+6.2 Power
+This chapter describes the power-management architecture implemented in the device.
+6.2.1 Power Management Overview
+To provide a versatile architecture that supports multiple power-management techniques, the power
+management framework is built with three levels of resource management: clock, power, and voltage.
+These management levels are enforced by defining the managed entities or building blocks of the power
+management architecture, called the clock, power, and voltage domains. A domain is a group of modules or
+subsections of the device that share a common entity (for example, common clock source, common voltage
+source, or common power switch).
+To minimize device power consumption, the clocks can be gated (turned off), or the power to the modules can be
+switched off, when they are not in use. Independent power and clock control of sections of the device allows for
+turning on and off specific sections of the device without affecting other sections.
+6.2.2 Power Control Modules
+The Power Control Modules are divided into two sections, dependent on their functionality - Power Sleep
+Controller section and Device Manager section.
+6.2.2.1 Power Sleep Controller
+6.2.2.1.1 PSC Architecture
+Power Sleep Controller (PSC) is a control component to manage the power domain and module’s clock and
+reset transition. Each PSC module contains multiple power domains, within each power domain, it can contain
+multiple LPSC. Each LPSC can be used to manage the one or multiple module’s reset and clock stop status, see
+Figure 6-1.
+Each power domain has a unique index, starting from number 0. The power domain 0 is a special power domain,
+which is always on. The status of power domain 0 can’t be changed after the device is out of reset.
+Each power domain can have one or more Local Power Sleep Control (LPSC). Each LPSC in the same PSC
+has a unique index value as well. LPSC 0 is special, which user can’t change its status. LPSC 0 is always set to
+be enabled after the device is out of reset.
+One LPSC can be used to control the reset and clock status for one or more modules. Some of the LPSC can
+be used to provide local reset function for the processors, such as A53 and R5 and M4F core. LPSC can also
+be used to manage the clock stop interface for the interfaces between two interconnect IPs. This is mainly used
+for providing isolation features required by some special features such as security isolation, functional safety
+isolation or reset isolation between different parts of the SoC.
+=== Page 534 ===
+Figure 6-1. PSC Architecture
+Note
+PSC functions are controlled via Device Manager. For more information how to use Device Manager,
+see TISCI API available at ti.com.
+6.2.2.1.2 PSC Configurations
+Device is partition into two PSC control portions, each portion has its own dedicated PSC module: PSC0 and
+MCU PSC.
+Table 6-2 presents Power Domain features for the processor.
+Table 6-2. Power Domain Features
+PSC
+PD name
+PD index
+GP / PD
+Default Power
+Domain State
+PD State Software
+Controlled
+MCU PSC
+GP_Core_CTL_MCU
+0
+GP (1)
+AO(3)
+NO
+PD_MCU_M4F
+1
+PD(2)
+ON
+YES
+=== Page 535 ===
+Table 6-2. Power Domain Features (continued)
+PSC
+PD name
+PD index
+GP / PD
+Default Power
+Domain State
+PD State Software
+Controlled
+PSC0
+GP_Core_CTL
+0
+GP(1)
+AO(3)
+NO
+PD_ICSSM
+1
+PD(2)
+OFF
+YES
+PD_CPSW
+2
+PD(2)
+ON
+YES
+PD_A53_cluster_0
+3
+PD(2)
+OFF
+YES
+PD_A53_0
+4
+PD(2)
+OFF
+YES
+PD_A53_1
+5
+PD(2)
+OFF
+YES
+PD_A53_2
+6
+PD(2)
+OFF
+YES
+PD_A53_3
+7
+PD(2)
+OFF
+YES
+PD_GPU
+8
+PD(2)
+OFF
+YES
+PD_DSS
+9
+PD(2)
+OFF
+YES
+(1)
+Group with common power - means that there are no power switches. The group is considered always-on.
+(2)
+Power switched domain - means this is a full power switched domain.
+(3)
+AO = Always On
+Table 6-3 and Table 6-4 show the summary how each module is controlled by LPSC.
+=== Page 536 ===
+Table 6-3. LPSC Features
+PSC
+Power Domain
+Name
+LPSC Name
+LPSC
+Index
+Default
+LPSC
+State
+LPSC State
+Software
+Controlled
+Modules (Aliased)
+PSC_0
+GP_Core_CTL
+LPSC_main_alwayson(1)
+0
+ON
+No
+CMP_EVENT_INTROUTER0
+CTRL_MMR0
+MAIN_GPIOMUX_INTROUTER0
+PLL0
+TIMESYNC_EVENT_ROUTER0
+WKUP_CTRL_MMR0
+WKUP_WKUP_SEC_MMR0
+PADCFG_CTRL0
+DCC0
+DCC1
+DCC2
+DCC3
+DCC4
+DCC5
+DCC6
+WKUP_TIMER0
+WKUP_TIMER1
+ESM0
+GPIO0
+GPIO1
+WKUP_GTC0
+DDPA0
+WKUP_VTM0
+WKUP_I2C0
+PSRAMECC0
+WKUP_ROM0
+WKUP_rtcss0
+EFUSE0
+WKUP_UART0
+LPSC_main_dm
+1
+OFF
+Yes
+R5FSS0_CORE0
+WKUP_RTI0
+LPSC_DM_PBIST
+2
+ON
+Yes
+WKUP_PBIST0
+LPSC_main2DM_ISO(2)
+3
+ON
+Yes
+LPSC_DM2main_ISO(2)
+4
+ON
+Yes
+LPSC_DM2main_infra_ISO(2)
+5
+ON
+Yes
+LPSC_DM2central_iso(2)
+6
+ON
+Yes
+LPSC_central2DM_ISO(2)
+7
+ON
+Yes
+=== Page 537 ===
+Table 6-3. LPSC Features (continued)
+PSC
+Power Domain
+Name
+LPSC Name
+LPSC
+Index
+Default
+LPSC
+State
+LPSC State
+Software
+Controlled
+Modules (Aliased)
+PSC_0
+GP_Core_CTL
+LPSC_GP_spare0
+8
+OFF
+Yes
+LPSC_EMIF_local
+9
+OFF
+Yes
+DDR16SS0
+LPSC_EMIF_CFG_ISO(2)
+10
+OFF
+Yes
+LPSC_EMIF_data_ISO(2)
+11
+OFF
+Yes
+LPSC_main_USB0_ISO(2)
+12
+OFF
+Yes
+LPSC_main_USB1_ISO(2)
+13
+OFF
+Yes
+LPSC_main_test
+14
+ON
+Yes
+DFTSS0
+LPSC_GPMC
+15
+OFF
+Yes
+ELM0
+GPMC0
+LPSC_GP_spare1
+16
+OFF
+Yes
+LPSC_main_mcasp_0
+17
+OFF
+Yes
+MCASP0
+LPSC_main_mcasp_1
+18
+OFF
+Yes
+MCASP1
+LPSC_main_mcasp_2
+19
+OFF
+Yes
+MCASP2
+LPSC_emmc_8b
+20
+OFF
+Yes
+MMCSD0
+LPSC_emmc_4b_0
+21
+OFF
+Yes
+MMCSD1
+LPSC_emmc_4b_1
+22
+OFF
+Yes
+MMCSD2
+LPSC_USB_0
+23
+OFF
+Yes
+USB0
+LPSC_USB_1
+24
+OFF
+Yes
+USB1
+LPSC_CSI_RX_0
+25
+OFF
+Yes
+csi_rx_if0
+LPSC_DPHY_0
+26
+OFF
+Yes
+DPHY_RX0
+LPSC_SMS_common
+27
+ON
+Yes
+MAIN_SEC_MMR0
+CPT2_AGGR1
+MAILBOX0_CLUSTER_0
+PSRAMECC_16K0
+SPINLOCK0
+LPSC_fss_ospi
+28
+ON
+Yes
+FSS0_FSAS_0
+FSS0_OSPI_0
+LPSC_TIFS
+29
+ON
+Yes
+SMS0
+LPSC_HSM
+30
+OFF
+Yes
+LPSC_sa3ul
+31
+ON
+Yes
+SA3_SS0
+LPSC_HSM_ISO(2)
+32
+TRUE
+Yes
+LPSC_debugss
+33
+ON
+Yes
+DBGSUSPENDROUTER0
+STM0
+DEBUGSS_WRAP0
+DEBUGSS0
+=== Page 538 ===
+Table 6-3. LPSC Features (continued)
+PSC
+Power Domain
+Name
+LPSC Name
+LPSC
+Index
+Default
+LPSC
+State
+LPSC State
+Software
+Controlled
+Modules (Aliased)
+PSC_0
+GP_Core_CTL
+LPSC_main_IP
+34
+ON
+Yes
+CPT2_AGGR0
+DMASS0
+TIMER0
+TIMER1
+TIMER2
+TIMER3
+TIMER4
+TIMER5
+TIMER6
+TIMER7
+ECAP0
+ECAP1
+ECAP2
+EQEP0
+EQEP1
+EQEP2
+EPWM0
+EPWM1
+EPWM2
+MCRC64_0
+I2C0
+I2C1
+I2C2
+I2C3
+PDMA2
+PDMA0
+PDMA1
+MCSPI0
+MCSPI1
+MCSPI2
+UART0
+UART1
+UART2
+UART3
+UART4
+UART5
+UART6
+LPSC_main_mcanss_0
+35
+OFF
+Yes
+MCAN0
+LPSC_GIC
+36
+ON
+Yes
+GICSS0
+LPSC_main_PBIST
+37
+ON
+Yes
+PBIST0
+LPSC_main_spare0
+38
+OFF
+Yes
+LPSC_main_spare1
+39
+OFF
+Yes
+=== Page 539 ===
+Table 6-3. LPSC Features (continued)
+PSC
+Power Domain
+Name
+LPSC Name
+LPSC
+Index
+Default
+LPSC
+State
+LPSC State
+Software
+Controlled
+Modules (Aliased)
+PSC_0
+PD_ICSSM
+LPSC_ICSSM
+40
+OFF
+Yes
+ICSSM0
+PD_CPSW
+LPSC_CPSW3G
+41
+OFF
+Yes
+CPSW0
+PD_A53_cluster_0
+LPSC_A53_cluster_0
+42
+OFF
+Yes
+A53SS0
+LPSC_A53_cluster_0_PBIST_0
+43
+OFF
+Yes
+COMPUTE_CLUSTER0_PBIST_0
+LPSC_A53_cluster_0_PBIST_1
+44
+FALSE
+Yes
+PD_A53_0
+LPSC_A53_0
+45
+OFF
+Yes
+RTI0
+A53SS0_CORE_0
+PD_A53_1
+LPSC_A53_1
+46
+OFF
+Yes
+RTI1
+A53SS0_CORE_1
+PD_A53_2
+LPSC_A53_2
+47
+OFF
+Yes
+RTI2
+A53SS0_CORE_2
+PD_A53_3
+LPSC_A53_3
+48
+OFF
+Yes
+RTI3
+A53SS0_CORE_3
+PD_GPU
+LPSC_GPU
+49
+OFF
+Yes
+GPU0
+RTI15
+LPSC_GPU_PBIST
+50
+OFF
+Yes
+PBIST1
+PD_DSS
+LPSC_DSS
+51
+OFF
+Yes
+DSS0
+(1)
+This LPSC's state can't be modified by user.
+(2)
+This LPSC is used for isolation purpose, not control any reset for any modules.
+=== Page 540 ===
+Table 6-4. MCU LPSC Features
+PSC
+Power Domain Name
+LPSC Name
+LPSC
+Index
+Default
+LPSC
+State
+LPSC
+State
+Software
+Controlled
+Modules (Aliased)
+MCU_PSC0
+GP_core_CTL_MCU
+LPSC_mcu_alwayson(1)
+0
+ON
+No
+MCU_CTRL_MMR0
+WKUP_MCU_GPIOMUX_INTRO
+UTER0
+WKUP_PLL0
+WKUP_PADCFG_CTRL0
+MCU_DCC0
+WKUP_ESM0
+MCU_GPIO0
+LPSC_main2mcu_ISO(2)
+1
+ON
+Yes
+LPSC_mcu2main_ISO(2)
+2
+ON
+Yes
+LPSC_DM2safe_ISO(2)
+3
+ON
+Yes
+LPSC_mcu2DM_ISO(2)
+4
+ON
+Yes
+LPSC_mcu_test
+5
+ON
+Yes
+PD_M4F
+LPSC_mcu_m4f
+6
+OFF
+Yes
+MCU_M4FSS0
+MCU_RTI0
+LPSC_MCU_mcanss_0
+7
+OFF
+Yes
+MCU_MCAN0
+LPSC_MCU_mcanss_1
+8
+OFF
+Yes
+MCU_MCAN1
+LPSC_MCU_common
+9
+ON
+Yes
+MCU_TIMER0
+MCU_TIMER1
+MCU_TIMER2
+MCU_TIMER3
+MCU_MCRC64_0
+MCU_I2C0
+MCU_MCSPI0
+MCU_MCSPI1
+MCU_UART0
+(1)
+This LPSC's state can't be modified by user.
+(2)
+This LPSC is used for isolation purpose, not control any reset for any modules.
+=== Page 541 ===
+6.2.2.1.2.1 Software Sequence to enable an IP through PSC
+among different LPSC controls.
+First of all, in order to enable any LPSC, the power domain which that LPSC belongs needs to be enabled first. The LPSC can’t put into any state other
+than disable if the power domain is not enabled.
+Among different LPSC, there is also a special sequence needs to be followed to make sure the device is not getting into undefined state.
+Similarly, a special sequence shall be followed to disable the LPSC to prevent device getting into undefined states. Before a power domain can be
+necessary to turn off the power domain when all the LPSCs inside that power domain are disabled.
+Figure 6-2 shows how to understand the dependent relationship between two LPSCs. In order to enable LPSC_2, LPSC_1 shall be enabled first.
+If user wants to disable LPSC_1, LPSC_2 shall be disabled first.
+Figure 6-2. LPSC Dependence
+Figure 6-3 shows the dependent relationship among all the LPSCs in the device.
+=== Page 542 ===
+Figure 6-3. LPSC Dependence Tree
+Device Configuration
+542
+=== Page 543 ===
+6.2.2.2 Device Manager
+The device has one Device Manager located in WKUP domain. Device Manager is responsible for entry/exit to
+low power modes. Also, Device Manager hosts RM/PM (Resource manager/power manager) SYSFW code for
+providing RM/PM services to HLOS. As part of boot, public ROM is executed over Device Manager.
+Device Manager Features
+•
+Single Core Cortex-R5 subsystem
+•
+ARMv7-R architecture with following extensions
+•
+Advanced SIMD extension for integer and floating-point vector operations
+•
+Vector Floating Point Version 3 (VFPv3)
+•
+L1 memory architecture
+•
+32KB I-cache with 64-bit ECC error checking
+•
+32KB D-cache with 64-bit ECC error checking
+•
+64Kbyte TCM(L2) with 32-bit ECC error checking
+•
+32-bit AXI3 initiator interface for accessing local peripherals
+•
+1x RTI/WWDT
+•
+2x Timer
+•
+1x UART
+•
+1x I2C
+•
+Wake-up logic
+•
+Public ROM
+•
+RTC digital
+•
+VTM
+•
+LFOSC
+Note
+PSC functions are controlled via Device Manager. For more information how to use Device Manager,
+see TISCI API available at ti.com.
+6.2.3 Power Management Techniques
+The following section describes the power management techniques supported by the device
+6.2.3.1 Dynamic Frequency Scaling (DFS)
+DFS is a power management technique where the operating frequency is dynamically scaled across device
+Operating Performance Points (OPP). An OPP is a voltage/frequency pair that defines a specific power state.
+For each OPP, software controls clock frequency in order to adjust the performance and power to the optimum
+point. The Device supports DFS for Cortex-A53 only.
+6.2.3.2 OPP Low
+The device supports lower bus frequency operation as OPP Low. The OPP Low must be configured at boot time.
+In OPP Low, the main CBASS clock frequency is reduced in half in order to lower active power consumption with
+reduced performance. The performance of some peripheral modules is limited or not available in this operating
+condition.
+Refer to the device datasheet to determine the supported features and the clock frequency of cores, modules,
+and peripheral I/Os in OPP Low.
+6.2.4 Power Modes
+The following sections describe a high-level description of the different power modes of the device. They are
+listed in order from highest power consumption, lowest wakeup latency (Standby), to lowest power consumption,
+highest wakeup latency (Partial IO). If your application requires some sort of power management, you must
+determine which power mode level described below satisfies your requirements. Each level must be evaluated
+based on power consumed and latency (the time it takes to wakeup to Active mode). Specific values are detailed
+=== Page 544 ===
+in the device-specific data sheet. Note that not all modes are supported by software packages supplied by Texas
+Instruments.
+Table 6-5. Low Power Modes
+Low Power
+Modes
+Wakeup Sources
+Application State and Use Case
+Partial I/O
+CANUART I/O Bank pins
+The entire SoC is OFF except I/O pins in CANUART I/O Bank to maintain I/O
+wakeup capability from CANUART I/O Bank I/O pins.
+DeepSleep
+GP Timers, RTC Timer, UART, I2C,
+WKUP GPIO, I/O Daisy Chain
+Core domain register information will be lost. On-chip peripheral register
+(context) information of core domain needs to be saved by application to DDR
+before entering this mode. DDR is in self-refresh. Boot ROM executes and
+branches to peripheral context restore for wakeup, followed by system resume.
+This mode is primarily used for Suspend to RAM for battery lifetime or backup
+operation.
+MCU Only
+DeepSleep wakeup events, Interrupt
+events supported in MCU channel
+The MCU subsystem runs at the MCU PLL clock. The rest of the SoC status is
+the same as DeepSleep. DDR is in self-refresh.
+MCU can run applications with MCU domain peripherals while in this low power
+mode.
+Standby
+Any SoC interrupt event
+On-chip contents are fully preserved. Any SoC interrupt event can cause a
+wakeup event from this low power mode.
+A53 and MCU M4F are in WFI or Power Down. DDR memory is in self-refresh.
+The device can run low-level processing with non-Wakeup/MCU domain
+peripherals and support wakeup from those peripherals.
+Table 6-6. Voltage, Power and Clock Domain Status
+Low Power
+Modes
+Voltage Domain
+Power Domain
+Clocks
+DDR
+VDD_CORE / VDDR_CORE
+VDDS_DDR
+1.8 Analog Rails
+1.8V/3.3V I/O Rails
+GP_Core_CTL
+PD_ICSSM
+PD_CPSW
+PD_A53_cluster_0
+PD_A53_x
+PD_GPU
+PD_DSS
+GP_Core_CTL_MCU
+PD_MCU_M4F
+Main OSC
+DPLLs
+Partial I/O
+OFF
+OFF
+OFF
+Partial
+On
+OFF
+OFF
+OFF
+OFF
+OFF
+OFF
+OFF
+OFF
+OFF
+OFF
+OFF
+OFF
+DeepSleep
+ON
+ON
+ON
+ON
+ON
+OFF
+OFF
+OFF
+OFF
+OFF
+OFF
+OFF
+OFF
+OFF
+OFF
+Self-
+Refresh
+MCU Only
+ON
+ON
+ON
+ON
+ON
+OFF
+OFF
+OFF
+OFF
+OFF
+OFF
+ON
+ON
+ON
+MCU
+DPLL
+locke
+d
+Self-
+Refresh
+Standby
+ON
+ON
+ON
+ON
+ON
+ON
+ON
+ON
+ON
+ON
+ON
+ON
+ON
+ON
+Bypas
+s
+Self-
+Refresh
+6.2.4.1 Active
+In Active mode, the supply to all voltage rails must be maintained. All power domains come up in ON state and
+the device is fully functional.
+6.2.4.2 Standby
+The device can be placed in Standby mode to reduce power consumption during low activity levels. This
+first level of power management allows you to maintain the device context for fast resume times. The main
+characteristics of this mode that distinguish it from Active mode are:
+=== Page 545 ===
+•
+All modules are clock gated except GPIOs
+•
+PLLs may be placed in bypass mode if downstream clocking does not require full performance
+•
+The VDD_CORE voltage level is maintained.
+•
+Power domain may be turned off if it's not used for the contexts can be saved and restored.
+•
+DDR memory is in low power self-refresh mode.
+The above conditions result in lower power consumption than Active mode but require the user to save the
+switched-off power domain context to On-Chip Memory or DDR and restore the contexts to resume properly
+upon wakeup.
+Wakeup in Standby mode is achieved using any GPIO. GPIO wakeup is possible by switching the pad to GPIO
+mode and configuring the corresponding GPIO bank for generating an interrupt to the Device Manager. Note that
+pads that do not have a GPIO muxmode (for example, USB) cannot cause these wakeups. If additional or other
+wakeup sources are required, the associated peripheral module clock and interconnect clock domain should
+remain enabled (this may require the associated PLL to remain locked) and the module must be configured
+appropriately for wakeup by configuring it to generate an interrupt to the Device Manager.
+6.2.4.3 MCU-Only
+MCU-Only can be used for low power use cases that require low-level processing during a low power mode.
+The status of the SoC is the same as DeepSleep, except the MCU channel is fully active to run applications
+with MCU channel resources and peripherals. Any interrupt event in the MCU channel can initiate a wakeup from
+MCU-Only and the wakeup events supported in DeepSleep can also trigger wakeup from MCU-Only.
+The main characteristics of the mode which distinguish it from other low power modes are:
+•
+Main domain status is the same as DeepSleep
+•
+VDD_CORE power (except VDDA analog) to PLLs is turned OFF except MCU PLL
+•
+The main oscillator is active to keep MCU channel running.
+•
+MCU Channel is fully active to run applications with the peripherals in the channel.
+•
+DDR memory is in low power self-refresh mode.
+6.2.4.4 DeepSleep
+DeepSleep mode enables lower power consumption than Standby or MCU-Only. The main characteristics of the
+mode which distinguish it from other higher power modes are:
+•
+All on-chip power domains are shut off (except GP_Core_CTL and GP_Core_CTL_MPU remain ON) to
+reduce power leakage
+•
+VDD_CORE power (except VDDA analog) to PLLs is turned OFF
+•
+The main and RTC oscillators may be turned off if they're not used to keeping timers on as a wakeup source.
+DeepSleep mode is typically used during inactivity when the user requires very low power while waiting for an
+event that requires processing or higher performance. DeepSleep is the lowest power mode which still includes
+DDR in self-refresh, so wakeup events do not require a full cold boot, significantly reducing wakeup latencies.
+The lowest power in this mode can be achieved by disabling both oscillators when the RTC or other timer
+function is not required.
+The main On-Chip SRAM (OCM) contents are lost because the power domain is turned OFF.
+Before entering DeepSleep mode, peripheral and MPU context must be saved in the DDR. Upon wakeup,
+the boot ROM executes and checks to see if it has resumed from a DeepSleep state. If so, it redirects to
+the DDR to continue the resume process. Because the power to Always-On power domains (GP_Core_CTL
+and GP_Core_CTL_MU) are ON throughout DeepSleep, power to key modules such as GPIO0 and others is
+maintained to allow wakeup events to exit out of this mode. In addition, the Wakeup On-Chip SRAM (OCM)
+power is maintained to preserve information internally during DeepSleep.
+Activity on wakeup peripherals via wakeup events enables the high frequency oscillator by using the oscillator
+control circuit. The wakeup events also interrupt the Device Manager, which controls proper enabling of power
+=== Page 546 ===
+domains and clocks in the PSC. See 1.4.7, Wakeup Sources/Events, for details on wakeup sources during
+DeepSleep and other low power modes mentioned.
+6.2.4.5 Partial I/O
+In Partial I/O, I/O pins and small logics in the CANUART I/O Bank are active, and the rest of the SoC is turned
+off. The user can use the I/O pins to aggregate multiple I/O wakeup events and toggle PMIC_LPM_EN pin to
+enable PMIC or discrete power solution when an I/O wakeup event is triggered. The information on the I/O
+wakeup event is logged in the MMR in the CANUART I/O bank and helps the software to distinguish between
+cold boot and wakeup to respond to the wakeup event faster.
+6.2.4.6 Power States and Transitions
+The Low power mode transition always starts from the active state. If the device needs to transition from one low
+power mode to another low power mode, it must go through the active state first. Typically, the software initiates
+a transition from active mode to a low power mode and a wakeup event triggers a transition from a low power
+mode to active.
+Figure 6-4 shows the power state transition supported by the device.
+Figure 6-4. Power State Transition Diagram
+6.2.4.7 Wakeup Sources/Events
+Table 6-7 shows the wake sources supported in each low power mode. High-frequency or Low -frequency
+oscillator remains ON when a timer wakeup event is selected in DeepSleep. DeepSleep wakeup events are part
+of the Wakeup Power domain and remain always ON.
+Table 6-7. Low Power Mode Wakeup Events
+Low Power Modes
+Wakeup Events
+Partial I/O
+CANUART I/O Bank pins
+DeepSleep
+GP Timers, RTC Timer, UART, I2C, WKUP GPIO, I/O Daisy Chain
+MCU Only
+DeepSleep wakeup events, Any MCU channel interrupt event
+Standby
+Any SoC interrupt event
+=== Page 547 ===
+6.2.4.8 USB Wakeup Scenarios
+Table 6-8 summarizes different USB wakeup use cases which are supported in each system sleep state
+(DeepSleep, MCU-only or Standby). Three use case scenarios exist:
+•
+USB Connect: Wakeup is cause by physically inserting the USB cable.
+•
+USB Disconnect: Wakeup is caused by physically removing the USB cable.
+•
+USB Resume/Remote Wakeup: Wakeup is caused by a USB resume or remote wakeup. For example, a
+USB mouse click can cause a USB remote wakeup.
+Within each wakeup use case, each row describes whether or not that type of wakeup is supported in each
+system sleep mode. USB mode (host or device) is also considered.
+There are three possible Wakeup events that are generated:
+•
+PHY Signal WKUP: this is an internal wakeup signal to the wakeup processor that is generated by the USB
+PHY based off of USB signaling.
+•
+PHY VBUS WKUP: this is an internal wakeup signal to the wakeup processor that is generated by the USB
+PHY based off of a level change on VBUS voltage. Ensure you level shift the voltage to conform to the I/O
+requirements. When VBUS transitions from 0V to 5V (or vice versa), the transition will trigger a wakeup.
+•
+ID Status WKUP: this is a wakeup signal generated by a status change on the USB ID pin.
+Table 6-8. USB Wakeup Use Cases Supported in System Sleep States
+No.
+USB Wakeup Use
+Case
+System Sleep State
+USB Controller
+State
+USB Mode
+Supported
+USB Wakeup Event
+1
+USB Connect
+DS/MCU-only/
+Standby
+Clock Gated
+Register Contexts
+Retained
+Host
+Yes
+PHY Signal WKUP
+2
+DS/MCU-only/
+Standby
+Clock Gated
+Register Contexts
+Retained
+Device
+Yes
+PHY VBUS WKUP
+3
+DS/MCU-only/
+Standby
+Clock Gated
+Register Contexts
+Retained
+Undetermined
+Yes
+ID Status WKUP
+4
+USB Resume /
+Remote Wakeup
+DS/MCU-only/
+Standby
+Clock Gated
+Register Contexts
+Retained
+Host
+Yes
+PHY Signal WKUP
+5
+DS/MCU-only/
+Standby
+Clock Gated
+Register Contexts
+Retained
+Device
+Yes
+PHY Signal WKUP
+6
+USB Disconnect
+DS/MCU-only/
+Standby
+Clock Gated
+Register Contexts
+Retained
+Host
+Yes
+PHY Signal WKUP,
+ID Status WKUP
+7
+DS/MCU-only/
+Standby
+Clock Gated
+Register Contexts
+Retained
+Device
+Yes
+PHY VBUS WKUP
+6.2.4.9 Main Oscillator Control During DeepSleep
+The DeepSleep oscillator circuit is used to control the main oscillator by disabling it during deep sleep and
+enabling during active/wakeup. By default, during reset, the oscillator is enabled and the oscillator control circuit
+comes up disabled (in-active). In order to activate the oscillator control circuit for DeepSleep, a register must
+be programmed. Once this is set and whenever the Device Manager enters DeepSleep, the oscillator control
+will disable the oscillator causing the clock to be shut OFF. Any event from the wakeup sources will cause the
+oscillator control to re-enable the oscillator after a programmed period in a register.
+=== Page 548 ===
+The Device Manager will always be powered up. But when the main oscillator is in power down / OFF state, the
+Device Manager will not receive any clock.
+6.2.4.10 Low Power Mode Sequencing with Device Manager
+The device contains a Device Manager (DM) to handle all of the low-level power management control of the
+device including the Low Power Mode transitions. It is part of the DM Always ON (AON) power domain as
+shown in Figure 6-5. A firmware is provided by Texas Instruments that includes all of the necessary functions to
+achieve low power modes. Inter-Processor Communication (IPC) registers are available to communicate with the
+Device Manager so the user can provide certain configuration parameters based on the level of low power that is
+required.
+Figure 6-5. Key SoC Components for Low Power Modes
+The followings are prerequisites to start a low power mode sequence.
+•
+All IO Pad config MMRs configured appropriately for a target low power mode
+•
+Save device configuration / context information to external DDR
+•
+Power initiator, likely A53 running RTOS or Linux or MCU M4 running RTOS, is responsible for putting other
+application cores in proper state (OFF) and restarts after resume.
+•
+Power initiator core will signal for DM sleep sequence to begin.
+•
+Application software is responsible for DS padconf configuration for all states needed in low power mode.
+•
+Secure Stub must be signed and encrypted as a bootable image and loaded to SPS region by HLOS or
+bootloader
+•
+DM Stub must be loaded to NSPS region by HLOS or bootloader
+•
+TISCI_MSG_PREPARE_SLEEP comes from PM initiator (Secure or Non-secure)
+•
+Contains Desired State to Enter (DeepSleep, MCU-Only, Standby)
+•
+Flags that can be used to set HALT points for debug
+•
+Memory address to be used for TIFS context encrypt and save. If bad address is given on resume,
+decrypt will fail.
+•
+TISCI_MSG_ENTER_SLEEP message must contain resume address of cores to be restarted by firmware
+•
+WKUP_CTRL.PMCTRL_SYS.lpm_en should be configured to let DeepSleep Logic control PMIC_LPM_EN
+output before sequence.
+Sleep Sequencing
+=== Page 549 ===
+1.
+During Active power mode, the MPU sends TISCI_MSG_PREPARE_SLEEP with DeepSleep selected to the
+DM and TISCI_MSG_ENTER_SLEEP with resume address to the TIFS core.
+2.
+TIFS Core prepares for DeepSleep and messages HSM core to tell it to enter WFI
+3.
+HSM Core prepares for DeepSleep and enters WFI
+4.
+TIFS Core sends TISCI to DM for suspend finish and enters WFI.
+5.
+DM waits for all cores to enter WFI, timeout and abort if they do not.
+6.
+DM executes DM Stub sequence, place DDR into Self Refresh, configures selected wakeup sources and
+HFOSC clock and PD.
+7.
+DM enters in WFI
+8.
+DS HW Logic gates off HFOSC0 and Powers-off
+9.
+DS state is captured in MMR.
+10.=Device in DS state
+Wakeup Sequencing
+1.
+Event of IO daisy chain or internal Timer/RTC events generates async wake-up event
+2.
+This async wake-up event turns on high frequency oscillator (HFOSC)
+3.
+DM exists WFI as soon as HFOSC clock is available.
+4.
+DM detects that it is resuming from Deep sleep mode
+5.
+DM goes through wake-up sequence: enabling MCU PLL etc
+6.
+DM Powers-on MCU, SMS, DEBUGSS
+7.
+DM configures DS_MAIN_POR_PDOFF register to deassert MCU PORz and Main PD Domains (SMS,
+DEBUGSS, MAINIP)
+8.
+Wait for RESETSTATz indication to determine Main is out of Reset
+9.
+TIFS Boots-up -it detects that it is resuming from DeepSleep state
+10.=DM and TIFS handshake to start the device restore
+11.=Decrypts Secure Stub from DM Secure RAM and Messages DM on completion
+12.=DM configures Main Domain PLLs
+13.=DM programs Main PSC to enable clocks to Main components (DDR, USB, Peripherals)
+14.=DM checks PSC to ensure DDR and USB are enabled and resets are de-asserted.
+15.=DM configures DDR to restore to the state it was prior to entering sleep mode
+16.=DM enables A53 ±enables PLLs, programs Reset Vector, etc...
+17.=A53 reads context data from external DDR and restores MAIN/WKUP/MCU configuration including IO pads
+etc
+18.=Device enters normal mode of operation
+Note
+Low Power Mode sequencing is controlled via Device Manager. For more information how to use
+Device Manager, see TISCI API available at ti.com.
+6.2.4.11 I/O Power Management and Daisy Chaining
+I/O power management is useful when the main oscillator is clock gated and the power domains for the
+peripherals connected to LVCMOS I/Os are OFF (power-gated state) in DeepSleep or MCU-Only. Since the
+I/Os are controlled by modules in power-gated state, I/O power management is required to have flexibility when
+interfacing with external devices. During DeepSleep or MCU-Only, the wakeup feature is active, described in
+Wakeup below. Isolation is required to be activated and deactivated during sleep and wakeup sequencing,
+respectively (see following description of Isolation).
+=== Page 550 ===
+Three aspects comprise I/O cell power management:
+•
+Isolation - Isolation from power state transitions.
+•
+When ISOLATED, the I/Os will hold their previous state (0,1, tristate) until the ISOLATION is released.
+The controls for the ISOLATION travel through the chain. Isolation is controlled during sleep and wakeup
+sequencing.
+Note
+The Device Manager must have the optional feature to remove isolation from DDR I/Os while allowing
+rest of the I/O isolation to be removed later. This allows for software to restore any critical peripherals
+from DDR and ensure the peripheral is in a required or valid state (like GPIO) before the remaining I/Os
+are removed from Isolation.
+•
+Wakeup - I/O PAD can be individually enabled for wakeup using PADCONFx.wkup_en register bit.
+•
+The wakeup controls and events (as well as enable and disable controls) travels through asynchronously
+through the chain during DeepSleep or MCU-Only. The global wakeup chain is enabled/controlled by the
+Device Manager. This is global control is achieved by qualifying each of the I/O PAD wakeup enables with
+global wakeup daisy chain control coming from Device Manager.
+•
+PADCONFIG - Individual control on what will be the IO state during Isolation using PADCONFIGx control
+register bits.
+•
+The PADCONFIG registers must be used only if the default state of the I/O during the low power state
+does not meet system requirements.
+The following terminal signal names are unique and are excluded from the isolation and wakeup daisy chains.
+Control of these signals can remain with GPIO even when I/O isolation is enabled. Refer to the device datasheet
+to determine which pins map to each signal name. Each pin has a corresponding GPIO that can be mapped to
+one of the GPIOs in the GPIO module.
+•
+System signals: MCU_RESETSTATz, WKUP_CLKOUT0, EXT_REFCLK1
+•
+OLDI0 interface: All OLDI0_x signals
+The following terminal signal names are excluded from the isolation and wakeup daisy chains and not muxed
+with GPIO signals. Hence, these signals cannot be used as a wakeup event.
+•
+System signals: MCU_RESETz, MCU_PORz, MCU_ERRORn, WKUP_CLKOUT0, EXT_REFCLK1,
+RESET_REQz, RESETSTATz, PORz_OUT
+•
+JTAG interface: TMS, TDI, TDO, TCK, TRSTn, EMU0, EMU1
+•
+Oscillator signals: MCU_OSC0_XO, MCU_OSC0_XI, WKUP_LFOSC0_XO, WKUP_LFOSC0_XI
+•
+CSI0 interface: All CSI0_x signals
+•
+USB signals: USB0_DP, USB0_DM, USB0_RCALIB, USB0_VBUS, USB1_DP, USB1_DM, USB1_RCALIB,
+USB1_VBUS
+•
+DDR interface: All DDR0_x signals
+6.2.5 Power Supply Modules
+6.2.5.1 Power OK (POK) Modules
+Note
+All POK modules are in MCU domain regardless of the domain of the voltage they monitor.
+Note
+In this family of devices, the Power-on-reset module is used only for voltage monitoring, as three
+additional POK modules. For more information about POK functionality in POR module - voltage being
+monitored and type (under voltage or over voltage), see Section 6.2.5.2.
+=== Page 551 ===
+POK modules are responsible for accurately detecting the voltage levels. Each module is trimmed to account
+for process and temperature variations. The trim values are provided by eFuse chains enabled by a POR/Reset
+Generator (PRG) module.
+Two types of POK modules are implemented in this family of devices - POK and POK_SA. See Table 6-9 about
+the type of a POK and the voltage it is monitoring. More information about the two types of POKs is given further
+in this section.
+Table 6-9. POK Module Overview
+POK Module Instance Name
+PRG
+Index
+(3)
+POK
+Index
+(1)
+Voltage Monitored=Module Type
+OV/
+UV(2)
+Description
+IPOK_VDD_CORE_OV
+PRG0
+4
+VDD_CORE
+POK_CORE
+OV
+Voltage Monitor for VDD_CORE
+IPOK_VDDA_PMIC_IN_UV
+PRG0
+3
+VMON_VSYS
+POK_SA
+UV
+Voltage Monitor for PMIC_IN
+IPOK_VDDS_DDRIO
+PRG1
+4
+VDDS_DDR
+POK_CORE
+UV/OV=Voltage Monitors for DDRIO
+IPOK_VDDR_CORE
+PRG1
+3
+VDDR_CORE
+POK_CORE
+UV/OV=Voltage Monitors for VDDR_CORE
+IPOK_VMON_CAP_MCU_GE
+NERAL
+PRG1
+2
+CAP_VDDS_MCU
+POK_CORE
+UV/OV=Voltage Monitors for MCU mid-rail
+IPOK_VDDSHV_MAIN_1P8
+PRG1
+1
+VMON_1P8_SOC
+POK_1P8
+UV/OV=Voltage Monitors for 1.8-V I/O supply in
+MCU
+IPOK_VDDSHV_MAIN_3P3
+PRG1
+0
+VMON_3P3_SOC
+POK_3P3
+UV/OV=Voltage Monitors for 3.3-V I/O supply in
+MCU
+(1)
+The POK Index also represents the mapping index for relevant under and overvoltage status and interrupts where applicable.
+(2)
+UV: POK is set for undervoltage detection. OV: POK is set for overvoltage detection. UV/OV: POK monitors both OV and UV through a
+Ping-Pong mechanism.
+(3)
+Ping-pong mechanism is only applicable to PRG1.
+Figure 6-6 and Figure 6-7 represent the block diagrams of the two POK types.
+Figure 6-6. POK Block Diagram
+=== Page 552 ===
+From POKBGAP
+Enable Hysteresis
+OV/UV mode
+POK
+0.45 V
+pok-002
++
+-
+Enable
+To PRG
+0
+1
+VDD_MON
+External divider
+Figure 6-7. POK_SA Block Diagram
+Vref for both POK and POK_SA types in Figure 6-6 and Figure 6-7 is supplied from POK module, see Section
+6.2.5.2
+6.2.5.1.1 Configuration Registers
+Configuration registers needed for POK (Supervisor Module) are given in POK Configuration Registers. For each
+POK there is one comparator that is controlled through the registers. These registers decide the functionality
+of the POK Comparator. It decides if it is UD/OD mode and also the threshold voltages. In the current
+implementation only SET_THRESHOLD[8:1] bits are used.
+Comparator threshold levels and corresponding configuration register settings are given in the following tables:
+•
+POK_CORE: Table 6-11
+•
+POK_1P8: Table 6-12
+•
+POK_3P3: Table 6-13
+Table 6-10. POK Configuration Registers
+Register Name
+POK Type
+MCU_CTRL_MMR0_POK_VDD_CORE_OV_CTRL[7:0]
+POK_CORE
+MCU_CTRL_MMR0_POK_VDDR_CORE_UV_CTRL[7:0]
+POK_CORE
+MCU_CTRL_MMR0_POK_VDDR_CORE_OV_CTRL[7:0]
+POK_CORE
+MCU_CTRL_MMR0_POK_VMON_CAP_MCU_GENERAL_UV_CTRL[7:0]
+POK_1P8
+MCU_CTRL_MMR0_POK_VMON_CAP_MCU_GENERAL_OV_CTRL[7:0]
+POK_1P8
+MCU_CTRL_MMR0_POK_VDDSHV_MAIN_1P8_UV_CTRL[7:0]
+POK_1P8
+MCU_CTRL_MMR0_POK_VDDSHV_MAIN_1P8_OV_CTRL[7:0]
+POK_1P8
+MCU_CTRL_MMR0_POK_VDDSHV_MAIN_3P3_UV_CTRL[7:0]
+POK_3P3
+MCU_CTRL_MMR0_POK_VDDSHV_MAIN_3P3_OV_CTRL[7:0]
+POK_3P3
+MCU_CTRL_MMR0_POK_VDDS_DDRIO_UV_CTRL[7:0]
+POK_CORE
+MCU_CTRL_MMR0_POK_VDDS_DDRIO_OV_CTRL[7:0]
+POK_CORE
+=== Page 553 ===
+Table 6-11. Bit Settings of POK_CORE with VMON Threshold Values
+POK Programmability
+POK Configuration Register bits
+THRESHOLD (V)
+[7]
+[6:0]
+Under Voltage Detection
+0
+XXX XXXX
+474mV - 1.35V
+Over Voltage Detection
+1
+XXX XXXX
+726mV - 1.645V
+POK_CORE VMON Selection (Under Voltage Detection)
+hys_en=0
+0
+000 0000
+0.4743
+0
+000 0001
+0.4875
+0
+000 0010
+0.5000
+0
+000 0011
+0.5125
+0
+000 0100
+0.5250
+0
+000 0101
+0.5375
+0
+000 0110
+0.5513
+0
+000 0111
+0.5631
+0
+000 1000
+0.5754
+0
+000 1001
+0.5883
+0
+000 1010
+0.6017
+0
+000 1011
+0.6122
+0
+000 1100
+0.6268
+0
+000 1101
+0.6382
+0
+000 1110
+0.6500
+0
+000 1111
+0.6623
+0
+001 0000
+0.6750
+0
+001 0001
+0.6882
+0
+001 0010
+0.7020
+0
+001 0011
+0.7115
+0
+001 0100
+0.7262
+0
+001 0101
+0.7363
+0
+001 0110
+0.7521
+0
+001 0111
+0.7630
+0
+001 1000
+0.7742
+0
+001 1001
+0.7858
+0
+001 1010
+0.7977
+0
+001 1011
+0.8100
+0
+001 1100
+0.8226
+0
+001 1101
+0.8356
+0
+001 1110
+0.8491
+0
+001 1111
+0.8630
+0
+010 0000
+0.8774
+0
+010 0001
+0.8848
+0
+010 0010
+0.8999
+0
+010 0011
+0.9155
+0
+010 0100
+0.9235
+0
+010 0101
+0.9400
+0
+010 0110
+0.9485
+0
+010 0111
+0.9659
+0
+010 1000
+0.9748
+0
+010 1001
+0.9839
+0
+010 1010
+1.0030
+=== Page 554 ===
+Table 6-11. Bit Settings of POK_CORE with VMON Threshold Values (continued)
+POK Programmability
+POK Configuration Register bits
+THRESHOLD (V)
+[7]
+[6:0]
+Under Voltage Detection
+0
+XXX XXXX
+474mV - 1.35V
+Over Voltage Detection
+1
+XXX XXXX
+726mV - 1.645V
+POK_CORE VMON Selection (Under Voltage Detection)
+hys_en=0
+0
+010 1011
+1.0120
+0
+010 1100
+1.0220
+0
+010 1101
+1.0320
+0
+010 1110
+1.0530
+0
+010 1111
+1.0630
+0
+011 0000
+1.0740
+0
+011 0001
+1.0850
+0
+011 0010
+1.0970
+0
+011 0011
+1.1140
+0
+011 0100
+1.1260
+0
+011 0101
+1.1380
+0
+011 0110
+1.1510
+0
+011 0111
+1.1630
+0
+011 1000
+1.1760
+0
+011 1001
+1.1900
+0
+011 1010
+1.1960
+0
+011 1011
+1.2100
+0
+011 1100
+1.2240
+0
+011 1101
+1.2380
+0
+011 1110
+1.2530
+0
+011 1111
+1.2610
+0
+100 0000
+1.2760
+0
+100 0001
+1.2920
+0
+100 0010
+1.3000
+0
+100 0011
+1.3160
+0
+100 0100
+1.3240
+0
+100 0101
+1.3410
+0
+100 0110
+1.3500
+=== Page 555 ===
+Table 6-11. Bit Settings of POK_CORE with VMON Threshold Values (continued)
+POK Programmability
+POK Configuration Register bits
+THRESHOLD (V)
+[7]
+[6:0]
+Under Voltage Detection
+0
+XXX XXXX
+474mV - 1.35V
+Over Voltage Detection
+1
+XXX XXXX
+726mV - 1.645V
+POK_CORE VMON Selection (Over Voltage Detection)
+hys_en=0
+1
+000 0000
+0.7262
+1
+000 0001
+0.7363
+1
+000 0010
+0.7521
+1
+000 0011
+0.7630
+1
+000 0100
+0.7743
+1
+000 0101
+0.7858
+1
+000 0110
+0.7977
+1
+000 0111
+0.8100
+1
+000 1000
+0.8226
+1
+000 1001
+0.8357
+1
+000 1010
+0.8491
+1
+000 1011
+0.8630
+1
+000 1100
+0.8774
+1
+000 1101
+0.8848
+1
+000 1110
+0.8999
+1
+000 1111
+0.9155
+1
+001 0000
+0.9236
+1
+001 0001
+0.9400
+1
+001 0010
+0.9485
+1
+001 0011
+0.9659
+1
+001 0100
+0.9748
+1
+001 0101
+0.9839
+1
+001 0110
+1.0030
+1
+001 0111
+1.0120
+1
+001 1000
+1.0220
+1
+001 1001
+1.0320
+1
+001 1010
+1.0530
+1
+001 1011
+1.0630
+1
+001 1100
+1.0740
+1
+001 1101
+1.0850
+1
+001 1110
+1.0970
+1
+001 1111
+1.1140
+1
+010 0000
+1.1260
+1
+010 0001
+1.1380
+1
+010 0010
+1.1510
+1
+010 0011
+1.1630
+1
+010 0100
+1.1760
+1
+010 0101
+1.1900
+1
+010 0110
+1.1960
+1
+010 0111
+1.2100
+1
+010 1000
+1.2240
+1
+010 1001
+1.2380
+1
+010 1010
+1.2530
+=== Page 556 ===
+Table 6-11. Bit Settings of POK_CORE with VMON Threshold Values (continued)
+POK Programmability
+POK Configuration Register bits
+THRESHOLD (V)
+[7]
+[6:0]
+Under Voltage Detection
+0
+XXX XXXX
+474mV - 1.35V
+Over Voltage Detection
+1
+XXX XXXX
+726mV - 1.645V
+POK_CORE VMON Selection (Over Voltage Detection)
+hys_en=0
+1
+010 1011
+1.2610
+1
+010 1100
+1.2760
+1
+010 1101
+1.2920
+1
+010 1110
+1.3000
+1
+010 1111
+1.3160
+1
+011 0000
+1.3240
+1
+011 0001
+1.3410
+1
+011 0010
+1.3500
+1
+011 0011
+1.3670
+1
+011 0100
+1.3760
+1
+011 0101
+1.3850
+1
+011 0110
+1.4040
+1
+011 0111
+1.4130
+1
+011 1000
+1.4230
+1
+011 1001
+1.4420
+1
+011 1010
+1.4520
+1
+011 1011
+1.4620
+1
+011 1100
+1.4720
+1
+011 1101
+1.4830
+1
+011 1110
+1.5040
+1
+011 1111
+1.5150
+1
+100 0000
+1.5260
+1
+100 0001
+1.5370
+1
+100 0010
+1.5480
+1
+100 0011
+1.5600
+1
+100 0100
+1.5710
+1
+100 0101
+1.5830
+1
+100 0110
+1.5950
+1
+100 0111
+1.6070
+1
+100 1000
+1.6200
+1
+100 1001
+1.6320
+1
+100 1010
+1.6450
+=== Page 557 ===
+Table 6-12. Bit Settings of POK_1P8 with VMON Threshold Values
+POK Programmability
+POK Configuration Register bits
+THRESHOLD (V)
+[7]
+[6:0]
+Under Voltage Detection
+0
+XXX XXXX
+1.44V - 2.173V
+Over Voltage Detection
+1
+XXX XXXX
+1.44V - 2.173V
+POK_1P8 (Under Voltage Detection) hys_en=0
+0
+010 0000
+1.44
+0
+010 0001
+1.452
+0
+010 0010
+1.477
+0
+010 0011
+1.502
+0
+010 0100
+1.515
+0
+010 0101
+1.543
+0
+010 0110
+1.556
+0
+010 0111
+1.585
+0
+010 1000
+1.6
+0
+010 1001
+1.615
+0
+010 1010
+1.645
+0
+010 1011
+1.661
+0
+010 1100
+1.677
+0
+010 1101
+1.694
+0
+010 1110
+1.728
+0
+010 1111
+1.745
+0
+011 0000
+1.763
+0
+011 0001
+1.781
+0
+011 0010
+1.799
+0
+011 0011
+1.828
+0
+011 0100
+1.848
+0
+011 0101
+1.868
+0
+011 0110
+1.888
+0
+011 0111
+1.909
+0
+011 1000
+1.93
+0
+011 1001
+1.952
+0
+011 1010
+1.963
+0
+011 1011
+1.986
+0
+011 1100
+2.009
+0
+011 1101
+2.032
+0
+011 1110
+2.056
+0
+011 1111
+2.069
+0
+100 0000
+2.094
+0
+100 0001
+2.12
+0
+100 0010
+2.133
+0
+100 0011
+2.159
+0
+100 0100
+2.173
+=== Page 558 ===
+Table 6-12. Bit Settings of POK_1P8 with VMON Threshold Values (continued)
+POK Programmability
+POK Configuration Register bits
+THRESHOLD (V)
+[7]
+[6:0]
+Under Voltage Detection
+0
+XXX XXXX
+1.44V - 2.173V
+Over Voltage Detection
+1
+XXX XXXX
+1.44V - 2.173V
+POK_1P8 (Under Voltage Detection) hys_en=0
+1
+000 1100
+1.44
+1
+000 1101
+1.452
+1
+000 1110
+1.477
+1
+000 1111
+1.502
+1
+001 0000
+1.515
+1
+001 0001
+1.543
+1
+001 0010
+1.556
+1
+001 0011
+1.585
+1
+001 0100
+1.6
+1
+001 0101
+1.615
+1
+001 0110
+1.645
+1
+001 0111
+1.661
+1
+001 1000
+1.677
+1
+001 1001
+1.694
+1
+001 1010
+1.728
+1
+001 1011
+1.745
+1
+001 1100
+1.763
+1
+001 1101
+1.781
+1
+001 1110
+1.799
+1
+001 1111
+1.828
+1
+010 0000
+1.848
+1
+010 0001
+1.868
+1
+010 0010
+1.888
+1
+010 0011
+1.909
+1
+010 0100
+1.93
+1
+010 0101
+1.952
+1
+010 0110
+1.963
+1
+010 0111
+1.986
+1
+010 1000
+2.009
+1
+010 1001
+2.032
+1
+010 1010
+2.056
+1
+010 1011
+2.069
+1
+010 1100
+2.094
+1
+010 1101
+2.12
+1
+010 1110
+2.133
+1
+010 1111
+2.159
+1
+011 0000
+2.173
+=== Page 559 ===
+Table 6-13. Bit Settings of POK_3P3 with VMON Threshold Values
+POK Programmability
+POK Configuration Register bits
+THRESHOLD (V)
+[7]
+[6:0]
+Under Voltage Detection
+0
+XXX XXXX
+1.427V - 3.982V
+Over Voltage Detection
+1
+XXX XXXX
+2.184V - 3.958V
+POK_3P3 (Under Voltage Detection) hys_en=0
+0
+000 0000
+1.427
+0
+000 0001
+1.466
+0
+000 0010
+1.501
+0
+000 0011
+1.545
+0
+000 0100
+1.576
+0
+000 0101
+1.616
+0
+000 0110
+1.658
+0
+000 0111
+1.694
+0
+000 1000
+1.731
+0
+000 1001
+1.769
+0
+000 1010
+1.81
+0
+000 1011
+1.841
+0
+000 1100
+1.885
+0
+000 1101
+1.919
+0
+000 1110
+1.955
+0
+000 1111
+1.992
+0
+001 0000
+2.03
+0
+001 0001
+2.07
+0
+001 0010
+2.111
+0
+001 0011
+2.14
+0
+001 0100
+2.184
+0
+001 0101
+2.215
+0
+001 0110
+2.262
+0
+001 0111
+2.295
+0
+001 1000
+2.329
+0
+001 1001
+2.363
+0
+001 1010
+2.399
+0
+001 1011
+2.436
+0
+001 1100
+2.474
+0
+001 1101
+2.513
+0
+001 1110
+2.554
+0
+001 1111
+2.596
+0
+010 0000
+2.639
+0
+010 0001
+2.661
+0
+010 0010
+2.706
+0
+010 0011
+2.753
+0
+010 0100
+2.778
+0
+010 0101
+2.827
+0
+010 0110
+2.853
+0
+010 0111
+2.905
+0
+010 1000
+2.932
+0
+010 1001
+2.959
+0
+010 1010
+3.015
+0
+010 1011
+3.044
+=== Page 560 ===
+Table 6-13. Bit Settings of POK_3P3 with VMON Threshold Values (continued)
+POK Programmability
+POK Configuration Register bits
+THRESHOLD (V)
+[7]
+[6:0]
+Under Voltage Detection
+0
+XXX XXXX
+1.427V - 3.982V
+Over Voltage Detection
+1
+XXX XXXX
+2.184V - 3.958V
+POK_3P3 (Under Voltage Detection) hys_en=0
+0
+010 1100
+3.074
+0
+010 1101
+3.104
+0
+010 1110
+3.166
+0
+010 1111
+3.198
+0
+011 0000
+3.231
+0
+011 0001
+3.264
+0
+011 0010
+3.298
+0
+011 0011
+3.35
+0
+011 0100
+3.386
+0
+011 0101
+3.423
+0
+011 0110
+3.46
+0
+011 0111
+3.498
+0
+011 1000
+3.538
+0
+011 1001
+3.577
+0
+011 1010
+3.598
+0
+011 1011
+3.639
+0
+011 1100
+3.681
+0
+011 1101
+3.724
+0
+011 1110
+3.769
+0
+011 1111
+3.791
+0
+100 0000
+3.837
+0
+100 0001
+3.884
+0
+100 0010
+3.908
+0
+100 0011
+3.957
+0
+100 0100
+3.982
+=== Page 561 ===
+Table 6-13. Bit Settings of POK_3P3 with VMON Threshold Values (continued)
+POK Programmability
+POK Configuration Register bits
+THRESHOLD (V)
+[7]
+[6:0]
+Under Voltage Detection
+0
+XXX XXXX
+1.427V - 3.982V
+Over Voltage Detection
+1
+XXX XXXX
+2.184V - 3.958V
+POK_3P3 (Over Voltage Detection) hys_en=0
+1
+000 0000
+2.184
+1
+000 0001
+2.215
+1
+000 0010
+2.262
+1
+000 0011
+2.295
+1
+000 0100
+2.329
+1
+000 0101
+2.363
+1
+000 0110
+2.399
+1
+000 0111
+2.436
+1
+000 1000
+2.474
+1
+000 1001
+2.513
+1
+000 1010
+2.554
+1
+000 1011
+2.596
+1
+000 1100
+2.639
+1
+000 1101
+2.661
+1
+000 1110
+2.707
+1
+000 1111
+2.754
+1
+001 0000
+2.778
+1
+001 0001
+2.827
+1
+001 0010
+2.853
+1
+001 0011
+2.905
+1
+001 0100
+2.932
+1
+001 0101
+2.959
+1
+001 0110
+3.016
+1
+001 0111
+3.045
+1
+001 1000
+3.074
+1
+001 1001
+3.104
+1
+001 1010
+3.166
+1
+001 1011
+3.198
+1
+001 1100
+3.231
+1
+001 1101
+3.264
+1
+001 1110
+3.298
+1
+001 1111
+3.35
+1
+010 0000
+3.386
+1
+010 0001
+3.423
+1
+010 0010
+3.46
+1
+010 0011
+3.499
+1
+010 0100
+3.538
+1
+010 0101
+3.578
+1
+010 0110
+3.598
+1
+010 0111
+3.639
+1
+010 1000
+3.682
+1
+010 1001
+3.725
+1
+010 1010
+3.769
+1
+010 1011
+3.792
+=== Page 562 ===
+Table 6-13. Bit Settings of POK_3P3 with VMON Threshold Values (continued)
+POK Programmability
+POK Configuration Register bits
+THRESHOLD (V)
+[7]
+[6:0]
+Under Voltage Detection
+0
+XXX XXXX
+1.427V - 3.982V
+Over Voltage Detection
+1
+XXX XXXX
+2.184V - 3.958V
+POK_3P3 (Over Voltage Detection) hys_en=0
+1
+010 1100
+3.838
+1
+010 1101
+3.885
+1
+010 1110
+3.909
+1
+010 1111
+3.958
+6.2.5.2 Power on Reset (POR) Module
+This section describes the Power on Reset (POR) module.
+6.2.5.2.1 POR Overview
+POR module in this family of devices is responsible for detecting proper operating voltage levels on VDDA_MCU
+(under voltage), and both under and over voltages for analog supply in MCU domain.
+Table 6-14 shows POR modules allocation within device domains.
+Table 6-14. POR Modules Allocation within Device Domains
+Module Instance
+Domain
+MCU
+MAIN
+POR0
+✓
+-
+6.2.5.2.2 POR Integration
+The device supports one instance of a Power on Reset (POR) module - MCU_POR0. MCU_POR0 is located in
+MCU domain. Figure 6-8 shows the integration of MCU_POR0.
+MCU_POR0
+POK_HV
+POK_LVB
+VREF_0P45
+POK_LVA
+External POKs
+PRG_PP_0
+MCU_RC_OSC_12M
+MCU Control Module
+POK PGOOD
+POK EN
+VMON_VDDA
+VMON_VDD_MCU
+VDDA_POR_MCU
+VDD_CORE
+3
+/
+3
+/
+Figure 6-8. POR Integration
+=== Page 563 ===
+Table 6-15. POR Modules
+POR Module Instance Name
+PRG
+Index
+POK
+Index
+Voltage Monitored
+Module
+Type
+OV/
+UV(1)
+Description
+POKHV
+PRG0
+2
+VDDA_MCU 1.8 V
+POR
+UV
+Internal POR generation and power
+monitoring for 1.8-V supply and
+VDD_CORE
+POKLVA
+PRG0
+1
+VDDA_MCU 1.8 V
+POR
+OV
+Internal POR generation and power
+monitoring for 1.8-V supply and
+VDD_CORE
+POKLVB
+PRG0
+0
+VDD_CORE
+POR
+UV
+Internal POR generation and power
+monitoring for 1.8-V supply and
+VDD_CORE
+(1)
+UV: POK is set for under voltage detection. OV: POK is set for over voltage detection. UV/OV: POK monitors both OV and UV via
+Ping-Pong mechanism.
+=== Page 564 ===
+6.2.5.3 PoR/Reset Generator (PRG) Modules
+This device has two PoR/Reset Generator (PRG) modules ± PRG_PP_0 and PRG_PP_1. Both of these
+modules are located in the MCU domain.
+6.2.5.3.1 PRG Overview
+A PRG module is responsible for implementing enable/disable controls and event/interrupt masking logic on all
+POK outputs.
+Figure 6-9 shows the PRG module overview.
+Figure 6-9. PRG0 Overview
+Figure 6-10 shows the PRG module overview.
+=== Page 565 ===
+Figure 6-10. PRG1 Overview
+6.2.5.4 Power Glitch Detect (PGD) Modules
+A Power Glitch Detect (PGD) circuit is used to detect short duration „glitches“ on the core and MPU power
+supplies. The PGD provides a low output when no glitch is detected and a high output when a glitch is detected.
+Table 6-16 shows PGD modules allocation within device domains.
+Table 6-16. PGD Allocation within Device Domains
+Module Instance
+Domain
+WKUP
+MCU
+MAIN
+IPGD_VDD_CORE
+-
+✓
+-
+Figure 6-11 shows the PGD block diagram.
+=== Page 566 ===
+Enable (GLDTC_CTRL[31]
+PWRD)
+Latch
+Flag Low
+Comparator Low
+pgd-001
+Vin
+Programmable resistors for
+threshold (GLDTC_CTRL[13-8]
+THRESH_HI_SEL)
+Latch
+Comparator High
+Programmable
+Filter(GLDTC_CTRL[13-8]
+THRESH_HI_SEL)
+Programmable resistors for
+threshold (GLDTC_CTRL[18-16]
+LP_FILTER_SEL)
+Enable (GLDTC_CTRL[30]
+RSTB)
+AND
+AND
+Flag High
+Reset
+Reset
+Figure 6-11. PGD Block Diagram
+Table 6-17 Summarizes the PGD integration.
+Table 6-17. PGD Integration Summary
+Module Instance
+Monitored Voltage
+PGD Control/Status Registers(1)
+IPGD_VDD_CORE
+VDD_CORE
+(1)
+For more information about control registers, see , Control Module (CTRL_MMR).
+Note
+A flag status bit in corresponding STAT register is cleared by clearing the [30] RSTB bit in the
+corresponding CTRL register, see for STAT and CTRL registers for a certain PGD module.
+Note
+For more information on the interconnects, see , System Interconnect.
+For more information on the power, reset and clock management, see the corresponding sections
+within , Device Configuration.
+For more information on the device interrupt controllers, see , Interrupt Controllers.
+=== Page 567 ===
+6.2.5.5 Voltage and Thermal Manager (VTM)
+6.2.5.5.1 VTM Overview
+This section describes the Voltage and Thermal Manager (VTM) module in the device.
+The VTM module supports voltage and thermal management of the device by providing control of on-chip
+temperature sensors.
+The device supports a single VTM module, VTM0, which is located in the WKUP domain. VTM0 has two
+associated temperature monitors, Temp_Sensor_Main_0, and Temp_Sensor_Main_1, each of which are located
+near hotspots in the device die.
+Figure 6-12 shows VTM module allocation within device domains.
+Figure 6-12. VTM Overview
+6.2.5.5.1.1 VTM Features
+VTM module supports the following features:
+•
+Programming of temperature-crossing thresholds
+•
+Signals when programed thresholds are exceeded - up to 3 alerts:
+•
+Three full reference 10-bit temperature threshold points, THPT1, THPT2 and THPT0.
+•
+Two relative 4-bit delta values vs THPT1 (one an increment and another a decrement), each able to set
+additional threshold point, THPT2 and THPT0.
+•
+Supports up to 8 temperature monitors
+•
+Allows resolution of 0.5°C for temperature reading and threshold point temperature alert/interrupt generation.
+•
+Supports PMIC/LDO set-up with Class-0 VDD-VID settings
+•
+Support of tentative customization of OPP voltage per device (in support of multiple OPPs)
+=== Page 568 ===
+•
+AVS-voltage or thermal management for up to 8 voltage domains
+•
+Maximum temperature alert
+•
+Supports one shot sampling mode and continuous monitoring mode for the sensors
+•
+Contains registers with reset defaults from e-fuse values needed to supports SR-Class0 via e-fuse/
+manufacturing calibration and firmware and/or software using those values to program the PMIC/LDO with
+the Class-0 VDD-VID setting.
+•
+Contains registers with reset defaults from e-fuse values per SOC for a tentative customization of OPP
+voltage per device (in support of multiple OPPs/DVFS).
+•
+Supports a group of registers for up to 8 core voltage domains that require AVS-voltage management or
+thermal management in a contiguous memory region to support access privilege control by Firewall within its
+address space.
+•
+Core voltage domains that don’t require any SR-Class0 or thermal management shall not be controlled or
+map to any of the MCU_VTM0 voltage domain group.
+•
+Contains registers with reset defaults from e-fuse values or TIE-OFFs to provide control for temperature
+monitors and interrupt generation needed to support thermal management customized if necessary in a per
+voltage domain basis.
+•
+Provides register control, status and interrupt generation, and alerts for up to 8 temperature monitors.
+•
+Stores in the registers the defaults for temperature detection threshold points and other temperature monitor
+control values for Firmware usage.
+•
+Samples, captures, and allows for register read of the on-die temperature monitor present reading.
+•
+Provides interrupt and status for out of range temperature reading.
+•
+Provides one full reference 10-bit temperature threshold point, THPT1.
+•
+Provides 2 relative 3-bit delta values versus THPT1, one an increment and another a decrement, which yields
+2 additional threshold points, THPT2 and THPT0, in close proximity to THPT1.
+•
+Provides 3 temperature threshold point alert signals (level), GT_TH1_ALERT, GT_TH2_ALERT and
+LT_TH0_ALERT, for each one of the up to 8 temperature monitors.
+•
+Provides 3 temperature threshold point interrupt flags, GT_TH1_INT, GT_TH2_INT and LT_TH0_INT, for
+each one of the up to 8 voltage domains.
+•
+Provides 3 temperature threshold point interrupts (level-only) for the entire MCU_VTM0, GT_TH1_INT,
+GT_TH2_INT and LT_TH0_INT, which are driven out of MCU_VTM0 and are shared by the 8 voltage
+domains. The output port interrupts correspond to the OR function of the contributions of the 8 voltage
+domains.
+•
+Software must read the corresponding flags in each of the 8 voltage domains to identify which voltage
+domain is active.
+•
+Allows for temperature reading and threshold point temperature alert and interrupt generation with 0.5°C of
+resolution.
+Note
+The VTM in this family of devices implements two temperature monitors.
+6.2.5.5.1.2 VTM Not Supported Features
+•
+No support for AVS-Class0 with temperature compensation (AVS0 + TC)
+•
+No support internal to MCU_VTM0 for any AVS Class technology other than Class0
+•
+No support for K1 or K2 4/6-bit VCNTL/VID parallel or 2-step interfaces.
+•
+No integrated I2C inside VTM
+•
+No direct hardware triggering of I2C transactions by VTM. Only interrupt and event generation is supported.
+•
+No support for voltage and thermal management of I/O voltage domains. Only core domain voltage/thermal
+management is supported.
+•
+VTM0 does not contain or support register groups or control hooks for I/O voltage domains.
+•
+Core voltage domains that do not require any voltage or thermal management are not controlled or mapped
+to any of the VTM0 voltage domain groups.
+•
+Everything else not explicitly listed in Section 6.2.5.5.1.1 is not supported.
+•
+No oversampling of the temperature reading
+•
+No support for eFuse defaults of all register values
+=== Page 569 ===
+6.2.5.5.2 VTM Functional Description
+6.2.5.5.2.1 VTM Temperature Status and Thermal Management
+VTM module provides temperature reading and interrupt/alert information for thermal management.
+Note
+VTM functions are controlled through the DMSC. For more information how to use DMSC, see the
+TISCI API .
+VTM controls the temperature monitors in the die. A single VTM can control up to 8 monitors via its registers.
+The VTM enables the sensors periodically to keep the reported data continually updated becuase the device
+sensors are not periodical. The temperature value coming back from the monitor is captured and reported by the
+VTM registers. The VTM keeps the sensors in reset state when not enabled to save power and reduce sensor
+usage to maximize the sensor life.
+Note
+A temperature diode sensor is used to measure silicon junction temperature, for more information
+about temperature diode, see the device-specific Datasheet.
+6.2.5.5.2.1.1 10-bit Temperature Values Versus Temperature
+Table 6-18 shows a table lookup method for translating code to temperature from temperature monitors which
+correspond to the temperature measured read from the VTM0_VTM_TMPSENS_STAT_J [9-0] DATA_OUT
+bitfields. Table 6-18 also provides the values for the temperatures coded in VTM0_VTM_MISC_CTRL2 [25-16]
+MAXT_OUTRG_ALERT_THR0 and VTM0_VTM_MISC_CTRL2 [9-0] MAXT_OUTRG_ALERT_THR thresholds.
+Table 6-18. Temperature Translation Table
+Parameter Type
+Value
+Temperature [°C]
+(rounded)
+-40
+-25
+0
+25
+50
+75
+100
+125
+150
+Temperature [°C]
+(unrounded)
+-40.03
+-24.95
+0.01
+25.02
+49.94
+75.03
+100.02
+124.97
+150.00
+DATA_OUT
+Code
+28
+77
+164
+260
+366
+485
+620
+773
+949
+Table 6-19 shows a table that gives coefficients of polynomial to calculate code or temperature. The equation to
+calculate code or temperature is:
+y = a4 × x4 + a3 × x3 + a2 × x2 + a1 × x + a0
+Table 6-19. Equation Method to Calculate Code or Temperature
+Function
+Unit
+Coefficient
+a4
+a3
+a2
+a1
+a0
+Code = f(Temperature)
+Decimal value
+of code
+4.9847E-08
+1.6972E-05
+6.8759E-03
+3.6509E+00
+1.6407E+02
+Temperature = f(Code)
+°C
+-9.2627E-12
+6.0373E-08
+-1.7058E-04
+3.2512E-01
+-4.9002E+01

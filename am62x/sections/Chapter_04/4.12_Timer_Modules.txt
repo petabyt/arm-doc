@@ -1,0 +1,1748 @@
+4.12 Timer Modules
+4.12.1 Global Timebase Counter (GTC)
+This section contains the integration details for the GTC module on this device. For Further information, see the
+Global Timebase Counter (GTC) section of the Peripherals chapter
+4.12.1.1 GTC Unsupported Features
+The following features are not supported on this family of devices:
+•
+There are no unsupported features
+4.12.1.2 Module Allocations
+Table 4-132. GTC Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+WKUP_GTC0
+✓
+4.12.1.3 Resets, Interrupts, and Clocks
+Table 4-133. GTC Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+WKUP_GTC0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_A
+LWAYSON
+0
+ON
+NO
+NONE
+Table 4-134. GTC Resets
+Module Instance
+Source
+Description
+WKUP_GTC0
+PSC0_PSC_0
+WKUP_GTC0 reset
+WKUP_GTC0
+PLLCTRL0
+WKUP_GTC0 reset
+Table 4-135. GTC Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+WKUP_GTC0
+WKUP_GTC0_gtc_pu
+sh_event_0
+TIMESYNC_EVENT_
+ROUTER0_in_IN_11
+TIMESYNC_EVENT_
+ROUTER0
+WKUP_GTC0
+interrupt request
+pulse
+=== Page 173 ===
+Table 4-136. GTC Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+WKUP_GTC0
+CLK
+MAIN_PLL2_HSDIV5_CL
+KOUT
+WKUP_GTC_CLKSEL[2:0
+]
+WKUP_GTC0 Functional
+Clock
+MAIN_PLL0_HSDIV6_CL
+KOUT
+WKUP_GTC_CLKSEL[2:0
+]
+CP_GEMAC_CPTS_REF
+_CLK
+WKUP_GTC_CLKSEL[2:0
+]
+MCU_EXT_REFCLK0
+WKUP_GTC_CLKSEL[2:0
+]
+EXT_REFCLK1
+WKUP_GTC_CLKSEL[2:0
+]
+MCU_SYSCLK0
+WKUP_GTC_CLKSEL[2:0
+]
+MAIN_SYSCLK0
+WKUP_GTC_CLKSEL[2:0
+]
+ICLK
+DM_CLK/4
+WKUP_CLKSEL[0:0]
+WKUP_GTC0 Interface
+Clock
+=== Page 174 ===
+4.12.2 Real Time Interrupt (RTI)
+This section contains the integration details for the RTI module on this device. For Further information, see the
+Real Time Interrupt (RTI) section of the Peripherals chapter
+4.12.2.1 RTI Unsupported Features
+The following features are not supported on this family of devices:
+•
+Analog watchdog timer
+•
+External clock supervision
+•
+Periodic Interrupt
+•
+Timestamp (Capture Registers)
+4.12.2.2 Module Allocations
+Table 4-137. RTI Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+RTI4
+✓
+RTI0
+✓
+RTI1
+✓
+RTI2
+✓
+RTI3
+✓
+MCU_RTI0
+✓
+WKUP_RTI0
+✓
+4.12.2.3 Resets, Interrupts, and Clocks
+Table 4-138. RTI Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+MCU_RTI0
+WKUP_PSC0
+PD_M4F
+LPSC_MCU_M
+4F
+6
+OFF
+YES
+LPSC_MCU_C
+OMMON
+RTI0
+PSC0_PSC_0
+PD_A53_0
+LPSC_A53_0
+45
+OFF
+YES
+LPSC_A53_CL
+USTER_0
+RTI1
+PSC0_PSC_0
+PD_A53_1
+LPSC_A53_1
+46
+OFF
+YES
+LPSC_A53_CL
+USTER_0
+RTI15
+PSC0_PSC_0
+PD_GPU
+LPSC_GPU
+49
+OFF
+YES
+LPSC_MAIN_IP
+RTI2
+PSC0_PSC_0
+PD_A53_2
+LPSC_A53_2
+47
+OFF
+YES
+LPSC_A53_CL
+USTER_0
+RTI3
+PSC0_PSC_0
+PD_A53_3
+LPSC_A53_3
+48
+OFF
+YES
+LPSC_A53_CL
+USTER_0
+WKUP_RTI0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_D
+M
+1
+OFF
+YES
+LPSC_MAIN_A
+LWAYSON
+Table 4-139. RTI Resets
+Module Instance
+Source
+Description
+MCU_RTI0
+WKUP_PSC0
+MCU_RTI0 reset
+RTI0
+PSC0_PSC_0
+RTI0 reset
+=== Page 175 ===
+Table 4-139. RTI Resets (continued)
+Module Instance
+Source
+Description
+RTI1
+PSC0_PSC_0
+RTI1 reset
+RTI15
+PSC0_PSC_0
+RTI15 reset
+RTI2
+PSC0_PSC_0
+RTI2 reset
+RTI3
+PSC0_PSC_0
+RTI3 reset
+WKUP_RTI0
+PSC0_PSC_0
+WKUP_RTI0 reset
+Table 4-140. RTI Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+MCU_RTI0
+MCU_RTI0_intr_wwd
+_0
+MCU_M4FSS0_COR
+E0_nvic_IN_19
+MCU_M4FSS0_COR
+E0
+MCU_RTI0 interrupt
+request
+pulse
+MCU_RTI0
+MCU_RTI0_intr_wwd
+_0
+WKUP_ESM0_esm_p
+ls_event0_IN_85
+WKUP_ESM0
+MCU_RTI0 interrupt
+request
+pulse
+MCU_RTI0
+MCU_RTI0_intr_wwd
+_0
+WKUP_ESM0_esm_p
+ls_event1_IN_85
+WKUP_ESM0
+MCU_RTI0 interrupt
+request
+pulse
+MCU_RTI0
+MCU_RTI0_intr_wwd
+_0
+WKUP_ESM0_esm_p
+ls_event2_IN_85
+WKUP_ESM0
+MCU_RTI0 interrupt
+request
+pulse
+RTI0
+RTI0_intr_wwd_0
+ESM0_esm_pls_even
+t0_IN_160
+ESM0
+RTI0 interrupt request
+pulse
+RTI0
+RTI0_intr_wwd_0
+ESM0_esm_pls_even
+t1_IN_160
+ESM0
+RTI0 interrupt request
+pulse
+RTI0
+RTI0_intr_wwd_0
+ESM0_esm_pls_even
+t2_IN_160
+ESM0
+RTI0 interrupt request
+pulse
+RTI0
+RTI0_intr_wwd_0
+GICSS0_spi_IN_252
+GICSS0
+RTI0 interrupt request
+pulse
+RTI1
+RTI1_intr_wwd_0
+ESM0_esm_pls_even
+t0_IN_161
+ESM0
+RTI1 interrupt request
+pulse
+RTI1
+RTI1_intr_wwd_0
+ESM0_esm_pls_even
+t1_IN_161
+ESM0
+RTI1 interrupt request
+pulse
+RTI1
+RTI1_intr_wwd_0
+ESM0_esm_pls_even
+t2_IN_161
+ESM0
+RTI1 interrupt request
+pulse
+RTI1
+RTI1_intr_wwd_0
+GICSS0_spi_IN_253
+GICSS0
+RTI1 interrupt request
+pulse
+RTI15
+RTI15_intr_wwd_0
+ESM0_esm_pls_even
+t0_IN_162
+ESM0
+RTI15 interrupt
+request
+pulse
+RTI15
+RTI15_intr_wwd_0
+ESM0_esm_pls_even
+t1_IN_162
+ESM0
+RTI15 interrupt
+request
+pulse
+RTI15
+RTI15_intr_wwd_0
+ESM0_esm_pls_even
+t2_IN_162
+ESM0
+RTI15 interrupt
+request
+pulse
+RTI15
+RTI15_intr_wwd_0
+GICSS0_spi_IN_178
+GICSS0
+RTI15 interrupt
+request
+pulse
+RTI2
+RTI2_intr_wwd_0
+ESM0_esm_pls_even
+t0_IN_177
+ESM0
+RTI2 interrupt request
+pulse
+RTI2
+RTI2_intr_wwd_0
+ESM0_esm_pls_even
+t1_IN_177
+ESM0
+RTI2 interrupt request
+pulse
+=== Page 176 ===
+Table 4-140. RTI Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+RTI2
+RTI2_intr_wwd_0
+ESM0_esm_pls_even
+t2_IN_177
+ESM0
+RTI2 interrupt request
+pulse
+RTI2
+RTI2_intr_wwd_0
+GICSS0_spi_IN_254
+GICSS0
+RTI2 interrupt request
+pulse
+RTI3
+RTI3_intr_wwd_0
+ESM0_esm_pls_even
+t0_IN_178
+ESM0
+RTI3 interrupt request
+pulse
+RTI3
+RTI3_intr_wwd_0
+ESM0_esm_pls_even
+t1_IN_178
+ESM0
+RTI3 interrupt request
+pulse
+RTI3
+RTI3_intr_wwd_0
+ESM0_esm_pls_even
+t2_IN_178
+ESM0
+RTI3 interrupt request
+pulse
+RTI3
+RTI3_intr_wwd_0
+GICSS0_spi_IN_255
+GICSS0
+RTI3 interrupt request
+pulse
+WKUP_RTI0
+WKUP_RTI0_intr_ww
+d_0
+ESM0_esm_pls_even
+t0_IN_163
+ESM0
+WKUP_RTI0 interrupt
+request
+pulse
+WKUP_RTI0
+WKUP_RTI0_intr_ww
+d_0
+ESM0_esm_pls_even
+t1_IN_163
+ESM0
+WKUP_RTI0 interrupt
+request
+pulse
+WKUP_RTI0
+WKUP_RTI0_intr_ww
+d_0
+ESM0_esm_pls_even
+t2_IN_163
+ESM0
+WKUP_RTI0 interrupt
+request
+pulse
+WKUP_RTI0
+WKUP_RTI0_intr_ww
+d_0
+R5FSS0_CORE0_intr
+_IN_30
+R5FSS0_CORE0
+WKUP_RTI0 interrupt
+request
+pulse
+Table 4-141. RTI Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+MCU_RTI0
+FCLK
+HFOSC0_CLKOUT
+MCU_WWD0_CLKSEL[1:
+0]
+MCU_RTI0 Functional
+Clock
+DEVICE_CLKOUT_32K
+MCU_WWD0_CLKSEL[1:
+0]
+DEVICE_CLKOUT_32K_
+CTRL[1:0]
+CLK_12M_RC
+MCU_WWD0_CLKSEL[1:
+0]
+CLK_32K_RC
+MCU_WWD0_CLKSEL[1:
+0]
+ICLK
+MCU_SYSCLK0/4
+MCU_RTI0 Interface
+Clock
+RTI0
+FCLK
+HFOSC0_CLKOUT
+WWD0_CLKSEL[1:0]
+RTI0 Functional Clock
+DEVICE_CLKOUT_32K
+WWD0_CLKSEL[1:0]
+DEVICE_CLKOUT_32K_
+CTRL[1:0]
+CLK_12M_RC
+WWD0_CLKSEL[1:0]
+CLK_32K_RC
+WWD0_CLKSEL[1:0]
+ICLK
+MAIN_SYSCLK0/4
+RTI0 Interface Clock
+=== Page 177 ===
+Table 4-141. RTI Clocks (continued)
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+RTI1
+FCLK
+HFOSC0_CLKOUT
+WWD1_CLKSEL[1:0]
+RTI1 Functional Clock
+DEVICE_CLKOUT_32K
+WWD1_CLKSEL[1:0]
+DEVICE_CLKOUT_32K_
+CTRL[1:0]
+CLK_12M_RC
+WWD1_CLKSEL[1:0]
+CLK_32K_RC
+WWD1_CLKSEL[1:0]
+ICLK
+MAIN_SYSCLK0/4
+RTI1 Interface Clock
+RTI15
+FCLK
+HFOSC0_CLKOUT
+WWD15_CLKSEL[1:0]
+RTI15 Functional Clock
+DEVICE_CLKOUT_32K
+WWD15_CLKSEL[1:0]
+DEVICE_CLKOUT_32K_
+CTRL[1:0]
+CLK_12M_RC
+WWD15_CLKSEL[1:0]
+CLK_32K_RC
+WWD15_CLKSEL[1:0]
+ICLK
+MAIN_SYSCLK0/4
+RTI15 Interface Clock
+RTI2
+FCLK
+HFOSC0_CLKOUT
+WWD2_CLKSEL[1:0]
+RTI2 Functional Clock
+DEVICE_CLKOUT_32K
+WWD2_CLKSEL[1:0]
+DEVICE_CLKOUT_32K_
+CTRL[1:0]
+CLK_12M_RC
+WWD2_CLKSEL[1:0]
+CLK_32K_RC
+WWD2_CLKSEL[1:0]
+ICLK
+MAIN_SYSCLK0/4
+RTI2 Interface Clock
+RTI3
+FCLK
+HFOSC0_CLKOUT
+WWD3_CLKSEL[1:0]
+RTI3 Functional Clock
+DEVICE_CLKOUT_32K
+WWD3_CLKSEL[1:0]
+DEVICE_CLKOUT_32K_
+CTRL[1:0]
+CLK_12M_RC
+WWD3_CLKSEL[1:0]
+CLK_32K_RC
+WWD3_CLKSEL[1:0]
+ICLK
+MAIN_SYSCLK0/4
+RTI3 Interface Clock
+WKUP_RTI0
+FCLK
+HFOSC0_CLKOUT
+WKUP_WWD0_CLKSEL[
+1:0]
+WKUP_RTI0 Functional
+Clock
+DEVICE_CLKOUT_32K
+WKUP_WWD0_CLKSEL[
+1:0]
+DEVICE_CLKOUT_32K_
+CTRL[1:0]
+CLK_12M_RC
+WKUP_WWD0_CLKSEL[
+1:0]
+CLK_32K_RC
+WKUP_WWD0_CLKSEL[
+1:0]
+ICLK
+DM_CLK/4
+WKUP_CLKSEL[0:0]
+WKUP_RTI0 Interface
+Clock
+=== Page 178 ===
+4.12.3 Real-Time Clock (RTC)
+This section contains the integration details for the RTC module on this device. For Further information, see the
+Real-Time Clock (RTC) section of the Peripherals chapter
+4.12.3.1 RTC Unsupported Features
+The following features are not supported on this family of devices:
+•
+PMIC enable support
+4.12.3.2 Module Allocations
+Table 4-142. RTC Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+WKUP_rtcss0
+✓
+4.12.3.3 Resets, Interrupts, and Clocks
+Table 4-143. RTC Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+WKUP_RTCSS
+0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_A
+LWAYSON
+0
+ON
+NO
+NONE
+Table 4-144. RTC Resets
+Module Instance
+Source
+Description
+WKUP_rtcss0
+PSC0_PSC_0
+WKUP_rtcss0 reset
+Table 4-145. RTC Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+WKUP_rtcss0
+WKUP_rtcss0_rtc_ev
+ent_pend_0
+GICSS0_spi_IN_132
+GICSS0
+WKUP_rtcss0
+interrupt request
+level
+WKUP_rtcss0
+WKUP_rtcss0_rtc_ev
+ent_pend_0
+R5FSS0_CORE0_intr
+_IN_97
+R5FSS0_CORE0
+WKUP_rtcss0
+interrupt request
+level
+WKUP_rtcss0
+WKUP_rtcss0_rtc_ev
+ent_pend_0
+WKUP_DEEPSLEEP
+_SOURCES0_Isam6
+2_dm_wakeup_deeps
+leep_sources_IN_7
+WKUP_DEEPSLEEP
+_SOURCES0
+WKUP_rtcss0
+interrupt request
+level
+Table 4-146. RTC Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+WKUP_rtcss0
+ANA_OSC32K_CLK
+DEVICE_CLKOUT_32K
+WKUP_RTC_CLKSEL[0:0
+]
+DEVICE_CLKOUT_32K_
+CTRL[1:0]
+CLK_32K_RC
+WKUP_RTC_CLKSEL[0:0
+]
+VCLK_CLK
+DM_CLK/8
+WKUP_CLKSEL[0:0]
+=== Page 179 ===
+4.12.4 Timer
+This section contains the integration details for the Timer module on this device. For Further information, see the
+Timer section of the Peripherals chapter
+4.12.4.1 Timer Unsupported Features
+The following features are not supported on this family of devices:
+•
+Cascading of timer instances is not supported.
+4.12.4.2 Module Allocations
+Table 4-147. Timer Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+TIMER0
+✓
+TIMER1
+✓
+TIMER2
+✓
+TIMER3
+✓
+TIMER4
+✓
+TIMER5
+✓
+TIMER6
+✓
+TIMER7
+✓
+MCU_TIMER0
+✓
+MCU_TIMER1
+✓
+MCU_TIMER2
+✓
+MCU_TIMER3
+✓
+WKUP_TIMER0
+✓
+WKUP_TIMER1
+✓
+4.12.4.3 Resets, Interrupts, and Clocks
+Table 4-148. Timer Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+MCU_TIMER0
+WKUP_PSC0
+PD_M4F
+LPSC_MCU_C
+OMMON
+9
+ON
+YES
+LPSC_DM2SAF
+E_ISO
+MCU_TIMER1
+WKUP_PSC0
+PD_M4F
+LPSC_MCU_C
+OMMON
+9
+ON
+YES
+LPSC_DM2SAF
+E_ISO
+MCU_TIMER2
+WKUP_PSC0
+PD_M4F
+LPSC_MCU_C
+OMMON
+9
+ON
+YES
+LPSC_DM2SAF
+E_ISO
+MCU_TIMER3
+WKUP_PSC0
+PD_M4F
+LPSC_MCU_C
+OMMON
+9
+ON
+YES
+LPSC_DM2SAF
+E_ISO
+TIMER0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+TIMER1
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+=== Page 180 ===
+Table 4-148. Timer Integration Attributes (continued)
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+TIMER2
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+TIMER3
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+TIMER4
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+TIMER5
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+TIMER6
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+TIMER7
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+WKUP_TIMER0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_A
+LWAYSON
+0
+ON
+NO
+NONE
+WKUP_TIMER1
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_A
+LWAYSON
+0
+ON
+NO
+NONE
+Table 4-149. Timer Resets
+Module Instance
+Source
+Description
+TIMER0
+PSC0_PSC_0
+TIMER0 reset
+TIMER1
+PSC0_PSC_0
+TIMER1 reset
+TIMER2
+PSC0_PSC_0
+TIMER2 reset
+TIMER3
+PSC0_PSC_0
+TIMER3 reset
+TIMER4
+PSC0_PSC_0
+TIMER4 reset
+TIMER5
+PSC0_PSC_0
+TIMER5 reset
+TIMER6
+PSC0_PSC_0
+TIMER6 reset
+TIMER7
+PSC0_PSC_0
+TIMER7 reset
+MCU_TIMER0
+WKUP_PSC0
+MCU_TIMER0 reset
+MCU_TIMER1
+WKUP_PSC0
+MCU_TIMER1 reset
+MCU_TIMER2
+WKUP_PSC0
+MCU_TIMER2 reset
+MCU_TIMER3
+WKUP_PSC0
+MCU_TIMER3 reset
+WKUP_TIMER0
+PSC0_PSC_0
+WKUP_TIMER0 reset
+WKUP_TIMER1
+PSC0_PSC_0
+WKUP_TIMER1 reset
+Table 4-150. Timer Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+MCU_TIMER0
+MCU_TIMER0_intr_p
+end_0
+MCU_M4FSS0_COR
+E0_nvic_IN_4
+MCU_M4FSS0_COR
+E0
+MCU_TIMER0
+interrupt request
+level
+MCU_TIMER1
+MCU_TIMER1_intr_p
+end_0
+MCU_M4FSS0_COR
+E0_nvic_IN_5
+MCU_M4FSS0_COR
+E0
+MCU_TIMER1
+interrupt request
+level
+=== Page 181 ===
+Table 4-150. Timer Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+MCU_TIMER2
+MCU_TIMER2_intr_p
+end_0
+MCU_M4FSS0_COR
+E0_nvic_IN_6
+MCU_M4FSS0_COR
+E0
+MCU_TIMER2
+interrupt request
+level
+MCU_TIMER3
+MCU_TIMER3_intr_p
+end_0
+MCU_M4FSS0_COR
+E0_nvic_IN_7
+MCU_M4FSS0_COR
+E0
+MCU_TIMER3
+interrupt request
+level
+TIMER0
+TIMER0_intr_pend_0
+GICSS0_spi_IN_152
+GICSS0
+TIMER0 interrupt
+request
+level
+TIMER0
+TIMER0_timer_pwm_
+0
+TIMESYNC_EVENT_
+ROUTER0_in_IN_0
+TIMESYNC_EVENT_
+ROUTER0
+TIMER0 interrupt
+request
+pulse
+TIMER1
+TIMER1_intr_pend_0
+GICSS0_spi_IN_153
+GICSS0
+TIMER1 interrupt
+request
+level
+TIMER1
+TIMER1_timer_pwm_
+0
+TIMESYNC_EVENT_
+ROUTER0_in_IN_1
+TIMESYNC_EVENT_
+ROUTER0
+TIMER1 interrupt
+request
+pulse
+TIMER2
+TIMER2_intr_pend_0
+GICSS0_spi_IN_154
+GICSS0
+TIMER2 interrupt
+request
+level
+TIMER2
+TIMER2_timer_pwm_
+0
+TIMESYNC_EVENT_
+ROUTER0_in_IN_2
+TIMESYNC_EVENT_
+ROUTER0
+TIMER2 interrupt
+request
+pulse
+TIMER3
+TIMER3_intr_pend_0
+GICSS0_spi_IN_155
+GICSS0
+TIMER3 interrupt
+request
+level
+TIMER3
+TIMER3_timer_pwm_
+0
+TIMESYNC_EVENT_
+ROUTER0_in_IN_3
+TIMESYNC_EVENT_
+ROUTER0
+TIMER3 interrupt
+request
+pulse
+TIMER4
+TIMER4_intr_pend_0
+GICSS0_spi_IN_156
+GICSS0
+TIMER4 interrupt
+request
+level
+TIMER5
+TIMER5_intr_pend_0
+GICSS0_spi_IN_157
+GICSS0
+TIMER5 interrupt
+request
+level
+TIMER6
+TIMER6_intr_pend_0
+GICSS0_spi_IN_158
+GICSS0
+TIMER6 interrupt
+request
+level
+TIMER7
+TIMER7_intr_pend_0
+GICSS0_spi_IN_159
+GICSS0
+TIMER7 interrupt
+request
+level
+WKUP_TIMER0
+WKUP_TIMER0_intr_
+pend_0
+R5FSS0_CORE0_intr
+_IN_138
+R5FSS0_CORE0
+WKUP_TIMER0
+interrupt request
+level
+WKUP_TIMER0
+WKUP_TIMER0_time
+r_clkstop_wakeup_0
+R5FSS0_CORE0_intr
+_IN_28
+R5FSS0_CORE0
+WKUP_TIMER0
+interrupt request
+level
+WKUP_TIMER0
+WKUP_TIMER0_time
+r_clkstop_wakeup_0
+WKUP_DEEPSLEEP
+_SOURCES0_Isam6
+2_dm_wakeup_deeps
+leep_sources_IN_5
+WKUP_DEEPSLEEP
+_SOURCES0
+WKUP_TIMER0
+interrupt request
+level
+WKUP_TIMER1
+WKUP_TIMER1_intr_
+pend_0
+R5FSS0_CORE0_intr
+_IN_139
+R5FSS0_CORE0
+WKUP_TIMER1
+interrupt request
+level
+WKUP_TIMER1
+WKUP_TIMER1_time
+r_clkstop_wakeup_0
+R5FSS0_CORE0_intr
+_IN_29
+R5FSS0_CORE0
+WKUP_TIMER1
+interrupt request
+level
+=== Page 182 ===
+Table 4-150. Timer Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+WKUP_TIMER1
+WKUP_TIMER1_time
+r_clkstop_wakeup_0
+WKUP_DEEPSLEEP
+_SOURCES0_Isam6
+2_dm_wakeup_deeps
+leep_sources_IN_6
+WKUP_DEEPSLEEP
+_SOURCES0
+WKUP_TIMER1
+interrupt request
+level
+Table 4-151. Timer Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+MCU_TIMER0
+TIMER_ICLK
+MCU_SYSCLK0/4
+MCU_TIMER0 Interface
+Clock
+TIMER_FCLK
+HFOSC0_CLKOUT
+MCU_TIMER0_CLKSEL[2
+:0]
+MCU_TIMER0 Functional
+Clock
+MCU_SYSCLK0/2
+MCU_TIMER0_CLKSEL[2
+:0]
+CLK_12M_RC
+MCU_TIMER0_CLKSEL[2
+:0]
+MCU_PLL0_HSDIV3_CLK
+OUT
+MCU_TIMER0_CLKSEL[2
+:0]
+MCU_EXT_REFCLK0
+MCU_TIMER0_CLKSEL[2
+:0]
+DEVICE_CLKOUT_32K
+MCU_TIMER0_CLKSEL[2
+:0]
+DEVICE_CLKOUT_32K_
+CTRL[1:0]
+CPSW0.CPTS_GENF0
+MCU_TIMER0_CLKSEL[2
+:0]
+CLK_32K_RC
+MCU_TIMER0_CLKSEL[2
+:0]
+=== Page 183 ===
+Table 4-151. Timer Clocks (continued)
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+MCU_TIMER1
+TIMER_ICLK
+MCU_SYSCLK0/4
+MCU_TIMER1 Interface
+Clock
+TIMER_FCLK
+HFOSC0_CLKOUT
+MCU_TIMER1_CLKSEL[2
+:0]
+MCU_TIMER1 Functional
+Clock
+MCU_SYSCLK0/2
+MCU_TIMER1_CLKSEL[2
+:0]
+CLK_12M_RC
+MCU_TIMER1_CLKSEL[2
+:0]
+MCU_PLL0_HSDIV3_CLK
+OUT
+MCU_TIMER1_CLKSEL[2
+:0]
+MCU_EXT_REFCLK0
+MCU_TIMER1_CLKSEL[2
+:0]
+DEVICE_CLKOUT_32K
+MCU_TIMER1_CLKSEL[2
+:0]
+DEVICE_CLKOUT_32K_
+CTRL[1:0]
+CPSW0.CPTS_GENF0
+MCU_TIMER1_CLKSEL[2
+:0]
+CLK_32K_RC
+MCU_TIMER1_CLKSEL[2
+:0]
+MCU_TIMER2
+TIMER_ICLK
+MCU_SYSCLK0/4
+MCU_TIMER2 Interface
+Clock
+TIMER_FCLK
+HFOSC0_CLKOUT
+MCU_TIMER2_CLKSEL[2
+:0]
+MCU_TIMER2 Functional
+Clock
+MCU_SYSCLK0/2
+MCU_TIMER2_CLKSEL[2
+:0]
+CLK_12M_RC
+MCU_TIMER2_CLKSEL[2
+:0]
+MCU_PLL0_HSDIV3_CLK
+OUT
+MCU_TIMER2_CLKSEL[2
+:0]
+MCU_EXT_REFCLK0
+MCU_TIMER2_CLKSEL[2
+:0]
+DEVICE_CLKOUT_32K
+MCU_TIMER2_CLKSEL[2
+:0]
+DEVICE_CLKOUT_32K_
+CTRL[1:0]
+CPSW0.CPTS_GENF0
+MCU_TIMER2_CLKSEL[2
+:0]
+CLK_32K_RC
+MCU_TIMER2_CLKSEL[2
+:0]
+=== Page 184 ===
+Table 4-151. Timer Clocks (continued)
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+MCU_TIMER3
+TIMER_ICLK
+MCU_SYSCLK0/4
+MCU_TIMER3 Interface
+Clock
+TIMER_FCLK
+HFOSC0_CLKOUT
+MCU_TIMER3_CLKSEL[2
+:0]
+MCU_TIMER3 Functional
+Clock
+MCU_SYSCLK0/2
+MCU_TIMER3_CLKSEL[2
+:0]
+CLK_12M_RC
+MCU_TIMER3_CLKSEL[2
+:0]
+MCU_PLL0_HSDIV3_CLK
+OUT
+MCU_TIMER3_CLKSEL[2
+:0]
+MCU_EXT_REFCLK0
+MCU_TIMER3_CLKSEL[2
+:0]
+DEVICE_CLKOUT_32K
+MCU_TIMER3_CLKSEL[2
+:0]
+DEVICE_CLKOUT_32K_
+CTRL[1:0]
+CPSW0.CPTS_GENF0
+MCU_TIMER3_CLKSEL[2
+:0]
+CLK_32K_RC
+MCU_TIMER3_CLKSEL[2
+:0]
+TIMER0
+TIMER_ICLK
+MAIN_SYSCLK0/4
+TIMER0 Interface Clock
+TIMER_FCLK
+HFOSC0_CLKOUT
+TIMER0_CLKSEL[3:0]
+TIMER0 Functional Clock
+DEVICE_CLKOUT_32K
+TIMER0_CLKSEL[3:0]
+DEVICE_CLKOUT_32K_
+CTRL[1:0]
+CPSW0.CPTS_GENF0
+TIMER0_CLKSEL[3:0]
+CPSW0.CPTS_GENF1
+TIMER0_CLKSEL[3:0]
+MAIN_PLL0_HSDIV7_CL
+KOUT
+TIMER0_CLKSEL[3:0]
+CLK_12M_RC
+TIMER0_CLKSEL[3:0]
+MCU_EXT_REFCLK0
+TIMER0_CLKSEL[3:0]
+EXT_REFCLK1
+TIMER0_CLKSEL[3:0]
+CP_GEMAC_CPTS_REF
+_CLK
+TIMER0_CLKSEL[3:0]
+MAIN_PLL1_HSDIV3_CL
+KOUT
+TIMER0_CLKSEL[3:0]
+MAIN_PLL2_HSDIV6_CL
+KOUT
+TIMER0_CLKSEL[3:0]
+=== Page 185 ===
+Table 4-151. Timer Clocks (continued)
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+TIMER1
+TIMER_ICLK
+MAIN_SYSCLK0/4
+TIMER1 Interface Clock
+TIMER_FCLK
+HFOSC0_CLKOUT
+TIMER1_CLKSEL[3:0]
+TIMER1 Functional Clock
+DEVICE_CLKOUT_32K
+TIMER1_CLKSEL[3:0]
+DEVICE_CLKOUT_32K_
+CTRL[1:0]
+CPSW0.CPTS_GENF0
+TIMER1_CLKSEL[3:0]
+CPSW0.CPTS_GENF1
+TIMER1_CLKSEL[3:0]
+MAIN_PLL0_HSDIV7_CL
+KOUT
+TIMER1_CLKSEL[3:0]
+CLK_12M_RC
+TIMER1_CLKSEL[3:0]
+MCU_EXT_REFCLK0
+TIMER1_CLKSEL[3:0]
+EXT_REFCLK1
+TIMER1_CLKSEL[3:0]
+CP_GEMAC_CPTS_REF
+_CLK
+TIMER1_CLKSEL[3:0]
+MAIN_PLL1_HSDIV3_CL
+KOUT
+TIMER1_CLKSEL[3:0]
+MAIN_PLL2_HSDIV6_CL
+KOUT
+TIMER1_CLKSEL[3:0]
+TIMER2
+TIMER_ICLK
+MAIN_SYSCLK0/4
+TIMER2 Interface Clock
+TIMER_FCLK
+HFOSC0_CLKOUT
+TIMER2_CLKSEL[3:0]
+TIMER2 Functional Clock
+DEVICE_CLKOUT_32K
+TIMER2_CLKSEL[3:0]
+DEVICE_CLKOUT_32K_
+CTRL[1:0]
+CPSW0.CPTS_GENF0
+TIMER2_CLKSEL[3:0]
+CPSW0.CPTS_GENF1
+TIMER2_CLKSEL[3:0]
+MAIN_PLL0_HSDIV7_CL
+KOUT
+TIMER2_CLKSEL[3:0]
+CLK_12M_RC
+TIMER2_CLKSEL[3:0]
+MCU_EXT_REFCLK0
+TIMER2_CLKSEL[3:0]
+EXT_REFCLK1
+TIMER2_CLKSEL[3:0]
+CP_GEMAC_CPTS_REF
+_CLK
+TIMER2_CLKSEL[3:0]
+MAIN_PLL1_HSDIV3_CL
+KOUT
+TIMER2_CLKSEL[3:0]
+MAIN_PLL2_HSDIV6_CL
+KOUT
+TIMER2_CLKSEL[3:0]
+=== Page 186 ===
+Table 4-151. Timer Clocks (continued)
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+TIMER3
+TIMER_ICLK
+MAIN_SYSCLK0/4
+TIMER3 Interface Clock
+TIMER_FCLK
+HFOSC0_CLKOUT
+TIMER3_CLKSEL[3:0]
+TIMER3 Functional Clock
+DEVICE_CLKOUT_32K
+TIMER3_CLKSEL[3:0]
+DEVICE_CLKOUT_32K_
+CTRL[1:0]
+CPSW0.CPTS_GENF0
+TIMER3_CLKSEL[3:0]
+CPSW0.CPTS_GENF1
+TIMER3_CLKSEL[3:0]
+MAIN_PLL0_HSDIV7_CL
+KOUT
+TIMER3_CLKSEL[3:0]
+CLK_12M_RC
+TIMER3_CLKSEL[3:0]
+MCU_EXT_REFCLK0
+TIMER3_CLKSEL[3:0]
+EXT_REFCLK1
+TIMER3_CLKSEL[3:0]
+CP_GEMAC_CPTS_REF
+_CLK
+TIMER3_CLKSEL[3:0]
+MAIN_PLL1_HSDIV3_CL
+KOUT
+TIMER3_CLKSEL[3:0]
+MAIN_PLL2_HSDIV6_CL
+KOUT
+TIMER3_CLKSEL[3:0]
+TIMER4
+TIMER_ICLK
+MAIN_SYSCLK0/4
+TIMER4 Interface Clock
+TIMER_FCLK
+HFOSC0_CLKOUT
+TIMER4_CLKSEL[3:0]
+TIMER4 Functional Clock
+DEVICE_CLKOUT_32K
+TIMER4_CLKSEL[3:0]
+DEVICE_CLKOUT_32K_
+CTRL[1:0]
+CPSW0.CPTS_GENF0
+TIMER4_CLKSEL[3:0]
+CPSW0.CPTS_GENF1
+TIMER4_CLKSEL[3:0]
+MAIN_PLL0_HSDIV7_CL
+KOUT
+TIMER4_CLKSEL[3:0]
+CLK_12M_RC
+TIMER4_CLKSEL[3:0]
+MCU_EXT_REFCLK0
+TIMER4_CLKSEL[3:0]
+EXT_REFCLK1
+TIMER4_CLKSEL[3:0]
+CP_GEMAC_CPTS_REF
+_CLK
+TIMER4_CLKSEL[3:0]
+MAIN_PLL1_HSDIV3_CL
+KOUT
+TIMER4_CLKSEL[3:0]
+MAIN_PLL2_HSDIV6_CL
+KOUT
+TIMER4_CLKSEL[3:0]
+=== Page 187 ===
+Table 4-151. Timer Clocks (continued)
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+TIMER5
+TIMER_ICLK
+MAIN_SYSCLK0/4
+TIMER5 Interface Clock
+TIMER_FCLK
+HFOSC0_CLKOUT
+TIMER5_CLKSEL[3:0]
+TIMER5 Functional Clock
+DEVICE_CLKOUT_32K
+TIMER5_CLKSEL[3:0]
+DEVICE_CLKOUT_32K_
+CTRL[1:0]
+CPSW0.CPTS_GENF0
+TIMER5_CLKSEL[3:0]
+CPSW0.CPTS_GENF1
+TIMER5_CLKSEL[3:0]
+MAIN_PLL0_HSDIV7_CL
+KOUT
+TIMER5_CLKSEL[3:0]
+CLK_12M_RC
+TIMER5_CLKSEL[3:0]
+MCU_EXT_REFCLK0
+TIMER5_CLKSEL[3:0]
+EXT_REFCLK1
+TIMER5_CLKSEL[3:0]
+CP_GEMAC_CPTS_REF
+_CLK
+TIMER5_CLKSEL[3:0]
+MAIN_PLL1_HSDIV3_CL
+KOUT
+TIMER5_CLKSEL[3:0]
+MAIN_PLL2_HSDIV6_CL
+KOUT
+TIMER5_CLKSEL[3:0]
+TIMER6
+TIMER_ICLK
+MAIN_SYSCLK0/4
+TIMER6 Interface Clock
+TIMER_FCLK
+HFOSC0_CLKOUT
+TIMER6_CLKSEL[3:0]
+TIMER6 Functional Clock
+DEVICE_CLKOUT_32K
+TIMER6_CLKSEL[3:0]
+DEVICE_CLKOUT_32K_
+CTRL[1:0]
+CPSW0.CPTS_GENF0
+TIMER6_CLKSEL[3:0]
+CPSW0.CPTS_GENF1
+TIMER6_CLKSEL[3:0]
+MAIN_PLL0_HSDIV7_CL
+KOUT
+TIMER6_CLKSEL[3:0]
+CLK_12M_RC
+TIMER6_CLKSEL[3:0]
+MCU_EXT_REFCLK0
+TIMER6_CLKSEL[3:0]
+EXT_REFCLK1
+TIMER6_CLKSEL[3:0]
+CP_GEMAC_CPTS_REF
+_CLK
+TIMER6_CLKSEL[3:0]
+MAIN_PLL1_HSDIV3_CL
+KOUT
+TIMER6_CLKSEL[3:0]
+MAIN_PLL2_HSDIV6_CL
+KOUT
+TIMER6_CLKSEL[3:0]
+=== Page 188 ===
+Table 4-151. Timer Clocks (continued)
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+TIMER7
+TIMER_ICLK
+MAIN_SYSCLK0/4
+TIMER7 Interface Clock
+TIMER_FCLK
+HFOSC0_CLKOUT
+TIMER7_CLKSEL[3:0]
+TIMER7 Functional Clock
+DEVICE_CLKOUT_32K
+TIMER7_CLKSEL[3:0]
+DEVICE_CLKOUT_32K_
+CTRL[1:0]
+CPSW0.CPTS_GENF0
+TIMER7_CLKSEL[3:0]
+CPSW0.CPTS_GENF1
+TIMER7_CLKSEL[3:0]
+MAIN_PLL0_HSDIV7_CL
+KOUT
+TIMER7_CLKSEL[3:0]
+CLK_12M_RC
+TIMER7_CLKSEL[3:0]
+MCU_EXT_REFCLK0
+TIMER7_CLKSEL[3:0]
+EXT_REFCLK1
+TIMER7_CLKSEL[3:0]
+CP_GEMAC_CPTS_REF
+_CLK
+TIMER7_CLKSEL[3:0]
+MAIN_PLL1_HSDIV3_CL
+KOUT
+TIMER7_CLKSEL[3:0]
+MAIN_PLL2_HSDIV6_CL
+KOUT
+TIMER7_CLKSEL[3:0]
+WKUP_TIMER0
+TIMER_ICLK
+DM_CLK/2
+WKUP_CLKSEL[0:0]
+WKUP_TIMER0 Interface
+Clock
+TIMER_FCLK
+HFOSC0_CLKOUT
+WKUP_TIMER0_CLKSEL[
+2:0]
+WKUP_TIMER0
+Functional Clock
+DM_CLK/2
+WKUP_TIMER0_CLKSEL[
+2:0]
+WKUP_CLKSEL[0:0]
+CLK_12M_RC
+WKUP_TIMER0_CLKSEL[
+2:0]
+MCU_PLL0_HSDIV3_CLK
+OUT
+WKUP_TIMER0_CLKSEL[
+2:0]
+MCU_EXT_REFCLK0
+WKUP_TIMER0_CLKSEL[
+2:0]
+DEVICE_CLKOUT_32K
+WKUP_TIMER0_CLKSEL[
+2:0]
+DEVICE_CLKOUT_32K_
+CTRL[1:0]
+CPSW0.CPTS_GENF0
+WKUP_TIMER0_CLKSEL[
+2:0]
+CLK_32K_RC
+WKUP_TIMER0_CLKSEL[
+2:0]
+=== Page 189 ===
+Table 4-151. Timer Clocks (continued)
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+WKUP_TIMER1
+TIMER_ICLK
+DM_CLK/2
+WKUP_CLKSEL[0:0]
+WKUP_TIMER1 Interface
+Clock
+TIMER_FCLK
+HFOSC0_CLKOUT
+WKUP_TIMER1_CLKSEL[
+2:0]
+WKUP_TIMER1
+Functional Clock
+DM_CLK/2
+WKUP_TIMER1_CLKSEL[
+2:0]
+WKUP_CLKSEL[0:0]
+CLK_12M_RC
+WKUP_TIMER1_CLKSEL[
+2:0]
+MCU_PLL0_HSDIV3_CLK
+OUT
+WKUP_TIMER1_CLKSEL[
+2:0]
+MCU_EXT_REFCLK0
+WKUP_TIMER1_CLKSEL[
+2:0]
+DEVICE_CLKOUT_32K
+WKUP_TIMER1_CLKSEL[
+2:0]
+DEVICE_CLKOUT_32K_
+CTRL[1:0]
+CPSW0.CPTS_GENF0
+WKUP_TIMER1_CLKSEL[
+2:0]
+CLK_32K_RC
+WKUP_TIMER1_CLKSEL[
+2:0]
+=== Page 190 ===

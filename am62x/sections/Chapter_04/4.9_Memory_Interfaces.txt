@@ -1,0 +1,574 @@
+4.9 Memory Interfaces
+4.9.1 Flash Subsystem (FSS)
+This section contains the integration details for the Flash Subsystem on this device. For Further information, see
+the Flash Subsystem (FSS) section of the Peripherals chapter
+4.9.1.1 FSS Unsupported Features
+For more information, see Section 4.9.2.1, OSPI Not Supported Features.
+4.9.1.2 Module Allocations
+Table 4-77. FSS Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+FSS0
+✓
+4.9.1.3 Resets, Interrupts, and Clocks
+Table 4-78. FSS Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+Table 4-79. FSS Resets
+Module Instance
+Source
+Description
+FSS0
+PSC0_PSC_0
+FSS0 reset
+Table 4-80. FSS Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+Table 4-81. FSS Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+=== Page 152 ===
+4.9.2 Octal Serial Peripheral Interface (OSPI)
+This section contains the integration details for the OSPI module on this device. For Further information, see the
+Octal Serial Peripheral Interface (OSPI) section of the Peripherals chapter
+4.9.2.1 OSPI Unsupported Features
+The following features are not supported on this family of devices:
+•
+OSPI PDMA. Use CPU-triggered block DMA
+•
+OSPI Clock Phase/Polarity Modes 1,2,3
+•
+Reset Pins OSPI0_RESET_OUT2, OSPI0_RESET_OUT3
+4.9.2.2 Module Allocations
+Table 4-82. OSPI Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+FSS0_OSPI_0
+✓
+4.9.2.3 Resets, Interrupts, and Clocks
+Table 4-83. OSPI Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+Table 4-84. OSPI Resets
+Module Instance
+Source
+Description
+Table 4-85. OSPI Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+FSS0_OSPI_0
+FSS0_OSPI_0_ospi_
+ecc_corr_lvl_intr_0
+ESM0_esm_lvl_event
+_IN_11
+ESM0
+FSS0_OSPI_0
+interrupt request
+level
+FSS0_OSPI_0
+FSS0_OSPI_0_ospi_
+ecc_uncorr_lvl_intr_0
+ESM0_esm_lvl_event
+_IN_74
+ESM0
+FSS0_OSPI_0
+interrupt request
+level
+FSS0_OSPI_0
+FSS0_OSPI_0_ospi_l
+vl_intr_0
+GICSS0_spi_IN_171
+GICSS0
+FSS0_OSPI_0
+interrupt request
+level
+FSS0_OSPI_0
+FSS0_OSPI_0_ospi_l
+vl_intr_0
+ICSSM0_pr1_slv_intr
+_IN_26
+ICSSM0
+FSS0_OSPI_0
+interrupt request
+level
+FSS0_OSPI_0
+FSS0_OSPI_0_ospi_l
+vl_intr_0
+R5FSS0_CORE0_intr
+_IN_171
+R5FSS0_CORE0
+FSS0_OSPI_0
+interrupt request
+level
+FSS0_OSPI_0
+FSS0_OSPI_0_ospi_l
+vl_intr_0
+TIFS0_nvic_IN_224
+TIFS0
+FSS0_OSPI_0
+interrupt request
+level
+FSS0_OSPI_0
+FSS0_OSPI_0_ospi_l
+vl_intr_0
+HSM0_nvic_IN_224
+HSM0
+FSS0_OSPI_0
+interrupt request
+level
+=== Page 153 ===
+Table 4-86. OSPI Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+FSS0_OSPI_0
+HCLK
+MAIN_SYSCLK0
+FSS0_OSPI_0 Data
+Transfer Clock
+PCLK
+MAIN_SYSCLK0
+FSS0_OSPI_0
+Configuration clock
+RCLK
+MAIN_PLL0_HSDIV1_CL
+KOUT
+OSPI0_CLKSEL[0:0]
+FSS0_OSPI_0 Reference
+Clock
+MAIN_PLL1_HSDIV5_CL
+KOUT
+OSPI0_CLKSEL[0:0]
+=== Page 154 ===
+4.9.3 General-Purpose Memory Controller (GPMC)
+This section contains the integration details for the GPMC module on this device. For Further information, see
+the General-Purpose Memory Controller (GPMC) section of the Peripherals chapter
+4.9.3.1 GPMC Unsupported Features
+The following features are not supported on this family of devices:
+•
+Pins GPMC_CS[7:4]n are not pinned out
+•
+Pins GPMC_A[27:23] are not pinned out
+•
+Pins GPMC_AD[31:16] are not pinned out
+•
+Pins GPMC_WAIT[3:2] are not pinned out
+•
+Pins GPMC_BE[3:2]n are not pinned out
+4.9.3.2 Module Allocations
+Table 4-87. GPMC Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+GPMC0
+✓
+4.9.3.3 Resets, Interrupts, and Clocks
+Table 4-88. GPMC Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+GPMC0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_GPMC
+15
+OFF
+YES
+LPSC_MAIN_IP
+Table 4-89. GPMC Resets
+Module Instance
+Source
+Description
+GPMC0
+PSC0_PSC_0
+GPMC0 reset
+Table 4-90. GPMC Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+GPMC0
+GPMC0_gpmc_sdma
+req_0
+DMASS0_INTAGGR_
+0_intaggr_levi_pend_I
+N_26
+DMASS0_INTAGGR_
+0
+GPMC0 interrupt
+request
+level
+GPMC0
+GPMC0_gpmc_sinter
+rupt_0
+GICSS0_spi_IN_138
+GICSS0
+GPMC0 interrupt
+request
+level
+GPMC0
+GPMC0_gpmc_sinter
+rupt_0
+R5FSS0_CORE0_intr
+_IN_103
+R5FSS0_CORE0
+GPMC0 interrupt
+request
+level
+Table 4-91. GPMC Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+GPMC0
+FCLK
+MAIN_PLL0_HSDIV3_CL
+KOUT
+GPMC_CLKSEL[0:0]
+GPMC0 Functional Clock
+MAIN_PLL2_HSDIV7_CL
+KOUT
+GPMC_CLKSEL[0:0]
+ICLK
+MAIN_SYSCLK0/2
+GPMC0 Interface clock
+=== Page 155 ===
+4.9.4 Error Location Module (ELM)
+This section contains the integration details for the ELM module on this device. For Further information, see the
+Error Location Module (ELM) section of the Peripherals chapter
+4.9.4.1 ELM Unsupported Features
+The following features are not supported on this family of devices:
+•
+There are no unsupported features
+4.9.4.2 Module Allocations
+Table 4-92. ELM Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+ELM0
+✓
+4.9.4.3 Resets, Interrupts, and Clocks
+Table 4-93. ELM Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+ELM0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_GPMC
+15
+OFF
+YES
+LPSC_MAIN_IP
+Table 4-94. ELM Resets
+Module Instance
+Source
+Description
+ELM0
+PSC0_PSC_0
+ELM0 reset
+Table 4-95. ELM Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+ELM0
+ELM0_elm_porocpsin
+terrupt_lvl_0
+GICSS0_spi_IN_164
+GICSS0
+ELM0 interrupt
+request
+level
+ELM0
+ELM0_elm_porocpsin
+terrupt_lvl_0
+R5FSS0_CORE0_intr
+_IN_164
+R5FSS0_CORE0
+ELM0 interrupt
+request
+level
+Table 4-96. ELM Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+ELM0
+FICLK
+MAIN_SYSCLK0/4
+ELM0 Functional and
+Interface Clock
+=== Page 156 ===
+4.9.5 Multimedia Card Secure Digital (MMCSD)
+This section contains the integration details for the MMCSD module on this device. For Further information, see
+the Multimedia Card Secure Digital (MMCSD) section of the Peripherals chapter
+4.9.5.1 MMCSD Unsupported Features
+The following features are not supported on this family of devices:
+•
+The following apply to 4-bit MMCSD instances:
+•
+SD Card busy LED - Not pinned out
+•
+High Speed DDR
+•
+The following apply to 8-bit MMCSD instances:
+•
+SD Card busy LED - Not pinned out
+•
+SD/SDIO/MMC Cards (Removable) - no support for 4-pin/8-pin muxing
+•
+SD Card Detect Pin - Not pinned out
+•
+SD Card Write Protect Pin - Not pinned out
+•
+High Speed DDR
+4.9.5.2 Module Allocations
+Table 4-97. MMCSD Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+MMCSD1
+✓
+MMCSD2
+✓
+MMCSD0
+✓
+4.9.5.3 Resets, Interrupts, and Clocks
+Table 4-98. MMCSD Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+MMCSD0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_EMMC_
+8B
+20
+OFF
+YES
+LPSC_MAIN_IP
+MMCSD1
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_EMMC_
+4B_0
+21
+OFF
+YES
+LPSC_MAIN_IP
+MMCSD2
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_EMMC_
+4B_1
+22
+OFF
+YES
+LPSC_MAIN_IP
+Table 4-99. MMCSD Resets
+Module Instance
+Source
+Description
+MMCSD1
+PSC0_PSC_0
+MMCSD1 reset
+MMCSD2
+PSC0_PSC_0
+MMCSD2 reset
+MMCSD0
+PSC0_PSC_0
+MMCSD0 reset
+Table 4-100. MMCSD Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+MMCSD1
+MMCSD1_emmcsdss
+_intr_0
+GICSS0_spi_IN_115
+GICSS0
+MMCSD1 interrupt
+request
+level
+=== Page 157 ===
+Table 4-100. MMCSD Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+MMCSD1
+MMCSD1_emmcsdss
+_intr_0
+R5FSS0_CORE0_intr
+_IN_162
+R5FSS0_CORE0
+MMCSD1 interrupt
+request
+level
+MMCSD2
+MMCSD2_emmcsdss
+_intr_0
+GICSS0_spi_IN_114
+GICSS0
+MMCSD2 interrupt
+request
+level
+MMCSD2
+MMCSD2_emmcsdss
+_intr_0
+R5FSS0_CORE0_intr
+_IN_163
+R5FSS0_CORE0
+MMCSD2 interrupt
+request
+level
+MMCSD0
+MMCSD0_emmcsdss
+_intr_0
+GICSS0_spi_IN_165
+GICSS0
+MMCSD0 interrupt
+request
+level
+MMCSD0
+MMCSD0_emmcsdss
+_intr_0
+R5FSS0_CORE0_intr
+_IN_161
+R5FSS0_CORE0
+MMCSD0 interrupt
+request
+level
+Table 4-101. MMCSD Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+MMCSD1
+EMMCSDSS_VBUS_CLK
+MAIN_SYSCLK0/2
+EMMCSDSS_XIN_CLK
+MAIN_PLL0_HSDIV5_CL
+KOUT
+EMMC1_CLKSEL[0:0]
+MAIN_PLL2_HSDIV2_CL
+KOUT
+EMMC1_CLKSEL[0:0]
+MMCSD2
+EMMCSDSS_VBUS_CLK
+MAIN_SYSCLK0/2
+EMMCSDSS_XIN_CLK
+MAIN_PLL0_HSDIV5_CL
+KOUT
+EMMC2_CLKSEL[0:0]
+MAIN_PLL2_HSDIV2_CL
+KOUT
+EMMC2_CLKSEL[0:0]
+MMCSD0
+EMMCSDSS_VBUS_CLK
+MAIN_SYSCLK0/2
+EMMCSDSS_XIN_CLK
+MAIN_PLL0_HSDIV5_CL
+KOUT
+EMMC0_CLKSEL[0:0]
+MAIN_PLL2_HSDIV2_CL
+KOUT
+EMMC0_CLKSEL[0:0]
+=== Page 158 ===

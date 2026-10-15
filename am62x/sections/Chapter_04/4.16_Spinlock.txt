@@ -1,0 +1,74 @@
+4.16 Spinlock
+This section contains the integration details for the Spinlock module on this device. For Further information, see
+the Spinlock section of the Peripherals chapter
+4.16.1 SPINLOCK Unsupported Features
+The following features are not supported on this family of devices:
+•
+ARM Architectural Spinlock Instructions (LDREX,STREX)
+•
+Any use model other than binary mutex (ex. counting semaphore, lockless programming) - Spinlock MMR is
+a single binary 0,1 implemented by a state machine
+•
+64 bit accesses - Spinlock MMRs are aligned on 32-bit boundaries meaning a 64 bit access affects the state
+of 2 spinlocks
+4.16.2 Module Allocations
+Table 4-239. Spinlock Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+SPINLOCK0
+✓
+4.16.3 Resets, Interrupts, and Clocks
+Table 4-240. Spinlock Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+SPINLOCK0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_SMS_C
+OMMON
+27
+ON
+YES
+LPSC_MAIN_A
+LWAYSON
+Table 4-241. Spinlock Resets
+Module Instance
+Source
+Description
+SPINLOCK0
+PSC0
+SPINLOCK0 reset
+Table 4-242. Spinlock Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+SPINLOCK0
+NONE
+Table 4-243. Spinlock Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+SPINLOCK0
+VBUS_FCLK
+MAIN_PLL15_HSDIV0_C
+LKOUT/2

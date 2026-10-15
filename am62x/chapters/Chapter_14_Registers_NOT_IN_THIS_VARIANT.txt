@@ -1,0 +1,11 @@
+Chapter 14 - Registers
+======================
+
+This chapter is NOT present in the "noRegisters" variant of the AM62x TRM
+(SPRUIV7B).  Register descriptions were removed from this edition; the
+body text refers the reader to TI's online register supplements, e.g.
+  https://www.ti.com/lit/pdf/registers  (AM62x register reference)
+
+The printed table of contents still lists chapter 14 subsections
+(14.1 ... 14.8.x) with page numbers from the full TRM (with registers);
+those page numbers do not apply to this document.

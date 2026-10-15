@@ -1,0 +1,2311 @@
+Chapter 20 GPIO
+20
+
+20.1 Overview
+GPIO is a programmable General Purpose Programming I/O peripheral. This component is an
+APB slave device. GPIO controls the output data and direction of external I/O pads. It can
+also read back the data on external pads using memory-mapped registers.
+GPIO supports the following features:
+⚫ 32 bits APB data bus width
+⚫ Up to 32 independently configurable signals
+⚫ Software control registers with write mask for each bit of each signal
+⚫ Configurable debounce logic with a slow clock to debounce interrupts
+⚫ Configurable interrupt mode
+⚫ Two virtual OS with independent control registers can be supported
+⚫ In two virtual OS model, each OS has independent interrupt
+⚫ Not in two virtual OS model, two interrupts with priority can be set
+
+20.2 Block Diagram
+GPIO
+
+External Data
+I/O
+Port
+Interface
+
+APB
+
+xpins
+
+APB
+Interface
+Interrupt
+Detection
+
+Interrupt Request
+
+Fig. 20-1 GPIO Block Diagram
+GPIO is comprised of:
+⚫ APB Interface
+The APB Interface implements the APB slave operation. Its data bus width is 32 bits.
+⚫ I/O Port Interface
+External data interface to or from I/O pads.
+⚫ Interrupt Detection
+Interrupt interface to or from interrupt controller.
+
+20.3 Function Description
+20.3.1 Data Control
+
+Under software control, the data and direction control for the signal are sourced from the
+port data registers (GPIO_SWPORT_DR_L/GPIO_SWPORT_DR_H) and direction control
+registers (GPIO_SWPORT_DDR_L/GPIO_SWPORT_DRR_H).
+The direction of the external I/O pad is controlled by the value of the port data direction
+registers. The data written to these memory-mapped registers gets mapped onto an output
+signal (gpio_port_ddr) of the GPIO peripheral. This output signal controls the direction of an
+external I/O pad. The default data direction is Input.
+The data written to the port data registers drives the output buffer (gpio_port_dr) of the I/O
+pad.
+External data are input on the external data signal (gpio_ext_port). Reading the external
+signal register (GPIO_EXT_PORT) shows the value of this signal, regardless of the direction.
+This register is read-only, meaning that it cannot be written from the APB software interface.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1468
+
+RK3588 TRM-Part1
+
+20.3.2 Interrupts
+
+I/O port can be programmed to accept external signals as interrupt sources on any of the
+bits of the signal. The type of interrupt is programmable with one of the following settings:
+⚫ Active-high and level
+⚫ Active-low and level
+⚫ Rising edge
+⚫ Falling edge
+⚫ Both the rising edge and the falling edge
+The interrupts can be masked by programming the GPIO_INT_MASK_L/GPIO_INT_MASK_H
+registers. The interrupt status can be read before masking (GPIO_INT_RAWSTATUS) and
+after masking (GPIO_INT_STATUS).
+For edge-sensitive interrupts, the Interrupt Service Routine (ISR) can clear the interrupt by
+writing a 1 to the corresponding bit of the GPIO_PORT_EOI_L/GPIO_PORT_EOI_H registers.
+This write operation also clears the interrupt status and raw status registers. Writing to the
+interrupt clear registers has no effect on level-sensitive interrupts. If level-sensitive
+interrupts cause the processor to interrupt, then the ISR can poll the interrupt raw status
+register until the interrupt source disappears, or it can write to the interrupt mask register
+to mask the interrupt before exiting the ISR. If the ISR exits without masking or disabling
+the interrupt prior to exiting, then the level-sensitive interrupt repeatedly requests an
+interrupt until the interrupt is cleared at the source.
+The interrupts are combined into an active-high interrupt output signal. In order to mask the
+combined interrupt, all individual interrupts have to be masked. The single combined
+interrupt does not have its own mask bit.
+Whenever I/O port is configured for interrupts, the data direction must be set to Input. If
+the data direction is reprogrammed to Output, then any pending edge-sensitive interrupts
+are not lost. However, no new interrupts are generated, and level-sensitive interrupts are
+lost.
+Interrupt signals are internally synchronized to a system clock pclk_intr, which is connected
+to the APB bus clock pclk. Therefore, the pclk needs to be running for interrupt detection.
+
+20.3.3 Debounce Operation
+
+The external signal can be debounced to remove any spurious glitches that are less than one
+period of the external debouncing clock.
+When an input interrupt signal is debounced using a slow debounce clock (external input
+clock dbclk or internal divided clock dbclk_div), the signal must be active for a minimum of
+two cycles of the debounce clock to guarantee that it is registered. Any input pulse widths
+less than a debounce clock period are bounced. A pulse width between one and two
+debounce clock widths may or may not propagate, depending on its phase relationship to
+the debounce clock. If the input pulse spans two rising edges of the debounce clock, it is
+registered. If it spans only one rising edge, it is not registered.
+The debounce function can be controlled by programming the debounce enable registers
+(GPIO_DEBOUNCE_L/GPIO_DEBOUNCE_H), debounce clock divide enable registers
+(GPIO_DBCLK_DIV_EN_L/GPIO_DBCLK_DIV_EN_H) and debounce clock divide control
+register (GPIO_DBCLK_DIV_CON).
+
+20.3.4 Two OS Operation and Tow Interrupts
+
+To select this model, virtual enable register should be set(GPIO_VIRTUAL_EN). Then all the
+configure can be allotted to two OS（for example OS_A and OS_B). OS_A will use the
+original address offset, OS_B will use the offset + 0x1000. The 32 bit I/O port should also
+be allotted to the OS by setting reg group registers(GPIO_REG_GROUP_L and
+GPIO_REG_GROUP_H). Once reg group is set, the I/O operation can only be used by the
+setting address offset. Each OS has its own interrupt for I/O port, this is depended on reg
+group.
+If virtual enable register is disable, reg group can also be used to allotted I/O interrupt.
+These two independent interrupts may be used for priority interrupt setting.
+
+20.4 Register Description
+This section describes the control/status registers of the design. Software should read and
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1469
+
+RK3588 TRM-Part1
+write these registers using 32-bits accesses. There are five GPIOs (GPIO0 in PD_PMU,
+GPIO1/GPIO2/GPIO3/GPIO4 in PD_BUS), and each of them has same register group.
+Therefore, five GPIOs’ register groups have five different base addresses.
+
+20.4.1 Registers Summary
+GPIO_SWPORT_DR_L
+GPIO_SWPORT_DR_H
+GPIO_SWPORT_DDR_L
+
+0x0000
+0x0004
+0x0008
+
+W
+W
+W
+
+GPIO_SWPORT_DDR_H
+
+0x000C
+
+W
+
+GPIO_INT_EN_L
+GPIO_INT_EN_H
+GPIO_INT_MASK_L
+GPIO_INT_MASK_H
+GPIO_INT_TYPE_L
+GPIO_INT_TYPE_H
+GPIO_INT_POLARITY_L
+GPIO_INT_POLARITY_H
+
+0x0010
+0x0014
+0x0018
+0x001C
+0x0020
+0x0024
+0x0028
+0x002C
+
+W
+W
+W
+W
+W
+W
+W
+W
+
+GPIO_INT_BOTHEDGE_L
+
+0x0030
+
+W
+
+GPIO_INT_BOTHEDGE_H
+
+0x0034
+
+W
+
+GPIO_DEBOUNCE_L
+GPIO_DEBOUNCE_H
+
+0x0038
+0x003C
+
+W
+W
+
+GPIO_DBCLK_DIV_EN_L
+
+0x0040
+
+W
+
+GPIO_DBCLK_DIV_EN_H
+
+0x0044
+
+W
+
+GPIO_DBCLK_DIV_CON
+GPIO_INT_STATUS
+GPIO_INT_RAWSTATUS
+GPIO_PORT_EOI_L
+GPIO_PORT_EOI_H
+GPIO_EXT_PORT
+GPIO_VER_ID
+GPIO_GPIO_REG_GROUP
+_L
+GPIO_GPIO_REG_GROUP
+_H
+GPIO_GPIO_VIRTUAL_EN
+
+0x0048
+0x0050
+0x0058
+0x0060
+0x0064
+0x0070
+0x0078
+
+W
+W
+W
+W
+W
+W
+W
+
+Reset
+Description
+Value
+0x00000000 Port Data Register (Low)
+0x00000000 Port Data Register (High)
+0x00000000 Port Data Direction Register (Low)
+Port Data Direction Register
+0x00000000
+(High)
+0x00000000 Interrupt Enable Register (Low)
+0x00000000 Interrupt Enable Register (High)
+0x00000000 Interrupt Mask Register (Low)
+0x00000000 Interrupt Mask Register (High)
+0x00000000 Interrupt Level Register (Low)
+0x00000000 Interrupt Level Register (High)
+0x00000000 Interrupt Polarity Register (Low)
+0x00000000 Interrupt Polarity Register (High)
+Interrupt Both Edge Type Register
+0x00000000
+(Low)
+Interrupt Both Edge Type Register
+0x00000000
+(High)
+0x00000000 Debounce Enable Register (Low)
+0x00000000 Debounce Enable Register (High)
+DBCLK Divide Enable Register
+0x00000000
+(Low)
+DBCLK Divide Enable Register
+0x00000000
+(High)
+0x00000001 DBCLK Divide Control Register
+0x00000000 Interrupt Status Register
+0x00000000 Interrupt Raw Status Register
+0x00000000 Interrupt Clear Register (Low)
+0x00000000 Interrupt Clear Register (High)
+0x00000000 External Port Data Register
+0x0101157C Version ID Register
+
+0x0100
+
+W
+
+0x00000000 GPIO Group Control
+
+0x0104
+
+W
+
+0x0000FFFF GPIO Group Control
+
+0x0108
+
+W
+
+0x00000000 GPIO Virtual Enable
+
+Name
+
+Offset
+
+Size
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access WORD (64 bits) access
+
+20.4.2 Detail Registers Description
+
+GPIO_SWPORT_DR_L
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+write_mask
+Write enable for lower 16 bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1470
+
+RK3588 TRM-Part1
+Bit
+
+15:0
+
+Attr Reset Value
+
+RW 0x0000
+
+Description
+swport_dr_low
+Output data for the lower 16 bits of I/O Port, each bit is
+individual.
+1'b0: Low
+1'b1: High
+Values written to this register are output on the I/O signals for
+the lower 16 bits of I/O Port if the corresponding data direction
+bits for I/O Port are set to Output mode. The value read back is
+equal to the last value written to this register.
+
+GPIO_SWPORT_DR_H
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+write_mask
+Write enable for lower 16 bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+swport_dr_high
+Output data for the upper 16 bits of I/O Port, each bit is
+individual.
+1'b0: Low
+15:0 RW 0x0000
+1'b1: High
+Values written to this register are output on the I/O signals for
+the upper 16 bits of I/O Port if the corresponding data direction
+bits for I/O Port are set to Output mode. The value read back is
+equal to the last value written to this register.
+GPIO_SWPORT_DDR_L
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+Description
+write_mask
+Write enable for lower 16 bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+swport_ddr_low
+Data direction for the lower 16 bits of I/O Port, each bit is
+individual.
+15:0 RW 0x0000
+1'b0: Input
+1'b1: Output
+Values written to this register independently control the direction
+of the corresponding data bit in the lower 16 bits of I/O Port.
+GPIO_SWPORT_DDR_H
+Address: Operational Base + offset (0x000C)
+Bit Attr Reset Value
+Description
+write_mask
+Write enable for lower 16 bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1471
+
+RK3588 TRM-Part1
+Bit
+
+15:0
+
+Attr Reset Value
+
+RW 0x0000
+
+Description
+swport_ddr_high
+Data direction for the upper 16 bits of I/O Port, each bit is
+individual.
+1'b0: Input
+1'b1: Output
+Values written to this register independently control the direction
+of the corresponding data bit in the upper 16 bits of I/O Port.
+
+GPIO_INT_EN_L
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+Description
+write_mask
+Write enable for lower 16 bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+int_en_low
+Allows each bit of the lower 16 bits of I/O Port to be configured
+for interrupts.
+1'b0: Interrupt is disabled
+1'b1: Interrupt is enabled
+15:0 RW 0x0000
+Whenever a 1 is written to a bit of this register, it configures the
+corresponding bit on I/O Port to become an interrupt source;
+otherwise, I/O Port operates as a normal GPIO signal. Interrupts
+are disabled on the corresponding bits of I/O Port if the
+corresponding data direction register is set to Output.
+GPIO_INT_EN_H
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+Description
+write_mask
+Write enable for lower 16 bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+int_en_high
+Allows each bit of the upper 16 bits of I/O Port to be configured
+for interrupts.
+1'b0: Interrupt is disabled
+1'b1: Interrupt is enabled
+15:0 RW 0x0000
+Whenever a 1 is written to a bit of this register, it configures the
+corresponding bit on I/O Port to become an interrupt source;
+otherwise, I/O Port operates as a normal GPIO signal. Interrupts
+are disabled on the corresponding bits of I/O Port if the
+corresponding data direction register is set to Output.
+GPIO_INT_MASK_L
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+Description
+write_mask
+Write enable for lower 16 bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1472
+
+RK3588 TRM-Part1
+Bit
+
+15:0
+
+Attr Reset Value
+
+RW 0x0000
+
+Description
+int_mask_low
+Controls whether an interrupt on the lower 16 bits of I/O Port can
+create an interrupt for the interrupt controller by not masking it.
+1'b0: Interrupt is unmasked
+1'b1: Interrupt is masked
+Whenever a 1 is written to a bit in this register, it masks the
+interrupt generation capability for this signal; otherwise
+interrupts are allowed through.
+
+GPIO_INT_MASK_H
+Address: Operational Base + offset (0x001C)
+Bit Attr Reset Value
+Description
+write_mask
+Write enable for lower 16 bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+int_mask_high
+Controls whether an interrupt on the upper 16 bits of I/O Port can
+create an interrupt for the interrupt controller by not masking it.
+1'b0: Interrupt is unmasked
+15:0 RW 0x0000
+1'b1: Interrupt is masked
+Whenever a 1 is written to a bit in this register, it masks the
+interrupt generation capability for this signal; otherwise
+interrupts are allowed through.
+GPIO_INT_TYPE_L
+Address: Operational Base + offset (0x0020)
+Bit Attr Reset Value
+Description
+write_mask
+Write enable for lower 16 bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+int_type_low
+Controls the type of interrupt that can occur on the lower 16 bits
+of I/O Port.
+1'b0: Level-sensitive
+15:0 RW 0x0000
+1'b1: Edge-sensitive
+Whenever a 1 is written to a bit of this register, it configures the
+interrupt type to be edge-sensitive; otherwise, it is levelsensitive.
+GPIO_INT_TYPE_H
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+Description
+write_mask
+Write enable for lower 16 bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1473
+
+RK3588 TRM-Part1
+Bit
+
+15:0
+
+Attr Reset Value
+
+RW 0x0000
+
+Description
+int_type_high
+Controls the type of interrupt that can occur on the upper 16 bits
+of I/O Port.
+1'b0: Level-sensitive
+1'b1: Edge-sensitive
+Whenever a 1 is written to a bit of this register, it configures the
+interrupt type to be edge-sensitive; otherwise, it is levelsensitive.
+
+GPIO_INT_POLARITY_L
+Address: Operational Base + offset (0x0028)
+Bit Attr Reset Value
+Description
+write_mask
+Write enable for lower 16 bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+int_polarity_low
+Controls the polarity of edge or level sensitivity that can occur on
+the lower 16 bits of I/O Port.
+1'b0: Active-low
+15:0 RW 0x0000
+1'b1: Active-high
+Whenever a 1 is written to a bit of this register, it configures the
+interrupt type to rising-edge or active-high sensitive; otherwise,
+it is falling-edge or active-low sensitive.
+GPIO_INT_POLARITY_H
+Address: Operational Base + offset (0x002C)
+Bit Attr Reset Value
+Description
+write_mask
+Write enable for lower 16 bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+int_polarity_high
+Controls the polarity of edge or level sensitivity that can occur on
+the upper 16 bits of I/O Port.
+1'b0: Active-low
+15:0 RW 0x0000
+1'b1: Active-high
+Whenever a 1 is written to a bit of this register, it configures the
+interrupt type to rising-edge or active-high sensitive; otherwise,
+it is falling-edge or active-low sensitive.
+GPIO_INT_BOTHEDGE_L
+Address: Operational Base + offset (0x0030)
+Bit Attr Reset Value
+Description
+write_mask
+Write enable for lower 16 bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1474
+
+RK3588 TRM-Part1
+Bit
+
+15:0
+
+Attr Reset Value
+
+RW 0x0000
+
+Description
+int_bothedge_low
+Controls the edge type of interrupt that can occur on the lower 16
+bits of I/O Port.
+1'b0: Disable both-edge detection
+1'b1: Enable both-edge detection
+Whenever a particular bit is programmed to 1, it enables the
+generation of interrupts on both the rising edge and the falling
+edge of an external input signal corresponding to that bit on I/O
+Port. The values programmed in the registers int_type_low and
+int_polarity_low for this particular bit are not considered when
+the corresponding bit of this register is set to 1. Whenever a
+particular bit is programmed to 0, the interrupt type depends on
+the value of the corresponding bits in the int_type_low and
+int_polarity_low registers.
+
+GPIO_INT_BOTHEDGE_H
+Address: Operational Base + offset (0x0034)
+Bit Attr Reset Value
+Description
+write_mask
+Write enable for lower 16 bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+int_bothedge_high
+Controls the edge type of interrupt that can occur on the upper
+16 bits of I/O Port.
+1'b0: Disable both-edge detection
+1'b1: Enable both-edge detection
+Whenever a particular bit is programmed to 1, it enables the
+generation of interrupts on both the rising edge and the falling
+15:0 RW 0x0000
+edge of an external input signal corresponding to that bit on I/O
+Port. The values programmed in the registers int_type_high and
+int_polarity_high for this particular bit are not considered when
+the corresponding bit of this register is set to 1. Whenever a
+particular bit is programmed to 0, the interrupt type depends on
+the value of the corresponding bits in the int_type_high and
+int_polarity_high registers.
+GPIO_DEBOUNCE_L
+Address: Operational Base + offset (0x0038)
+Bit Attr Reset Value
+Description
+write_mask
+Write enable for lower 16 bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+debounce_low
+Controls whether an external signal of the lower 16 bits of I/O
+Port that is the source of an interrupt needs to be debounced to
+remove any spurious glitches.
+15:0 RW 0x0000
+1'b0: Disable debounce
+1'b1: Enable debounce
+Writing a 1 to a bit in this register enables the debouncing
+circuitry. A signal must be valid for two periods of an external
+clock before it is internally processed.
+GPIO_DEBOUNCE_H
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1475
+
+RK3588 TRM-Part1
+Address: Operational Base + offset (0x003C)
+Bit Attr Reset Value
+Description
+write_mask
+Write enable for lower 16 bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+debounce_high
+Controls whether an external signal of the lower 16 bits of I/O
+Port that is the source of an interrupt needs to be debounced to
+remove any spurious glitches.
+15:0 RW 0x0000
+1'b0: Disable debounce
+1'b1: Enable debounce
+Writing a 1 to a bit in this register enables the debouncing
+circuitry. A signal must be valid for two periods of an external
+clock before it is internally processed.
+GPIO_DBCLK_DIV_EN_L
+Address: Operational Base + offset (0x0040)
+Bit Attr Reset Value
+Description
+write_mask
+Write enable for lower 16 bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+dbclk_div_en_low
+Controls whether to use the internal divided clock when debounce
+function is enabled for an external signal of the lower 16 bits of
+I/O Port.
+1'b0: Disable divider for debounce clock
+1'b1: Enable divider for debounce clock
+15:0 RW 0x0000
+Whenever a 1 is written to a bit of this register, the clock divided
+from dbclk is used as debounce clock; otherwise, the original
+dbclk is used. The clock divide factor depends on the register
+dbclk_div_con. The values programmed in this register for this
+particular bit are not considered when the corresponding bit of
+the register debounce_low is set to 0.
+GPIO_DBCLK_DIV_EN_H
+Address: Operational Base + offset (0x0044)
+Bit Attr Reset Value
+Description
+write_mask
+Write enable for lower 16 bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+dbclk_div_en_high
+Controls whether to use the internal divided clock when debounce
+function is enabled for an external signal of the upper 16 bits of
+I/O Port.
+1'b0: Disable divider for debounce clock
+1'b1: Enable divider for debounce clock
+15:0 RW 0x0000
+Whenever a 1 is written to a bit of this register, the clock divided
+from dbclk is used as debounce clock; otherwise, the original
+dbclk is used. The clock divide factor depends on the register
+dbclk_div_con. The values programmed in this register for this
+particular bit are not considered when the corresponding bit of
+the register debounce_high is set to 0.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1476
+
+RK3588 TRM-Part1
+GPIO_DBCLK_DIV_CON
+Address: Operational Base + offset (0x0048)
+Bit Attr Reset Value
+Description
+31:24 RO 0x00
+reserved
+dbclk_div_con
+23:0 RW 0x000001
+dbclk_div = dbclk / (dbclk_div_con + 1)
+GPIO_INT_STATUS
+Address: Operational Base + offset (0x0050)
+Bit Attr Reset Value
+Description
+int_status
+31:0 RO 0x00000000
+Interrupt status of I/O Port.
+GPIO_INT_RAWSTATUS
+Address: Operational Base + offset (0x0058)
+Bit Attr Reset Value
+Description
+int_rawstatus
+31:0 RO 0x00000000
+Interrupt raw status of I/O Port (premasking bits).
+GPIO_PORT_EOI_L
+Address: Operational Base + offset (0x0060)
+Bit Attr Reset Value
+Description
+write_mask
+Write enable for lower 16 bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+port_eoi_low
+Controls the clearing of edge type interrupts from the lower 16
+bits of I/O Port.
+1'b0: Nothing
+R/W
+1'b1: Clear edge-sensitive interrupt
+15:0
+0x0000
+SC
+When a 1 is written into a corresponding bit of this register, the
+interrupt is cleared and the bit is self cleared at once. Writing to
+this register has no effect on level-sensitive interrupts. All
+interrupts are cleared when I/O Port is not configured for
+interrupts.
+GPIO_PORT_EOI_H
+Address: Operational Base + offset (0x0064)
+Bit Attr Reset Value
+Description
+write_mask
+Write enable for lower 16 bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+port_eoi_high
+Controls the clearing of edge type interrupts from the upper 16
+bits of I/O Port.
+1'b0: Nothing
+R/W
+1'b1: Clear edge-sensitive interrupt
+15:0
+0x0000
+SC
+When a 1 is written into a corresponding bit of this register, the
+interrupt is cleared and the bit is self cleared at once. Writing to
+this register has no effect on level-sensitive interrupts. All
+interrupts are cleared when I/O Port is not configured for
+interrupts.
+GPIO_EXT_PORT
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1477
+
+RK3588 TRM-Part1
+Address: Operational Base + offset (0x0070)
+Bit Attr Reset Value
+Description
+ext_port
+31:0 RO 0x00000000 This register always reflects the value of the signals on the
+external I/O Port.
+GPIO_VER_ID
+Address: Operational Base + offset (0x0078)
+Bit Attr Reset Value
+ver_id
+31:0 RO 0x0101157c
+Version ID.
+
+Description
+
+GPIO_GPIO_REG_GROUP_L
+Address: Operational Base + offset (0x0100)
+Bit Attr Reset Value
+Description
+write_mask
+Write enable for lower 16 bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+gpio_reg_group_low
+This register control the low 16 bit of GPIO and each bit
+corresponds each GPIO.
+When virtual_en=1'b1:
+15:0 RW 0x0000
+1'b1: GPIO control by OS_A with offset 0x0000
+1'b0: GPIO control by OS_B with offset 0x1000
+When virtual_en=1'b0:
+1'b1: GPIO interrupt connect to gpio_int_flag
+1'b0: GPIO interrupt connect to gpio_int_flag_exp
+GPIO_GPIO_REG_GROUP_H
+Address: Operational Base + offset (0x0104)
+Bit Attr Reset Value
+Description
+write_mask
+Write enable for lower 16 bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+gpio_reg_group_high
+This register control the high 16 bit of GPIO and each bit
+corresponds each GPIO.
+When virtual_en=1'b1:
+15:0 RW 0xffff
+1'b1: GPIO control by OS_A with offset 0x0000
+1'b0: GPIO control by OS_B with offset 0x1000
+When virtual_en=1'b0:
+1'b1: GPIO interrupt connect to gpio_int_flag
+1'b0: GPIO interrupt connect to gpio_int_flag_exp
+GPIO_GPIO_VIRTUAL_EN
+Address: Operational Base + offset (0x0108)
+Bit Attr Reset Value
+Description
+write_mask
+Write enable for lower 16 bits, each bit is individual.
+31:16 WO 0x0000
+1'b0: Write access disable
+1'b1: Write access enable
+15:1 RO 0x0000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1478
+
+RK3588 TRM-Part1
+Bit
+0
+
+Attr Reset Value
+RW 0x0
+
+Description
+gpio_virtual_en
+1'b1: Enable virtual, two OS supported
+1'b0: Disable virtual.
+
+20.5 Interface Description
+Table 20-1 GPIO Interface Description
+Module Pin
+
+Pad Name
+
+IOMUX Setting
+
+GPIO0 Interface
+gpio0_port[0]
+
+REFCLK_OUT/GPIO0_A0_d
+
+PMU1_IOC_GPIO0A_IOMU
+X_SEL_L[3:0]=4’b0
+
+TSADC_SHUT_ORG/TSADC_SHUT/GPIO0_A
+1_z
+
+PMU1_IOC_GPIO0A_IOMU
+X_SEL_L[7:4]=4’b0
+
+PMIC_SLEEP1/GPIO0_A2_d
+
+PMU1_IOC_GPIO0A_IOMU
+X_SEL_L[11:8]=4’b0
+
+PMIC_SLEEP2/GPIO0_A3_d
+
+PMU1_IOC_GPIO0A_IOMU
+X_SEL_L[15:12]=4’b0
+
+SDMMC_DET/GPIO0_A4_u
+
+PMU1_IOC_GPIO0A_IOMU
+X_SEL_H[3:0]=4’b0
+
+SPI2_CLK_M2/SDMMC_PWREN/PMU_DEBU
+G/GPIO0_A5_d
+
+PMU1_IOC_GPIO0A_IOMU
+X_SEL_H[7:4]=4’b0
+
+SPI2_MOSI_M2/I2C0_SDA_M0/GPIO0_A6_z
+
+PMU1_IOC_GPIO0A_IOMU
+X_SEL_H[11:8]=4’b0
+
+PMIC_INT_L/GPIO0_A7_u
+
+PMU1_IOC_GPIO0A_IOMU
+X_SEL_H[15:12]=4’b0
+
+gpio0_port[8]
+
+SPI2_CS1_M2/I2C1_SCL_M1/UART0_RX_M1
+/GPIO0_B0_z
+
+PMU1_IOC_GPIO0B_IOMU
+X_SEL_L[3:0]=4’b0
+
+gpio0_port[9]
+
+SPI2_CS0_M2/I2C1_SDA_M1/PWM5_M0/UA
+RT0_TX_M1/GPIO0_B1_z
+
+PMU1_IOC_GPIO0B_IOMU
+X_SEL_L[7:4]=4’b0
+
+CLK32K_IN/CLK32K_OUT0/GPIO0_B2_u
+
+PMU1_IOC_GPIO0B_IOMU
+X_SEL_L[11:8]=4’b0
+
+SPI2_MISO_M2/I2C0_SCL_M0/GPIO0_B3_z
+
+PMU1_IOC_GPIO0B_IOMU
+X_SEL_L[15:12]=4’b0
+
+gpio0_port[1]
+
+gpio0_port[2]
+
+gpio0_port[3]
+
+gpio0_port[4]
+
+gpio0_port[5]
+
+gpio0_port[6]
+
+gpio0_port[7]
+
+gpio0_port[10]
+
+gpio0_port[11]
+
+gpio0_port[13]
+
+I2S1_MCLK_M1/JTAG_TCK_M2/I2C1_SCL_M
+0/UART2_TX_M0/PCIE30X1_1_CLKREQN_M
+0/GPIO0_B5_d
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+PMU2_IOC_GPIO0B_IOMU
+X_SEL_H[7:4]=4’b0
+
+1479
+
+RK3588 TRM-Part1
+Module Pin
+
+Pad Name
+
+IOMUX Setting
+
+gpio0_port[14]
+
+I2S1_SCLK_M1/JTAG_TMS_M2/I2C1_SDA_M
+0/UART2_RX_M0/PCIE30X1_1_WAKEN_M0/
+GPIO0_B6_d
+
+PMU2_IOC_GPIO0B_IOMU
+X_SEL_H[11:8]=4’b0
+
+gpio0_port[15]
+
+I2S1_LRCK_M1/PWM0_M0/I2C2_SCL_M0/CA
+N0_TX_M0/SPI0_CS1_M0/PCIE30X1_1_PER
+STN_M0/GPIO0_B7_d
+
+PMU2_IOC_GPIO0B_IOMU
+X_SEL_H[15:12]=4’b0
+
+gpio0_port[16]
+
+PDM0_CLK0_M1/PWM1_M0/I2C2_SDA_M0/C
+AN0_RX_M0/SPI0_MOSI_M0/PCIE30X1_0_C
+LKREQN_M0/GPIO0_C0_d
+
+PMU2_IOC_GPIO0C_IOMU
+X_SEL_L[3:0]=4’b0
+
+gpio0_port[17]
+
+gpio0_port[18]
+
+gpio0_port[19]
+
+PMIC_SLEEP3/GPIO0_C1_d
+
+PMU2_IOC_GPIO0C_IOMU
+X_SEL_L[7:4]=4’b0
+
+PMIC_SLEEP4/GPIO0_C2_d
+
+PMU2_IOC_GPIO0C_IOMU
+X_SEL_L[11:8]=4’b0
+
+PMIC_SLEEP5/GPIO0_C3_d
+
+PMU2_IOC_GPIO0C_IOMU
+X_SEL_L[15:12]=4’b0
+
+gpio0_port[20]
+
+PDM0_CLK1_M1/PWM2_M0/UART0_RX_M0/I
+2C4_SDA_M2/DP0_HPDIN_M1/PCIE30X1_0_
+WAKEN_M0/GPIO0_C4_d
+
+PMU2_IOC_GPIO0C_IOMU
+X_SEL_H[3:0]=4’b0
+
+gpio0_port[21]
+
+I2S1_SDI0_M1/GPU_AVS/UART0_TX_M0/I2C
+4_SCL_M2/DP1_HPDIN_M1/PWM4_M0/PCIE
+30X1_0_PERSTN_M0/GPIO0_C5_u
+
+PMU2_IOC_GPIO0C_IOMU
+X_SEL_H[7:4]=4’b0
+
+gpio0_port[22]
+
+I2S1_SDI1_M1/NPU_AVS/UART0_RTSN/PW
+M5_M1/SPI0_CLK_M0/PCIE30X4_CLKREQN
+_M0/SATA_CP_POD/GPIO0_C6_u
+
+PMU2_IOC_GPIO0C_IOMU
+X_SEL_H[11:8]=4’b0
+
+gpio0_port[23]
+
+I2S1_SDI2_M1/PDM0_SDI0_M1/I2C6_SDA_M
+0/UART1_RTSN_M2/PWM6_M0/SPI0_MISO_
+M0/PCIE30X4_WAKEN_M0/GPIO0_C7_d
+
+PMU2_IOC_GPIO0C_IOMU
+X_SEL_H[15:12]=4’b0
+
+gpio0_port[24]
+
+I2S1_SDI3_M1/PDM0_SDI1_M1/I2C6_SCL_M
+0/UART1_CTSN_M2/PWM7_IR_M0/SPI3_MIS
+O_M2/PCIE30X4_PERSTN_M0/GPIO0_D0_d
+
+PMU2_IOC_GPIO0D_IOMU
+X_SEL_L[3:0]=4’b0
+
+gpio0_port[25]
+
+I2S1_SDO0_M1/CPU_BIG0_AVS/I2C0_SCL_
+M2/UART0_CTSN/UART1_TX_M2/HDMI_RX_
+SDA_M0/SPI0_CS0_M0/PCIE30X2_CLKREQ
+N_M0/HDMI_TX0_CEC_M1/GPIO0_D1_u
+
+PMU2_IOC_GPIO0D_IOMU
+X_SEL_L[7:4]=4’b0
+
+gpio0_port[26]
+
+I2S1_SDO1_M1/I2C0_SDA_M2/UART1_RX_
+M2/HDMI_RX_SCL_M0/SPI3_MOSI_M2/PCIE
+30X2_WAKEN_M0/HDMI_TX1_CEC_M1/GPI
+O0_D2_u
+
+PMU2_IOC_GPIO0D_IOMU
+X_SEL_L[11:8]=4’b0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1480
+
+RK3588 TRM-Part1
+Module Pin
+gpio0_port[27]
+
+Pad Name
+
+LITCPU_AVS/SPI3_CLK_M2/GPIO0_D3_u
+
+IOMUX Setting
+PMU2_IOC_GPIO0D_IOMU
+X_SEL_L[15:12]=4’b0
+
+gpio0_port[28]
+
+I2S1_SDO2_M1/PDM0_SDI2_M1/PWM3_IR_
+M0/I2C1_SCL_M2/CAN2_RX_M1/HDMI_TX0_
+SDA_M1/SPI3_CS0_M2/PCIE30X2_PERSTN_
+M0/SATA_CPDET/GPIO0_D4_u
+
+PMU2_IOC_GPIO0D_IOMU
+X_SEL_H[3:0]=4’b0
+
+gpio0_port[29]
+
+I2S1_SDO3_M1/CPU_BIG1_AVS/I2C1_SDA_
+M2/CAN2_TX_M1/HDMI_TX0_SCL_M1/SPI3_
+CS1_M2/SATA_MP_SWITCH/GPIO0_D5_u
+
+PMU2_IOC_GPIO0D_IOMU
+X_SEL_H[7:4]=4’b0
+
+gpio0_port[30]
+
+PMIC_SLEEP6/PDM0_SDI3_M1/GPIO0_D6_d
+
+PMU2_IOC_GPIO0D_IOMU
+X_SEL_H[11:8]=4’b0
+
+GPIO1 Interface
+gpio1_port[0]
+
+PCIE30X1_1_CLKREQN_M2/DP0_HPDIN_M2
+/I2C2_SDA_M4/UART6_RX_M1/SPI4_MISO_
+M2/GPIO1_A0_d
+
+BUS_IOC_GPIO1A_IOMUX_
+SEL_L[3:0]=4’b0
+
+gpio1_port[1]
+
+PCIE30X1_1_WAKEN_M2/DP1_HPDIN_M2/S
+ATA1_ACT_LED_M1/I2C2_SCL_M4/UART6_T
+X_M1/SPI4_MOSI_M2/GPIO1_A1_d
+
+BUS_IOC_GPIO1A_IOMUX_
+SEL_L[7:4]=4’b0
+
+gpio1_port[2]
+
+VOP_POST_EMPTY/I2C4_SDA_M3/UART6_
+RTSN_M1/PWM0_M2/SPI4_CLK_M2/GPIO1_
+A2_d
+
+BUS_IOC_GPIO1A_IOMUX_
+SEL_L[11:8]=4’b0
+
+gpio1_port[3]
+
+HDMI_TX1_SDA_M2/I2C4_SCL_M3/UART6_
+CTSN_M1/PWM1_M2/SPI4_CS0_M2/GPIO1_
+A3_d
+
+BUS_IOC_GPIO1A_IOMUX_
+SEL_L[15:12]=4’b0
+
+gpio1_port[4]
+
+HDMI_TX1_SCL_M2/SPI2_MISO_M0/GPIO1_
+A4_d
+
+BUS_IOC_GPIO1A_IOMUX_
+SEL_H[3:0]=4’b0
+
+gpio1_port[5]
+
+HDMI_TX0_HPD_M0/SPI2_MOSI_M0/GPIO1_
+A5_d
+
+BUS_IOC_GPIO1A_IOMUX_
+SEL_H[7:4]=4’b0
+
+gpio1_port[6]
+
+HDMI_TX1_HPD_M0/SPI2_CLK_M0/GPIO1_A
+6_d
+
+BUS_IOC_GPIO1A_IOMUX_
+SEL_H[11:8]=4’b0
+
+gpio1_port[7]
+
+PDM1_SDI0_M1/PCIE30X1_1_PERSTN_M2/P
+WM3_IR_M3/SPI2_CS0_M0/GPIO1_A7_u
+
+BUS_IOC_GPIO1A_IOMUX_
+SEL_H[15:12]=4’b0
+
+gpio1_port[8]
+
+PDM1_SDI1_M1/PCIE30X4_CLKREQN_M3/S
+PI2_CS1_M0/GPIO1_B0_u
+
+BUS_IOC_GPIO1B_IOMUX_
+SEL_L[3:0]=4’b0
+
+gpio1_port[9]
+
+PDM1_SDI2_M1/PCIE30X4_WAKEN_M3/SPI0
+_MISO_M2/GPIO1_B1_d
+
+BUS_IOC_GPIO1B_IOMUX_
+SEL_L[7:4]=4’b0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1481
+
+RK3588 TRM-Part1
+Module Pin
+
+Pad Name
+
+IOMUX Setting
+
+gpio1_port[10]
+
+PDM1_SDI3_M1/PCIE30X4_PERSTN_M3/UA
+RT4_RX_M2/SPI0_MOSI_M2/GPIO1_B2_d
+
+BUS_IOC_GPIO1B_IOMUX_
+SEL_L[11:8]=4’b0
+
+gpio1_port[11]
+
+PDM1_CLK1_M1/PCIE30X1_0_WAKEN_M2/S
+ATA0_ACT_LED_M1/UART4_TX_M2/SPI0_C
+LK_M2/GPIO1_B3_d
+
+BUS_IOC_GPIO1B_IOMUX_
+SEL_L[15:12]=4’b0
+
+gpio1_port[12]
+
+PDM1_CLK0_M1/PCIE30X1_0_PERSTN_M2/
+UART7_RX_M2/SPI0_CS0_M2/GPIO1_B4_u
+
+BUS_IOC_GPIO1B_IOMUX_
+SEL_H[3:0]=4’b0
+
+gpio1_port[13]
+
+PCIE30X1_0_CLKREQN_M2/UART7_TX_M2/
+SPI0_CS1_M2/GPIO1_B5_u
+
+BUS_IOC_GPIO1B_IOMUX_
+SEL_H[7:4]=4’b0
+
+gpio1_port[14]
+
+MIPI_CAMERA1_CLK_M0/SPDIF0_TX_M0/P
+CIE30X2_WAKEN_M3/HDMI_RX_HPDOUT_
+M2/I2C5_SCL_M3/UART1_TX_M1/GPIO1_B6
+_d
+
+BUS_IOC_GPIO1B_IOMUX_
+SEL_H[11:8]=4’b0
+
+gpio1_port[15]
+
+MIPI_CAMERA2_CLK_M0/SPDIF1_TX_M0/P
+CIE30X2_PERSTN_M3/HDMI_RX_CEC_M2/S
+ATA2_ACT_LED_M1/I2C5_SDA_M3/UART1_
+RX_M1/PWM13_M2/GPIO1_B7_u
+
+BUS_IOC_GPIO1B_IOMUX_
+SEL_H[15:12]=4’b0
+
+gpio1_port[16]
+
+I2C3_SDA_M0/UART3_RX_M0/SPI4_MISO_M
+0/GPIO1_C0_z
+
+BUS_IOC_GPIO1C_IOMUX
+_SEL_L[3:0]=4’b0
+
+gpio1_port[17]
+
+I2C3_SCL_M0/UART3_TX_M0/SPI4_MOSI_M
+0/GPIO1_C1_z
+
+BUS_IOC_GPIO1C_IOMUX
+_SEL_L[7:4]=4’b0
+
+gpio1_port[18]
+
+I2S0_MCLK/I2C6_SDA_M1/UART3_RTSN/PW
+M3_IR_M2/SPI4_CLK_M0/GPIO1_C2__d
+
+BUS_IOC_GPIO1C_IOMUX
+_SEL_L[11:8]=4’b0
+
+gpio1_port[19]
+
+I2S0_SCLK/I2C6_SCL_M1/UART3_CTSN/PW
+M7_IR_M2/SPI4_CS0_M0/GPIO1_C3_d
+
+BUS_IOC_GPIO1C_IOMUX
+_SEL_L[15:12]=4’b0
+
+gpio1_port[20]
+
+PDM0_CLK1_M0/I2C2_SDA_M3/PWM11_IR_
+M2/SPI4_CS1_M0/GPIO1_C4_d
+
+BUS_IOC_GPIO1C_IOMUX
+_SEL_H[3:0]=4’b0
+
+gpio1_port[21]
+
+I2S0_LRCK/I2C2_SCL_M3/UART4_RTSN/GPI
+O1_C5_d
+
+BUS_IOC_GPIO1C_IOMUX
+_SEL_H[7:4]=4’b0
+
+gpio1_port[22]
+
+PDM0_CLK0_M0/I2C4_SDA_M4/PWM15_IR_
+M2/GPIO1_C6_d
+
+BUS_IOC_GPIO1C_IOMUX
+_SEL_H[11:8]=4’b0
+
+gpio1_port[23]
+
+I2S0_SDO0/I2C4_SCL_M4/UART4_CTSN/GPI
+O1_C7_d
+
+BUS_IOC_GPIO1C_IOMUX
+_SEL_H[15:12]=4’b0
+
+gpio1_port[24]
+
+I2S0_SDO1/I2C7_SCL_M0/UART6_TX_M2/S
+PI1_MISO_M2/GPIO1_D0_d
+
+BUS_IOC_GPIO1D_IOMUX
+_SEL_L[3:0]=4’b0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1482
+
+RK3588 TRM-Part1
+Module Pin
+
+Pad Name
+
+IOMUX Setting
+
+gpio1_port[25]
+
+I2S0_SDO2/I2S0_SDI3/PDM0_SDI1_M0/I2C7
+_SDA_M0/UART6_RX_M2/SPI1_MOSI_M2/G
+PIO1_D1_d
+
+BUS_IOC_GPIO1D_IOMUX
+_SEL_L[7:4]=4’b0
+
+gpio1_port[26]
+
+I2S0_SDO3/I2S0_SDI2/PDM0_SDI2_M0/I2C1
+_SCL_M4/UART4_TX_M0/PWM0_M1/SPI1_C
+LK_M2/GPIO1_D2_d
+
+BUS_IOC_GPIO1D_IOMUX
+_SEL_L[11:8]=4’b0
+
+gpio1_port[27]
+
+I2S0_SDI1/PDM0_SDI3_M0/I2C1_SDA_M4/U
+ART4_RX_M0/PWM1_M1/SPI1_CS0_M2/GPI
+O1_D3_d
+
+BUS_IOC_GPIO1D_IOMUX
+_SEL_L[15:12]=4’b0
+
+gpio1_port[28]
+
+gpio1_port[29]
+
+I2S0_SDI0/GPIO1_D4_d
+
+BUS_IOC_GPIO1D_IOMUX
+_SEL_H[3:0]=4’b0
+
+PDM0_SDI0_M0/SPI1_CS1_M2/GPIO1_D5_d
+
+BUS_IOC_GPIO1D_IOMUX
+_SEL_H[7:4]=4’b0
+
+gpio1_port[30]
+
+MIPI_CAMERA3_CLK_M0/HDMI_RX_SCL_M
+2/I2C8_SCL_M2/UART1_RTSN_M1/PWM14_
+M2/GPIO1_D6_u
+
+BUS_IOC_GPIO1D_IOMUX
+_SEL_H[11:8]=4’b0
+
+gpio1_port[31]
+
+MIPI_CAMERA4_CLK_M0/PCIE30X2_CLKRE
+QN_M3/HDMI_RX_SDA_M2/I2C8_SDA_M2/U
+ART1_CTSN_M1/PWM15_IR_M3/GPIO1_D7_
+u
+
+BUS_IOC_GPIO1C_IOMUX
+_SEL_H[15:12]=4’b0
+
+GPIO2 Interface
+gpio2_port[0]
+
+EMMC_CMD/FSPI_CLK_M0/GPIO2_A0_u
+
+BUS_IOC_GPIO2A_IOMUX_
+SEL_L[3:0]=4’b0
+
+EMMC_CLKOUT/GPIO2_A1_d
+
+BUS_IOC_GPIO2A_IOMUX_
+SEL_L[7:4]=4’b0
+
+gpio2_port[2]
+
+EMMC_DATA_STROBE/I2C2_SDA_M2/UART
+5_CTSN_M1/GPIO2_A2_d
+
+BUS_IOC_GPIO2A_IOMUX_
+SEL_L[11:8]=4’b0
+
+gpio2_port[3]
+
+EMMC_RSTN/I2C2_SCL_M2/UART5_RTSN_
+M1/GPIO2_A3_d
+
+BUS_IOC_GPIO2A_IOMUX_
+SEL_L[15:12]=4’b0
+
+gpio2_port[6]
+
+GMAC0_RXD2/SDIO_D0_M0/FSPI_D0_M1/U
+ART6_RX_M0/GPIO2_A6_u
+
+BUS_IOC_GPIO2A_IOMUX_
+SEL_H[11:8]=4’b0
+
+gpio2_port[7]
+
+GMAC0_RXD3/SDIO_D1_M0/FSPI_D1_M1/U
+ART6_TX_M0/GPIO2_A7_u
+
+BUS_IOC_GPIO2A_IOMUX_
+SEL_H[15:12]=4’b0
+
+gpio2_port[8]
+
+GMAC0_RXCLK/SDIO_D2_M0/FSPI_D2_M1/I
+2C8_SCL_M1/UART6_RTSN_M0/GPIO2_B0_
+u
+
+BUS_IOC_GPIO2B_IOMUX_
+SEL_L[3:0]=4’b0
+
+gpio2_port[1]
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1483
+
+RK3588 TRM-Part1
+Module Pin
+
+Pad Name
+
+IOMUX Setting
+
+gpio2_port[9]
+
+GMAC0_TXD2/SDIO_D3_M0/FSPI_D3_M1/I2
+C8_SDA_M1/UART6_CTSN_M0/GPIO2_B1_u
+
+BUS_IOC_GPIO2B_IOMUX_
+SEL_L[7:4]=4’b0
+
+gpio2_port[10]
+
+GMAC0_TXD3/SDIO_CMD_M0/I2C3_SCL_M3
+/GPIO2_B2_u
+
+BUS_IOC_GPIO2B_IOMUX_
+SEL_L[11:8]=4’b0
+
+gpio2_port[11]
+
+GMAC0_TXCLK/SDIO_CLK_M0/FSPI_CLK_M
+1/I2C3_SDA_M3/GPIO2_B3_d
+
+BUS_IOC_GPIO2B_IOMUX_
+SEL_L[15:12]=4’b0
+
+gpio2_port[12]
+
+GMAC0_PTP_REFCLK/FSPI_CS0N_M1/HDMI
+_TX1_SDA_M0/I2C4_SDA_M1/UART7_RX_M
+0/GPIO2_B4_u
+
+BUS_IOC_GPIO2B_IOMUX_
+SEL_H[3:0]=4’b0
+
+gpio2_port[13]
+
+GMAC0_PPSTRING/FSPI_CS1N_M1/HDMI_T
+X1_SCL_M0/I2C4_SCL_M1/UART7_TX_M0/G
+PIO2_B5_u
+
+BUS_IOC_GPIO2B_IOMUX_
+SEL_H[7:4]=4’b0
+
+gpio2_port[14]
+
+GMAC0_TXD0/I2S2_MCLK_M0/I2C5_SCL_M
+4/UART1_RX_M0/GPIO2_B6_d
+
+BUS_IOC_GPIO2B_IOMUX_
+SEL_H[11:8]=4’b0
+
+gpio2_port[15]
+
+GMAC0_TXD1/I2S2_SCLK_M0/I2C5_SDA_M4
+/UART1_TX_M0/GPIO2_B7_d
+
+BUS_IOC_GPIO2B_IOMUX_
+SEL_H[15:12]=4’b0
+
+gpio2_port[16]
+
+GMAC0_RXCLK/SDIO_D2_M0/FSPI_D2_M1/I
+2C8_SCL_M1/UART6_RTSN_M0/GPIO2_B0_
+u
+
+BUS_IOC_GPIO2C_IOMUX
+_SEL_L[3:0]=4’b0
+
+gpio2_port[17]
+
+GMAC0_TXD2/SDIO_D3_M0/FSPI_D3_M1/I2
+C8_SDA_M1/UART6_CTSN_M0/GPIO2_B1_u
+
+BUS_IOC_GPIO2C_IOMUX
+_SEL_L[7:4]=4’b0
+
+gpio2_port[18]
+
+GMAC0_TXD3/SDIO_CMD_M0/I2C3_SCL_M3
+/GPIO2_B2_u
+
+BUS_IOC_GPIO2C_IOMUX
+_SEL_L[11:8]=4’b0
+
+gpio2_port[19]
+
+GMAC0_TXCLK/SDIO_CLK_M0/FSPI_CLK_M
+1/I2C3_SDA_M3/GPIO2_B3_d
+
+BUS_IOC_GPIO2C_IOMUX
+_SEL_L[15:12]=4’b0
+
+gpio2_port[20]
+
+GMAC0_PTP_REFCLK/FSPI_CS0N_M1/HDMI
+_TX1_SDA_M0/I2C4_SDA_M1/UART7_RX_M
+0/GPIO2_B4_u
+
+BUS_IOC_GPIO2C_IOMUX
+_SEL_H[3:0]=4’b0
+
+gpio2_port[21]
+
+GMAC0_PPSTRING/FSPI_CS1N_M1/HDMI_T
+X1_SCL_M0/I2C4_SCL_M1/UART7_TX_M0/G
+PIO2_B5_u
+
+BUS_IOC_GPIO2C_IOMUX
+_SEL_H[7:4]=4’b0
+
+gpio2_port[22]
+
+gpio2_port[25]
+
+EMMC_D0/FSPI_D0_M0/GPIO2_D0_u
+
+BUS_IOC_GPIO2D_IOMUX
+_SEL_L[3:0]=4’b0
+
+EMMC_D1/FSPI_D1_M0/GPIO2_D1_u
+
+BUS_IOC_GPIO2D_IOMUX
+_SEL_L[7:4]=4’b0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1484
+
+RK3588 TRM-Part1
+Module Pin
+gpio2_port[26]
+
+Pad Name
+
+IOMUX Setting
+
+EMMC_D2/FSPI_D2_M0/GPIO2_D2_u
+
+BUS_IOC_GPIO2D_IOMUX
+_SEL_L[11:8]=4’b0
+
+EMMC_D3/FSPI_D3_M0/GPIO2_D3_u
+
+BUS_IOC_GPIO2D_IOMUX
+_SEL_L[15:12]=4’b0
+
+gpio2_port[28]
+
+EMMC_D4/I2C1_SCL_M3/UART5_RX_M2/GP
+IO2_D4_u
+
+BUS_IOC_GPIO2D_IOMUX
+_SEL_H[3:0]=4’b0
+
+gpio2_port[29]
+
+EMMC_D5/I2C1_SDA_M3/UART5_TX_M2/GP
+IO2_D5_u
+
+BUS_IOC_GPIO2D_IOMUX
+_SEL_H[7:4]=4’b0
+
+EMMC_D6/FSPI_CS0N_M0/GPIO2_D6_u
+
+BUS_IOC_GPIO2D_IOMUX
+_SEL_H[11:8]=4’b0
+
+EMMC_D7/FSPI_CS1N_M0/GPIO2_D7_u
+
+BUS_IOC_GPIO2D_IOMUX
+_SEL_H[15:12]=4’b0
+
+gpio2_port[27]
+
+gpio2_port[30]
+
+gpio2_port[31]
+
+GPIO3 Interface
+gpio3_port[0]
+
+GMAC1_TXD2/SDIO_D0_M1/I2S3_MCLK/FSP
+I_D0_M2/I2C6_SDA_M4/PWM10_M0/SPI4_MI
+SO_M1/GPIO3_A0_u
+
+BUS_IOC_GPIO3A_IOMUX_
+SEL_L[3:0]=4’b0
+
+gpio3_port[1]
+
+GMAC1_TXD3/SDIO_D1_M1/I2S3_SCLK/AUD
+DSM_LN/FSPI_D1_M2/I2C6_SCL_M4/PWM11
+_IR_M0/SPI4_MOSI_M1/GPIO3_A1_u
+
+BUS_IOC_GPIO3A_IOMUX_
+SEL_L[7:4]=4’b0
+
+gpio3_port[2]
+
+GMAC1_RXD2/SDIO_D2_M1/I2S3_LRCK/AU
+DDSM_LP/FSPI_D2_M2/UART8_TX_M1/SPI4
+_CLK_M1/GPIO3_A2_u
+
+BUS_IOC_GPIO3A_IOMUX_
+SEL_L[11:8]=4’b0
+
+gpio3_port[3]
+
+GMAC1_RXD3/SDIO_D3_M1/I2S3_SDO/AUD
+DSM_RN/FSPI_D3_M2/UART8_RX_M1/SPI4_
+CS0_M1/GPIO3_A3_u
+
+BUS_IOC_GPIO3A_IOMUX_
+SEL_L[15:12]=4’b0
+
+gpio3_port[4]
+
+GMAC1_TXCLK/SDIO_CMD_M1/I2S3_SDI/AU
+DDSM_RP/UART8_RTSN_M1/SPI4_CS1_M1/
+GPIO3_A4_d
+
+BUS_IOC_GPIO3A_IOMUX_
+SEL_H[3:0]=4’b0
+
+gpio3_port[5]
+
+GMAC1_RXCLK/SDIO_CLK_M1/MIPI_CAME
+RA0_CLK_M1/FSPI_CLK_M2/I2C4_SDA_M0/
+UART8_CTSN_M1/GPIO3_A5_d
+
+BUS_IOC_GPIO3A_IOMUX_
+SEL_H[7:4]=4’b0
+
+gpio3_port[6]
+
+ETH1_REFCLKO_25M/MIPI_CAMERA1_CLK
+_M1/I2C4_SCL_M0/GPIO3_A6_d
+
+BUS_IOC_GPIO3A_IOMUX_
+SEL_H[11:8]=4’b0
+
+gpio3_port[7]
+
+GMAC1_RXD0/MIPI_CAMERA2_CLK_M1/PW
+M8_M0/GPIO3_A7_u
+
+BUS_IOC_GPIO3A_IOMUX_
+SEL_H[15:12]=4’b0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1485
+
+RK3588 TRM-Part1
+Module Pin
+
+Pad Name
+
+IOMUX Setting
+
+gpio3_port[8]
+
+GMAC1_RXD1/MIPI_CAMERA3_CLK_M1/PW
+M9_M0/GPIO3_B0_u
+
+BUS_IOC_GPIO3B_IOMUX_
+SEL_L[3:0]=4’b0
+
+gpio3_port[9]
+
+GMAC1_RXDV_CRS/MIPI_CAMERA4_CLK_
+M1/UART2_TX_M2/PWM2_M1/GPIO3_B1_d
+
+BUS_IOC_GPIO3B_IOMUX_
+SEL_L[7:4]=4’b0
+
+gpio3_port[10]
+
+GMAC1_TXER/I2S2_SDI_M1/UART2_RX_M2/
+PWM3_IR_M1/GPIO3_B2_d
+
+BUS_IOC_GPIO3B_IOMUX_
+SEL_L[11:8]=4’b0
+
+gpio3_port[11]
+
+GMAC1_TXD0/I2S2_SDO_M1/UART2_RTSN/
+GPIO3_B3_u
+
+BUS_IOC_GPIO3B_IOMUX_
+SEL_L[15:12]=4’b0
+
+gpio3_port[12]
+
+GMAC1_TXD1/I2S2_MCLK_M1/UART2_CTS
+N/GPIO3_B4_u
+
+BUS_IOC_GPIO3B_IOMUX_
+SEL_H[3:0]=4’b0
+
+gpio3_port[13]
+
+GMAC1_TXEN/I2S2_SCLK_M1/CAN1_RX_M0
+/UART3_TX_M1/PWM12_M0/GPIO3_B5_u
+
+BUS_IOC_GPIO3B_IOMUX_
+SEL_H[7:4]=4’b0
+
+gpio3_port[14]
+
+GMAC1_MCLKINOUT/II2S2_LRCK_M1/CAN1
+_TX_M0/UART3_RX_M1/PWM13_M0/GPIO3_
+B6_d
+
+BUS_IOC_GPIO3B_IOMUX_
+SEL_H[11:8]=4’b0
+
+gpio3_port[15]
+
+GMAC1_PTP_REF_CLK/HDMI_TX1_HPD_M1
+/I2C3_SCL_M1/SPI1_MOSI_M1/GPIO3_B7_d
+
+BUS_IOC_GPIO3B_IOMUX_
+SEL_H[15:12]=4’b0
+
+gpio3_port[16]
+
+GMAC1_PPSTRIG/I2C3_SDA_M1/UART7_TX
+_M1/SPI1_MISO_M1/GPIO3_C0_d
+
+BUS_IOC_GPIO3C_IOMUX
+_SEL_L[3:0]=4’b0
+
+gpio3_port[17]
+
+GMAC1_PPSCLK/PCIE30X2_BUTTON_RSTN
+/UART7_RX_M1/SPI1_CLK_M1/GPIO3_C1_d
+
+BUS_IOC_GPIO3C_IOMUX
+_SEL_L[7:4]=4’b0
+
+gpio3_port[18]
+
+GMAC1_MDC/MIPI_TE0/I2C8_SCL_M4/UART
+7_RTSN_M1/PWM14_M0/SPI1_CS0_M1/GPI
+O3_C2_d
+
+BUS_IOC_GPIO3C_IOMUX
+_SEL_L[11:8]=4’b0
+
+gpio3_port[19]
+
+GMAC1_MDIO/MIPI_TE1/I2C8_SDA_M4/UAR
+T7_CTSN_M1/PWM15_IR_M0/SPI1_CS1_M1/
+GPIO3_C3_d
+
+BUS_IOC_GPIO3C_IOMUX
+_SEL_L[15:12]=4’b0
+
+gpio3_port[20]
+
+CIF_D8/FSPI_CS0N_M2/PCIE30X4_CLKREQ
+N_M2/HDMI_TX1_CEC_M2/CAN2_RX_M0/UA
+RT5_TX_M1/SPI3_CS0_M3/GPIO3_C4_u
+
+BUS_IOC_GPIO3C_IOMUX
+_SEL_H[3:0]=4’b0
+
+gpio3_port[21]
+
+CIF_D9/FSPI_CS1N_M2/PCIE30X4_WAKEN_
+M2/HDMI_TX1_SDA_M1/CAN2_TX_M0/UART
+5_RX_M1/SPI3_CS1_M3/GPIO3_C5_u
+
+BUS_IOC_GPIO3C_IOMUX
+_SEL_H[7:4]=4’b0
+
+gpio3_port[22]
+
+CIF_D10/PCIE30X4_PERSTN_M2/HDMI_TX1
+_SCL_M1/SPI3_MISO_M3/GPIO3_C6_u
+
+BUS_IOC_GPIO3C_IOMUX
+_SEL_H[11:8]=4’b0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1486
+
+RK3588 TRM-Part1
+Module Pin
+
+Pad Name
+
+IOMUX Setting
+
+gpio3_port[23]
+
+CIF_D11/PCIE20X1_2_CLKREQN_M0/HDMI_
+TX0_SCL_M2/I2C5_SCL_M0/SPI3_MOSI_M3/
+GPIO3_C7_u
+
+BUS_IOC_GPIO3C_IOMUX
+_SEL_H[15:12]=4’b0
+
+gpio3_port[24]
+
+CIF_D12/PCIE20X1_2_WAKEN_M0/HDMI_TX
+0_SDA_M2/I2C5_SDA_M0/UART4_RX_M1/P
+WM8_M2/SPI3_CLK_M3/GPIO3_D0_u
+
+BUS_IOC_GPIO3D_IOMUX
+_SEL_L[3:0]=4’b0
+
+gpio3_port[25]
+
+I R
+I
+
+BUS_IOC_GPIO3D_IOMUX
+_SEL_L[7:4]=4’b0
+
+gpio3_port[26]
+
+CIF_D14/PCIE30X2_CLKREQN_M2/HDMI_RX
+_SCL_M1/I2C7_SCL_M2/UART9_RTSN_M2/S
+PI0_MOSI_M3/GPIO3_D2_d
+
+BUS_IOC_GPIO3D_IOMUX
+_SEL_L[11:8]=4’b0
+
+gpio3_port[27]
+
+CIF_D15/PCIE30X2_WAKEN_M2/HDMI_RX_
+SDA_M1/I2C7_SDA_M2/UART9_CTSN_M2/P
+WM10_M2/SPI0_CLK_M3/GPIO3_D3_d
+
+BUS_IOC_GPIO3D_IOMUX
+_SEL_L[15:12]=4’b0
+
+gpio3_port[28]
+
+HDMI_TX0_HPD_M1/PCIE30X2_PERSTN_M2
+/HDMI_RX_HPDOUT_M1/MCU_JTAG_TCK_
+M1/UART9_RX_M2/SPI0_CS0_M3/GPIO3_D4
+_d
+
+BUS_IOC_GPIO3D_IOMUX
+_SEL_H[3:0]=4’b0
+
+gpio3_port[29]
+
+PCIE30X4_BUTTON_RSTN/DP1_HPDIN_M0/
+MCU_JTAG_TMS_M1/UART9_TX_M2/PWM1
+1_IR_M3/SPI0_CS1_M3/GPIO3_D5_d
+
+BUS_IOC_GPIO3D_IOMUX
+_SEL_H[7:4]=4’b0
+
+I
+I
+
+/PCIE20X1_2_PERSTN_M0 H
+ART T
+W
+I
+d
+
+GPIO4 Interface
+gpio4_port[0]
+
+CIF_D0/BT1120_D0/I2S1_MCLK_M0/PCIE30X
+1_1_CLKREQN_M1/UART9_RTSN_M1/SPI0_
+MISO_M1/GPIO4_A0_d
+
+BUS_IOC_GPIO4A_IOMUX_
+SEL_L[3:0]=4’b0
+
+gpio4_port[1]
+
+CIF_D1/BT1120_D1/I2S1_SCLK_M0/PCIE30X
+1_1_WAKEN_M1/UART9_CTSN_M1/SPI0_M
+OSI_M1/GPIO4_A1_d
+
+BUS_IOC_GPIO4A_IOMUX_
+SEL_L[7:4]=4’b0
+
+gpio4_port[2]
+
+CIF_D2/BT1120_D2/I2S1_LRCK_M0/PCIE30X
+1_1_PERSTN_M1/SPI0_CLK_M1/GPIO4_A2_
+d
+
+BUS_IOC_GPIO4A_IOMUX_
+SEL_L[11:8]=4’b0
+
+gpio4_port[3]
+
+CIF_D3/BT1120_D3/PCIE30X1_0_CLKREQN_
+M1/UART0_TX_M2/GPIO4_A3_d
+
+BUS_IOC_GPIO4A_IOMUX_
+SEL_L[15:12]=4’b0
+
+gpio4_port[4]
+
+CIF_D4/BT1120_D4/PCIE30X1_0_WAKEN_M
+1/I2C3_SCL_M2/UART0_RX_M2/SPI2_MISO_
+M1/GPIO4_A4_d
+
+BUS_IOC_GPIO4A_IOMUX_
+SEL_H[3:0]=4’b0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1487
+
+RK3588 TRM-Part1
+Module Pin
+
+Pad Name
+
+IOMUX Setting
+
+gpio4_port[5]
+
+CIF_D5/BT1120_D5/I2S1_SDI0_M0/PCIE30X1
+_0_PERSTN_M1/I2C3_SDA_M2/UART3_TX_
+M2/SPI2_MOSI_M1/GPIO4_A5_d
+
+BUS_IOC_GPIO4A_IOMUX_
+SEL_H[7:4]=4’b0
+
+gpio4_port[6]
+
+CIF_D6/BT1120_D6/I2S1_SDI1_M0/PCIE30X2
+_CLKREQN_M1/I2C5_SCL_M2/UART3_RX_M
+2/SPI2_CLK_M1/GPIO4_A6_d
+
+BUS_IOC_GPIO4A_IOMUX_
+SEL_H[11:8]=4’b0
+
+gpio4_port[7]
+
+CIF_D7/BT1120_D7/I2S1_SDI2_M0/PCIE30X2
+_WAKEN_M1/I2C5_SDA_M2/SPI2_CS0_M1/G
+PIO4_A7_d
+
+BUS_IOC_GPIO4A_IOMUX_
+SEL_H[15:12]=4’b0
+
+gpio4_port[8]
+
+CIF_CLKIN/BT1120_CLKOUT/I2S1_SDI3_M0/
+PCIE30X2_PERSTN_M1/I2C6_SDA_M3/UAR
+T8_TX_M0/SPI2_CS1_M1/GPIO4_B0_d
+
+BUS_IOC_GPIO4B_IOMUX_
+SEL_L[3:0]=4’b0
+
+gpio4_port[9]
+
+MIPI_CAMERA0_CLK_M0/SPDIF1_TX_M1/I2
+S1_SDO0_M0/PCIE30X1_0_BUTTON_RSTN/
+SATA2_ACT_LED_M0/I2C6_SCL_M3/UART8
+_RX_M0/SPI0_CS1_M1/GPIO4_B1_u
+
+BUS_IOC_GPIO4B_IOMUX_
+SEL_L[7:4]=4’b0
+
+gpio4_port[10]
+
+CIF_HREF/BT1120_D8/I2S1_SDO1_M0/PCIE
+30X1_1_BUTTON_RSTN/I2C7_SCL_M3/UAR
+T8_RTSN_M0/PWM14_M1/SPI0_CS0_M1/CA
+N1_RX_M1/GPIO4_B2_u
+
+BUS_IOC_GPIO4B_IOMUX_
+SEL_L[11:8]=4’b0
+
+gpio4_port[11]
+
+CIF_VSYNC/BT1120_D9/I2S1_SDO2_M0/PCI
+E20X1_2_BUTTON_RSTN/I2C7_SDA_M3/UA
+RT8_CTSN_M0/PWM15_IR_M1/CAN1_TX_M
+1/GPIO4_B3_u
+
+BUS_IOC_GPIO4B_IOMUX_
+SEL_L[15:12]=4’b0
+
+gpio4_port[12]
+
+CIF_CLKOUT/BT1120_D10/I2S1_SDO3_M0/P
+CIE30X4_CLKREQN_M1/DP0_HPDIN_M0/SP
+DIF0_TX_M1/UART9_TX_M1/PWM11_IR_M1/
+GPIO4_B4_u
+
+BUS_IOC_GPIO4B_IOMUX_
+SEL_H[3:0]=4’b0
+
+gpio4_port[13]
+
+BT1120_D11/PCIE30X4_WAKEN_M1/HDMI_
+RX_CEC_M0/SATA1_ACT_LED_M0/UART9_
+RX_M1/PWM12_M1/SPI3_MISO_M1/GPIO4_
+B5_d
+
+BUS_IOC_GPIO4B_IOMUX_
+SEL_H[7:4]=4’b0
+
+gpio4_port[14]
+
+BT1120_D12/PCIE30X4_PERSTN_M1/HDMI_
+RX_HPDOUT_M0/SATA0_ACT_LED_M0/I2C5
+_SCL_M1/PWM13_M1/SPI3_MOSI_M1/GPIO4
+_B6_d
+
+BUS_IOC_GPIO4B_IOMUX_
+SEL_H[11:8]=4’b0
+
+gpio4_port[15]
+
+BT1120_D13/PCIE20X1_2_CLKREQN_M1/HD
+MI_TX0_SCL_M0/I2C5_SDA_M1/SPI3_CLK_
+M1/GPIO4_B7_u
+
+BUS_IOC_GPIO4B_IOMUX_
+SEL_H[15:12]=4’b0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1488
+
+RK3588 TRM-Part1
+Module Pin
+
+Pad Name
+
+IOMUX Setting
+
+gpio4_port[16]
+
+BT1120_D14/PCIE20X1_2_WAKEN_M1/HDMI
+_TX0_SDA_M0/I2C8_SCL_M3/SPI3_CS0_M1/
+GPIO4_C0_u
+
+BUS_IOC_GPIO4C_IOMUX
+_SEL_L[3:0]=4’b0
+
+gpio4_port[17]
+
+BT1120_D15/SPDIF1_TX_M2/PCIE20X1_2_P
+ERSTN_M1/HDMI_TX0_CEC_M0/I2C8_SDA_
+M3/PWM6_M1/SPI3_CS1_M1/GPIO4_C1_d
+
+BUS_IOC_GPIO4C_IOMUX
+_SEL_L[7:4]=4’b0
+
+gpio4_port[18]
+
+GMAC0_RXDV_CRS/UART7_RTSN_M0/PWM
+2_M2/SPI3_CS0_M0/GPIO4_C2_d
+
+BUS_IOC_GPIO4C_IOMUX
+_SEL_L[11:8]=4’b0
+
+gpio4_port[19]
+
+GMAC0_MCLKINOUT/I2S2_SDO_M0/I2C7_S
+CL_M1/PWM4_M1/SPI3_CS1_M0/GPIO4_C3_
+d
+
+BUS_IOC_GPIO4C_IOMUX
+_SEL_L[15:12]=4’b0
+
+gpio4_port[20]
+
+GMAC0_MDC/I2C7_SDA_M1/UART9_RTSN_
+M0/PWM5_M2/SPI3_MISO_M0/GPIO4_C4_d
+
+BUS_IOC_GPIO4C_IOMUX
+_SEL_H[3:0]=4’b0
+
+gpio4_port[21]
+
+GMAC0_MDIO/I2C0_SCL_M1/UART9_CTSN_
+M0/PWM6_M2/SPI3_MOSI_M0/GPIO4_C5_d
+
+BUS_IOC_GPIO4C_IOMUX
+_SEL_H[7:4]=4’b0
+
+gpio4_port[22]
+
+GMAC0_TXER/I2C0_SDA_M1/UART7_CTSN
+_M0/PWM7_IR_M3/SPI3_CLK_M0/GPIO4_C6
+_d
+
+BUS_IOC_GPIO4C_IOMUX
+_SEL_H[11:8]=4’b0
+
+gpio4_port[24]
+
+SDMMC_D0/PDM1_SDI3_M0/JTAG_TCK_M1/
+I2C3_SCL_M4/UART2_TX_M1/PWM8_M1/GP
+IO4_D0_u
+
+BUS_IOC_GPIO4D_IOMUX
+_SEL_L[3:0]=4’b0
+
+gpio4_port[25]
+
+SDMMC_D1/PDM1_SDI2_M0/JTAG_TMS_M1
+/I2C3_SDA_M4/UART2_RX_M1/PWM9_M1/G
+PIO4_D1_u
+
+BUS_IOC_GPIO4D_IOMUX
+_SEL_L[7:4]=4’b0
+
+gpio4_port[26]
+
+SDMMC_D2/PDM1_SDI1_M0/JTAG_TCK_M0/
+I2C8_SCL_M0/UART5_CTSN_M0/GPIO4_D2_
+u
+
+BUS_IOC_GPIO4D_IOMUX
+_SEL_L[11:8]=4’b0
+
+gpio4_port[27]
+
+SDMMC_D3/PDM1_SDI0_M0/JTAG_TMS_M0
+/I2C8_SDA_M0/UART5_RTSN_M0/PWM10_M
+1/GPIO4_D3_u
+
+BUS_IOC_GPIO4D_IOMUX
+_SEL_L[15:12]=4’b0
+
+gpio4_port[28]
+
+SDMMC_CMD/PDM1_CLK1_M0/MCU_JTAG_
+TCK_M0/CAN0_TX_M1/UART5_RX_M0/PWM
+7_IR_M1/GPIO4_D4_u
+
+BUS_IOC_GPIO4D_IOMUX
+_SEL_H[3:0]=4’b0
+
+gpio4_port[29]
+
+SDMMC_CLK/PDM1_CLK0_M0/TEST_CLKO
+UT_M0/MCU_JTAG_TMS_M0/CAN0_RX_M1/
+UART5_TX_M0/GPIO4_D5_d
+
+BUS_IOC_GPIO4D_IOMUX
+_SEL_H[7:4]=4’b0
+
+Notes: Unused Module Pin is tied to zero!
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1489
+
+RK3588 TRM-Part1
+
+20.6 Application Notes
+⚫
+⚫
+
+Reading from an unused location or unused bits in a particular register always returns
+zeros. There is no error mechanism in the APB.
+Programming the GPIO registers for interrupt detection should be completed prior to
+enabling the interrupts in order to prevent spurious glitches on the interrupt output
+signal to the interrupt controller.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1490
+
+RK3588 TRM-Part1
+

@@ -1,0 +1,1300 @@
+4.10 Industrial and Control Interfaces
+4.10.1 Modular Controller Area Network (MCAN)
+This section contains the integration details for the MCAN module on this device. For Further information, see
+the Modular Controller Area Network (MCAN) section of the Peripherals chapter
+4.10.1.1 MCAN Unsupported Features
+•
+Debug DMAs - DMA Ack not supported by PDMA architecture. Debug messages can be traced through the
+RX FIFO.
+•
+TX DMA channels 3-31 are not supported by the Main domain instance (MCAN0)- Only TX_DMA[2:0] have
+associated PDMA channels
+•
+DMA is not supported on the MCU domain instances, MCU_MCAN0 and MCU_MCAN1
+4.10.1.2 Module Allocations
+Table 4-102. MCAN Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+MCAN0
+✓
+MCU_MCAN0
+✓
+MCU_MCAN1
+✓
+4.10.1.3 Resets, Interrupts, and Clocks
+Table 4-103. Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+MCAN0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_M
+CANSS_0
+35
+OFF
+YES
+LPSC_MAIN_IP
+MCU_MCAN0
+WKUP_PSC0
+PD_M4F
+LPSC_MCU_M
+CANSS_0
+7
+OFF
+YES
+LPSC_MCU_C
+OMMON
+MCU_MCAN1
+WKUP_PSC0
+PD_M4F
+LPSC_MCU_M
+CANSS_1
+8
+OFF
+YES
+LPSC_MCU_C
+OMMON
+Table 4-104. MCAN Resets
+Module Instance
+Source
+Description
+MCAN0
+PSC0_PSC_0
+MCAN0 reset
+MCU_MCAN0
+WKUP_PSC0
+MCU_MCAN0 reset
+MCU_MCAN1
+WKUP_PSC0
+MCU_MCAN1 reset
+Table 4-105. MCAN Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+MCAN0
+MCAN0_mcanss_ext
+_ts_rollover_lvl_int_0
+GICSS0_spi_IN_186
+GICSS0
+MCAN0 interrupt
+request
+level
+MCAN0
+MCAN0_mcanss_ext
+_ts_rollover_lvl_int_0
+R5FSS0_CORE0_intr
+_IN_186
+R5FSS0_CORE0
+MCAN0 interrupt
+request
+level
+MCAN0
+MCAN0_mcanss_ext
+_ts_rollover_lvl_int_0
+TIFS0_nvic_IN_102
+TIFS0
+MCAN0 interrupt
+request
+level
+=== Page 159 ===
+Table 4-105. MCAN Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+MCAN0
+MCAN0_mcanss_ext
+_ts_rollover_lvl_int_0
+HSM0_nvic_IN_102
+HSM0
+MCAN0 interrupt
+request
+level
+MCAN0
+MCAN0_mcanss_fe_[
+2:0]
+PDMA0_mcanss_mai
+n_0_fe_IN_[2:0]
+PDMA0
+MCAN0 interrupt
+request
+pulse
+MCAN0
+MCAN0_mcanss_mc
+an_lvl_int_[1;0]
+GICSS0_spi_IN_187
+GICSS0
+MCAN0 interrupt
+request
+level
+MCAN0
+MCAN0_mcanss_mc
+an_lvl_int_[1;0]
+GICSS0_spi_IN_188
+GICSS0
+MCAN0 interrupt
+request
+level
+MCAN0
+MCAN0_mcanss_mc
+an_lvl_int_[1;0]
+R5FSS0_CORE0_intr
+_IN_187
+R5FSS0_CORE0
+MCAN0 interrupt
+request
+level
+MCAN0
+MCAN0_mcanss_mc
+an_lvl_int_[1;0]
+R5FSS0_CORE0_intr
+_IN_188
+R5FSS0_CORE0
+MCAN0 interrupt
+request
+level
+MCAN0
+MCAN0_mcanss_mc
+an_lvl_int_[1;0]
+TIFS0_nvic_IN_103
+TIFS0
+MCAN0 interrupt
+request
+level
+MCAN0
+MCAN0_mcanss_mc
+an_lvl_int_[1;0]
+TIFS0_nvic_IN_104
+TIFS0
+MCAN0 interrupt
+request
+level
+MCAN0
+MCAN0_mcanss_mc
+an_lvl_int_[1;0]
+HSM0_nvic_IN_103
+HSM0
+MCAN0 interrupt
+request
+level
+MCAN0
+MCAN0_mcanss_mc
+an_lvl_int_[1;0]
+HSM0_nvic_IN_104
+HSM0
+MCAN0 interrupt
+request
+level
+MCAN0
+MCAN0_mcanss_tx_
+dma_[31:0]
+PDMA0_mcanss_mai
+n_0_tx_IN_[2:0]
+PDMA0
+MCAN0 interrupt
+request
+pulse
+MCU_MCAN0
+MCU_MCAN0_mcans
+s_ext_ts_rollover_lvl_i
+nt_0
+MCU_M4FSS0_COR
+E0_nvic_IN_42
+MCU_M4FSS0_COR
+E0
+MCU_MCAN0
+interrupt request
+level
+MCU_MCAN0
+MCU_MCAN0_mcans
+s_ext_ts_rollover_lvl_i
+nt_0
+TIFS0_nvic_IN_108
+TIFS0
+MCU_MCAN0
+interrupt request
+level
+MCU_MCAN0
+MCU_MCAN0_mcans
+s_ext_ts_rollover_lvl_i
+nt_0
+HSM0_nvic_IN_108
+HSM0
+MCU_MCAN0
+interrupt request
+level
+MCU_MCAN0
+MCU_MCAN0_mcans
+s_mcan_lvl_int_0
+MCU_M4FSS0_COR
+E0_nvic_IN_43
+MCU_M4FSS0_COR
+E0
+MCU_MCAN0
+interrupt request
+level
+MCU_MCAN0
+MCU_MCAN0_mcans
+s_mcan_lvl_int_0
+MCU_M4FSS0_COR
+E0_nvic_IN_44
+MCU_M4FSS0_COR
+E0
+MCU_MCAN0
+interrupt request
+level
+MCU_MCAN0
+MCU_MCAN0_mcans
+s_mcan_lvl_int_0
+TIFS0_nvic_IN_109
+TIFS0
+MCU_MCAN0
+interrupt request
+level
+MCU_MCAN0
+MCU_MCAN0_mcans
+s_mcan_lvl_int_0
+TIFS0_nvic_IN_110
+TIFS0
+MCU_MCAN0
+interrupt request
+level
+MCU_MCAN0
+MCU_MCAN0_mcans
+s_mcan_lvl_int_0
+HSM0_nvic_IN_109
+HSM0
+MCU_MCAN0
+interrupt request
+level
+MCU_MCAN0
+MCU_MCAN0_mcans
+s_mcan_lvl_int_0
+HSM0_nvic_IN_110
+HSM0
+MCU_MCAN0
+interrupt request
+level
+=== Page 160 ===
+Table 4-105. MCAN Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+MCU_MCAN0
+MCU_MCAN0_mcans
+s_mcan_lvl_int_1
+MCU_M4FSS0_COR
+E0_nvic_IN_43
+MCU_M4FSS0_COR
+E0
+MCU_MCAN0
+interrupt request
+level
+MCU_MCAN0
+MCU_MCAN0_mcans
+s_mcan_lvl_int_1
+MCU_M4FSS0_COR
+E0_nvic_IN_44
+MCU_M4FSS0_COR
+E0
+MCU_MCAN0
+interrupt request
+level
+MCU_MCAN0
+MCU_MCAN0_mcans
+s_mcan_lvl_int_1
+TIFS0_nvic_IN_109
+TIFS0
+MCU_MCAN0
+interrupt request
+level
+MCU_MCAN0
+MCU_MCAN0_mcans
+s_mcan_lvl_int_1
+TIFS0_nvic_IN_110
+TIFS0
+MCU_MCAN0
+interrupt request
+level
+MCU_MCAN0
+MCU_MCAN0_mcans
+s_mcan_lvl_int_1
+HSM0_nvic_IN_109
+HSM0
+MCU_MCAN0
+interrupt request
+level
+MCU_MCAN0
+MCU_MCAN0_mcans
+s_mcan_lvl_int_1
+HSM0_nvic_IN_110
+HSM0
+MCU_MCAN0
+interrupt request
+level
+MCU_MCAN1
+MCU_MCAN1_mcans
+s_ext_ts_rollover_lvl_i
+nt_0
+MCU_M4FSS0_COR
+E0_nvic_IN_45
+MCU_M4FSS0_COR
+E0
+MCU_MCAN1
+interrupt request
+level
+MCU_MCAN1
+MCU_MCAN1_mcans
+s_ext_ts_rollover_lvl_i
+nt_0
+TIFS0_nvic_IN_105
+TIFS0
+MCU_MCAN1
+interrupt request
+level
+MCU_MCAN1
+MCU_MCAN1_mcans
+s_ext_ts_rollover_lvl_i
+nt_0
+HSM0_nvic_IN_105
+HSM0
+MCU_MCAN1
+interrupt request
+level
+MCU_MCAN1
+MCU_MCAN1_mcans
+s_mcan_lvl_int_0
+MCU_M4FSS0_COR
+E0_nvic_IN_46
+MCU_M4FSS0_COR
+E0
+MCU_MCAN1
+interrupt request
+level
+MCU_MCAN1
+MCU_MCAN1_mcans
+s_mcan_lvl_int_0
+MCU_M4FSS0_COR
+E0_nvic_IN_47
+MCU_M4FSS0_COR
+E0
+MCU_MCAN1
+interrupt request
+level
+MCU_MCAN1
+MCU_MCAN1_mcans
+s_mcan_lvl_int_0
+TIFS0_nvic_IN_106
+TIFS0
+MCU_MCAN1
+interrupt request
+level
+MCU_MCAN1
+MCU_MCAN1_mcans
+s_mcan_lvl_int_0
+TIFS0_nvic_IN_107
+TIFS0
+MCU_MCAN1
+interrupt request
+level
+MCU_MCAN1
+MCU_MCAN1_mcans
+s_mcan_lvl_int_0
+HSM0_nvic_IN_106
+HSM0
+MCU_MCAN1
+interrupt request
+level
+MCU_MCAN1
+MCU_MCAN1_mcans
+s_mcan_lvl_int_0
+HSM0_nvic_IN_107
+HSM0
+MCU_MCAN1
+interrupt request
+level
+MCU_MCAN1
+MCU_MCAN1_mcans
+s_mcan_lvl_int_1
+MCU_M4FSS0_COR
+E0_nvic_IN_46
+MCU_M4FSS0_COR
+E0
+MCU_MCAN1
+interrupt request
+level
+MCU_MCAN1
+MCU_MCAN1_mcans
+s_mcan_lvl_int_1
+MCU_M4FSS0_COR
+E0_nvic_IN_47
+MCU_M4FSS0_COR
+E0
+MCU_MCAN1
+interrupt request
+level
+MCU_MCAN1
+MCU_MCAN1_mcans
+s_mcan_lvl_int_1
+TIFS0_nvic_IN_106
+TIFS0
+MCU_MCAN1
+interrupt request
+level
+MCU_MCAN1
+MCU_MCAN1_mcans
+s_mcan_lvl_int_1
+TIFS0_nvic_IN_107
+TIFS0
+MCU_MCAN1
+interrupt request
+level
+MCU_MCAN1
+MCU_MCAN1_mcans
+s_mcan_lvl_int_1
+HSM0_nvic_IN_106
+HSM0
+MCU_MCAN1
+interrupt request
+level
+=== Page 161 ===
+Table 4-105. MCAN Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+MCU_MCAN1
+MCU_MCAN1_mcans
+s_mcan_lvl_int_1
+HSM0_nvic_IN_107
+HSM0
+MCU_MCAN1
+interrupt request
+level
+Table 4-106. MCAN Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+MCAN0
+MCANSS_CAN_RXD
+MAIN_PBIST_CLK
+MCANSS_CCLK_CLK
+MAIN_PLL0_HSDIV4_CL
+KOUT
+MCAN0_CLKSEL[1:0]
+MCU_EXT_REFCLK0
+MCAN0_CLKSEL[1:0]
+EXT_REFCLK1
+MCAN0_CLKSEL[1:0]
+HFOSC0_CLKOUT
+MCAN0_CLKSEL[1:0]
+MCANSS_HCLK_CLK
+MAIN_SYSCLK0/4
+MCU_MCAN0
+MCANSS_CAN_RXD
+MCU_DFT_SCAN_CLK
+MCANSS_CCLK_CLK
+MCU_PLL0_HSDIV4_CLK
+OUT
+MCU_MCAN0_CLKSEL[1:
+0]
+MCU_EXT_REFCLK0
+MCU_MCAN0_CLKSEL[1:
+0]
+HFOSC0_CLKOUT
+MCU_MCAN0_CLKSEL[1:
+0]
+HFOSC0_CLKOUT
+MCU_MCAN0_CLKSEL[1:
+0]
+MCANSS_HCLK_CLK
+MCU_SYSCLK0/2
+MCU_MCAN1
+MCANSS_CAN_RXD
+MCU_DFT_SCAN_CLK
+MCANSS_CCLK_CLK
+MCU_PLL0_HSDIV4_CLK
+OUT
+MCU_MCAN1_CLKSEL[1:
+0]
+MCU_EXT_REFCLK0
+MCU_MCAN1_CLKSEL[1:
+0]
+HFOSC0_CLKOUT
+MCU_MCAN1_CLKSEL[1:
+0]
+HFOSC0_CLKOUT
+MCU_MCAN1_CLKSEL[1:
+0]
+MCANSS_HCLK_CLK
+MCU_SYSCLK0/2
+=== Page 162 ===
+4.10.2 Enhanced Capture (ECAP)
+This section contains the integration details for the ECAP module on this device. For Further information, see the
+Enhanced Capture (ECAP) section of the Peripherals chapter
+4.10.2.1 ECAP Unsupported Features
+The following features are not supported on this family of devices:
+•
+There are no unsupported features
+4.10.2.2 Module Allocations
+Table 4-107. ECAP Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+ECAP0
+✓
+ECAP1
+✓
+ECAP2
+✓
+4.10.2.3 Resets, Interrupts, and Clocks
+Table 4-108. ECAP Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+ECAP0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+ECAP1
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+ECAP2
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+Table 4-109. ECAP Resets
+Module Instance
+Source
+Description
+ECAP0
+PSC0_PSC_0
+ECAP0 reset
+ECAP1
+PSC0_PSC_0
+ECAP1 reset
+ECAP2
+PSC0_PSC_0
+ECAP2 reset
+Table 4-110. ECAP Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+ECAP0
+ECAP0_ecap_int_0
+GICSS0_spi_IN_145
+GICSS0
+ECAP0 interrupt
+request
+pulse
+ECAP0
+ECAP0_ecap_int_0
+ICSSM0_pr1_slv_intr
+_IN_10
+ICSSM0
+ECAP0 interrupt
+request
+pulse
+ECAP0
+ECAP0_ecap_int_0
+TIFS0_nvic_IN_74
+TIFS0
+ECAP0 interrupt
+request
+pulse
+ECAP0
+ECAP0_ecap_int_0
+HSM0_nvic_IN_74
+HSM0
+ECAP0 interrupt
+request
+pulse
+ECAP1
+ECAP1_ecap_int_0
+GICSS0_spi_IN_146
+GICSS0
+ECAP1 interrupt
+request
+pulse
+=== Page 163 ===
+Table 4-110. ECAP Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+ECAP1
+ECAP1_ecap_int_0
+ICSSM0_pr1_slv_intr
+_IN_3
+ICSSM0
+ECAP1 interrupt
+request
+pulse
+ECAP1
+ECAP1_ecap_int_0
+TIFS0_nvic_IN_75
+TIFS0
+ECAP1 interrupt
+request
+pulse
+ECAP1
+ECAP1_ecap_int_0
+HSM0_nvic_IN_75
+HSM0
+ECAP1 interrupt
+request
+pulse
+ECAP2
+ECAP2_ecap_int_0
+GICSS0_spi_IN_147
+GICSS0
+ECAP2 interrupt
+request
+pulse
+ECAP2
+ECAP2_ecap_int_0
+ICSSM0_pr1_slv_intr
+_IN_4
+ICSSM0
+ECAP2 interrupt
+request
+pulse
+ECAP2
+ECAP2_ecap_int_0
+TIFS0_nvic_IN_76
+TIFS0
+ECAP2 interrupt
+request
+pulse
+ECAP2
+ECAP2_ecap_int_0
+HSM0_nvic_IN_76
+HSM0
+ECAP2 interrupt
+request
+pulse
+Table 4-111. ECAP Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+ECAP0
+FICLK
+MAIN_SYSCLK0/4
+ECAP0 Functional and
+Interface Clock
+ECAP1
+FICLK
+MAIN_SYSCLK0/4
+ECAP1 Functional and
+Interface Clock
+ECAP2
+FICLK
+MAIN_SYSCLK0/4
+ECAP2 Functional and
+Interface Clock
+=== Page 164 ===
+4.10.3 Enhanced Pulse Width Modulation (EPWM)
+This section contains the integration details for the EPWM module on this device. For Further information, see
+the Enhanced Pulse Width Modulation (EPWM) section of the Peripherals chapter
+4.10.3.1 EPWM Unsupported Features
+The following features are not supported on this family of devices:
+•
+EPWM digital comparators
+•
+Hi Res Extension (Delay Line Based)
+4.10.3.2 Module Allocations
+Table 4-112. EPWM Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+EPWM0
+✓
+EPWM1
+✓
+EPWM2
+✓
+4.10.3.3 Resets, Interrupts, and Clocks
+Table 4-113. EPWM Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+EPWM0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+EPWM1
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+EPWM2
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+Table 4-114. EPWM Resets
+Module Instance
+Source
+Description
+EPWM0
+PSC0_PSC_0
+EPWM0 reset
+EPWM1
+PSC0_PSC_0
+EPWM1 reset
+EPWM2
+PSC0_PSC_0
+EPWM2 reset
+Table 4-115. EPWM Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+EPWM0
+EPWM0_epwm_etint
+_0
+MCU_M4FSS0_COR
+E0_nvic_IN_36
+MCU_M4FSS0_COR
+E0
+EPWM0 interrupt
+request
+pulse
+EPWM0
+EPWM0_epwm_etint
+_0
+GICSS0_spi_IN_229
+GICSS0
+EPWM0 interrupt
+request
+pulse
+EPWM0
+EPWM0_epwm_etint
+_0
+ICSSM0_pr1_slv_intr
+_IN_11
+ICSSM0
+EPWM0 interrupt
+request
+pulse
+EPWM0
+EPWM0_epwm_etint
+_0
+TIFS0_nvic_IN_68
+TIFS0
+EPWM0 interrupt
+request
+pulse
+=== Page 165 ===
+Table 4-115. EPWM Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+EPWM0
+EPWM0_epwm_etint
+_0
+HSM0_nvic_IN_68
+HSM0
+EPWM0 interrupt
+request
+pulse
+EPWM0
+EPWM0_epwm_sync
+o_o_0
+TIMESYNC_EVENT_
+ROUTER0_in_IN_8
+TIMESYNC_EVENT_
+ROUTER0
+EPWM0 interrupt
+request
+level
+EPWM0
+EPWM0_epwm_sync
+out_0
+EPWM1_epwm_synci
+n_IN_0
+EPWM1
+EPWM0 interrupt
+request
+level
+EPWM0
+EPWM0_epwm_tripzi
+nt_0
+ICSSM0_pr1_slv_intr
+_IN_24
+ICSSM0
+EPWM0 interrupt
+request
+pulse
+EPWM0
+EPWM0_epwm_tripzi
+nt_0
+GICSS0_spi_IN_230
+GICSS0
+EPWM0 interrupt
+request
+pulse
+EPWM1
+EPWM1_epwm_etint
+_0
+MCU_M4FSS0_COR
+E0_nvic_IN_37
+MCU_M4FSS0_COR
+E0
+EPWM1 interrupt
+request
+pulse
+EPWM1
+EPWM1_epwm_etint
+_0
+GICSS0_spi_IN_231
+GICSS0
+EPWM1 interrupt
+request
+pulse
+EPWM1
+EPWM1_epwm_etint
+_0
+ICSSM0_pr1_slv_intr
+_IN_14
+ICSSM0
+EPWM1 interrupt
+request
+pulse
+EPWM1
+EPWM1_epwm_etint
+_0
+TIFS0_nvic_IN_69
+TIFS0
+EPWM1 interrupt
+request
+pulse
+EPWM1
+EPWM1_epwm_etint
+_0
+HSM0_nvic_IN_69
+HSM0
+EPWM1 interrupt
+request
+pulse
+EPWM1
+EPWM1_epwm_sync
+out_0
+EPWM2_epwm_synci
+n_IN_0
+EPWM2
+EPWM1 interrupt
+request
+level
+EPWM1
+EPWM1_epwm_tripzi
+nt_0
+ICSSM0_pr1_slv_intr
+_IN_24
+ICSSM0
+EPWM1 interrupt
+request
+pulse
+EPWM1
+EPWM1_epwm_tripzi
+nt_0
+GICSS0_spi_IN_233
+GICSS0
+EPWM1 interrupt
+request
+pulse
+EPWM2
+EPWM2_epwm_etint
+_0
+MCU_M4FSS0_COR
+E0_nvic_IN_38
+MCU_M4FSS0_COR
+E0
+EPWM2 interrupt
+request
+pulse
+EPWM2
+EPWM2_epwm_etint
+_0
+GICSS0_spi_IN_234
+GICSS0
+EPWM2 interrupt
+request
+pulse
+EPWM2
+EPWM2_epwm_etint
+_0
+ICSSM0_pr1_slv_intr
+_IN_5
+ICSSM0
+EPWM2 interrupt
+request
+pulse
+EPWM2
+EPWM2_epwm_etint
+_0
+TIFS0_nvic_IN_70
+TIFS0
+EPWM2 interrupt
+request
+pulse
+EPWM2
+EPWM2_epwm_etint
+_0
+HSM0_nvic_IN_70
+HSM0
+EPWM2 interrupt
+request
+pulse
+EPWM2
+EPWM2_epwm_tripzi
+nt_0
+ICSSM0_pr1_slv_intr
+_IN_24
+ICSSM0
+EPWM2 interrupt
+request
+pulse
+EPWM2
+EPWM2_epwm_tripzi
+nt_0
+GICSS0_spi_IN_235
+GICSS0
+EPWM2 interrupt
+request
+pulse
+=== Page 166 ===
+Table 4-116. EPWM Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+EPWM0
+FICLK
+MAIN_SYSCLK0/2
+EPWM0 Functional and
+Interface Clock
+EPWM1
+FICLK
+MAIN_SYSCLK0/2
+EPWM1 Functional and
+Interface Clock
+EPWM2
+FICLK
+MAIN_SYSCLK0/2
+EPWM2 Functional and
+Interface Clock
+=== Page 167 ===
+4.10.4 Enhanced Quadrature Encoder Pulse (EQEP)
+This section contains the integration details for the EQEP module on this device. For Further information, see the
+Enhanced Quadrature Encoder Pulse (EQEP) section of the Peripherals chapter
+4.10.4.1 EQEP Unsupported Features
+The following features are not supported on this family of devices:
+•
+EQEPA_i[15:1], EQEPB_i[15:1] are not pinned out.
+4.10.4.2 Module Allocations
+Table 4-117. EQEP Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+EQEP0
+✓
+EQEP1
+✓
+EQEP2
+✓
+4.10.4.3 Resets, Interrupts, and Clocks
+Table 4-118. EQEP Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+EQEP0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+EQEP1
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+EQEP2
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_IP
+34
+ON
+YES
+LPSC_DM2MAI
+N_INFRA_ISO
+Table 4-119. EQEP Resets
+Module Instance
+Source
+Description
+EQEP0
+PSC0_PSC_0
+EQEP0 reset
+EQEP1
+PSC0_PSC_0
+EQEP1 reset
+EQEP2
+PSC0_PSC_0
+EQEP2 reset
+Table 4-120. EQEP Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+EQEP0
+EQEP0_eqep_int_0
+GICSS0_spi_IN_148
+GICSS0
+EQEP0 interrupt
+request
+pulse
+EQEP0
+EQEP0_eqep_int_0
+ICSSM0_pr1_slv_intr
+_IN_13
+ICSSM0
+EQEP0 interrupt
+request
+pulse
+EQEP0
+EQEP0_eqep_int_0
+TIFS0_nvic_IN_71
+TIFS0
+EQEP0 interrupt
+request
+pulse
+EQEP0
+EQEP0_eqep_int_0
+HSM0_nvic_IN_71
+HSM0
+EQEP0 interrupt
+request
+pulse
+EQEP1
+EQEP1_eqep_int_0
+GICSS0_spi_IN_149
+GICSS0
+EQEP1 interrupt
+request
+pulse
+=== Page 168 ===
+Table 4-120. EQEP Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+EQEP1
+EQEP1_eqep_int_0
+ICSSM0_pr1_slv_intr
+_IN_16
+ICSSM0
+EQEP1 interrupt
+request
+pulse
+EQEP1
+EQEP1_eqep_int_0
+TIFS0_nvic_IN_72
+TIFS0
+EQEP1 interrupt
+request
+pulse
+EQEP1
+EQEP1_eqep_int_0
+HSM0_nvic_IN_72
+HSM0
+EQEP1 interrupt
+request
+pulse
+EQEP2
+EQEP2_eqep_int_0
+GICSS0_spi_IN_150
+GICSS0
+EQEP2 interrupt
+request
+pulse
+EQEP2
+EQEP2_eqep_int_0
+ICSSM0_pr1_slv_intr
+_IN_17
+ICSSM0
+EQEP2 interrupt
+request
+pulse
+EQEP2
+EQEP2_eqep_int_0
+TIFS0_nvic_IN_73
+TIFS0
+EQEP2 interrupt
+request
+pulse
+EQEP2
+EQEP2_eqep_int_0
+HSM0_nvic_IN_73
+HSM0
+EQEP2 interrupt
+request
+pulse
+Table 4-121. EQEP Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+EQEP0
+FICLK
+MAIN_SYSCLK0/4
+EQEP0 Functional and
+Interface Clock
+EQEP1
+FICLK
+MAIN_SYSCLK0/4
+EQEP1 Functional and
+Interface Clock
+EQEP2
+FICLK
+MAIN_SYSCLK0/4
+EQEP2 Functional and
+Interface Clock
+=== Page 169 ===

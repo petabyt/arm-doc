@@ -1,0 +1,4321 @@
+Chapter 9 DisplayPort Transmitter Controller (DPTX)
+9.1 Overview
+
+The DisplayPort Transmitter Controller (DPTX), which provides support for next generation
+video display interface technology. The Video Electronics Standards Association (VESA)
+defines the DisplayPort standard as an open digital communications interface for use in
+internal as well as external connections, such as:
+⚫ Interfaces within a PC or monitor (internal)
+⚫ External display connections, including interfaces between a PC and monitor or projector,
+between a PC and TV, or between a device such as a DVD player and TV display.
+DPTX is compliant with the DisplayPort Specification Version 1.4 and supports both HDCP 1.3
+and HDCP 2.2 standards. The DPTX digital controller interfaces with the DisplayPort/USB
+Type-C combo PHY, enabling the integration of a complete DisplayPort Interface in a USB
+Type-C environment.
+
+9.2 Features
+
+The features listed below which may or may not be present in actual product, may be
+subject to the third party licensing requirements. Please contact Rockchip for actual product
+feature configurations and licensing requirements.
+DPTX supports the following features:
+⚫ General Features
+◼ DisplayPort 1.4a
+◼ Main Link: 1/2/4 lanes
+◼ Main Link: RBR/HBR/HBR2/HBR3
+◼ 1Mbps AUX channel
+◼ Single Stream Transport (SST)
+◼ Type-C support (alternate mode)
+◼ HDCP 2.2, HDCP 1.3
+◼ Quad Pixel Mode
+◼ YCrCb (3 formats), RGB support
+◼ Up to 48 bits per pixel
+◼ Support for Register based SDP (Secondary Data Packets)
+◼ Native AUX, I2C over AUX
+◼ AMBA APB Interface for internal register access and AUX access
+⚫ Video-Related Features
+◼ Video formats
+◆ CEA-861-F
+◆ VESA DMT
+◆ VESA CVT
+◼ Colorimetry
+◆ Supports up to 8/10 bits per color component
+◆ Supports RBG, YCbCr4:4:4, YCbCr4:2:2, YCbCr4:2:0
+◼ Pixel clock up to 594MHz
+⚫ Audio-Related Features
+◼ Up to 192 KHz, 24 bits per sample LPCM
+◼ Up to 8 audio channels
+◼ I2S, S/PDIF interface supported
+◼ High Bit-Rate audio @768 KHz
+⚫ DPTX are not support the following features:
+◼ DSC(Display Stream Compression)
+◼ Multistream Transport (MST)
+◼ Dual Mode Support
+
+9.3 Function Description
+9.3.1 Architecture Overview
+
+Fig.65-1 shows the architecture overview of DPTX.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1099
+
+RK3588 TRM-Part2
+
+DPTX
+
+Lane Steer
+Ram
+
+Video
+Sampler
+
+Lane Steer
+Logic
+
+Audio
+Sampler
+
+SDP
+Handler
+
+APB
+
+Clock & Reset
+Module
+
+Video
+Packetlizer
+
+Main
+Scheduler
+
+HDCP
+
+PHY
+Interface
+
+AUX
+Control
+
+Fig. 9-1 DPTX Architecture Overview
+The following sections describe the various blocks and their functionalities. DPTX uses a 32
+bits internal data path for the main link.
+
+9.3.2 Video Pixel Sampler
+
+The video pixel sampler captures video pixel data on the video interface based on the
+various video formats, deep color modes. It outputs the captured video pixel data to the
+Video lane steering module as three separate color components.
+Input data coming is registered once before it goes through a 3-stage pipeline. The 3-stage
+pipeline is required to capture the three-color components in various input video formats.
+The default delay in the video sampler is 4 cycles, which includes 3 stage pipeline and 1
+stage input registering.
+The video pixel sampler also gives the hsync and vsync to the lane steering logic based on
+what is presented on the video interface. To maintain the same pipeline delay, the hsync and
+vsync signals also go through the lane steering FIFO. On the rising edge and on the falling
+edge of the hsync and vsync a separate entry is pushed into the lane steering FIFO. When
+the packetizer pops out the hsync/vsync entry, it generates the hsync/vsync signals to the
+main scheduler.
+The video is input on a 48-bit interface for supporting up to 16 bits per component mode.
+The data inputs are MSB aligned and for 6 bits per component mode; only the MSB 6 bits
+are valid for each component. The input video is sampled by the video sampler. The video
+sampler manipulates the video format that is input to the core, and then presents the data
+to the lane steering logic. The video sampler has pipelines to assemble the data and present
+to the lane steering logic.
+
+9.3.3 Lane Steering Logic
+
+The lane steering logic interfaces between the video pixel sampler and the Video packetizer.
+The lane steering logic takes three pixel components from the video pixel sampler and splits
+it into 32/64/128-bit data for each of up to four lanes in single/dual/quad pixel modes and
+sends it to the video Packetizer module.
+The lane steering logic contains internal pipelines to assemble the data coming in from the
+video pixel sampler and push this data into the lane steering FIFOs in a 32/64/128-bit
+format. The lane steering FIFO is a 2-clock FIFO, with the pixel_clk being the write clock and
+the link clock being the read clock. The 32/64/128-bit data is pushed in simultaneously for
+all lanes. There is separate lane steering logic modules to take care of different video modes
+like RGB,YCbCr etc.
+In the lane steering logic, the video data crosses the clock domains, from the pixel clock
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1100
+
+RK3588 TRM-Part2
+(pixel_clk) domain to the link clock (link_clk) domain.
+This module contains a dual clock FIFO per lane which is 39-bit wide. The lane steering FIFO
+is popped out by the video packetizer. The packetizer and the downstream logics run on the
+link clock. When the PHY interface is operating at 40 bits, then the link clock is the same as
+the phy_clk. But if the PHY interface is running at 20bits, then the link clock is half of the
+phy_clk. The video packetizer is instantiated per lane.
+The lane_steer_fsm state machine in this module controls the data packing. This state
+machine looks at the input pixel pipeline and packs the data into 32 bits of data for each
+lane and pushes them into a 2-clock FIFO. The FIFO is written by the video packetizer on the
+pixel clock and read on the link clock. On seeing the lane steering FIFO being non empty, the
+video packetizer waits for threshold amount of link clock. By default, it waits for 16 clocks
+which is equivalent to 64 symbols (since the data width is 32), where 64 is the Transfer unit
+size. This threshold value could be changed by reprogramming VIDEO_CONFIG5 register.
+After waiting for the threshold number of link clocks, the packetizer pops out the data and
+send to the main scheduler. The packetizer keeps track of the transfer unit count. If the
+symbols transmitted is greater than the average number of symbols that is define for a
+particular video format (defined in VIDOE_CONFIG5.AVERAGE_SYMBOLS_PER_TU) and link
+rate, or if the FIFO is empty, it inserts fillers into the transfer unit until the transfer unit size
+of 64 is reached. During this filling time, data gets accumulated in the lane steering FIFO.
+During the transmission of the valid symbols, data gets filled into the FIFO and also gets
+popped out. The rate at which the push/pop happens varies.
+The lane steering logic uses 12-stage pipelining. Each of the color components (R/G/B) go
+through the 12-stage pipelining. The 12 stages are required only for 6bpp mode with 4
+lanes. Because this is not a configurable option, these pipeline stages are always present. If
+the number of lanes configured is less than 4, only a 5-stage pipeline is required.
+
+9.3.4 Video Packetizer
+
+The video packetizer takes data from the Video Lane Splitter to form packets based on the
+Tranfer Unit. The Transfer Unit Size is fixed to 64 bytes and internal data width is 32 bytes.
+The number of valid bytes to pack in a Transfer Unit is governed by the register fields
+AVERGAE_BYTES_PER_TU and AVERAGE_BYTES_PER_TU_FRAC in the VIDEO_CONFIG5
+register. The software calculates this value based on the pixel rate for a given video format
+and the link rates, and then programs the value into the register.
+The video packetizer acts on each lane. A 4-lane configuration contains four instances of the
+packetizer. Each instance of the packetizer must also know the total number of lanes for the
+packetizing logic.
+The video packetizer works on a single clock domain, the link clock (link_clk).
+When the lane steering FIFO goes non-empty, the packetizer waits for threshold amount of
+link clocks which is equivalent to a Transfer Unit. The threshold accumulates pixels in the
+lane steering FIFO. After threshold amounts of clocks, the packetizer transmits the pixels
+until the FIFO becomes empty. After average_bytes_per_tu bytes has been transmitted,
+based on Valid symbols per TU and TU size, video packetizer module inserts dummy data
+symbols and the corresponding framing symbols if required. For the following TU, it does not
+wait for 16 clocks, and transmits the available data in the FIFO. When the dummy data
+symbols are being inserted the video packetizer stops reading the lane steering FIFO.
+When the Lane steering logic FIFO has a threshold amount of data, it starts reading data
+and transmits to the Link. The threshold is controlled by the
+VIDEO_CONFIG5.INIT_THRESHOLD. The FIFO must not get empty while active video is
+being transmitted. When the packetizer sees that the FIFO is almost empty or when
+average_bytes_per_tu bytes have been transmitted, it starts to insert fillers until the end of
+transfer unit. It also adds zero padding towards the end of active video period. The data
+output from the Video packetizer is multiplexed with SDP data from the SDP packetizer
+inside the main scheduler.
+The packetizer works in the single stream mode. The data from the lane steering FIFO
+directly go to the scheduler. In SST mode, the lane steering FIFO is popped by the SST
+packetizer. But in MST mode this pop function needs to be handled by the Rate governor
+module through the scheduler.
+When a stream is enabled but there is no pixel data on the pixel interface OR stream is not
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1101
+
+RK3588 TRM-Part2
+enabled in MST mode, the stream symbol sequence generator generates the SF symbols in
+its VC payload timeslot and every 1024 time slot VB-ID should be inserted. This is done by
+the scheduler. Scheduler is in the VBLANK state during this time. In SST mode, this
+functionality is handled by the scheduler.
+
+9.3.5 Main Scheduler
+
+The main scheduler multiplexes the data coming from the video and the secondary data
+packets (SDP) stream. It also inserts the blanking-start and blanking-end symbols. The main
+scheduler maintains a timer module that tracks the start and end of each horizontal and
+vertical blanking.
+When the data valid goes low, indicating the end of active pixels, the main scheduler inserts
+blanking-start control symbol and follows it up with the VB-ID information. When the data
+valid goes high, indicating valid pixels, the main scheduler inserts blanking-start control
+symbol and follows it up with the pixel transmission.
+The main scheduler
+⚫ Keeps track of active video period and the blanking intervals
+⚫ Multiplexes the data from the video stream and the SDP stream to the link based on
+blanking intervals.
+⚫ Uses video_daten and various programmed timing parameters to derive the horizontal
+and vertical intervals.
+⚫ Is responsible for transmitting the blanking start (BS) and blanking end (BE) control
+symbols at the blanking boundary.
+⚫ Gives control to the SDP scheduler for scheduling the SDP streams at the blanking
+intervals.
+⚫ Transmits VB-ID, Mvid and Mauid at the start of the blanking intervals
+⚫ Gives arbitration to SDP streams, in the absence of video stream, so that dummy
+symbols are inserted from the SDP packetizer (Figure 2-11 of DP 1.3 spec).
+⚫ The main scheduler module also takes care of generating the video timestamp values
+Mvid and Nvid.
+With the fixed priority arbitration, the lower numbered register sets get priority over higher
+numbered register sets. The SDP module frames the SDP packet based on the information
+programmed in the SDP register set, and also calculates the ECC for the SDP.
+
+9.3.6 Audio Sampler
+The audio sampler is responsible for capturing the audio input received, and writing it into
+the audio FIFO for processing by the SDP module.
+
+9.3.6.1
+
+I2S Interface
+
+I2S is one of the interfaces available in the DPTX for interfacing the audio stream.
+The width of the audio samples is programmable through audio register AUD_CONFIG1.
+I2s_data_width, to be 16 to 24 bits.
+The following control bits are to be transmitted in the audio stream as per IEC specification:
+⚫ P - Parity bit
+⚫ C - Channel Status
+⚫ U - User Data
+⚫ V – Validity
+⚫ PR - Start of Block Preamble (2 bits used to indicate Preamble for start of block. The PR
+bit in the audio stream SDP is encoded using this bit).
+◼ 00: Subframe 1 and start of audio block
+◼ 01: Subframe 1
+◼ 10: Subframe 2
+Each I2S data supports two audio channels. For DPTX, there are 4 i2sdata signals for
+supporting up to 8 audio channels, with a maximum sample frequency of 192Khz (non
+HBR).
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1102
+
+RK3588 TRM-Part2
+
+Fig. 65-2 i2s Data Input Format
+Each audio sample per channel is 22 to 30 bits including preamble, control bits (auxiliary
+bits) and the sample data itself 16-24 bits). In one sampling frequency period, 2 sub-frames
+are provided or 2 samples (for the left and right channels). Since the input clock is 512 *fs,
+the remaining data in the subframe is ignored by the core.
+High Bit Rate (HBR) Audio Support over I2S Interface
+For supporting HBR audio over the I2S interface, perform the following steps:
+1. Split the stream in four sub-streams by sending the stream to a FIFO with four outputs
+each. Each sub stream consists of a pair of samples.
+2. Apply the i2sclk clock to the I2S interface with a frequency of 512*fs/4 (for example,
+98.3 MHz for a 768 kHz input).
+3. Set the I2S sample width to 22 bits by using the AUD_CONFIG1. I2s_data_width field
+register.
+4. Configure the I2S interface by using the AUD_CONFIG1.audio_inf_select register. Enable
+all the four channels so that each channel carries a pair of samples using AUD_CONFIG1.
+i2s_in_en.
+5. Map the I2S data sample, sampleI2S[21:0], in the following way: data[21:0] =
+{PR,P,C,U,V,
+dataHBR[15:0]} (Where PR,P,C,U,V are IEC61937 parameters, PR is the encoded preamble,
+and data[15:0] is the actual HBR sample data.)
+6. The I2S data must be driven according to the following table.
+
+9.3.6.2
+
+SPDIF Interface
+
+The SPDIF interface uses a clock (spdifclk_i) and serial data (spdifdata_i]) to transfer audio
+samples / audio stream into the DPTX. Each bits of the ispdif[3:0] data corresponds to a pair
+of channels. Data input on the SPDIF must be BMC coded. The spdifclk_i must be
+synchronous to the ispdifdata_i and the frequency must be 512*fs, where fs is the original
+audio sampling frequency.
+Each audio sample per channel is 32 bits including preamble, control bits (auxiliary bits) and
+the sample data itself 16-24 bits). In one sampling frequency period, 2 sub-frames are
+provided or 2 samples (for the left and right channels) or 64 bits. Since the SPDIF data input
+is BMC (Bi-Phase mark coding) coded, it takes 2 input clocks to represent a bit. So, one
+frame (or 2 sub frames) are represented in 128 clocks. Since the input clock is 512 *fs, the
+remaining data is zero coded.
+Fig. 65-3 SPDIF Data Input Format
+The High Bit Rate Audio is fed on the SPDIF interface in the standard 2-channel format, with
+ispdifdata[0] only used for data transmission.
+
+9.3.7 PHY Interface Layer
+
+The controller supports Pipe complaint interface which can be used for interfacing with
+Synopsys PHY with the PCC logic inside the PHY.
+The behavior of phy_powerdown, phy_laneX_phystatus, and phy_rate is similar to the
+signals in the PIPE 3.0 Spec with some minor modifications. The controller supports both 20and 40-bit wide data interface to the PHY. The output from the main scheduler goes to the
+PHY interface unit. The PHY interface unit has the scrambler, the 8b/10 encoder and the
+training pattern generator unit. The training pattern generator is responsible for generating
+the patterns during link training at the request of the software. The link training is driven by
+the software. The software instructs the PHY interface unit and sequences it through each
+step of the link training. The PHY interface unit also has PCC (Power and clock control)
+module which is specific to interfacing with Synopsys PHY. This module is responsible for
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1103
+
+RK3588 TRM-Part2
+taking care of the power down changes and the clock multiplexing based on the data rate of
+the link. The PHY interface unit also has a Rocket IO wrapper which is used for interfacing to
+the rocket IO for prototyping.
+
+9.3.8 AUX Channel Interface
+
+The AUX channel interface is used by the DPTX controller for AUX transfers.
+The AUX module uses a 16 MHz input AUX clock for oversampling and regenerating the AUX
+data from the serial interface in AUX Rx. The AUX module also has the Manchester encoder
+and decoder. Various registers are provided for the software to get notification on aux
+transaction completion or error status.
+The AUX channel is responsible for executing the AUX transfers as requested by the software
+driver, via the APB interface, or by internal modules via a dedicated internal interface. The
+request by the software is initiated by programming the AUX registers which are
+implemented in the APB clock domain. Once a write to the AUX_CMD register is detected,
+the AUX channel initiates an AUX transfer and sets the AUX_REPLY_RECEIVED bit in the
+AUX_STATUS register. The transmitted data is encoded using a Manchester-II encoder. When
+the encoder is not driving the bus, then the transmit enable for the bidirectional AUX is not
+asserted. This interface runs at a nominal 1MHz (1Mbps). For a 16MHz clock for AUX is used,
+then each UI requires 16 clock periods to generate. The encoder generates the following
+sequence before any data stream is to be transmitted:
+⚫ Pre-charge: 16 zeros
+⚫ Pre-amble: 16 zeros
+⚫ AUX_SYNC_END: 2 High periods followed by 2 Low periods
+⚫ Data to be transmitted
+⚫ AUX_STOP: 2 High periods followed by 2 Low periods
+
+Fig. 65-4 AUX sequence
+When all the data is transmitted, the AUX channel waits for a response. A 400uSec timer
+starts to limit the reply wait time. The Sink reply is captured & latched into the AUX status
+and data registers implemented in the APB block but also available on the internal bus to be
+consumed by the internal requesters. It's the SW responsibility to interpret the status and
+decide about the next transfer. The internal requests from the HDCP modules are limited to
+Native AUX. The internal requesters are expected to interpret correctly the
+ACK/NACK/DEFER responses, then decide how to proceed. The AUX_REPLY_RECEIVED bit is
+reset after the reply is received or timeout occurred.
+Once the SW initiates an AUX request, some checks are performed to make sure its a legal
+request. The AUX_CMD.AUX_CMD_TYPE setting are compared with the 8 possible legal
+commands and the AUX_CMD.AUX_Byte_Length is checked so that:
+⚫ Read request is 1 byte
+⚫ Write does not exceed 16 bytes (1 + N, where N is 1-16)
+
+9.3.9 Secondary Data Packet (SDP)
+
+This section explains the how SDPs other than the Audio Stream SDPs are handled by the
+DPTX.
+The DPTX controller has various software programmable registers through which the driver
+programs the header and the payload of the various SDPs, then programs the SDP
+Vertical/Horizontal & Manual control registers to enable specific SDP transmission and set
+whether the SDP is transmitted in the vertical, horizontal or both blanking intervals. The
+Manual control is used to control whether a SDP is transmitted once or continuously in the
+specified intervals.
+DPTX always transmits the SDP as size of 32 bytes. Payloads less than this size are padded
+with zeros to make it 32 bytes.
+⚫ Vendor Specific Infoframe Scheduling
+According to DP spec 1.3, section 2.2.5.1, the source should comply with the CEA861-F spec
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1104
+
+RK3588 TRM-Part2
+for transmission of any Infoframe. As per CEA861-F, a source should support transmission of
+more than one VSIFs in a vertical blanking interval. DPTX SDP register banks allows
+transmission of more than one VSIFs in a vertical blanking interval. CEA861-F also talks
+about transmitting the version1/version2, where version2 used to indicate a change in the
+payload of the VSIF. This is also supported by the controller. The driver has to make sure
+that the multiple VSIFs to be transmitted in a vertical interval has to be programmed from a
+lower to higher continuously in the SDP register bank. For example if there are 4 VSIFs to be
+transmitted in an interval, then the 1 to 4 VSIFs should be programmed in SDP register
+bank N to N+4, where the first VSIF should be programmed in register bank N and fourth
+VSIF should be programmed in register bank N+4.
+Either auto or manual mode can be used to transmit the VSIFs. If not using manual mode,
+then the specific register banks should be disabled before making a change and re enabling.
+⚫ Audio Timestamp SDP
+Audio Timestamp SDP payload, which has the Maud and Naud values are generated by the
+hardware. There is no separate register for programming the payload for Audio Timestamp
+SPDs. The software still needs to set the corresponding auto enable bit in the Replace this
+with SDP_VERTICAL/HORIZONTAL_CTRL register for enabling the transmission of the Audio
+Timestamp SDP.
+In the absence of Main video stream, controller makes sure that the Audio Timestamp SDP
+is transmitted once every 512th BS symbol set.
+⚫ Audio Stream SDPs
+The audio samples are packed into the audio stream SDP in a 2-channel format or an 8channel format. 2 channel mode is only used when only channel 1 /2 are active. In this case
+the AUD_CONFIG1.num_channels should be set to 2, and AUD_CONFIG1.audio_data_in_en
+should have a value of only 1. 8 channel mode is used whenever audio samples are available
+for channels 3-8. In this case AUD_CONFIG1.num_channels should be set to 8 and the
+AUD_CONFIG1.audio_data_in_en can be set to any value based on which channels the
+samples are available on.
+In an 8 channel operation if only 4 channels have samples active
+(AUD_CONFIG1.audio_data_in_en[3:0] == 4'b1001), then the audio stream SDPs are
+transmitted in an 8-channel mode and data for channels 3,4,5,6 are zeroed out. The sample
+present bit for these channels are still set.
+Zero padding of sample data at the audio interface is required in case the number of
+transmitted audio channels is odd. No zero padding is required if the corresponding
+AUD_CONFIG1.AUDIO_DATA_IN_EN is set to 1’b0.
+In the absence of Main video stream, controller makes sure that the Audio Infoframe SDP if
+enabled, is transmitted once every 512th BS symbol set.
+
+9.3.10 High-Bandwidth Digital Content Protection (HDCP)
+
+The DPTX core can be configured to support HDCP. When HDCP is enabled, it can be
+programmed to support HDCP 2.2 or HDCP 1.3 authentication protocols.
+The HDCP 2.2 core contains a processor to fetch the instructions and data from the system
+memory. So, the HDCP core has a DMA master AXI interface.
+This module is responsible for reading the ciphers and using them to encrypt the data. When
+encryption is enabled, this module reads cipher from HDCP1.3 or HDCP2.2 block based on
+the mode of operation and XORs the cipher with data; control symbols are bypassed.
+It also maintains the Link verification pattern. Link verification pattern is shifted by one on
+every blanking interval and reset when encryption is disabled.
+There is also a debug option to bypass encryption by not XORing the data with cipher with
+encryption enabled. This is only for debug purpose and must be locked using the
+HDCPCFG.HDCP_LOCK bit
+
+9.3.10.1 Overview of HDCP 2.2
+
+On NACK, DEFER response or ACK response with fewer bytes from sink, the ESM retries the
+entire AUX transaction — but not the full HDCP transaction. For example, when the ESM
+reads 522-byte Rx certificate and has successfully read the first 128 bytes, then it does a
+16-byte read request for bytes 129-144 and gets a NACK, DEFER, or ACK with fewer than 16
+bytes. It then re-attempts from byte 129, not from byte 1 (and not from byte (129 + # of
+bytes received)).
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1105
+
+RK3588 TRM-Part2
+The SHALE hardware can be programmed to break up transfers into chunks of 4, 8 or 16
+bytes but this is a static configuration parameter and cannot be adjusted on the fly. Reattempts are always done with the same transaction size.
+Retrying authentication is the responsibility of the application software controlling the ESM.
+When it has been determined that the Rx is 2.2 capable, the Tx retries infinitely until the
+device is disconnected or HDCP is wiggled. Retries are done at the rate of the send cert
+timeout (100 ms), so it is effective immediately.
+
+9.3.10.2 Overview of HDCP 1.3
+
+All AUX transfer requests from authentication and revocation state machine are handled in
+this module. It is responsible for forming the aux transfer commands and holding the values
+read in internal registers for use by authentication and revocation state machine (KSV list
+read is stored in the revocation RAM).
+On NACK, DEFER response or ACK response with fewer bytes from sink, the transfer is
+retried
+automatically from the point where the transfer stopped. For example, if HDCP1.3 reads 16
+bytes, but sinks return 1byte with NAK response, HDCP1.3 retries only for the remaining
+15bytes.
+When seven consecutive NACK or DEFER response is received, HDCP interrupt event is
+generated.
+⚫ HDCP1.3 Encryption Signaling block implements the display port encryption signaling
+defined in HDCP1.3 spec.
+⚫ HDCP API Interface register Bank contains registers related to KSVs, AN, DPK
+programming, SHA calculation and GPIO status.
+⚫ HDCP SFR register Bank contains HDCP configuration register, HDCP observation
+register, HDCP interrupt related registers.
+⚫ HDCP1.3 DPK registers are used when ROM less configuration is chosen. DPKs are
+programmed by software and are stored in this module. It is used by cipher module for
+the keys.
+Controller retries authentication indefinitely until the HDCP enable bit is reset by the
+application.
+
+9.4 Register Description
+9.4.1 Internal Address Mapping
+Slave address can be divided into different length for different usage, which is shown as
+follows.
+
+9.4.2 Registers Summary
+Name
+
+Offset
+
+Size
+
+DPTX_VERSION_NUMBER 0x0000
+DPTX_VERSION_TYPE
+0x0004
+
+W
+W
+
+DPTX_CONFIG_REG1
+
+0x0100
+
+W
+
+DPTX_CONFIG_REG2
+
+0x0104
+
+W
+
+DPTX_CONFIG_REG3
+
+0x0108
+
+W
+
+DPTX_CCTL
+0x0200
+DPTX_SOFT_RESET_CTRL 0x0204
+DPTX_VSAMPLE_CTRL
+0x0300
+DPTX_VSAMPLE_STUFF_C
+0x0304
+TRL1
+DPTX_VSAMPLE_STUFF_C
+0x0308
+TRL2
+DPTX_VINPUT_POLARITY_
+0x030C
+CTRL
+
+W
+W
+W
+W
+W
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Reset
+Description
+Value
+0x3231312A Version Number Register
+0x65613038 Version Type Register
+RTL Configuration Parameter
+0x02212D0D
+Register 1
+RTL Configuration Parameter
+0x08001000
+Register 2
+RTL Configuration Parameter
+0x0000016C
+Register 3
+0x00000004 Global Control Register
+0x00000000 Software Initiated Reset Register
+0x00000000 Video Sampler Control Register
+Video Sampler Data Stuff Control
+0x00000000
+Register
+Stuff Control for RCR/GY Data
+0x00000000
+Register
+Video Input Polarity Control
+0x00000000
+Register
+
+1106
+
+RK3588 TRM-Part2
+
+DPTX_VIDEO_CONFIG1
+0x0310
+DPTX_VIDEO_CONFIG2
+0x0314
+DPTX_VIDEO_CONFIG3
+0x0318
+DPTX_VIDEO_CONFIG4
+0x031C
+DPTX_VIDEO_CONFIG5
+0x0320
+DPTX_VIDEO_MSA1
+0x0324
+DPTX_VIDEO_MSA2
+0x0328
+DPTX_VIDEO_MSA3
+0x032C
+DPTX_VIDEO_HBLANK_IN
+0x0330
+TERVAL
+DPTX_AUD_CONFIG1
+0x0400
+DPTX_SDP_VERTICAL_CT
+0x0500
+RL
+DPTX_SDP_HORIZONTAL_
+0x0504
+CTRL
+DPTX_SDP_STATUS_REGI
+0x0508
+STER
+DPTX_SDP_MANUAL_CTR
+0x050C
+L
+
+W
+W
+W
+W
+W
+W
+W
+W
+
+Reset
+Description
+Value
+0x02800280 Video Configuration Register1
+0x002D01E0 Video Configuration Register2
+0x00600010 Video Configuration Register3
+0x0002000A Video Configuration Register4
+0x00030796 Video Configuration Register5
+0x00230090 Main Stream Attribute Register 1
+0x00000000 Main Stream Attribute Register 2
+0x00000000 Main Stream Attribute Register 3
+
+W
+
+0x00000000 Hblank Interval Symbol Register
+
+W
+
+DPTX_SDP_STATUS_EN
+
+W
+
+0x12001202 Audio Input Control Register
+Secondary Data Packets Vertical
+0x00000000
+Blanking Register
+Secondary Data Packets
+0x00000000
+Horizontal Blanking Register
+Secondary Data Packets Status
+0x00000000
+Register
+Manual Controlled Transmit of
+0x00000000
+SDP
+SDP Status Interrupt Enable
+0x00000000
+Register
+
+Name
+
+Offset
+
+0x0510
+
+DPTX_SDP_REGISTER_BA
+0x0600
+NK
+DPTX_PHYIF_CTRL
+0x0A00
+
+Size
+
+W
+W
+W
+W
+
+W
+
+0x00000000 SDP Register bank
+
+W
+
+0x00060000 PHY Interface Control Register
+PHY Pre-emphasis and Voltage
+0x00000000
+Swing Control Register
+Custom 80-bit pattern Position
+0x00000000
+Register 0
+Custom 80-bit pattern Position
+0x00000000
+Register 1
+Highest 20-bits of the 80-bit
+0x00000000
+pattern.
+
+DPTX_PHY_TX_EQ
+
+0x0A04
+
+W
+
+DPTX_CUSTOMPAT0
+
+0x0A08
+
+W
+
+DPTX_CUSTOMPAT1
+
+0x0A0C
+
+W
+
+DPTX_CUSTOMPAT2
+
+0x0A10
+
+W
+
+DPTX_HBR2_COMPLIANCE
+0x0A14
+_SCRAMBLER_RESET
+DPTX_PHYIF_PWRDOWN_
+0x0A18
+CTRL
+DPTX_AUX_CMD
+0x0B00
+DPTX_AUX_STATUS
+0x0B04
+DPTX_AUX_DATA0
+0x0B08
+DPTX_AUX_DATA1
+0x0B0C
+DPTX_AUX_DATA2
+0x0B10
+DPTX_AUX_DATA3
+0x0B14
+DPTX_PHYREG_CMDADDR 0x0C00
+DPTX_PHYREG_DATA
+0x0C04
+DPTX_TYPEC_CTRL
+0x0C08
+DPTX_GENERAL_INTERRU
+0x0D00
+PT
+DPTX_GENERAL_INTERRU
+0x0D04
+PT_ENABLE
+DPTX_HPD_STATUS
+0x0D08
+DPTX_HPD_INTERRUPT_E
+0x0D0C
+NABLE
+DPTX_HDCPCFG
+0x0E00
+
+W
+
+0x000000FC CP2520 Pattern Length
+
+W
+
+0x00000000 Lane Powerdown Control
+
+W
+W
+W
+W
+W
+W
+W
+W
+W
+
+0x00000000 AUX Configuration Register
+0x00000000 AUX Status Register
+0x00000000 AUX Data- First 4 bytes
+0x00000000 AUX Data Second 4 bytes.
+0x00000000 AUX Data Third 4 bytes
+0x00000000 AUX Data Fourth 4 bytes
+0x00000000 PHY Address Register
+0x00000000 PHY Write and Read DATA
+0x00000000 Type-C Control Register
+
+W
+
+0x00000000 General Interrupt Register
+
+W
+
+0x00000000 General Interrupt Enable Register
+
+W
+
+0x00000000 HPD Interrupt Status Register
+
+W
+
+0x00000000 HPD Interrupt Enable Register
+
+W
+
+0x00000000 HDCP Config Register
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1107
+
+RK3588 TRM-Part2
+Name
+DPTX_HDCPOBS
+DPTX_HDCPAPIINTCLR
+DPTX_HDCPAPIINTSTAT
+DPTX_HDCPAPIINTMSK
+
+Offset
+
+Size
+
+0x0E04
+0x0E08
+0x0E0C
+0x0E10
+
+W
+W
+W
+W
+
+DPTX_HDCPKSVMEMCTRL 0x0E18
+
+W
+
+DPTX_HDCP_REVOC_RAM
+0x0E20
+_i
+DPTX_HDCPREG_BKSV0
+0x3600
+DPTX_HDCPREG_BKSV1
+0x3604
+DPTX_HDCPREG_ANCONF 0x3608
+DPTX_HDCPREG_AN0
+0x360C
+DPTX_HDCPREG_AN1
+0x3610
+
+W
+
+0xFFFFFFFF
+
+W
+W
+W
+W
+W
+
+0x00000000 HDCP BKSV Status Register 0
+0x00000000 HDCP BKSV Status Register 1
+0x00000000 HDCP AN Bypass Control Register
+0x00000000 HDCP Forced AN Register 0
+0x00000000 HDCP Forced AN Register 1
+HDCP Encrypted Device Private
+0x00000000
+Keys Control Register
+HDCP Encrypted DPK Status
+0x00000000
+Register
+HDCP Encrypted DPK Seed
+0x00000000
+Register 0
+HDCP Encrypted DPK Data
+0x00000000
+Register 0
+HDCP Encrypted DPK Data
+0x00000000
+Register 1
+HDCP22 controller GPIO output
+0x00000000
+status
+HDCP22 controller GPIO output
+0x00000000
+change status
+HDCP Encrypted DPK Data CRC
+0x00000000
+Register
+
+DPTX_HDCPREG_RMLCTL 0x3614
+
+W
+
+DPTX_HDCPREG_RMLSTS 0x3618
+
+W
+
+DPTX_HDCPREG_SEED
+
+0x361C
+
+W
+
+DPTX_HDCPREG_DPK0
+
+0x3620
+
+W
+
+DPTX_HDCPREG_DPK1
+
+0x3624
+
+W
+
+DPTX_HDCP22GPIOSTS
+
+0x3628
+
+W
+
+DPTX_HDCP22GPIOCHNG
+0x362C
+STS
+DPTX_HDCPREG_DPK_CR
+0x3630
+C
+
+Reset
+Description
+Value
+0x00000000 HDCP Observation Register
+0x00000000 HDCP Interrupt Clear Register
+0x00000000 HDCP Interrupt Status Register
+0x00000000 HDCP Interrupt Mask Register
+HDCP KSV Memory Controller
+0x00000000
+Register
+
+W
+W
+
+HDCP Revocation RAM space
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+9.4.3 Detail Registers Description
+DPTX_VERSION_NUMBER
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+VERSION_NUMBER
+31:0 RO 0x3231312a
+Version Number of the DPTX
+DPTX_VERSION_TYPE
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+VERSION_TYPE
+31:0 RO 0x65613038
+Version type of the DPTX
+DPTX_CONFIG_REG1
+Address: Operational Base + offset (0x0100)
+Bit Attr Reset Value
+Description
+DSC
+31:30 RO 0x0
+The value of the parameter DPTX_DSC_EN
+GEN2_PHY
+29
+RO 0x0
+The value of the parameter DPTX_COMBO_PHY_C10_GEN2.
+NUM_DSC_ENC
+28:25 RO 0x1
+The value of the parameter DPTX_NUM_DSC_ENC.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1108
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+24
+
+RO
+
+0x0
+
+23
+
+RO
+
+0x0
+
+22
+
+RO
+
+0x0
+
+21:19 RO
+
+0x4
+
+18:16 RO
+
+0x1
+
+15:14 RO
+
+0x0
+
+13:12 RO
+
+0x2
+
+11
+
+RO
+
+0x1
+
+10
+
+RO
+
+0x1
+
+9
+
+RO
+
+0x0
+
+8:4
+
+RO
+
+0x10
+
+3
+
+RO
+
+0x1
+
+2:1
+
+RO
+
+0x2
+
+0
+
+RO
+
+0x1
+
+Description
+FEC_EN
+The value of the parameter DPTX_FEC_EN
+EDP_EN
+The value of the parameter DPTX_EDP_EN.
+DSC_EN
+Indicates if Internal DSC is enabled or not
+MP_MODE
+3'b001: Single Pixel Mode.
+3'b010: Dual Pixel Mode.
+3'b100: Quad Pixel Mode.
+NUM_STREAMS
+3'h1: SST Mode.
+3'h2: Two Streams
+3'h3: Three Streams
+3'h4: Four Streams
+reserved_15_14
+Reserved
+SYNC_DEPTH
+2'b10: Indicates that 2 stage synchronizers being used
+2'b11: Indicates that 3 stage synchronizers being used
+DPK_8BIT
+1'b1: ROM width is 8 bits
+1'b0: ROM width is 56bits
+DPK_ROMLESS
+When 1, disables the use of External ROM for storing Device
+Private Keys
+FPGA_EN
+When enabled, configures the core to have the audio and video
+generators instantiated inside the DPTX top level.
+SDP_REG_BANK_SIZE
+Specifies the number of SDP register banks supported. Enabling
+each register bank instantiates nine 32-bit registers for the
+transmission of 32Byte SDP packet.
+PHY_USED
+The value of the parameter DPTX_PHYIF_TYPE
+1'b0: Vendor PHY
+1'b1: PIPE Compliant PHY
+AUDIO_SELECT
+The value of parameter audio_select
+2'b00: I2S Interface
+2'b01: SPDIF Interface
+2'b10: I2S and SPDIF Interface
+2'b11: None
+HDCP_SELECT
+Reflects the hardware parameter hdcp_en
+1'b0: No
+1'b1: Yes
+
+DPTX_CONFIG_REG2
+Address: Operational Base + offset (0x0104)
+Bit Attr Reset Value
+Description
+DSC_MAX_NUM_LINES
+31:16 RO 0x0800
+The value of the parameter DSC_MAX_NUM_LINES
+DSC_MAX_PIXS_PER_LINE
+15:0 RO 0x1000
+The value of the parameter DSC_MAX_PIXS_PER_LINE
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1109
+
+RK3588 TRM-Part2
+
+DPTX_CONFIG_REG3
+Address: Operational Base + offset (0x0108)
+Bit Attr Reset Value
+Description
+reserved_31_9
+31:9 RO 0x000000
+Reserved
+PHY_TYPE
+2'b00: Vendor PHY
+8:7
+RO 0x2
+2'b01: RocketIO FPGA Only
+2'b10: Pipe Compliant PHY
+2'b11: Reseved
+DSC_NATIVE_422_EN
+6
+RO 0x1
+The value of the parameter DSC_NATIVE_422_EN
+DSC_NATIVE_420_EN
+5
+RO 0x1
+The value of the parameter DSC_NATIVE_420_EN
+DSC_MAX_BPC
+4:0
+RO 0x0c
+The value of the parameter DSC_MAX_BPC
+DPTX_CCTL
+Address: Operational Base + offset (0x0200)
+Bit Attr Reset Value
+Description
+31:30 RO 0x0
+reserved
+ENHANCE_FRAMING_WITH_FE
+When set controller follows enhanced framing with FEC as
+29
+RW 0x0
+specified in section 3.5.1.1 of the DP1.4 spec. Configure this bit
+when enabling FEC on sink ie before setting FEC_READY bit in
+sink
+INITIATE_MST_ACT_SEQ
+Only used in MST mode and should be programmed to trigger the
+28
+RW 0x0
+link to start an ACT sequence with the DPRX of the branch device
+immediately connected to the DPTX.
+ENABLE_eDP
+This bit is used to control the operation of the controller as an
+Embedded DisplayPort controller (eDP) or a standard DisplayPort
+Controller compliant with the DisplayPort Spec Ver 1.4.
+1'b1: Controller operates in eDP mode
+27
+RW 0x0
+1'b0: Controller operates in standard DisplayPort mode eDP
+features are disabled by default. Program this bit only if you have
+chosen to enable eDP features by seeing the parameter
+DPTX_EDP_EN = 1. When eDP is enabled FEC should not be
+enabled (ENABLE_FEC should be 0).
+ENABLE_FEC
+This bit is used to enable the FEC feature. Set this bit to 1 to
+26
+RW 0x0
+enable the FEC functionality. If FEC is disabled during core
+configuration (DPTX_FEC_EN=0), then writing to this bit has no
+effect.
+ENABLE_MST_MODE
+25
+RW 0x0
+This bit is used for enabling the MST mode of operation.
+BS_512_SCALE_DOWN
+24:17 RW 0x00
+When SR_SCALE_DOWN is set, this controls the 512 scale down
+count.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1110
+
+RK3588 TRM-Part2
+Bit
+
+16
+
+Attr Reset Value
+
+RW 0x0
+
+15:12 RO
+
+0x0
+
+11:8
+
+RW 0x0
+
+7
+
+RO
+
+6
+
+RW 0x0
+
+5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+3
+
+RW 0x0
+
+2
+
+RW 0x1
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+0x0
+
+Description
+SR_SCALE_DOWN
+"Every 512th BS symbol must be replaced with an SR symbol by
+a DPTX to reset the LFSR of the scrambler". For simulation, a
+scale down factor has been added and this bit controls the
+scaledown. When set to 1 the scrambler reset replaces Blanking
+Start after CCTL.BS_512_SCALE_DOWN value. When set to 0
+scrambler reset replaces Blanking Start after
+512 Blanking Starts
+reserved
+DEBUG_CONTROL
+Used for controlling the debug bus output. By configuring this
+register different signals selected to the output 64bits debug bus.
+No signal is selected and the output is '0' when the register is in
+its default state.
+4'b0000: No signal is selected.
+4'b0001: AUX
+4'b0010: AUDIO
+4'b0011: VIDEO
+4'b0100: LINK
+4'b0101: HDCP1.3
+4'b0110: HDCP2.2
+4'b0111: SDP
+4'b1XXX: reserved
+reserved
+SEL_AUX_TIMEOUT_32MS
+When set to 1 the Aux timeout value is 3.2ms instead of 400us
+DISABLE_INTERLEAVING
+When set to 1 the nibble interleaving logic implemented as part
+of SDP packets generation is disabled.
+FORCE_HPD
+Used for testing only. It allows software to force the HPD value to
+1 when writing 1. Otherwise does not impact the external HPD
+input.
+SCALE_DOWN_MODE
+When programmed to 1 the debounce filter on the HPD input is
+reduced from 100mSec in normal operation to 10uSec. This bit
+does not have any impact on the IRQ generation timing.
+DEFAULT_FAST_LINK_TRAIN_E
+When set after coming out of power on reset the controller starts
+fast link training for 1lane RBR rate without the driver
+intervention. The default video timings are set for 640x480
+timing format 6bpc.
+ENHANCE_FRAMING_EN
+When set, controller follows enhanced framing. Configure this bit
+based on enhanced framing support of sink
+SCRAMBLE_DIS
+1'b1: Disable scramble.
+1'b0: Scramble enabled (default).
+When set, DPTX link does not scramble data on the main link.
+Enabling or disabling this bit resets the scrambler.
+
+DPTX_SOFT_RESET_CTRL
+Address: Operational Base + offset (0x0204)
+Bit Attr Reset Value
+31:12 RO 0x00000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1111
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+11
+
+RW 0x0
+
+10
+
+RW 0x0
+
+9
+
+RW 0x0
+
+8:5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+AUDIO_SAMPLER_RESET_STREAM3
+Software sets this bit to start the audio sampler reset. This also
+clears the audio FIFOs. This field is valid only for MST mode and
+is used for the reset of audio streams 3.
+AUDIO_SAMPLER_RESET_STREAM2
+Software sets this bit to start the audio sampler reset. This also
+clears the audio FIFOs. This field is valid only for MST mode and
+is used for the reset of audio streams 2.
+AUDIO_SAMPLER_RESET_STREAM1
+Software sets this bit to start the audio sampler reset. This also
+clears the audio FIFOs. This field is valid only for MST mode and
+is used for the reset of audio streams 1.
+VIDEO_RESET
+Software sets this bit to reset the video logic. In MST mode each
+bit controls the reset of a specific Video Stream. Bit5-8 controls
+the soft reset of Video stream-0 to 3.
+AUX_RESET
+Software sets this bit to start the aux channel reset.
+AUDIO_SAMPLER_RESET
+Software sets this bit to start the audio sampler reset. This also
+clears the audio FIFOs. In MST mode, this bit is used for
+Stream0.
+HDCP_MODULE_RESET
+Software sets this bit to start the HDCP module reset
+PHY_SOFT_RESET
+Software sets this bit to start the PHY reset process.
+CONTROLLER_RESET
+Software sets this bit to start the controller reset process. This
+also initiates a PHY reset.
+
+DPTX_VSAMPLE_CTRL
+Address: Operational Base + offset (0x0300)
+Bit Attr Reset Value
+Description
+31:26 RO 0x00
+reserved
+STREAM_TYPE
+This is a per stream control defining the stream type.
+25
+RW 0x0
+RepeaterAuth_Stream_Manage of HDCP2.2 specification.
+This field is valid only when HDCP MST are enabled.
+ENCRYPTION_ENABLE
+This is a per stream control to enable encryption. Setting ofthis
+bit has significance only when operating in MST mode or eDP. In
+non eDP SST operation, this bit has no significance.
+In MST mode or when eDP is enabled, this bit control the
+24
+RW 0x0
+encryption to be used. In MST mode, this bit control HDCP
+encryption for a specific stream. HDCPCFG register controls the
+global enable of HDCP. In eDP mode this bit controls the enabling
+of ASSR feature as specified in section 3.5 of eDP1.4b spec and
+Section 2.10 of DP1.4 spec. When eDP is enabled, HDCP should
+be disabled and HDCPCFG[1] should not be set.
+ENABLE_DSC
+Set this bit to 1 to enable Display Stream Compression (DSC) on
+23
+RW 0x0
+this specific stream. The software driver can set this bit only if
+DSC is enabled during configuration (DPTX_DSC_EN = 1 or 2).
+Otherwise writing 1 1 to this bit does not take effect.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1112
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+22:21 RW 0x0
+
+20:16 RW 0x00
+
+15:6
+
+RO
+
+0x000
+
+5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+3:0
+
+RO
+
+0x0
+
+Description
+PIXEL_MODE_SELECT
+This field is used to select the single/dual/quad pixel mode of
+operation.
+2'b00: Single pixel mode (default)
+2'b01: Dual pixel mode
+2'b10: Quad pixel mode.
+2'b11: Reserved.
+VIDEO_MAPPING
+Video input mapping color space/depth Video Input mapping
+(color space/color depth) with DSC
+disabled/enabled(VSAMPLE_CTRL.ENABLE_DSC=0/1):
+0: RGB 6bits (Reserved)
+1: RGB 8bits (RGB 8bits)
+2: RGB 10bits (RGB 10bits)
+3: RGB 12bits (RGB 12bits)
+4: RGB 16bits (Reserved)
+5: YCbCR4:4:4 8bits (YCbCr4:4:4 8bits)
+6: YCbCr4:4:4 10bits (YCbCr4:4:4 10bits)
+7: YCbCr4:4:4 12bits (YCbCr4:4:4 12bits)
+8: YCbCr4:4:4 16bits (Reserved)
+9: YCbCR4:2:2 8bits (Simple YCbCr4:2:2 8bits)
+10: YCbCr4:2:2 10bits (Simple YCbCr4:2:2 10bits)
+11: YCbCr4:2:2 12bits (Simple YCbCr4:2:2 12bits)
+12: YCbCr4:2:2 16bits (Reserved)
+13: YCbCR4:2:0 8bits (YCbCR4:2:0 8bits)
+14: YCbCr4:2:0 10bits (YCbCR4:2:0 10bits)
+15: YCbCr4:2:0 12bits (YCbCR4:2:0 12bits)
+16: YCbCr4:2:0 16bits (Reserved)
+17: YOnly 8bits (native YCbCr4:2:2 8bits)
+18: YOnly 10bits (native YCbCr4:2:2 10bits)
+19: YOnly 12bits (native YCbCr4:2:2 12bits)
+20: YOnly 16bits (Reserved)
+23: RAW 8bits. (Reserved)
+24: RAW 10bits (Reserved)
+25: RAW 12bits (Reserved)
+27: RAW 16bits (Reserved)
+Others: Reserved.
+reserved
+VIDEO_STREAM_ENABLE
+1'b0: Video stream Disable
+1'b1: Video stream Enable
+When set to 0, no video stream is transmitted. Video inputs are
+ignored and NoVideoStream_flag in the VB-ID is set.
+INTERNAL_DE_GENERATOR
+1'b1: Enable internal data generator
+1'b0: Data enable signal available at the input.
+When the external logic which drives the pixel data does not
+generate the video data enable, then enabling this bit forces the
+controller to generate the video enable internally.
+Note: This feature is currently not supported and therefore should
+not be used.
+reserved
+
+DPTX_VSAMPLE_STUFF_CTRL1
+Address: Operational Base + offset (0x0304)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1113
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+31:16 RW 0x0000
+15:3
+
+RO
+
+0x0000
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+BCB_STUFF_DATA
+Data to be stuffed on B/Cb data path.
+reserved
+GY_DATA_STUFFING_EN
+Enable stuffing on internal G/Y data lines.
+RCR_DATA_STUFFING_EN
+Enable stuffing on internal R/Cr data lines.
+BCB_DATA_STUFFING_EN
+Enable stuffing on internal B/Cb data lines
+
+DPTX_VSAMPLE_STUFF_CTRL2
+Address: Operational Base + offset (0x0308)
+Bit Attr Reset Value
+Description
+GY_STUFF_DATA
+31:16 RW 0x0000
+Data to be stuffed on G/Y data path.
+RCR_STUFF_DATA
+15:0 RW 0x0000
+Data to be stuffed on R/Cr data path.
+DPTX_VINPUT_POLARITY_CTRL
+Address: Operational Base + offset (0x030C)
+Bit Attr Reset Value
+31:3 RO 0x00000000 reserved
+DE_IN_POLARITY
+de input polarity
+2
+RW 0x0
+1’b1: Active low
+1’b0: Active high
+HSYNC_IN_POLARITY
+Hsync input polarity
+1
+RW 0x0
+1’b1: Active high
+1’b0: Active low
+VSYNC_IN_POLARITY
+Vsync input polarity
+0
+RW 0x0
+1’b1: Active high
+1’b0: Active low
+
+Description
+
+DPTX_VIDEO_CONFIG1
+Address: Operational Base + offset (0x0310)
+Bit Attr Reset Value
+Description
+HACTIVE
+31:16 RW 0x0280
+Input video Horizontal active pixel region width. Number of
+Horizontal active pixels [0...8191].
+HBLANK
+15:2 RW 0x00a0
+Input video Horizontal blanking pixel region width. Number of
+Horizontal blanking pixels [0...4095].
+I_P
+Input video mode
+1
+RW 0x0
+1’b1: Interlaced
+1’b0: Progressive
+R_V_BLANK_IN_OSC
+Used for CEA861-D modes with fractional Vblank (for example,
+modes 5, 6, 7, 10, 11, 20, 21, and 22). For more modes, see the
+0
+RW 0x0
+CEA861-D specification.
+Note: Set this field to 1 for video mode 39, although there is no
+Vblank oscillation. 1b: Active high
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1114
+
+RK3588 TRM-Part2
+DPTX_VIDEO_CONFIG2
+Address: Operational Base + offset (0x0314)
+Bit Attr Reset Value
+Description
+VBLANK
+31:16 RW 0x002d
+Input video Vertical blanking pixel region width. Number of
+Vertical blanking lines.
+VACTIVE
+15:0 RW 0x01e0
+Input video Vertical active pixel region width. This bit field holds
+bits 15:0 of number of Vertical active pixels.
+DPTX_VIDEO_CONFIG3
+Address: Operational Base + offset (0x0318)
+Bit Attr Reset Value
+Description
+H_SYNC_WIDTH
+31:16 RW 0x0060
+Input video Hsync active pulse width. Integer number of pixel
+clock cycles [0...511].
+H_FRONT_PORCH
+Input video Hsync active edge delay. Integer number of pixel
+15:0 RW 0x0010
+clock cycles from "de" non active edge of the last "de" valid
+period [0...4095].
+DPTX_VIDEO_CONFIG4
+Address: Operational Base + offset (0x031C)
+Bit Attr Reset Value
+Description
+V_SYNC_WIDTH
+31:16 RW 0x0002
+Input video Vsync active pulse width. Integer number of video
+lines [0...63].
+V_FRONT_PORCH
+Input video Vsync active edge delay. Integer number of hsync
+15:0 RW 0x000a
+pulses from "de" non active edge of the last "de" valid period.
+[0...255]. Specified in terms of number of lines. Value After
+Reset: 0
+DPTX_VIDEO_CONFIG5
+Address: Operational Base + offset (0x0320)
+Bit Attr Reset Value
+Description
+31:23 RO 0x000
+reserved
+INIT_THRESHOLD_HI
+22:21 RW 0x0
+Most Significant two bits of INT_THRESHOLD.
+ENABLE_3D_FRAME_FIELD_SE
+Set this bit to 1 if the video format being transmitted is 3D video
+format and Frame/Filed sequential 3D mode is used.
+20
+RW 0x0
+Set this bit to 0 (default) if no 3D video is being transmitted, or
+Frame/Filed sequential 3D format is not being used. Refer to
+section "3D Stereo Mode Support" for more details.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1115
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+19:14 RW 0x0c
+
+13:7
+
+RW 0x0f
+
+Description
+AVERAGE_BYTES_PER_TU_FR
+This is the fractional portion of the value calculated in the
+average bytes per TU. The first decimal value in the fractional
+part should be programmed here. For example, if the average
+bytes per TU is 24.34, then this field should be programmed to a
+value of 3. In SST mode only bits 19:16 is used. In MST mode,
+this field should be programmed with the fractional value of the
+VC payload size calculated by the Payload bandwidth manager. as
+specified in Section 2.6.4.3 of DisplayPort 1.4 Spec. The fractional
+value calculated times 64 should be programmed in this field. For
+example if the vc_payload_size calculated is 34.23, a value of
+0.23*64 = 15 (14.72 rounded to the nearest integer) should be
+programmed here. For over 64 MTPs controller transmits
+AVERAGE_BYTES_PER_TU+1 timeslots with valid symbols for
+average_bytes_per_tu MTPs for this streams and for 64average_bytes_per_tu MTPS AVERAGE_BYTES_PER_TU timeslots
+will have valid symbols. Here is an example for calculating the
+average_bytes_per_tu_frac in MST mode for the video format
+VIC-1 (640x480) RGB, 8bpc, at a frame rate of 60Hz. The Link is
+assumed to be HBR 4 lanes. Peak_stream_bandwidth =
+Pixel_clock_frequency*bytes_per_pixel = 25.175*3 = 75.52MBps
+Link Bandwidth = link_rate * 100 * number_of_lanes .= 2.7 *
+100 *4 = 1080MBps Average_bytes_per_tu_frac =
+frac((peak_stream_bandwidth/link_bandwidth)*64))*64 =
+frac(4.475) *64= 0.47*64 = 30.08 . Program the frac value
+rounded to the nearest integer which is 30.
+INIT_THRESHOLD
+This is the number of clock cycles the link should wait for the
+pixels to accumulate at the beginning of every video line before it
+starts transmitting. This threshold influences the link capability to
+maintain the avarge valid symbols per TU. For Non-DSC Mode: If
+the calculated average bytes per tu value is less than 6 then the
+threshold value should be programmed to 32. For RGB or
+YCbCr444 modes if the hblank is less than or equal to 80pixels,
+then a value of 12 should be used. For 4:2:0 mode if the hblank
+is less than 40, then a value of 3 should be used. For dual and
+quad pixel modes a value of 64 should be used. In all other cases
+the default value of 16 is sufficient. The link has a 32 bit data
+path and the 16 clocks is to wait for TU size clocks which is 16*4
+= 64 ( TU size) symbols. For DSC Mode: INIT_THRESHOLD =
+pixel_push_rate * link_pixel_clock_ratio * slot_count where Pixel
+Push rate = (8/bpp)*lane_count. slot_count for sst
+=average_bytes_per_tu + FEC symbols inserted per lane(13 in 1lane and 7 in 2/4lane if fec is enabled, 0 if fec is disabled) slot
+count is rounded to nearest multiples of 4(ceiling). If slot count
+calculated is greater than 64, then slot count is fixed to 64.
+slot_count for mst = (32/lane_count) + average_bytes_per_tu +
+FEC symbols inserted per lane(13 in 1-lane and 7 in 2/4lane if fec
+is enabled, 0 if fec is disabled). Slot count is rounded to nearest
+multiples of 4(ceiling). If slot count calculated is greater than 64,
+then slot count is fixed to 64. bpp = PPS.bits_per_pixel in simple
+modes and PPS.bits_per_pixel/2 in native modes
+link_pixel_clock_ratio = link clock frequency in Mhz/ pixel clock
+frequency in Mhz.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1116
+
+RK3588 TRM-Part2
+Bit
+
+6:0
+
+Attr Reset Value
+
+RW 0x16
+
+Description
+AVERAGE_BYTES_PER_TU
+This is the average number of valid bytes in a transfer Unit.
+Driver should program this register based on the video
+format being transmitted and the link rate and lane
+configuration being used. Section 2.2.1.4 of the DP 1.43
+spec give details on how this average symbol count should
+be calculated. In MST mode, this register is programmed
+with the calculated TS_INT as specified in Section 2.6.4.3 of
+DisplayPort 1.4 Spec. In MST mode, The driver programs
+the avarege_bytes_per_tu using the following equation.
+Average_bytes_per_tu=
+floor((Peak_stream_bandiwth/Link_bandwidth*64) Here is
+an example for calculating the Average_bytes_per_tu in MST
+mode for the video format VIC-1 (640x480) RGB, 8bpc, at a
+frame rate of 60Hz. The Link is assumed to be HBR 4 lanes.
+Peak_stream_bandwidth =
+Pixel_clock_frequency*bytes_per_pixel = 25.175*3 =
+75.52MBps Link Bandwidth = link_rate * 100 *
+number_of_lanes .= 2.7 * 100 *4 = 1080MBps
+Average_bytes_per_tu =
+floor((peak_stream_bandwidth/link_bandwidth)*64) =
+floor((75.52/1080)*64)) = floor(4.475) = 4.
+
+DPTX_VIDEO_MSA1
+Address: Operational Base + offset (0x0324)
+Bit Attr Reset Value
+Description
+VSTART
+Vertical start from the leading edge of Vsync, measured in line
+31:16 RW 0x0023
+count. This is the vstart value that is specified in the MSA.This is
+same as vsync width + Vertical back porch.
+HSTART
+Horizontal active start from leading edge of Hsync, measured in
+15:0 RW 0x0090
+pixel count. This is the hstart value that is specified in the MSA.
+This is same as hsync width + Horizontal back porch.
+DPTX_VIDEO_MSA2
+Address: Operational Base + offset (0x0328)
+Bit Attr Reset Value
+Description
+MISC0
+Bit 24: Synchronous mode of operation. Pixel source reference
+clock and link reference clock are the same.
+31:24 RW 0x00
+1'b0: Asynchronous mode
+1'b1: Synchronous mode
+Bits 31:25: Colorimetry indicator field.
+MVID
+MVID value to be used in case of synchronous mode of operation
+(pixel source reference clock and link reference clock are the
+23:0 RW 0x000000
+same). See section 2.2.3 of the DisplayPort 1.3 spec. This value
+goes in the MSA. If the clocks are asynchronous, controller
+internally calculates this value
+DPTX_VIDEO_MSA3
+Address: Operational Base + offset (0x032C)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1117
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+31:24 RW 0x00
+
+23:0
+
+RW 0x000000
+
+Description
+MISC1
+24-Interlaced Vertical Total Even 26:25 Stereo Video Attribute
+31:30-Pixel Encoding/colorimetry Format indicator field
+NVID
+NVID value to be used in case of synchronous mode of operation
+(pixel source reference clock and link reference clock are the
+same). See section 2.2.3 of the DisplayPort 1.3 spec. This value
+goes in the MSA. If the clocks are asynchronous, controller
+internally calculates this value.
+
+DPTX_VIDEO_HBLANK_INTERVAL
+Address: Operational Base + offset (0x0330)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+HBLANK_INTERVAL
+For MST mode the programmed value should be (Hblank/16
+15:0 RW 0x0000
+*average_bytes_per_tu*link_clk/pixel_clk. Link_clk and pixel_clk
+are in Mhz. The link clock is based on the internal 32 bit
+datapath. In SST mode, it should be hblank *link_clk/pixel_lk.
+DPTX_AUD_CONFIG1
+Address: Operational Base + offset (0x0400)
+Bit Attr Reset Value
+Description
+31:30 RO 0x0
+reserved
+AUDIO_TIMESTAMP_VERSION_
+Audio timestamp version number.This is used as HB3[7:2] of
+29:24 RW 0x12
+Audio Timestamp SDP. As per DP 1.3 Spec, this should be h'12.
+Some compliance testers still look for old values, and therefore
+added this register field.
+AUDIO_PACKET_ID
+Defines the first byte of the audio SDP and the audio time stamp
+23:16 RW 0x00
+SDP header. Used for associating the audio sdp to the timestamp
+with multiple audio streams.
+AUDIO_MUTE
+Controls the AudioMute_Flag in the VB-ID.
+15
+RW 0x0
+1'b1: Sets the AudioMute_Flag in VB-ID
+1'b0: Clears the AudioMute_Flag in VB-ID.
+NUM_CHANNELS
+Number of audio channels
+14:12 RW 0x1
+1'b0: 1channel
+1'b1: 2channels
+others: 8channels.
+11
+RO 0x0
+reserved
+HBR_MODE_ENABLE
+Audio input is operating in HBR mode if set to '1'. When
+10
+RW 0x0
+audio_if_select is 1 (S/PDIF), 768kHz x 2 Channels x 16 bits is
+delivered to controller. When '0' (I2s) 192kHz x 8 x 16 bits in 8channel is delivered to controller.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1118
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+9:5
+
+RW 0x10
+
+4:1
+
+RW 0x1
+
+0
+
+RW 0x0
+
+Description
+AUDIO_DATA_WIDTH
+Audio input data width audio_data_width4:0 Action
+5'b00000-5'b01111: Not used
+5'b10000: 16 bit data samples at input
+5'b10001: 17 bit data samples at input
+5'b10010: 18 bit data samples at input
+5'b10011: 19 bit data samples at input
+5'b10100: 20 bit data samples at input
+5'b10101: 21 bit data samples at input
+5'b10110: 22 bit data samples at input
+5'b10111: 23 bit data samples at input
+5'b11000: 24 bit data samples at input
+5'b11001-5'b11111: Not Used
+AUDIO_DATA_IN_EN
+Specifies which of the audio data inputs are active. Used to
+control I2sSPDIF input data.
+audio_data_in_en0 and ispdfidata0i2sdata_i0 enabled indicates
+channels12 is active
+audio_data_in_en1, ispdfidata1, and i2sdata_i1 enabled indicates
+channels3 and channels4 are active.
+audio_data_in_en2, ispdfidata2, and i2sdata_i2 enabled indicates
+channels5 and channels6 are active.
+audio_data_in_en3, ispdfidata3, and i2sdata_i3 enabled indicates
+that channels7 and channels8 are active.
+Value of 0 is invalid.
+AUDIO_INF_SELECT
+1'b0: I2S is the selected audio input interface (Default).
+1'b1: SPDIF is the selected audio input interface.
+
+DPTX_SDP_VERTICAL_CTRL
+Address: Operational Base + offset (0x0500)
+Bit Attr Reset Value
+Description
+FIXED_PRIORITY_ARBITRATIO
+When this bit is set then the scheduler searches for the next SDP
+31
+RW 0x0
+to transmit based on fixed priority, otherwise it uses Round-Robin
+arbitration. Fixed priority means that lower numbered register
+sets has higher priority than higher numbered register sets.
+DISABLE_EXT_SDP
+When set the external SDP interface is disabled. No external
+30
+RW 0x0
+SDPs are transmitted. This bit is applicable for both the vertical
+and horizontal blanking.
+29:25 RO 0x00
+reserved
+EN_128BYTES_SDP_1
+When set, register bank 1, 2, 3 and 4 are used to form a
+24
+RW 0x0
+128bytes SDP. The SW should program a single 4bytes header
+followed by 128bytes of data and set a single enable bit that
+corresponds to bank 1.
+23:20 RO 0x0
+reserved
+EN_VERTICAL_SDP_N
+When set, DPTX sends out SDP during the vertical intervals, using
+19:2 RW 0x00000
+the information provided in the SDP_REGISTER BANK[n*9-1:
+n*9]
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1119
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+EN_AUDIO_STREAM_SDP
+When cleared, no Audio stream is sent during the vertical
+blanking period. When '1' audio stream is transmitted during
+vertical blanking period.
+EN_AUDIO_TIMESTAMP_SDP
+When set, DPTX sends out audio timestamp SDP once every
+video frame during the vertical blanking period. This SDP is
+always transmitted as the first SDP in the blanking period.
+Payload for the audio timestamp SDP and the header are
+internally generated by the controller.
+
+DPTX_SDP_HORIZONTAL_CTRL
+Address: Operational Base + offset (0x0504)
+Bit Attr Reset Value
+Description
+FIXED_PRIORITY_ARBITRATION
+When this bit is set then the scheduler searches for the next SDP
+31
+RW 0x0
+to transmit based on fixed priority, otherwise it uses Round-Robin
+arbitration. Fixed priority means that lower numbered register
+sets has higher priority than higher numbered register sets.
+30:20 RO 0x000
+reserved
+EN_HORIZONTAL_SDP_N
+When set, DPTX sends out SDP during the horizontal intervals,
+19:2 RW 0x00000
+using the information provided in the SDP_REGISTER BANK[n*91: n*9]
+EN_AUDIO_STREAM_SDP
+When cleared, no Audio stream is sent during horizontal blanking.
+1
+RW 0x0
+When '1' audio stream is transmitted during horizontal blanking
+period.
+EN_AUDIO_TIMESTAMP_SDP
+When set, DPTX sends out audio timestamp SDP once every
+0
+RW 0x0
+horizontal blanking. Payload for the audio timestamp SDP and the
+header are internally generated by the controller.
+DPTX_SDP_STATUS_REGISTER
+Address: Operational Base + offset (0x0508)
+Bit Attr Reset Value
+Description
+31:20 RO 0x000
+reserved
+SDP_N_TX_STATUS
+W1
+Status indicating the transmission of corresponding Nth SDP.
+19:2
+0x00000
+C
+Set to 1 by the hardware in both Auto and Manual modes.
+Software writes a 1 to clear this bit.
+AUDIO_STREAM_SDP_STATUS
+W1
+Status indicating the transmission of an audio SDP. Set to 1 by
+1
+0x0
+C
+the hardware in both Auto and Manual modes. Software writes a
+1 to clear this bit.
+AUDIO_TIMESTAMP_SDP_STAT
+W1
+Status indicating the transmission of an audio timestamp SDP.
+0
+0x0
+C
+Set to 1 by the hardware in both Auto and Manual modes.
+Software writes a 1 to clear this bit.
+DPTX_SDP_MANUAL_CTRL
+Address: Operational Base + offset (0x050C)
+Bit Attr Reset Value
+31:20 RO 0x000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1120
+
+RK3588 TRM-Part2
+Bit
+
+19:0
+
+Attr Reset Value
+
+RW 0x00000
+
+Description
+MANUAL_MODE_SDP
+Setting this bit when the corresponding bit in the
+SDP_VERTICAL_CTRL/SDP_HORIZONTAL_CTRL registers causes
+the corresponding SDP to be transmitted once. After the
+transmission, both corresponding enable bits are reset. If the
+transmission done during the Vertical or the Horizontal blanking
+period then the enable bit in both the SDP_VERTICAL_CTRL and
+SDP_HORIZONTAL_CTRL registers are reset. This provides the
+Software the ability to decide whether an SDP is transmitted once
+during the Vertical period, or Horizontal period or whichever
+comes first.
+
+DPTX_SDP_STATUS_EN
+Address: Operational Base + offset (0x0510)
+Bit Attr Reset Value
+Description
+31:20 RO 0x000
+reserved
+SDP_STATUS_EN
+19:2 RW 0x00000
+Setting this bit to 1 enables interrupt generation due to
+transmission of the corresponding SDP
+AUDIO_STREAM_SDP_STATUS
+1
+RW 0x0
+Setting this bit to 1 enables interrupt generation due to
+transmission of an audio SPD
+AUDIO_TIMESTAMP_SDP_STAT
+0
+RW 0x0
+Setting this bit to 1 enables interrupt generation due to
+transmission of a audio timestamp SPD
+DPTX_SDP_REGISTER_BANK
+Address: Operational Base + offset (0x0600)
+Bit Attr Reset Value
+Description
+SDP_REGS
+The register bank is split to SDPs where each SDP is the size of
+nine 32bits registers. The first register contains the SDP header
+and the other eight the data payload. For example, if
+31:0 RW 0x00000000 DPTX_NUM_SDP_REGISTER_BANKS is 10, then 90 32bits
+registers are defined. The register set [8:0] specifies s SDP which
+is transmitted if the corresponding bit in SDP_AUTOEN_CTRL is
+set, whether the corresponding bit located at [2]. The next SDP,
+registers[17:9] are enabled by bit [3] in SDP_AUTOEN_CTRL.
+DPTX_PHYIF_CTRL
+Address: Operational Base + offset (0x0A00)
+Bit Attr Reset Value
+Description
+31:29 RO 0x0
+reserved
+EDP_PHY_RATE
+Support for the eDP rates.
+3'b000: PHY rates as defined by bits 5:4 of this register
+(PHYRATE) are used.
+28:26 RW 0x0
+3'b001: R216(2.16Gbps)
+3'b010: R243(2.43Gbps)
+3'b011: R324(3.24Gbps)
+3'b100: R432(4.32Gbps)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1121
+
+RK3588 TRM-Part2
+Bit
+
+25
+
+Attr Reset Value
+
+RW 0x0
+
+24:21 RO
+
+0x0
+
+20:17 RW 0x3
+
+16
+
+RW 0x0
+
+15:12 RW 0x0
+
+11:8
+
+RW 0x0
+
+7:6
+
+RW 0x0
+
+Description
+PHY_WIDTH
+This bit is used to configure the data width of the main link
+interface to the PHY.
+1'b0: 20-bit interface
+1'b1: 40-bit interface
+The power-on reset value of this bit can be configured by
+parameter.
+reserved
+PHY_POWERDOWN
+PHY power-down control. The value written in this field
+controls the Powerdown on all the lanes.
+4’h0: Powered on
+4’h2: Intermediate P2 power state for switching rates.
+4’h3: PHY is powered down phy_clk might stop
+4’hC: P4 Power state. PHY is powered down, reference
+clock can be stopped.
+Others: Reserved.
+SSC_DIS
+Disable SSC on the PHY.
+PHY_BUSY
+Status from the PHY per lane:
+Bit 12: Lane 0
+Bit 13: Lane 1
+Bit 14: Lane 2
+Bit 15: Lane 3
+This bit for each lane is set when a power state change or
+rate change is requested and cleared when the PHY sends a
+phy_laneX_phystatus pulse. This bit is also be set when
+phy_reset is asserted and cleared when
+phy_laneX_phystatus drops to 0 after reset finishes. No
+changes to PHY_RATE or PHY_POWERDOWN are to occur
+when PHY_BUSY is high. PHY_BUSY only go high in
+response to PHY_RATE PHY_POWERDOWN or a reset.
+PHY_BUSY must go high if phy_laneX_phystatus is set. The
+time between when this signal asserts till deassertion is
+specific to PHY implementation. Software can implement a
+timeout that is appropriate to the PHY. Generally, this is
+100ms.
+XMIT_ENABLE
+Enable transmitter on the PHY per lane. If TPS_SEL is 0 then
+main link provides the data to be transmitted. If
+PHY_POWERDOWN is not 0 then the transmitter is not enabled on
+the PHY interface.
+Bit 8: Lane 0
+Bit 9: Lane 1
+Bit 10: Lane 2
+Bit 11: Lane 3
+PHY_LANES
+Number of lanes active:
+2'b00: 1 Lane
+2'b01: 2 Lanes
+2'b10: 4 Lanes
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1122
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+5:4
+
+RW 0x0
+
+3:0
+
+RW 0x0
+
+Description
+PHYRATE
+Rate setting for the PHY. If the Synopsys Combo PHY is
+used, the software must first program PHY_POWERDOWN
+to 2 or 3 first and waiting for PHYBUSY to clear. Afterwards,
+rate can be changed along with PHY_POWERDOWN.
+2'b00: RBR 1.62 Gbs
+2'b01: HBR 2.7 Gbs
+2'b10: HBR2 5.4 Gbs
+2'b11: HBR3 8.1 Gbs
+TPS_SEL
+Selects the training pattern to be transmitted to the PHY:
+4’h0: No training pattern is transmitted. Main link data is
+transmitted instead.
+4’h1: TPS1, D10.2
+4’h2: TPS2
+4’h3: TPS3
+4’h4: TPS4, CP2520 Pattern 3
+4’h5: Symbol Error Rate Measurement pattern
+4’h6: PRBS7
+4’h7: Custom 80-bit pattern. CUSTOMPAT0, CUSTOMPAT1,
+and CUSTOMPAT2 must be set to a valid pattern before
+this select is programmed
+4’h8: CP2520 Pattern 1 - As defined by PHY CTS 1.2b
+4’h9: CP2520 Pattern 2- - As defined by
+
+DPTX_PHY_TX_EQ
+Address: Operational Base + offset (0x0A04)
+Bit Attr Reset Value
+Description
+31:24 RO 0x00
+reserved
+LANE3_TX_POST_CUR2
+Lane 3 Pre-emphasis Post Cursor2 Level. Controls the
+phy_lane0_tx_post_cur21:0 output.
+23:22 RW 0x0
+2'b00: Level 0
+2'b01: Level 1
+2'b10: Level 2
+LANE3_TX_VSWING
+Lane 3 Voltage Swing Level. Controls the
+phy_lane0_tx_vswing1:0 output.
+21:20 RW 0x0
+2'b00: Level 0
+2'b01: Level 1
+2'b10: Level 2
+2'b11: Level 3
+LANE3_TX_PREEMP
+Lane 3 Pre-emphasis Level. Directly controls the
+phy_lane0_tx_pre_emp1:0 output.
+19:18 RW 0x0
+2'b00: Level 0
+2'b01: Level 1
+2'b10: Level 2
+2'b11: Level 3
+LANE2_TX_POST_CUR2
+Lane 2 Pre-emphasis Post Cursor2 Level. Controls the
+phy_lane0_tx_post_cur21:0 output.
+17:16 RW 0x0
+2'b00: Level 0
+2'b01: Level 1
+2'b10: Level 2
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1123
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+15:14 RW 0x0
+
+13:12 RW 0x0
+
+11:10 RW 0x0
+
+9:8
+
+RW 0x0
+
+7:6
+
+RW 0x0
+
+5:4
+
+RW 0x0
+
+3:2
+
+RW 0x0
+
+1:0
+
+RW 0x0
+
+Description
+LANE2_TX_VSWING
+Lane 2 Voltage Swing Level. Controls the
+phy_lane0_tx_vswing1:0 output.
+2'b00: Level 0
+2'b01: Level 1
+2'b10: Level 2
+2'b11: Level 3
+LANE2_TX_PREEMP
+Lane 2 Pre-emphasis Level. Directly controls the
+phy_lane0_tx_pre_emp1:0 output.
+2'b00: Level 0
+2'b01: Level 1
+2'b10: Level 2
+2'b11: Level 3
+LANE1_TX_POST_CUR2
+Lane 1 Pre-emphasis Post Cursor2 Level. Controls the
+phy_lane0_tx_post_cur21:0 output.
+2'b00: Level 0
+2'b10: Level 1
+2'b10: Level 2
+LANE1_TX_VSWING
+Lane 1 Voltage Swing Level. Controls the
+phy_lane0_tx_vswing1:0 output.
+2'b00: Level 0
+2'b01: Level 1
+2'b10: Level 2
+2'b11: Level 3
+LANE1_TX_PREEMP
+Lane 1 Pre-emphasis Level. Directly controls the
+phy_lane0_tx_pre_emp1:0 output.
+2'b00: Level 0
+2'b01: Level 1
+2'b10: Level 2
+2'b11: Level 3
+LANE0_TX_POST_CUR2
+Lane 0 Pre-emphasis Post Cursor2 Level. Controls the
+phy_lane0_tx_post_cur21:0 output.
+2'b00: Level 0
+2'b10: Level 1
+2'b10: Level 2
+LANE0_TX_VSWING
+Lane 0 Voltage Swing Level. Controls the
+phy_lane0_tx_vswing1:0 output.
+2'b00: Level 0
+2'b01: Level 1
+2'b10: Level 2
+2'b11: Level 3
+LANE0_TX_PREEMP
+Lane 0 Pre-emphasis Level. Directly controls the
+phy_lane0_tx_pre_emp1:0 output.
+2'b00: Level 0
+2'b01: Level 1
+2'b10: Level 2
+2'b11: Level 3
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1124
+
+RK3588 TRM-Part2
+DPTX_CUSTOMPAT0
+Address: Operational Base + offset (0x0A08)
+Bit Attr Reset Value
+Description
+31:30 RO 0x0
+reserved
+CUSTOM80B_0
+Lower 30-bits of the 80-bit pattern. This corresponds to 29:0 of
+29:0 RW 0x00000000 the 80-bit pattern.
+Note: All 80-bits of CUSTOMPAT0 CUSTOMPAT1 and CUSTOMPAT2
+must be programmed. The symbol at 9:0 is transmitted first.
+DPTX_CUSTOMPAT1
+Address: Operational Base + offset (0x0A0C)
+Bit Attr Reset Value
+Description
+31:30 RO 0x0
+reserved
+CUSTOM80B_1
+Next 30-bits of the 80-bit pattern. This corresponds to 59:30 of
+29:0 RW 0x00000000 the 80-bit pattern.
+Note: All 80-bits of CUSTOMPAT0 CUSTOMPAT1 and CUSTOMPAT2
+must be programmed.
+DPTX_CUSTOMPAT2
+Address: Operational Base + offset (0x0A10)
+Bit Attr Reset Value
+Description
+31:20 RO 0x000
+reserved
+CUSTOM80B_2
+Highest 20-bits of the 80-bit pattern. This corresponds to 79:60
+19:0 RW 0x00000
+of the 80-bit pattern.
+Note: All 80-bits of CUSTOMPAT0 CUSTOMPAT1 and CUSTOMPAT2
+must be programmed.
+DPTX_HBR2_COMPLIANCE_SCRAMBLER_RESET
+Address: Operational Base + offset (0x0A14)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+NUM_SR_ZEROS
+Number of scrambled 0 symbols to be output for every Enhanced
+Framing Scrambler Reset sequence SR-BF-BFSR when CP2520
+Pattern 1, 2, or 3 is transmitted. Count includes the reset
+15:0 RW 0x00fc
+sequence. Value less than four causes scrambled 0 symbols to be
+output with no scrambler reset
+sequence. Default value is required for PHY CTS is 16'd252 = SR
+sequence 4 + 248 zeros
+DPTX_PHYIF_PWRDOWN_CTRL
+Address: Operational Base + offset (0x0A18)
+Bit Attr Reset Value
+Description
+31:17 RO 0x0000
+reserved
+PER_LANE_PWRDOWN_CTL_E
+16
+RW 0x0
+Per lane power-down control enable
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1125
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+15:12 RW 0x0
+
+11:8
+
+RW 0x0
+
+7:4
+
+RW 0x0
+
+3:0
+
+RW 0x0
+
+Description
+POWER_DOWN_CTRL_LANE3
+PowerDown control for Lane-3.
+4’h0: Powered on
+4’h2: Intermediate P2 power state for switching rates.
+4’h3: PHY is powered down phy_clk might stop
+4’hC: P4 Power state. PHY is powered down, reference clock can
+be stopped.
+Others: Reserved
+POWER_DOWN_CTRL_LANE2
+PowerDown control for Lane-2.
+4’h0: Powered on
+4’h2: Intermediate P2 power state for switching rates.
+4’h3: PHY is powered down phy_clk might stop
+4’hC: P4 Power state. PHY is powered down, reference clock can
+be stopped.
+Others: Reserved
+POWER_DOWN_CTRL_LANE1
+PowerDown control for Lane-1.
+4’h0: Powered on
+4’h2: Intermediate P2 power state for switching rates.
+4’h3: PHY is powered down phy_clk might stop
+4’hC: P4 Power state. PHY is powered down, reference clock can
+be stopped.
+Others: Reserved
+POWER_DOWN_CTRL_LANE0
+PowerDown control for Lane-0.
+4’h0: Powered on
+4’h2: Intermediate P2 power state for switching rates.
+4’h3: PHY is powered down phy_clk might stop
+4’hC: P4 Power state. PHY is powered down, reference clock can
+be stopped.
+Others: Reserved
+
+DPTX_AUX_CMD
+Address: Operational Base + offset (0x0B00)
+Bit Attr Reset Value
+Description
+AUX_CMD_TYPE
+AUX Channel Command:
+4'b1000: Native Write
+4'b1001: Native Read
+4'b0100: I2C MOT Write
+4'b0101: I2C MOT Read
+31:28 RW 0x0
+4'b0000: I2C Write
+4'b0001: I2C Read
+4'b0010: I2C Write Status update
+4'b0110: I2C MOT Write Status update
+All other values are reserved and triggers an interrupt,
+INTERRUPTS.AUX_CMD_INVALID
+AUX_ADDR
+27:8 RW 0x00000
+AUX Address
+7:5
+RO 0x0
+reserved
+I2C_ADDR_ONLY
+4
+RW 0x0
+A value of '1' indicates an I2C over aux address only transfer.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1126
+
+RK3588 TRM-Part2
+Bit
+3:0
+
+Attr Reset Value
+RW 0x0
+
+Description
+AUX_LEN_REQ
+AUX Length Number of bytes to transmit. 0-15 indicating
+between 1 to 16 bytes of data. A value of '0' should be
+programmed for an I2C over aux address only
+
+DPTX_AUX_STATUS
+Address: Operational Base + offset (0x0B04)
+Bit Attr Reset Value
+Description
+AUX_STATE
+31:28 RO 0x0
+Reflects the current state of the AUX state machine. Used for
+hardware debug only.
+AUX_REPLY_ERR_CODE
+27:25 RO 0x0
+Error code. Valid when sink aux reply error is detected. Used for
+hardware debug purpose only.
+SINK_DISCONNECT_WHILE_AC
+24
+RW 0x0
+The bit is set to 1 if the SINK disconnect was detected while
+active AUX transfer
+AUX_BYTES_READ
+23:19 RO 0x00
+The number of valid bytes received as a reply from the SINK
+AUX_REPLY_ERR
+The bit is set to 1 if a reply error is detected. An error could be an
+18
+RW 0x0
+illegal Manchester code, or if the source and sink are out of sync.
+The specific error code is in bits 27:25 of this register.
+AUX_TIMEOUT
+17
+RO 0x0
+The bit is set to 1 if no reply is received within 400us after a
+request has been sent on the AUX channel.
+AUX_REPLY_RECEIVED
+If '1' then Indicates an active AUX transfer. When '0' indicates
+that an AUX_REPLY has been received and the AUX status/data
+16
+RO 0x0
+registers are valid.
+Note: If the AUX transfer was not successful such that the AUX
+transfer timed out or an error detected then the Status & Data
+registers might not have valid values.
+AUX_M
+15:8 RO 0x00
+The second byte received from the Sink as a reply to an AUX
+transfer. This value is the number of bytes written.
+AUX_STATUS
+The first byte received from the Sink as a reply to an AUX
+transfer. The higher 4-bits are the actual reply:
+4'b0000: AUX/I2C ACK
+7:0
+RO 0x00
+4'b0001: AUX NACK
+4'b0010: AUX Defer
+4'b0100: I2C NACK
+4'b1000: I2C DEFER
+DPTX_AUX_DATA0
+Address: Operational Base + offset (0x0B08)
+Bit Attr Reset Value
+Description
+AUX_DATA0
+31:0 RW 0x00000000 AUX Data - First 4 bytes. If only 1 byte is to be written in the
+transaction, then only 3:0 has valid data
+DPTX_AUX_DATA1
+Address: Operational Base + offset (0x0B0C)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1127
+
+RK3588 TRM-Part2
+Bit
+31:0
+
+Attr Reset Value
+RW 0x00000000
+
+Description
+AUX_DATA1
+AUX Data Second 4 bytes
+
+DPTX_AUX_DATA2
+Address: Operational Base + offset (0x0B10)
+Bit Attr Reset Value
+AUX_DATA2
+31:0 RW 0x00000000
+AUX Data Third 4 bytes
+
+Description
+
+DPTX_AUX_DATA3
+Address: Operational Base + offset (0x0B14)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+AUX_DATA3
+0
+RW 0x0
+AUX Data Fourth 4 bytes
+DPTX_PHYREG_CMDADDR
+Address: Operational Base + offset (0x0C00)
+Bit Attr Reset Value
+Description
+PHY_READ
+31
+RW 0x0
+Initiate the read into the PHY register. This bit self-clears when
+the read completes and PHYREG_DATA contains valid read data.
+PHY_WRITE
+30
+RW 0x0
+Initiate the write into the PHY register. This bit self-clears when
+the write completes in the hardware.
+29:16 RO 0x0000
+reserved
+PHY_ADDRESS
+15:0 RW 0x0000
+Address bus for the PHY register interface
+DPTX_PHYREG_DATA
+Address: Operational Base + offset (0x0C04)
+Bit Attr Reset Value
+Description
+PHY_DONE
+Indicates that the data is ready to be read from the
+31
+RW 0x0
+PHYREG_DATA register if a read was initiated or that a write was
+completed
+30:16 RO 0x0000
+reserved
+PHY_DATA
+15:0 RW 0x0000
+Address bus for the PHY register interface
+DPTX_TYPEC_CTRL
+Address: Operational Base + offset (0x0C08)
+Bit Attr Reset Value
+Description
+31:3 RO 0x00000000 reserved
+TYPEC_INTERRUPT_STATUS
+W1
+This is the interrupt status pin for TYPE-C. On a type-C interrupt
+2
+0x0
+C
+software reads this register to confirm a Type-C interrupt. Writing
+1 by the software clears the TYPE-C interrupt.
+TYPEC_DISABLE_STATUS
+This is a read only register bit which directly reflects the status of
+1
+RO 0x0
+the primary input pin tca_disable_i. After receiving a TYPE_C
+interrupt, software reads this register bit to get the status of the
+tca_disable.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1128
+
+RK3588 TRM-Part2
+Bit
+0
+
+Attr Reset Value
+RW 0x0
+
+Description
+TYPEC_DISABLE_ACK
+This register bit controls the primary output pin
+tca_disable_ack_o. The value in this register is directly reflected
+on the output. Software sets or clears this bit based on the TypeC interrupt.
+
+DPTX_GENERAL_INTERRUPT
+Address: Operational Base + offset (0x0D00)
+Bit Attr Reset Value
+Description
+31
+RO 0x0
+reserved
+DSC_EVENT
+An DSC event has occurred. Please read DSC register
+30
+RO 0x0
+DSCINTSTAT to see the cause of the event. To reset the bit
+software need to clear the status at the source, in the
+DSCINTSTAT by writing to DSCINTSTAT register
+29:27 RO 0x0
+reserved
+VIDEO_FIFO_OVERFLOW_STREAM3
+Indicates that the video lane steering FIFO for stream2 gets an
+W1
+overflow. The likely cause is that the bytes_per TU programmed
+26
+0x0
+C
+in the VIDEO_CONFIG5.AVERAGE_BYTES_PER_TU is wrong or the
+lane/rate chosen for the video format is not correct for stream2.
+This bit is used for debug only
+AUDIO_FIFO_OVERFLOW_STREAM3
+Indicates that one or more of the audio sampler FIFOs are getting
+into overflow condition for stream3. This is an vindication that the
+25
+RW 0x0
+audio samples are not getting drained out and is an indication
+that the bandwidth of the selected audio does not match with the
+video format being used for stream3.
+SDP_EVENT_STREAM3
+An event indicating the completion of transmission of an SDP for
+stream3. For details on the specific SDPs that got transmitted
+24
+RW 0x0
+refer to SDP Status register for stream3. To reset the bit the SW
+needs to clear the status at the source, in the SDP status register
+for stream3.
+23:21 RO 0x0
+reserved
+VIDEO_FIFO_OVERFLOW_STREAM2
+Indicates that the video lane steering FIFO for stream2 gets an
+W1
+overflow. The likely cause is that the bytes_per TU programmed
+20
+0x0
+C
+in the VIDEO_CONFIG5.AVERAGE_BYTES_PER_TU is wrong or the
+lane/rate chosen for the video format is not correct for stream2.
+This bit is used for debug only
+AUDIO_FIFO_OVERFLOW_STREAM2
+Indicates that one or more of the audio sampler FIFOs are getting
+into overflow condition for stream2. This is an indication that the
+19
+RW 0x0
+audio samples are not getting drained out and is an indication
+that the bandwidth of the selected audio does not match with the
+video format being used for stream2.
+SDP_EVENT_STREAM2
+An event indicating the completion of transmission of an SDP for
+stream2. For details on the specific SDPs that got transmitted
+18
+RO 0x0
+refer to SDP Status register for stream2. To reset the bit the SW
+needs to clear the status at the source, in the SDP status register
+for stream2.
+17:15 RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1129
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+14
+
+W1
+C
+
+13
+
+RW 0x0
+
+12
+
+RO
+
+0x0
+
+11:8
+
+RO
+
+0x0
+
+7
+
+RO
+
+0x0
+
+6
+
+W1
+C
+
+0x0
+
+5
+
+RW 0x0
+
+4
+
+RO
+
+0x0
+
+3
+
+W1
+C
+
+0x0
+
+2
+
+RO
+
+0x0
+
+1
+
+W1
+C
+
+0x0
+
+0x0
+
+Description
+VIDEO_FIFO_OVERFLOW_STREAM1
+Indicates that the video lane steering FIFO for stream1 gets an
+overflow. The likely cause is that the bytes_per TU programmed
+in the VIDEO_CONFIG5.AVERAGE_BYTES_PER_TU is wrong or the
+lane/rate chosen for the video format is not correct for stream1.
+This bit is used for debug only
+AUDIO_FIFO_OVERFLOW_STREAM1
+Indicates that one or more of the audio sampler FIFOs are getting
+into overflow condition for stream1. This is an indication that the
+audio samples are not getting drained out and is an indication
+that the bandwidth of the selected audio does not match with the
+video format being used for stream1.
+SDP_EVENT_STREAM1
+An event indicating the completion of transmission of an SDP for
+stream1. For details on the specific SDPs that got transmitted
+refer to SDP Status register for stream1. To reset the bit the SW
+needs to clear the status at the source, in the SDP status register
+for stream1.
+reserved
+TYPE_C_EVENT
+Indicates an event related to Type-C assit block. This could be an
+indication that the Type-C assit input pin tca_disable has
+changed. Read TYPE-C_CTRL register for more details.To reset
+this bit software need to clear the status in TYPEC_CTRL register
+by writing 1 to TYPEC_INTERRUPT_STATUS bit.
+VIDEO_FIFO_OVERFLOW_STREAM0
+Indicates that the video lane steering FIFO for stream0 gets an
+overflow. The likely cause is that the bytes_per TU programmed
+in the VIDEO_CONFIG5.AVERAGE_BYTES_PER_TU is wrong or the
+lane/rate chosen for the video format is not correct for stream0.
+This bit is used for debug only
+AUDIO_FIFO_OVERFLOW_STREAM0
+Indicates that one or more of the audio sampler FIFOs are getting
+into overflow condition for stream0. This is an indication that the
+audio samples are not getting drained out and is an indication
+that the bandwidth of the selected audio does not match with the
+video format being used for stream0.
+SDP_EVENT_STREAM0
+An event indicating the completion of transmission of an SDP for
+stream0. For details on the specific SDPs that got transmitted
+refer to SDP Status register for stream0. To reset the bit the SW
+needs to clear the status at the source, in the SDP status register
+for stream0.
+AUX_CMD_INVALID
+After initiating an AUX request, this bit is set to 1, if the
+command or length was invalid. The AUX request is not sent out
+on the AUX Channel if this bit is set
+HDCP_EVENT
+An HDCP event has occurred. Please read HDCP register
+HDCPAPIINTSTAT to see the cause of the event. To reset
+the bit software needs to clear the status at the source, in the
+HDCPAPIINTSTAT by writing to HDCPAPIINTCLR register.
+AUX_REPLY_EVENT
+After initiating an AUX request this bit is set to 1 after receiving a
+reply.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1130
+
+RK3588 TRM-Part2
+Bit
+0
+
+Attr Reset Value
+RO
+
+0x0
+
+Description
+HPD_EVENT
+This bit indicates that an HPD event is captured in the HPD status
+register. To reset the bit the SW needs to clear the status at the
+source in the HPD status register.
+
+DPTX_GENERAL_INTERRUPT_ENABLE
+Address: Operational Base + offset (0x0D04)
+Bit Attr Reset Value
+Description
+31
+RO 0x0
+reserved
+DSC_EVENT_EN
+30
+RW 0x0
+Enable for DSC event.
+Set to 1 to enable events related to DSC.
+29:27 RO 0x0
+reserved
+VIDEO_FIFO_OVERFLOW_EN_STREAM3
+26
+RW 0x0
+Enable for VIDEO_FIFO_OVERFLOW for stream3.
+Set 1 to mask this event.
+AUDIO_FIFO_OVERFLOW_EN_STREAM3
+25
+RW 0x0
+Enable for AUDIO_FIFO_OVERFLOW for stream23.
+Set 1 to enable this event.
+SDP_EVENT_EN_STREAM3
+24
+RW 0x0
+Global enable for SDP event for stream3.
+Set 1 to enable the SDP event.
+23:21 RO 0x0
+reserved
+VIDEO_FIFO_OVERFLOW_EN_STREAM2
+20
+RW 0x0
+Enable for VIDEO_FIFO_OVERFLOW for stream2.
+Set 1 to mask this event.
+AUDIO_FIFO_OVERFLOW_EN_STREAM2
+19
+RW 0x0
+Enable for AUDIO_FIFO_OVERFLOW for stream2.
+Set 1 to enable this event.
+SDP_EVENT_EN_STREAM2
+18
+RW 0x0
+Global enable for SDP event for stream2.
+Set 1 to enable the SDP event.
+17:15 RO 0x0
+reserved
+VIDEO_FIFO_OVERFLOW_EN_STREAM1
+14
+RW 0x0
+Enable for VIDEO_FIFO_OVERFLOW for stream1.
+Set 1 to mask this event.
+AUDIO_FIFO_OVERFLOW_EN_STREAM1
+13
+RW 0x0
+Enable for AUDIO_FIFO_OVERFLOW for stream1.
+Set 1 to enable this event.
+SDP_EVENT_EN_STREAM1
+12
+RW 0x0
+Global enable for SDP event for stream1.
+Set 1 to enable the SDP event.
+11:8 RO 0x0
+reserved
+TYPE_C_EVENT_EN
+7
+RW 0x0
+Enable for TYPE_C_EVENT
+Set to 1 to enable this event.
+VIDEO_FIFO_OVERFLOW_EN_STREAM0
+6
+RW 0x0
+Enable for VIDEO_FIFO_OVERFLOW for stream0.
+Set 1 to mask this event.
+AUDIO_FIFO_OVERFLOW_EN_STREAM0
+5
+RW 0x0
+Enable for AUDIO_FIFO_OVERFLOW for stream0.
+Set 1 to enable this event.
+SDP_EVENT_EN_STREAM0
+4
+RW 0x0
+Global enable for SDP event for stream0.
+Set 1 to enable the SDP event.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1131
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+AUX_CMD_INVALID_EN
+Enable for AUX_CMD_INVALID.
+Set to 1 to enable this event.
+HDCP_EVENT_EN
+Enable for HDCP event.
+Set to 1 to enable events related to HDCP.
+AUX_REPLY_EVENT_EN
+Enable for
+Set to 1 to enable this event.
+HPD_EVENT_EN
+Enable for HPD_EVENT.
+Set to 1 to enable this event.
+
+DPTX_HPD_STATUS
+Address: Operational Base + offset (0x0D08)
+Bit Attr Reset Value
+Description
+31:13 RO 0x00000
+reserved
+HPD_TIMER
+This field is the raw HPD timer value. Resets to 0 whenever HPD
+toggles and starts counting afterwards. If no other event occurs
+12
+RO 0x0
+this timer increments until a plug/unplug event is detected. The
+unit of measure is in microseconds. This value is used for
+debugging.
+HPD_STATE
+The HPD state machine state. Used for debug but SW can also
+use the info to determine the status after receiving an interrupt.
+SOURCE_STATE_IDLE= 3'd0 Sink is not connected
+11:9 RO 0x0
+SOURCE_STATE_UNPLUG= 3'd1 HPD gets deasserted after being
+in the plugged state. In this state for 2mSec.
+SOURCE_STATE_HPD_TIMEOUT= 3'd4 The HPD is deasserted for
+more than 2mSec but less than 100mSec
+SOURCE_STATE_PLUG = 3'd7 HPD is high, the Sink is connected
+HPD_STATUS
+8
+RO 0x0
+Current status of the HPD input. This value must be qualified with
+the HPD_TIMER.
+7:4
+RO 0x0
+reserved
+HPD_UNPLUG_ERR
+W1
+3
+0x0
+Unplug detected. This bit is set to 1 after the HPD is deasserted
+C
+for less than 250uSec.
+HPD_HOT_UNPLUG
+W1
+2
+0x0
+Unplug detected. This bit is set to 1 after the HPD is deasserted
+C
+for at least 2mSec.
+HPD_HOT_PLUG
+Hot plug detected. This bit is asserted after the sink is plugged
+W1
+and asserts HPD for at least 100mSec. It is also asserted If the
+1
+0x0
+C
+sink was plugged then deasserts HPD for more than 2mSec but
+less than 100mSec. In this case this bit is set as soon as HPD is
+asserted by the sink. No debounce time is implemented.
+HPD_IRQ
+W1
+0
+0x0
+IRQ from the HPD. This bit is set to 1 after a low pulse on HPD
+C
+has been detected between 0.25-2.0 ms
+DPTX_HPD_INTERRUPT_ENABLE
+Address: Operational Base + offset (0x0D0C)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1132
+
+RK3588 TRM-Part2
+Bit
+31:4
+3
+2
+1
+0
+
+Attr Reset Value
+Description
+RO 0x0000000
+reserved
+HPD_UNPLUG_ERR_EN
+RW 0x0
+Enable for HPD_UNPLUG_ERR. Setting to 1 enables this event to
+assert the interrupt output.
+HPD_UNPLUG_EN
+RW 0x0
+Enable for HPD_UNPLUG. Setting to 1 enables this event to assert
+the interrupt output.
+HPD_PLUG_EN
+RW 0x0
+Enable for HPD_PLUG. Setting to 1 enables this event to assert
+the interrupt output.
+HPD_IRQ_EN
+RW 0x0
+Enable for IRQ_HPD. Setting to 1 enables this event to assert the
+interrupt output.
+
+DPTX_HDCPCFG
+Address: Operational Base + offset (0x0E00)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+DPCD12PLUS
+7
+RW 0x0
+DPCD revision of Sink is 1.2 or higher. Updated by software after
+reading the DPCD revision
+CP_IRQ
+6
+RW 0x0
+CP_IRQ indication to HDCP controller. Software sets this bit on
+CP_IRQ interrupt
+BYPENCRYPTION
+5
+RW 0x0
+Bypasses all the data encryption stages.
+HDCP_LOCK
+Lock the HDCP bypass and encryption disable mechanisms:
+1b0: The default 1b0 value enables you to bypass HDCP through
+bit 5 by encryption of the HDCPCFG register or to disable the
+encryption through bit 3 encryption disable of HDCPCFG register.
+4
+RW 0x0
+1b1: You can still write to the bit by encryption of HDCPCFG or
+encryption disable bit of HDCPCFG but you cannot enable the
+bypass or disable encryption. Once you set the value to 1b1 you
+can change the value back to 1b0 only by issuing a master reset
+to the DPTX.
+ENCRYPTIONDISABLE
+3
+RW 0x0
+Disable encryption without losing authentication
+ENABLE_HDCP_13
+2
+RW 0x0
+1'b0: Default HDCP 2.2 is enabled
+1'b1: HDCP 1.3 is enabled
+ENABLE_HDCP
+Enable HDCP functionality. This signal is tied to I_px_gpio_in[0]
+1
+RW 0x0
+of HDCP2.2 Controller clears this bit under the following condition
+Re-authentication request from the sink.
+0
+RO 0x0
+reserved
+DPTX_HDCPOBS
+Address: Operational Base + offset (0x0E04)
+Bit Attr Reset Value
+Description
+HDCP22_RE_AUTHENTICATION_REQ
+W1
+31
+0x0
+Indicates that the Sink has requested a re-authentication.
+C
+Cleared when software writes a 1 to this bit.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1133
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+30
+
+W1
+C
+
+0x0
+
+29
+
+W1
+C
+
+0x0
+
+28
+
+RO
+
+0x0
+
+27
+
+W1
+C
+
+0x0
+
+26:24 RO
+
+0x0
+
+W1
+C
+
+0x0
+
+22:19 RO
+
+0x0
+
+18
+
+RO
+
+0x0
+
+17
+
+RO
+
+0x0
+
+16:14 RO
+
+0x0
+
+13:11 RO
+
+0x0
+
+10:8
+
+RO
+
+0x0
+
+7:4
+
+RO
+
+0x0
+
+3:1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+23
+
+Description
+HDCP22_AUTHENTICATION_FAILED
+Set to 1 when by the hardware when the authentication is failed.
+Cleared when software writes a 1.
+HDCP22_AUTHENTICATION_SUCCESS
+Set to 1 when by the hardware when the authentication is
+succeeded. Cleared when software writes a 1.
+HDCP22_CAPABLE_SINK
+1'b1: HDCP 22 sink
+1'b0: Sink not HDCP22 capable.
+If enable_hdcp_13 is set and this bit is already set then controller
+clears it. Re-authentication request also clears this bit.
+HDCP22_SINK_CAP_CHECK_C
+Sets when the capability check is complete. Cleared when
+software writes a 1 to this bit.
+HDCP22_STATE
+Status of HDCP operation
+3'B001: Initializing
+3'B010: Authenticating
+3'B011: Authenticated
+3'B100: not Authenticated
+HDCP22_BOOTED
+Status indicting the HDCP22 has booted. Cleared when software
+writes a 1 to this bit.
+HDCP13_BSTATUS
+Status indicting the HDCP22 has booted. Cleared when software
+writes a 1 to this bit.
+REPEATER
+Register read from attached sink device: Bcap bit 1
+HDCP_CAPABLE
+Register read from attached sink device: Bcap bit 0
+STATEE
+Observability register informs in which state the cipher machine
+is on.
+STATEOEG
+Observability register informs in which state the DPES machine is
+on.
+STATER
+Observability register informs in which state the revocation
+machine is on.
+STATEA
+Observability register informs in which state the authentication
+machine is on.
+SUBSTATEA
+Observability register informs in which sub-state the
+authentication is on
+HDCPENGAGED
+Informs that the current DP link has the HDCP protocol fully
+engaged.
+
+DPTX_HDCPAPIINTCLR
+Address: Operational Base + offset (0x0E08)
+Bit Attr Reset Value
+31:9 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1134
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+8
+
+WO 0x0
+
+7
+
+WO 0x0
+
+6
+
+WO 0x0
+
+5
+
+WO 0x0
+
+4
+
+WO 0x0
+
+3
+
+WO 0x0
+
+2
+
+WO 0x0
+
+1
+
+RO
+
+0
+
+WO 0x0
+
+0x0
+
+Description
+HDCP22_GPIOINT
+Clears the interruption related to HDCP22 GPIO output status
+change.
+HDCP_ENGAGED
+Clears the interruption related to HDCP authentication process
+successful.
+HDCP_FAILED
+Clears the interruption related to HDCP authentication process
+failed.
+KSVSHA1CALCDONEINT
+Clears the interruption related to SHA1 verification has been
+done.
+AUXRESPNACK7TIMES
+Clears the interrupt related to aux transfer NAK response for 7
+times.
+AUXRESPTIMEOUT
+Clears the interrupt related to aux transfer response timeout.
+AUXRESPDEFER7TIMES
+Clears the interrupt related to aux transfer defer response for 7
+times.
+reserved
+KSVACCESSINT
+Clears the interrupt related to KSV memory access grant for
+Read-Write access.
+
+DPTX_HDCPAPIINTSTAT
+Address: Operational Base + offset (0x0E0C)
+Bit Attr Reset Value
+Description
+31:9 RO 0x000000
+reserved
+HDCP22_GPIOINT
+8
+RO 0x0
+Notifies a change in HDCP22 GPIO Output status.
+HDCP_ENGAGED
+7
+RO 0x0
+Notifies that the HDCP authentication process was successful.
+HDCP_FAILED
+6
+RO 0x0
+Notifies that the HDCP authentication process was failed.
+KSVSHA1CALCDONEINT
+5
+RO 0x0
+Notifies that the HDCP13TCTRL controller SHA1 verification has
+been done. The status ready to be read.
+AUXRESPNACK7TIMES
+4
+RO 0x0
+Notifies that the aux transfer initiated by HDCP13TCTRL
+received nack response continuously for 7 times.
+AUXRESPTIMEOUT
+3
+RO 0x0
+Notifies that the aux transfer initiated by HDCP13TCTRL did not
+receive a response and timeout.
+AUXRESPDEFER7TIMES
+2
+RO 0x0
+Notifies that the aux transfer initiated by HDCP13TCTRL received
+defer response continuously for 7 times
+1
+RO 0x0
+reserved
+KSVACCESSINT
+0
+RO 0x0
+Notifies that the KSV memory access has been guaranteed for
+Read-Write access.
+DPTX_HDCPAPIINTMSK
+Address: Operational Base + offset (0x0E10)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1135
+
+RK3588 TRM-Part2
+Bit
+31:9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+
+Attr Reset Value
+Description
+RO 0x000000
+reserved
+HDCP22_GPIOINT
+RW 0x0
+Masks the interruption related to HDCP22 GPIO output status
+change.
+HDCP_ENGAGED
+RW 0x0
+Masks the interruption related to HDCP authentication process
+successful.
+HDCP_FAILED
+RW 0x0
+Masks the interruption related to HDCP authentication process
+failed.
+KSVSHA1CALCDONEINT
+RW 0x0
+Masks the interruption related to SHA1 verification has been
+done.
+AUXRESPNACK7TIMES
+RW 0x0
+Masks the interrupt related to aux transfer nack response for 7
+times.
+AUXRESPTIMEOUT
+RW 0x0
+Masks the interrupt related to aux transfer defer response for 7
+times.
+AUXRESPDEFER7TIMES
+RW 0x0
+Masks the interrupt related to aux transfer defer response for 7
+times.
+RO 0x0
+reserved
+KSVACCESSINT
+RW 0x0
+Masks the interrupt related to KSV memory access grant for
+Read-Write access.
+
+DPTX_HDCPKSVMEMCTRL
+Address: Operational Base + offset (0x0E18)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+KSVSHA1STATUS
+Notification whether the KSV list message digest is correct from
+4
+RW 0x0
+the controller:
+1b1: if digest message verification failed
+1b0: if digest message verification succeeded.
+3:2
+RO 0x0
+reserved
+KSVMEMACCESS
+1
+RO 0x0
+Notification that the KSV memory access has been guaranteed.
+KSVMEMREQUEST
+0
+RW 0x0
+Request access to the KSV memory; must be de-asserted after
+the access is completed by the system.
+DPTX_HDCP_REVOC_RAM_i
+Address: Operational Base + offset (0x0E20)
+Bit Attr Reset Value
+Description
+REVOC_RAM_BYTE3
+31:24 RW 0xff
+Byte 3 of HDCP revocation ram dword If memory access has not
+been granted (see register a_ksvmemctrl) the value read is 8hff
+REVOC_RAM_BYTE2
+23:16 RW 0xff
+Byte 2 of HDCP revocation ram dword If memory access has not
+been granted (see register a_ksvmemctrl) the value read is 8hff
+REVOC_RAM_BYTE1
+15:8 RW 0xff
+Byte 1 of HDCP revocation ram dword If memory access has not
+been granted (see register a_ksvmemctrl) the value read is 8hff
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1136
+
+RK3588 TRM-Part2
+Bit
+7:0
+
+Attr Reset Value
+RW 0xff
+
+Description
+REVOC_RAM_BYTE0
+Byte 0 of HDCP revocation ram dword If memory access has not
+been granted (see register a_ksvmemctrl) the value read is 8hff
+
+DPTX_HDCPREG_BKSV0
+Address: Operational Base + offset (0x3600)
+Bit Attr Reset Value
+Description
+HDCPREG_BKSV0
+31:0 RO 0x00000000
+Contains the value of BKSV[31:0].
+DPTX_HDCPREG_BKSV1
+Address: Operational Base + offset (0x3604)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+HDCPREG_BKSV1
+7:0
+RO 0x00
+Contains the value of BKSV[39:32].
+DPTX_HDCPREG_ANCONF
+Address: Operational Base + offset (0x3608)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+OANBYPASS
+1'b1: The value of AN used in the HDCP engine comes from the
+0
+RW 0x0
+hdcpreg_an0 to hdcpreg_an7 registers.
+1'b0: The value of AN used in the HDCP engine comes from the
+random number input.
+DPTX_HDCPREG_AN0
+Address: Operational Base + offset (0x360C)
+Bit Attr Reset Value
+Description
+HDCPREG_AN0
+31:0 RW 0x00000000
+Contains the value of AN[31:0]
+DPTX_HDCPREG_AN1
+Address: Operational Base + offset (0x3610)
+Bit Attr Reset Value
+Description
+HDCPREG_AN1
+31:0 RW 0x00000000
+Contains the value of AN[63:32]
+DPTX_HDCPREG_RMLCTL
+Address: Operational Base + offset (0x3614)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+ODPK_DECRYPT_ENABLE
+0
+RW 0x0
+When set 1b1 this bit activates the decryption of the Device
+Private keys.
+DPTX_HDCPREG_RMLSTS
+Address: Operational Base + offset (0x3618)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+IDPK_WR_OK_STS
+6
+RO 0x0
+When high 1b1 it indicates that a DPK write is allowed.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1137
+
+RK3588 TRM-Part2
+Bit
+5:0
+
+Attr Reset Value
+RO
+
+0x00
+
+Description
+IDPK_DATA_INDEX
+Current Device Private Key being written plus one. Position 0 is
+occupied by the AKSV.
+
+DPTX_HDCPREG_SEED
+Address: Operational Base + offset (0x361C)
+Bit Attr Reset Value
+31:16 RO 0x0000
+reserved
+HDCPREG_SEED
+15:0 WO 0x0000
+Decryption seed value
+
+Description
+
+DPTX_HDCPREG_DPK0
+Address: Operational Base + offset (0x3620)
+Bit Attr Reset Value
+Description
+DPK_DATA
+Encrypted DPK value. dpk[31:0] When this byte is written, a
+31:0 WO 0x00000000
+strobe signal is generated that triggers the decryption and/or
+storage of the DPK word on the DPK internal RAM memory.
+DPTX_HDCPREG_DPK1
+Address: Operational Base + offset (0x3624)
+Bit Attr Reset Value
+Description
+31:24 RO 0x00
+reserved
+DPK_DATA
+23:0 WO 0x000000
+encrypted DPK value. dpk[55:32]
+DPTX_HDCP22GPIOSTS
+Address: Operational Base + offset (0x3628)
+Bit Attr Reset Value
+Description
+31:20 RO 0x000
+reserved
+HDCP22GPIOOUTSTS
+19:0 RO 0x00000
+HDCP22 GPIO OUT Status
+DPTX_HDCP22GPIOCHNGSTS
+Address: Operational Base + offset (0x362C)
+Bit Attr Reset Value
+Description
+31:20 RO 0x000
+reserved
+HDCP22GPIOOUTCHNGSTS
+19:0 RO 0x00000
+HDCP22 GPIO OUT change status. If set indicates a change in
+HDCP22 GPIO output status. Write 1 to clear it
+DPTX_HDCPREG_DPK_CRC
+Address: Operational Base + offset (0x3630)
+Bit Attr Reset Value
+Description
+DPK_CRC
+CRC32 value calculated over encrypted DPK. Application can read
+31:0 RO 0x00000000 this value, compare it against the CRC calculated in application to
+confirm that the DPK write to controller was successful without
+any errors.
+
+9.5 Interface Description
+9.6 Application Notes
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1138
+
+RK3588 TRM-Part2
+
+9.6.1 Programming Flow After POR
+
+The driver performs the following steps after power-on reset:
+
+9.6.1.1
+
+Assert PHY Reset
+
+9.6.1.2
+
+Wait for HPD (Hot Plug Detect) interrupt
+
+9.6.1.3
+
+Read Hardware Parameter
+
+9.6.1.4
+
+Read Edid of the Sink
+
+9.6.1.5
+
+Read Sink DPCD registers
+
+9.6.1.6
+
+Program Sink DPCD Link Configuration registers
+
+9.6.1.7
+
+Initiate link training
+
+1. Set the PHY soft reset by setting the SOFT_RESET_CTRL[1] register.
+2. Refer the PHY document to know if anything else need to be reset at this time.
+3. Wait for 5us to make sure that the soft reset takes effect and then clear the PHY soft
+reset bit by writing a 0 to this bit.
+4. Wait for the PHYIF_CTRL.PHY_BUSY register to be 0.
+5. Ensure that GENERAL_INTERRUPT_ENABLE.HPD_EVENT are cleared.
+Interrupt is asserted and when driver reads the GENERAL_INTERRUPT register, finds
+HPD_EVENT bit set. This interrupt is generated when the Sink is disconnected and with an
+HPD transition from 0 to 1 and has stayed at 1 for greater than 0.25ms. This section
+indicates how the software should handle the interrupt.
+1. Software receives an interrupt and reads the GENERAL_INTERRUPT register.
+GENERAL_INTERRUPTS.HPD_EVENT is set. It should also see that
+HPD_STATUS.HPD_STATUS
+is 1.
+2. The software should set PHYIF_CTRL.PHY_LANEX_POWERDOWN to 0 to power on the PHY
+for all enabled lanes.
+3. Software clears the interrupt by writing 1 to GENERAL_INTERRUPTS.HPD_EVENT
+Read the DPTX_CONFIG_REG1, DPTX_CONFIG_REG2, DPTX_CONFIG_REG3 register to get
+the DPTX configuration parameters.
+EDID reads are done using I2C over AUX transactions. See I2C AUX Channel Read/Write for
+details about initiating I2C over AUX read.
+Read the sink DPCD register to get at least the following sink information. DPCD registers
+are read using Native AUX transactions. See NATIVE AUX Channel Read/Write for details
+about using the Aux channel to read the DPCD.
+⚫ Read Sink Rceiver Capability (DPCD address 000000 – 000FF)
+This gives the sink supported link rate, lane count, enhance_frame_cap,
+extended_receiver_capability_present, and so on.
+⚫ Read Sink Extended Reciver Capability ( DPCD address 02200 – 022FF)
+Extended Receiver capability is read only if the sink supports it. Link rate, lane count,
+enhance_frame_cap.
+Link configuration registers are programmed based on the Sink setting read during Step-5,
+and the Video format being transmitted. It also depends on the source configs (Step-3).
+⚫
+⚫
+
+Disable the fast link training if enabled. Fast link training is enabled by default.
+Follow the steps specified in “Full Link Bringup Sequence,”for initiating link training.
+
+9.6.1.8
+
+Configure Video mode
+
+After reading and having parsed the EDID data (step 4), program the controller with the
+video
+timings based on the video mode the sink supports and the trained link is able to support.
+In the single stream (SST) mode, use only stream-0, and program only the corresponding
+registers. If there is no video stream to transmit, then this setup is not required. Set
+VSAMPLE_CTRL.video_stream_enable bit to 0 forces the controller to send IDLE patterns.
+Follow these steps for every active stream:
+1. Program the VSAMPLE_CTRL.video_mapping bit to set the video_mapping input mode
+(RGB/YCbCr), based on what is supported by the sink.
+2. Program the video timing information
+a. Set the Hsync/vsync polarity by programming VINPUT_POLARITY_CTRL
+register.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1139
+
+RK3588 TRM-Part2
+b. Program the VIDEO_CONFIG1 register by specifying the following
+■ R_v_blank_in_osc – Fractional vblank.
+■ I_P – Interlaced/Progressive
+■ Hblank – Horizontal blanking period in pixels.
+■ Hactive – Horizontal active video period in pixels.
+c. Program the VIDEO_CONFIG2 register by specifying the following
+■ Vactive – Vertical active video period in terms of pixels.
+■ Vblank – Vertical blanking period in terms of vertical blanking lines.
+d. Program the VIDEO_CONFIG3 register by specifying the following
+■ H_front_porch – The horizontal front porch in terms of pixels.
+■ H_sync_width – hsync active pulse width in terms of pixels.
+e. Program the VIDEO_CONFIG4 register by specifying the following
+■ V_front_porch – The vertical front porch in terms of number of lines.
+■ V_sync_width – vsync active pulse width in terms of number of lines.
+f. Program the VIDEO_CONFIG5 register by specifying the following
+Specify the Average number of symbols per TU, and average bytes per TU fractional
+values. Driver should program this register field based on the video format being
+transmitted and the link rate and lane configuration being used. Section 2.2.1.4 of
+the DP 1.4 spec gives details about how this average symbol count should be
+calculated.
+3. Program the core for Main Stream Attribute parameters
+a. Program the Stream_N.VIDEO_MSA1 register with the following values
+■ Hstart – Horizontal active start from the leading edge of hsync.
+■ Vstart – Vertical active start from the leading edge of vsync.
+b. Program the Stream_N.VIDEO_MSA2 register with the following values
+■ Mvid – MVID value to be transmitted in the synchronous mode of operation.
+■ MISC0 – Specifies synchronous/asynchronous mode of operation and other
+colormetry values to be transmitted in the MSA.
+c. Program the Stream_N.VIDEO_MSA3 register with the following values
+■ Nvid – MVID value to be transmitted in the synchronous mode of operation.
+■ MISC1 – Specifies synchronous/asynchronous mode of operation and other
+colormetry values to be transmitted in the MSA.
+
+9.6.1.9
+
+Configure Audio mode
+
+From step 4, the audio configuration of the Sink are read and the controller is configured to
+set up the audio mode accordingly by the following steps.
+⚫ Program the AUDIO_CONFIG1 register specifying the audio configuration controls
+◼ audio_inf_select – Select the primary Audio interface option, I2S or SPDIF.
+◼ audio_data_in_en – Specify which of the data input pins are active. For example for
+the i2s interface if all 8 channels are supported then all 4 data inputs must be
+enabled by writing h’F to this field.
+◼ Audio_data_width – Specify the audio sample data width (16 to 24 bits).
+◼ hbr_mode_enable – Specify if High Bit Rate audio is to be enabled or not
+⚫ Enable transmission of Audio Stream SDP by setting the
+SDP_VERTICAL_CTRL/SDP_HORIZONTAL_CTRL register bits 1 and 0. From this time, the
+audio sampler is enabled and the audio samples presented at the I2S/SPDIF inputs are
+sampled in to the audio FIFOs. Before the audio stream is enabled, the I2S or SPDIF
+data could be active. But these samples are not transmitted on the main link by the
+controller.
+
+9.6.1.10 Configure SDPs (Secondary Data Packets)
+⚫
+⚫
+
+⚫
+
+Program the SDP_REGISTER_BANK registers with the header and payload of the SPD
+that are required to be transmitted.
+Program the SDP_VERTICAL_CTRL and SDP_HORIZONTAL_CTRL registers to indicate
+when the specific SDP register set need to be transmitted. Also specify the priority by
+using Bit 31 of these registers.
+If Manual control is required, then program the SDP_MANUAL_CTRL register.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1140
+
+RK3588 TRM-Part2
+
+9.6.1.11 Configure HDCP2.2
+The following steps must be followed for configuring the HDCP.
+1. Program the Synopsys HDCP2.2 controller for the HDCP2.2 initialization. Check the
+Synopsys HDCP2.2 controller for details.
+2. After booting the HDCP2.2 controller, Enable HDCP by setting the HDCPCFG[1] register.
+3. Wait for HDCP22 GPIO status change interrupt and check HDCP sink capability by
+checking the HDCPOBS[28:27] bits.
+4. If the sink is not HDCP2.2, go to Step12. If the sink is HDCP2.2 then Call the
+HL_tx_authenticate() function in the HDCP2.2 library to start the authentication process.
+5. Wait for HDCP interrupt and check the authentication status by reading the HDCPOBS
+register bits 29 and 30.
+6. If the authentication is successful, then mainstream are encrypted after this. If
+authentication is not successful, then it is up to the driver to take the next action.
+
+9.6.1.12 Configure HDCP1.3
+
+1. Configure device private keys when DPTX_HDCP_DPK_ROMLESS configuration
+parameter is set to true.ie Go to step 13 and return
+2. Set HDCPCFG. DPCD12PLUS to 1 if the DPCD revision is 1.2 or higher
+3. Write the revocation list to memory.ie Go to step 14 and return
+4. Write HDCP_CONFIG [2] to enable HDCP1.3 functionality.
+5. Wait for HDCP interrupt indicating authentication success/failure
+(HDCPAPIINTSTAT.HDCPENGAGED)
+6. If authentication is successful, mainstream is encrypted after this. If authentication is not
+successful, then it is up to the driver to take the next action.
+
+9.6.1.13 Configure Device private keys
+1.
+2.
+3.
+4.
+5.
+
+Disable decryption logic HDCPREG_RMLCTL.ODPK_DECRYPT_ENABLE=0
+Poll for HDCPREG_RMLSTS. IDPK_WR_OK_STS=1
+Write unencrypted AKSV[39:32] in HDCPREG_DPK1
+Write unencrypted AKSV[31:0] in HDCPREG_DPK0
+Poll for HDCPREG_RMLSTS. IDPK_WR_OK_STS=1 and HDCPREG_RMLSTS.
+IDPK_DATA_INDEX=1
+6. Enable decryption logic HDCPREG_RMLCTL.ODPK_DECRYPT_ENABLE=1
+7. Write encryption seed ENC_KEY[15:0] in HDCPREG_SEED
+8. Set DPK index value = 1
+9. Write DPK[DPK Index value][55:32] to HDCPREG_DPK1
+10. Write DPK[DPK Index value][31:0] to HDCPREG_DPK0
+11. Poll for HDCPREG_RMLSTS. IDPK_WR_OK_STS=1 and HDCPREG_RMLSTS.
+IDPK_DATA_INDEX= (DPK Index value+1)
+12. Increment DPK Index value by 1
+13. Repeat step h to step m till DPK index value reaches 40
+14. Read CRC32 value calculated by controller over unencrypted DPKs in
+HDCPREG_DPK_CRC register
+15. Compare the CRC from controller with the original CRC to check for DPK programming
+result.
+
+9.6.1.14 Program Revocation list
+
+Revocation list is stored in a 8-bit data width SPRAM, though the memory data width is 8bis, it can only be accessed through 32-bit register read writes so the 8-bit values need to
+accumulated and written as 32-bit values, do read modify writes if the address does not
+start at a dword boundary.
+Following steps illustrate how it is done.
+1. Read HDCP_REVOC_LIST[0]|HDCP_REVOC_SIZE[0:1]|HDCP_VH[19] values by doing a
+32-bit register read to address 0x10B8. Keep HDCP_VH[19] unmodified, update
+HDCP_REVOC_LIST[0]|HDCP_REVOC_SIZE[0:1] and write back the values to the same
+32-bit register
+2. Set revocation list loop count to 0
+3. Write HDCP_REVOC_LIST[2+revocation list loop count: 5+revocation list loop count] by
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1141
+
+RK3588 TRM-Part2
+doing a 32-bit register write to address 0x10BC+(revocaltion list loop count*4)
+4. Increment revocation list loop count
+5. If (revocation list loop count *4+2) is greater than HDCP_REVOC_SIZE repeat steps step
+b through step e, else exit
+
+9.6.2 Programming Flow After Re-Authentication Request/Link Integrity
+Failure from Sink Application
+
+The re-authentication/Link Integrity Failure condition is detected by the driver under the
+following condition.
+⚫ HPD Interrupt is generated. After an interrupt is received, read the INTERRUPTS and see
+if HPD_EVENT is set. Then check that HPD_STATUS is 1. Clear the HPD_STATUS
+⚫ Read the DPCD register and check DPCD.CP_IRQ bit to be set. Write 1 to DPCD.CP_IRQ
+register field to clear the interrupt. If CP_IRQ is set proceed to next step
+⚫ Set the HDCPCFG.CPIRQ bit and clear it after 10 clock cycles.
+Controller internally reads Bstatus and checks for Link Integrity failure or re-authentication
+request and initiates authentication if any of the bits are set. Controller stops encryption at
+the next CPSR boundary.
+
+9.6.3 Programming Flow After a Hot Unplug Event
+This interrupt is generated when the Sink is connected and HPD transition from 1 to 0
+staying at 0 for greater than 2 ms. This section indicates how the software handles the
+interrupt.
+1. Software receives an interrupt and reads the GENERAL_INTERRUPT register.
+GENERAL_INTERRUPT.HPD_EVENT is set. It should also see that HPD_STATUS.HPD_STATUS
+is 0.
+2. The software clears PHYIF_CTRL.XMIT_ENABLE on all lanes to turn off the transmitter.
+Optionally, PHYIF_CTRL.PHY_LANEX_POWERDOWN can be set to 3 for all enabled lanes to
+save power.
+3. Software clears the interrupt by writing 1 to GENERAL_INTERRUPT.HPD_EVENT.
+
+9.6.4 Programming Flow After a Hot Unplug Event
+
+Follow these steps for Hot plug event after an unplug event:
+⚫ Program HDCP soft reset and release it (SOFT_RESET_CTRL.HDCP_MODULE_RESET=1).
+This step is needed as the HDCP controller is unaware of the unplug event and needs to
+be reset.
+⚫ If audio is enabled, then it should be disabled along with the audio timestamp SDPs by
+clearing bits 0 and 1 of SDP_VERTICAL_CTRL and SDP_HORIZONTAL_CTRL registers. In
+addition, the audio sampler should be reset by writing to SOFT_RESET_CTRL.
+AUDIO_SAMPLER_RESET.
+⚫ Follow steps 4 to steps 7. This includes the EDID and DPCP reads.
+⚫ steps 8 to steps 11 might be required based on the previous steps.
+
+9.6.5 Programming Flow Sequence for HDCP
+
+Figure 65-5 shows the programming flow sequence for HDCP.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1142
+
+RK3588 TRM-Part2
+
+Fig. 65-5 Programming Flow Sequence for HDCP
+
+9.6.6 Link training Sequence
+9.6.6.1 Initialization Without Link Training
+
+This initialization sequence assumes that the PHY does not need to go through the link
+training sequence. This is used to speed up RTL simulation or if the DP Sink Device is
+capable of receiving Main-Link signal without link training.
+1. Set the PHY soft reset. Clear after 5us.
+2. Ensure that PHYIF_CTRL.PHY_LANEX_POWERDOWN=0 for all enabled lanes.
+3. Set PHYIF_CTRL.PHY_LANES to the desired number of lanes and PHYIF_CTRL.PHY_RATE
+to the desired rate.
+4. Wait until PHYIF_CTRL.PHY_BUSY is cleared for the desired lanes that have been
+enabled. For example, if 4 lanes are enabled, then wait until
+PHYIF_CTRL.PHY_BUSY[3:0]=4’h0. If only 1 lane enabled, then wait until
+PHYIF_CTRL.PHY_BUSY[0]=0
+5. Program the predetermined pre-emphasis and voltage swing values into the PHY_TX_EQ
+registers if required.
+6. Enable the transmitter by setting PHYIF_CTRL.XMIT_EN for each enabled lane.
+
+9.6.6.2
+
+Basic Link Bring up Sequence with Fast Link Training
+
+This sequence is applicable if the PHY is to use predetermined pre-emphasis and swing
+values. This sequence occurs if the Sink DPCD 00003h
+NO_AUX_TRANSACTION_LINK_TRAINING is read to be 1 and if the source policy is to
+initiate TPS1 and TPS2/3/4 for 500us each.
+1. Set the PHY soft reset. Wait for the read to return 0.
+2. Ensure that GENERAL_INTERRUPT_ENABLE.HPD_EVENT is cleared.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1143
+
+RK3588 TRM-Part2
+3. Wait for the sink to be connected
+a. After an interrupt is received, read the INTERRUPTS and see if HPD_EVENT is set.
+Then check that HPD_STATUS.HPD_STATUS is 1. This indicates that the Sink has been
+connected.
+b. If IRQ_HPD is received instead of HPD_EVENT and DPCD Revision is 1.2 or greater,
+then check LINK_SERVICE_IRQ_VECTOR_ESI0.RX_CAP_CHANGED bit. This also indicates
+that the Sink has been connected. Also recheck if
+NO_AUX_TRANSACTION_LINK_TRAINING is still set. If it is cleared, then do a full link
+training process.
+4. Ensure that PHYIF_CTRL.PHY_LANEX_POWERDOWN=0 for all enabled lanes.
+5. Based on the highest link rate, highest number of lanes supported, and Source policy, set
+PHYIF_CTRL.PHY_LANES, and PHYIF_CTRL.PH_YRATE.
+6. Wait until PHYIF_CTRL.PHY_BUSY is cleared for the desired lanes that have been
+enabled. For example, if 4 lanes are enabled, then wait until
+PHYIF_CTRL.PHY_BUSY[3:0]=4’h0. If only 1 lane enabled, then wait until
+PHYIF_CTRL.PHY_BUSY[0]=0
+7. Program the predetermined pre-emphasis and voltage swing values into the PHY_TX_EQ
+registers if required.
+8. Set PHYIF_CTRL.TPS_SEL=1 to send TPS1
+9. Enable the transmitter by setting PHYIF_CTRL.XMIT_EN for each enabled lane.
+10. Wait for 500us.
+11. Set PHYIF_CTRL.TPS_SEL to the following:
+a. 2 if HBR is the highest desired rate
+b. 3 if HBR2 is the highest desired rate
+c. 4 if HBR3 is the highest desired rate
+12. Wait for 500us.
+13. Set PHYIF_CTRL.TPS_SEL to 0
+
+9.6.6.3
+
+Full Link Bring up Sequence
+
+By default, fast link training is enabled, which allows the controller to transmit fail safe video
+format, as specified in section “Fast Link Training”. This feature should be disabled by
+clearing the CCTL.DEFAULT_FAST_LINK_TRAIN_EN register bit.
+The default value of PHY power state from the controller is P3. For any PHY rate change
+operation, the power state must be P3 or P2.
+1. Based on the highest link rate, highest number of lanes supported, and Source policy, set
+PHYIF_CTRL.PHY_LANES, and PHYIF_CTRL.PHY_RATE. If Rocket IO PHY is used, set
+PHYIF_CTRL.SSC_DIS=1.
+2. Wait until PHYIF_CTRL.PHY_BUSY is cleared for the desired lanes that have been
+enabled. For example, if 4 lanes are enabled, then wait until
+PHYIF_CTRL.PHY_BUSY[3:0]=4’h0. If only 1 lane enabled, then wait until
+PHYIF_CTRL.PHY_BUSY[0]=0.
+3. Set PHYIF_CTRL.TPS_SEL=0 to force the transmitted pattern to none.
+While using a PHY with Pipe Interface (DPTX_PHYIF_TYPE=2), transition the unused
+lanes to P3 before going to step 4. For example, if the number of lanes programmed in
+step 1 is 1, then the lanes 2, 3, and 4 should be transitioned to P3. Use the
+PHYIF_POWERDOWN_CTRL[0] register at offset 0xA18 for this. The
+PHYIF_PWRDOWN_CTRL[0].PER_LANE_PWRDOWN_CTL_EN register should be set to 1.
+The PHYIF_CTRL.PHY_POWERDOWN register is not used for controlling individual lanes
+powerdown.
+4. Program the pre-emphasis and voltage swing values into the PHY_TX_EQ registers
+corresponding to voltage swing level 0 and pre-emphasis level 0 for all enabled lanes.
+5. Set PHYIF_CTRL.TPS_SEL=1 to send TPS1.
+6. Enable the transmitter by setting PHYIF_CTRL.XMIT_EN for each enabled lane.
+7. Set the following DPCD registers on the Sink – using AUX Channel Interface Registers:
+a. LINK_BW_SET register (DPCD Address 00100h) to the desired rate.
+b. LANE_COUNT_SET field in the LANE_COUNT_SET register (DPCD Address 00101h,
+bits 4:0) to the desired # of lanes.
+c. DOWNSPREAD_CTRL register (DPCD Address 00107h), SPREAD_AMP must be set to 1
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1144
+
+RK3588 TRM-Part2
+for a regular PHY and 0 for Rocket IO.
+d. MAIN_LINK_CHANNEL_CODING_SET register (DPCD Address 00108h) to 01h.
+e. TRAINING_PATTERN_SET register (DPCD Address 00102h) to 21h.
+f. TRAINING_LANEx_SET register (DPCD Addresses 00103h through 00106h) for each
+lane to voltage swing level 0 and pre-emphasis level 0.
+g. Note that TRAINING_PATTERN_SET and TRAINING_LANEx_SET registers must be
+written in one AUX CH burst write transaction.
+8. Read the DPCD Sink TRAINING_AUX_RD_INTERVAL field in the
+TRAINING_AUX_RD_INTERVAL register (DPCD Address 0000Eh, bits 6:0) and wait the
+specified time period before reading the LANEx_CR_DONE bit of the lane in the
+LANEx_y_STATUS register (DPCD Address 00202h, bits 0 and 4, and DPCD Address
+00203h, bits 0 and 4, for Lanes 0, 1, 2, and 3, respectively, as appropriate).
+a. If LANEx_CR_DONE is not set for all enabled lane, then read for
+ADJUST_REQUEST_LANEx_y register (DPCD Address(es) 00206h and 00207h) for all
+enabled lanes, then set the local register PHY_TX_EQ to the requested level. Wait
+TRAINING_AUX_RD_INTERVAL and then re-read LANEx_CR_DONE.
+b. if LANEx_CR_DONE is still not set and the same voltage and swing levels have been
+tried 5times, then reduce the link rate by one level. Set PHYIF_CTRL.PHY_RATE
+accordingly. Wait until PHYIF_CTRL.PHY_BUSY is cleared for the desired lanes that
+have been enabled. Repeat <XREF>.
+c. If the rate is already reduced to RBR, but LANEx_CR_DONE is only set for 1 or 2
+lanes, then set PHYIF_CTRL.PHY_LANES to match, and PHYIF_CTRL.PHY_RATE to the
+high supported rate. Repeat <XREF>. Training fails if LANEx_CR_DONE is never set
+for any lane.
+d. If LANEx_CR_DONE is set for all enabled lanes, then move on to the next step.
+9. Set PHYIF_CTRL.TPS_SEL to the following
+⚫ if HBR is the highest desired rate
+⚫ 3 if HBR2 is the highest desired rate
+⚫ 4 if HBR3 is the highest desired rate
+10. Write the following to the DPCD sink registers: 22h for TPS2, 23h for TPS3, or 07h for
+TPS4 to the TRAINING_PATTERN_SET register (DPCD Address 00102h) and the current
+drive setting to the TRAINING_LANEx_SET register (DPCD Addresses 00103h through
+00106h). Ensure that scrambling (CCTL.SCRAMBLE_DISABLE = 0) is enabled if TPS4 is
+transmitted.
+11. Wait TRAINING_AUX_RD_INTERVAL, and then read the following:
+⚫ LANEx_CR_DONE
+⚫ LANEx_CHANNEL_EQ_DONE bit in the LANEx_y_STATUS register (DPCD Address
+00202h, bits 1 and 5, and DPCD Address 00203h, bits 1 and 5, for Lanes 0, 1, 2, and
+3, respectively, as appropriate)
+⚫ LANEx_SYMBOL_LOCKED bit in the LANEx_y_STATUS register (DPCD Address
+00202h, bits 2 and 6, and DPCD Address 00203h, bits 2 and 6, for Lanes 0, 1, 2, and
+3, respectively, as appropriate)
+⚫ INTERLANE_ALIGN_DONE bits in the LANE_ALIGN__STATUS_UPDATED and
+LANE_ALIGN__STATUS_UPDATED_ESI registers (DPCD Addresses 00204h and
+0200Eh, bit 0, respectively)
+12. Wait TRAINING_AUX_RD_INTERVAL, and then read the following:
+⚫ If some of the register values are still 0, then ADJUST_REQUEST_LANEx_y register
+(DPCD Address(es) 00206h and 00207h) and adjust PHY_TX_EQ according the
+requested drive level settings. Repeat step 9.
+⚫ If after 5 iterations, the EQ bits are not set, then reduce rate. Set
+PHYIF_CTRL.PHY_RATE accordingly. Wait until PHYIF_CTRL.PHY_BUSY is cleared for
+the desired lanes that have been enabled. Repeat step 9.
+⚫ If the rate is already reduced to RBR, then do the following:
+Clear the TRAINING_PATTERN_SET register (DPCD Address 00102h).
+Set PHYIF_CTRL.TPS_SEL =1 and set PHY_TX_EQ to default voltage swing and preemphasis (400mV, no pre-emphasis).
+Write 21h to the TRAINING_PATTERN_SET register (and appropriate values to the
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1145
+
+RK3588 TRM-Part2
+TRAINING_LANEx_SET register (DPCD Addresses 00103h through 00106h)) to
+initiate
+training
+13. Set PHYIF_CTRL.TPS_SEL to 0 when finished. Set DPCD Sink TRAINING_PATTERN_SET
+register to 00h.
+
+9.6.6.4
+
+Combo PHY
+
+⚫ For rate changes, PHYIF_CTRL.PHY_LANE0_POWERDOWN must be set to 2 or 3 and
+PHYIF_CTRL.PHY_BUSY must be low before PHYIF_CTRL.PHY_RATE is changed. P2 can
+be used to change rates more quickly than P3.
+⚫ Only PHYIF_CTRL.PHY_LANE0_POWERDOWN is used for the Combo PHY.
+PHYIF_CTRL.PHY_LANE{1,2,3}_POWERDOWN have no effect.
+⚫ Every bit of PHYIF_CTRL.PHY_BUSY[15:13] is the same as PHYIF_CTRL.PHY_BUSY[12].
+
+9.6.7 AUX Channel Access
+
+1. If write set AUX_DATA 0/1/2/3 first. Then write the CMD register with the desired
+CMD_TYPE, ADDR and LENGTH. Note the CMD register is transmitted as-is over the AUX
+channel so make sure unused bits are ‘0’.
+2. Once the write to the CMD register is done, the request is queued for execution and
+additional writes to the data/cmd registers are disabled. The register bit
+AUX_STATUS.AUX_REPLY_RECEIVED is set to indicate the AUX channel is ACTIVE/BUSY.
+3. Wait for an interrupt, and check to see if GENERAL_INTERRUPT.AUX_REPLY_EVENT is set.
+Alternatively, if INTERRUPT_ENABLE.AUX_REPLY_EVENT_EN is reset, software can poll
+AUX_STATUS.AUX_REPLY_RECEIVED to see if a response has been received. This bit
+resets to ‘0’ when the AUX transfer completes.
+4. If GENERAL_INTERRUPT.AUX_REPLY_EVENT=1, then software can read AUX_STATUS to
+find the outcome of the AUX transfer.
+⚫ If the AUX_STATUS.AUX_STATUS is AUX ACK then the AUX request is fully executed
+and read data is available in AUX_DATA0/1/2/3.
+⚫ If it is AUX WRITE NACK, then the software can read AUX_STATUS.AUX_M indicates
+the number of bytes that are written.
+5. If AUX_STATUS.AUX_TIMEOUT is set or the AUX_STATUS.AUX_STATUS is AUX NACK or
+AUX DEFER, then AUX_DATA0/1/2/3 are not valid.
+6. Clear GENERAL_INTERRUPT.AUX_REPLY_EVENT.
+7. If the SINK response is other than ACK, it is the SW responsibility to follow the DP spec
+and continue with the appropriate AUX request.
+
+9.6.8 Test 80-bit Custom Pattern Programming
+
+1. Read DPCD TEST_80BIT_CUSTOM_PATTERN (00250h to 025Bh)
+2. Program CUSTOMPAT0/1/2 according to the TEST_80BIT_CUSTOM_PATTERN[79:0] read
+from the DPCD.
+3. Based on the desired link rate, highest number of lanes supported, and Source policy, set
+PHYIF_CTRL.PHY_LANES and PHYIF_CTRL.PHY_RATE.
+4. Wait until PHYIF_CTRL.PHY_BUSY is cleared for the desired lanes that have been
+enabled. For example, if 4 lanes are enabled, then wait until
+PHYIF_CTRL.PHY_BUSY[3:0]=4’h0. If only 1 lane enabled, then wait until
+PHYIF_CTRL.PHY_BUSY[0]=0
+5. Set PHYIF_CTRL.XMIT_ENABLE for each enabled lane to enable the transmission.
+6. You can check the CONTINUOUS_80BIT_PATTERN_FROM_DPRX_AUX_CH_CAP is
+supported and set CONTINUOUS_80BIT_PATTERN_FROM_DPRX_AUX_CH_EN=1 along
+with the DURATION_CTRL=1. (DPCD 0025Bh). This step can be omitted for standalone
+testing with an oscilloscope.
+
+9.6.9 INIT_THRESHOLD Value Calculation
+
+The INIT_THRESHOLD determines how many clock cycles the link packetizer logic should
+wait after the pixel data is available in the lane steering FIFO, before reading it and
+transmitting it on the link. Based on the lane steering logic push rate and the link rate, this
+value changes for various modes of operations. The calculated value should be programmed
+into the INIT_THRESHOLD, and INIT_THRESHOLD_HI fields of the VIDEO_CONFIG5 register.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1146
+
+RK3588 TRM-Part2
+

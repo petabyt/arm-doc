@@ -1,0 +1,2618 @@
+Chapter 9 MCU Subsystem
+9
+
+9.1 Overview
+The MCU Subsystem embedded one MCU processor(Cortex-M0,r0p0-03rel0), a 16KB unified
+I/D cache, a tightly-coupled memory(TCM) and interrupt multiplexer(INTMUX). It allowed
+fast & efficient data exchange. And the Level 1 Instruction/Data Cache designed for MCU can
+improve the memory access performance significantly.
+The following features may or may not be present in the actual product. Please contact
+Rockchip for the actual feature configurations and the third-party licensing requirements.
+The MCU features and benefits are:
+⚫ One MCU processor
+⚫ Tightly-coupled memory(TCM)
+⚫ Optional debug support
+◼ Two hardware breakpoints
+◼ One watch points
+◼ Support Serial Wire debug connection
+⚫ Interrupt multiplexer(INTMUX)
+◼ Mux 8 interrupts from 512 interrupt sources using round-robin algorithm
+◼ Each 8 adjacent interrupts are seen as a group which share same
+INTMUX_INT_ENABLE_GROUPx and INTMUX_INT_FLAG_GROUPx register
+⚫ 16KB unified I/D Cache
+◼ Support 2-way set-associative with 32Byte cache line size
+◼ Support one 128bit AHB-Lite bus master interface to SoC interconnect
+◼ Support memory cacheable access and peripheral bypass access
+◼ Support Write-Through with No-Write-Allocate and Read-Allocate
+◼ Support Write-Back with Write-Allocate and Read-Allocate
+◼ Support cache maintenance operations (clean/invalidate/clean & invalidate) by
+address
+◼ Support cache invalidate/clean & invalidate operations for all cache lines
+◼ Support cache initialization by software configuration
+◼ Support RAM debug mode for tag RAM and data RAM
+◼ Support one interrupt source
+There are three MCU subsystem in RK3588, PMU_M0, NPU_M0 and DDR_M0 respectively.
+Their main configurations are different, As shown below.
+Table 9-1 MCU Subsystem Configurations
+PMU_M0
+NPU_M0
+DDR_M0
+TCM
+16KB
+64KB
+32KB
+CACHE
+16KB
+16KB
+NA
+IRQ_NUM
+32
+16
+8
+INTMUX
+YES
+NA
+YES
+
+9.2 Block Diagram
+The Int_in[511:0] will connect with all interrupt source of RK3588, and please refer to
+“Chapter System Overview” for the detail interrupt number. MCU Subsystem are shown
+below.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1276
+
+RK3588 TRM-Part1
+
+PMU_M0 Subsystem
+Int_in[15:0] + Int_in[31:24]
+
+Int_in[255:0]
+
+INTMUX1 INTMUX0
+
+Int_in[511:256]
+
+DBG
+Serial Wire
+
+Int_out[23:20]
+MCU
+Int_out[19:16]
+AHB-Lite
+
+TCM
+
+Address Decode
+
+Data_s
+
+Config_s
+
+I/D-Cache
+
+Interconnect
+
+Fig. 9-1 Block Diagram of PMU_M0 Subsystem
+
+NPU_M0 Subsystem
+DBG
+Int_in[15:0]
+
+Serial Wire
+
+MCU
+
+AHB-Lite
+
+TCM
+
+Address Decode
+
+Data_s
+
+Config_s
+
+I/D-Cache
+
+Interconnect
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1277
+
+RK3588 TRM-Part1
+
+Fig. 9-2 Block Diagram of NPU_M0 Subsystem
+DDR_M0 Subsystem
+INTMUX1
+
+Int_in[511:256]
+
+Int_out[7:4]
+
+DBG
+MCU
+
+INTMUX0
+
+Int_in[255:0]
+
+Serial Wire
+
+Int_out[3:0]
+AHB-Lite
+
+Address Decode
+
+TCM
+
+Interconnect
+
+Fig. 9-3 Block Diagram of DDR_M0 Subsystem
+
+9.3 Register Description
+Software should read and write these registers using 32-bits accesses. Please note that the
+INTMUX0 and INTMUX1 are same instance, so they have same register list, but the base
+address of INTMUX0_PMU/INTMUX1_PMU/INTMUX0_DDR/INTMUX1_DDR are
+0xFECF0000/0xFECF4000/0xFECF8000/0xFECFC0000 respectively. Every 64 interrupts as a
+group will be multiplexed into one INT to MCU in order.
+
+9.3.1 Registers Summary(cache)
+Name
+
+Offset
+
+Size
+
+CACHE_CACHE_CTRL
+
+0x0000
+
+W
+
+CACHE_MAINTAIN0
+
+0x0004
+
+W
+
+CACHE_MAINTAIN1
+
+0x0008
+
+W
+
+CACHE_STB_TIMEOUT_CTRL
+
+0x000c
+
+W
+
+CACHE_RAM_DEBUG
+
+0x0010
+
+W
+
+CACHE_CACHE_INT_EN
+
+0x0020
+
+W
+
+CACHE_CACHE_INT_ST
+
+0x0024
+
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Reset
+Description
+Value
+0x000006cc Cache Control Register
+Cache Maintain 0
+0x00000000
+Register
+Cache Maintain 1
+0x00000000
+Register
+Store Buffer Timeout
+0x4000000c
+Control Register
+Cache RAM Debug
+0x00000000
+Register
+Cache Interrupt Enable
+0x00000000
+Register
+Cache Interrupt Status
+0x00000000
+Register
+
+1278
+
+RK3588 TRM-Part1
+Name
+
+Offset
+
+Size
+
+CACHE_CACHE_ERR_HADDR
+
+0x0028
+
+W
+
+CACHE_CACHE_STATUS
+
+0x0030
+
+W
+
+CACHE_PMU_RD_NUM_CNT
+
+0x0040
+
+W
+
+CACHE_PMU_WR_NUM_CNT
+
+0x0044
+
+W
+
+CACHE_PMU_SRAM_RD_HIT_CNT
+
+0x0048
+
+W
+
+CACHE_PMU_HB_RD_HIT_CNT
+
+0x004c
+
+W
+
+CACHE_PMU_STB_RD_HIT_CNT
+
+0x0050
+
+W
+
+CACHE_PMU_RD_HIT_CNT
+
+0x0054
+
+W
+
+CACHE_PMU_WR_HIT_CNT
+
+0x0058
+
+W
+
+CACHE_PMU_RD_MISS_PENALTY_CNT 0x005c
+
+W
+
+CACHE_PMU_WR_MISS_PENALTY_CNT 0x0060
+
+W
+
+CACHE_PMU_RD_LAT_CNT
+
+0x0064
+
+W
+
+CACHE_PMU_WR_LAT_CNT
+
+0x0068
+
+W
+
+CACHE_REVISION
+
+0x00f0
+
+W
+
+Reset
+Value
+
+Description
+
+Cache Error Address
+Register
+0x00000000 Cache Status Register
+PMU Read Number
+0x00000000
+Count Register
+PMU Write Number
+0x00000000
+Count Register
+PMU RAM Read Hit
+0x00000000
+Count Register
+PMU Hot Buffer Read
+0x00000000
+Hit Count Register
+PMU Store Buffer Read
+0x00000000
+Hit Count Register
+PMU Read Hit Count
+0x00000000
+Register
+PMU Write Hit Count
+0x00000000
+Register
+PMU Read Miss Penalty
+0x00000000
+Count Register
+PMU Write Miss Penalty
+0x00000000
+Count Register
+PMU Read Latency
+0x00000000
+Count Register
+PMU Write Latency
+0x00000000
+Count Register
+Cache Design Revision
+0x00000100
+Register
+0x00000000
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access
+
+9.3.2 Detail Registers Description
+CACHE_CACHE_CTRL
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+31:14 RO 0x00000
+reserved
+cache_pf_en
+Cache prefetch enable register.
+13
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+cache_mpu_mode
+Cache MPU mode enable register. When this bit is set to 1, the
+12
+RW 0x0
+cacheability policy is determined by MPU of Cortex-M4.
+1'b0: Disable
+1'b1: Enable
+11
+RO 0x0
+reserved
+stb_entry_thresh
+Store buffer entry threshold control register. The depth of the
+10:8 RW 0x6
+store buffer entry is 8. When the number of the used data
+entries is greater than or equal to threshold value, the write data
+will be written to Cache RAM.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1279
+
+RK3588 TRM-Part1
+Bit Attr Reset Value
+
+7
+
+RW 0x1
+
+6
+
+RW 0x1
+
+5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+3
+
+RW 0x1
+
+2
+
+RW 0x1
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+stb_timeout_en
+Store buffer timeout enable register. When this bit is set to 1,
+the data in the store buffer must be flushed to Cache RAM if the
+counter value is equal to the timeout value.
+1'b0: Disable
+1'b1: Enable
+cache_bypass
+Cache bypass mode enable register. When this bit is set to 1,
+data will bypass the Cache.
+1'b0: Disable
+1'b1: Enable
+cache_pmu_en
+Cache Performance Monitor Unit enable register.
+1'b0: Disable
+1'b1: Enable
+cache_flush
+Cache flush enable register. When this bit is set to 1, the dirty
+data is flushed to external memory and the cache line are
+invalidated.
+1'b0: Disable
+1'b1: Enable
+cache_stb_en
+Cache store buffer enable register. This bit must be set to 0
+when Write-Through mode is selected and must be set to 1 when
+Write-Back mode is selected.
+1'b0: Disable
+1'b1: Enable
+cache_hb_en
+Cache hot buffer enable register.
+1'b0: Disable
+1'b1: Enable
+cache_wt_en
+Cache mode control register.
+1'b0: Write-Back
+1'b1: Write-Through
+cache_en
+Cache initialization enable register.
+1'b0: Disable
+1'b1: Enable
+
+CACHE_MAINTAIN0
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+cache_m_addr
+31:5 RW 0x0000000
+Cache maintain start address. This address is 32Byte cache line
+aligned, that is, the bits[4:0] are always 0.
+4:3
+RO 0x0
+reserved
+cache_m_cmd
+Cache maintain command register.
+2'b00: Clean by address
+2:1
+RW 0x0
+2'b01: Invalidate by address
+2'b10: Clean and Invalidate by address
+2'b11: Invalidate all
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1280
+
+RK3588 TRM-Part1
+Bit Attr Reset Value
+0
+
+WO 0x0
+
+Description
+cache_m_valid
+Cache maintain valid register. The maintenance operation is valid
+only when this bit is set to 1.
+
+CACHE_MAINTAIN1
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+Description
+31:27 RO 0x00
+reserved
+cache_m_offset
+Cache maintain offset. This bit field indicates the end offset of
+cache line, that is, the value plus 1 determines the number of
+26:0 RW 0x0000000
+cache line to be maintained. The bit field of cache_m_addr is
+treated as the start offset of cache line, so the maintain address
+range is from (cache_m_addr * 32) to (cache_m_addr * 32 + 31
++ cache_m_offset * 32).
+CACHE_STB_TIMEOUT_CTRL
+Address: Operational Base + offset (0x000c)
+Bit Attr Reset Value
+Description
+stb_timeout_value
+31:0 RW 0x4000000c
+Store buffer timeout value.
+CACHE_RAM_DEBUG
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+ram_debug_en
+Cache RAM debug mode enable register.
+0
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+CACHE_CACHE_INT_EN
+Address: Operational Base + offset (0x0020)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+err_record_en
+AHB master bus error record enable.
+0
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+CACHE_CACHE_INT_ST
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+ahb_error_status
+Error status bit for AHB master bus.
+0
+RW 0x0
+1'b0: Nothing
+1'b1: Bus error
+CACHE_CACHE_ERR_HADDR
+Address: Operational Base + offset (0x0028)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+status_haddr
+0
+RO 0x0
+Recent record of AHB bus error address.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1281
+
+RK3588 TRM-Part1
+CACHE_CACHE_STATUS
+Address: Operational Base + offset (0x0030)
+Bit Attr Reset Value
+Description
+31:3 RO 0x00000000 reserved
+cache_flush_done
+Cache flush done status register.
+2
+RO 0x0
+1'b0: Nothing
+1'b1: Flush done
+cache_m_busy
+Cache maintain busy status register.
+1
+RO 0x0
+1'b0: Idle
+1'b1: Busy
+cache_init_finish
+Cache initialization finish status register.
+0
+RO 0x0
+1'b0: Cache is uninitialized
+1'b1: Cache is initialized
+CACHE_PMU_RD_NUM_CNT
+Address: Operational Base + offset (0x0040)
+Bit Attr Reset Value
+Description
+pmu_rd_num_cnt
+31:0 RO 0x00000000
+Total count of read transfers.
+CACHE_PMU_WR_NUM_CNT
+Address: Operational Base + offset (0x0044)
+Bit Attr Reset Value
+Description
+pmu_wr_num_cnt
+31:0 RO 0x00000000
+Total count of write transfers.
+CACHE_PMU_SRAM_RD_HIT_CNT
+Address: Operational Base + offset (0x0048)
+Bit Attr Reset Value
+Description
+pmu_ram_rd_hit_cnt
+31:0 RO 0x00000000
+Count of read hits on Cache RAM.
+CACHE_PMU_HB_RD_HIT_CNT
+Address: Operational Base + offset (0x004c)
+Bit Attr Reset Value
+Description
+pmu_hb_rd_hit_cnt
+31:0 RO 0x00000000
+Count of read hits on hot buffer.
+CACHE_PMU_STB_RD_HIT_CNT
+Address: Operational Base + offset (0x0050)
+Bit Attr Reset Value
+Description
+pmu_stb_rd_hit_cnt
+31:0 RO 0x00000000
+Count of read hits on store buffer.
+CACHE_PMU_RD_HIT_CNT
+Address: Operational Base + offset (0x0054)
+Bit Attr Reset Value
+pmu_rd_hit_cnt
+31:0 RO 0x00000000
+Total count of read hits.
+
+Description
+
+CACHE_PMU_WR_HIT_CNT
+Address: Operational Base + offset (0x0058)
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1282
+
+RK3588 TRM-Part1
+Bit Attr Reset Value
+31:0 RO
+
+0x00000000
+
+Description
+pmu_wr_hit_cnt
+Total count of write hits.
+
+CACHE_PMU_RD_MISS_PENALTY_CNT
+Address: Operational Base + offset (0x005c)
+Bit Attr Reset Value
+Description
+pmu_rd_miss_penalty_cnt
+31:0 RO 0x00000000
+Total count of read miss penalty (in clock cycles).
+CACHE_PMU_WR_MISS_PENALTY_CNT
+Address: Operational Base + offset (0x0060)
+Bit Attr Reset Value
+Description
+pmu_wr_miss_penalty_cnt
+31:0 RO 0x00000000
+Total count of write miss penalty (in clock cycles).
+CACHE_PMU_RD_LAT_CNT
+Address: Operational Base + offset (0x0064)
+Bit Attr Reset Value
+Description
+pmu_rd_lat_cnt
+31:0 RO 0x00000000
+Total count of read latency (in clock cycles).
+CACHE_PMU_WR_LAT_CNT
+Address: Operational Base + offset (0x0068)
+Bit Attr Reset Value
+Description
+pmu_wr_lat_cnt
+31:0 RO 0x00000000
+Total count of write latency (in clock cycles).
+CACHE_REVISION
+Address: Operational Base + offset (0x00f0)
+Bit Attr Reset Value
+revision
+31:0 RO 0x00000100
+Cache revision number.
+
+Description
+
+9.3.3 Registers Summary (INTMUX)
+Name
+
+Offset
+
+INTMUX_INT_ENABLE_GR
+0x0000
+OUP0
+INTMUX_INT_ENABLE_GR
+0x0004
+OUP1
+INTMUX_INT_ENABLE_GR
+0x0008
+OUP2
+INTMUX_INT_ENABLE_GR
+0x000c
+OUP3
+INTMUX_INT_ENABLE_GR
+0x0010
+OUP4
+INTMUX_INT_ENABLE_GR
+0x0014
+OUP5
+INTMUX_INT_ENABLE_GR
+0x0018
+OUP6
+INTMUX_INT_ENABLE_GR
+0x001c
+OUP7
+INTMUX_INT_ENABLE_GR
+0x0020
+OUP8
+
+Size
+
+Reset
+Value
+
+Description
+
+W
+
+0x00000000 Interrupt Group0 Enable Register
+
+W
+
+0x00000000 Interrupt Group1 Enable Register
+
+W
+
+0x00000000 Interrupt Group2 Enable Register
+
+W
+
+0x00000000 Interrupt Group3 Enable Register
+
+W
+
+0x00000000 Interrupt Group4 Enable Register
+
+W
+
+0x00000000 Interrupt Group5 Enable Register
+
+W
+
+0x00000000 Interrupt Group6 Enable Register
+
+W
+
+0x00000000 Interrupt Group7 Enable Register
+
+W
+
+0x00000000 Interrupt Group8 Enable Register
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1283
+
+RK3588 TRM-Part1
+Name
+
+Offset
+
+INTMUX_INT_ENABLE_GR
+0x0024
+OUP9
+INTMUX_INT_ENABLE_GR
+0x0028
+OUP10
+INTMUX_INT_ENABLE_GR
+0x002c
+OUP11
+INTMUX_INT_ENABLE_GR
+0x0030
+OUP12
+INTMUX_INT_ENABLE_GR
+0x0034
+OUP13
+INTMUX_INT_ENABLE_GR
+0x0038
+OUP14
+INTMUX_INT_ENABLE_GR
+0x003c
+OUP15
+INTMUX_INT_ENABLE_GR
+0x0040
+OUP16
+INTMUX_INT_ENABLE_GR
+0x0044
+OUP17
+INTMUX_INT_ENABLE_GR
+0x0048
+OUP18
+INTMUX_INT_ENABLE_GR
+0x004c
+OUP19
+INTMUX_INT_ENABLE_GR
+0x0050
+OUP20
+INTMUX_INT_ENABLE_GR
+0x0054
+OUP21
+INTMUX_INT_ENABLE_GR
+0x0058
+OUP22
+INTMUX_INT_ENABLE_GR
+0x005c
+OUP23
+INTMUX_INT_ENABLE_GR
+0x0060
+OUP24
+INTMUX_INT_ENABLE_GR
+0x0064
+OUP25
+INTMUX_INT_ENABLE_GR
+0x0068
+OUP26
+INTMUX_INT_ENABLE_GR
+0x006c
+OUP27
+INTMUX_INT_ENABLE_GR
+0x0070
+OUP28
+INTMUX_INT_ENABLE_GR
+0x0074
+OUP29
+INTMUX_INT_ENABLE_GR
+0x0078
+OUP30
+INTMUX_INT_ENABLE_GR
+0x007c
+OUP31
+INTMUX_INT_FLAG_GROU
+0x0080
+P0
+INTMUX_INT_FLAG_GROU
+0x0084
+P1
+INTMUX_INT_FLAG_GROU
+0x0088
+P2
+
+Size
+
+Reset
+Value
+
+Description
+
+W
+
+0x00000000 Interrupt Group9 Enable Register
+
+W
+
+0x00000000 Interrupt Group10 Enable Register
+
+W
+
+0x00000000 Interrupt Group11 Enable Register
+
+W
+
+0x00000000 Interrupt Group12 Enable Register
+
+W
+
+0x00000000 Interrupt Group13 Enable Register
+
+W
+
+0x00000000 Interrupt Group14 Enable Register
+
+W
+
+0x00000000 Interrupt Group15 Enable Register
+
+W
+
+0x00000000 Interrupt Group16 Enable Register
+
+W
+
+0x00000000 Interrupt Group17 Enable Register
+
+W
+
+0x00000000 Interrupt Group18 Enable Register
+
+W
+
+0x00000000 Interrupt Group19 Enable Register
+
+W
+
+0x00000000 Interrupt Group20 Enable Register
+
+W
+
+0x00000000 Interrupt Group21 Enable Register
+
+W
+
+0x00000000 Interrupt Group22 Enable Register
+
+W
+
+0x00000000 Interrupt Group23 Enable Register
+
+W
+
+0x00000000 Interrupt Group24 Enable Register
+
+W
+
+0x00000000 Interrupt Group25 Enable Register
+
+W
+
+0x00000000 Interrupt Group26 Enable Register
+
+W
+
+0x00000000 Interrupt Group27 Enable Register
+
+W
+
+0x00000000 Interrupt Group28 Enable Register
+
+W
+
+0x00000000 Interrupt Group29 Enable Register
+
+W
+
+0x00000000 Interrupt Group30 Enable Register
+
+W
+
+0x00000000 Interrupt Group31 Enable Register
+
+W
+
+0x00000000 Interrupt Group0 Flag Register
+
+W
+
+0x00000000 Interrupt Group1 Flag Register
+
+W
+
+0x00000000 Interrupt Group2 Flag Register
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1284
+
+RK3588 TRM-Part1
+Name
+
+Offset
+
+INTMUX_INT_FLAG_GROU
+0x008c
+P3
+INTMUX_INT_FLAG_GROU
+0x0090
+P4
+INTMUX_INT_FLAG_GROU
+0x0094
+P5
+INTMUX_INT_FLAG_GROU
+0x0098
+P6
+INTMUX_INT_FLAG_GROU
+0x009c
+P7
+INTMUX_INT_FLAG_GROU
+0x00a0
+P8
+INTMUX_INT_FLAG_GROU
+0x00a4
+P9
+INTMUX_INT_FLAG_GROU
+0x00a8
+P10
+INTMUX_INT_FLAG_GROU
+0x00ac
+P11
+INTMUX_INT_FLAG_GROU
+0x00b0
+P12
+INTMUX_INT_FLAG_GROU
+0x00b4
+P13
+INTMUX_INT_FLAG_GROU
+0x00b8
+P14
+INTMUX_INT_FLAG_GROU
+0x00bc
+P15
+INTMUX_INT_FLAG_GROU
+0x00c0
+P16
+INTMUX_INT_FLAG_GROU
+0x00c4
+P17
+INTMUX_INT_FLAG_GROU
+0x00c8
+P18
+INTMUX_INT_FLAG_GROU
+0x00cc
+P19
+INTMUX_INT_FLAG_GROU
+0x00d0
+P20
+INTMUX_INT_FLAG_GROU
+0x00d4
+P21
+INTMUX_INT_FLAG_GROU
+0x00d8
+P22
+INTMUX_INT_FLAG_GROU
+0x00dc
+P23
+INTMUX_INT_FLAG_GROU
+0x00e0
+P24
+INTMUX_INT_FLAG_GROU
+0x00e4
+P25
+INTMUX_INT_FLAG_GROU
+0x00e8
+P26
+INTMUX_INT_FLAG_GROU
+0x00ec
+P27
+INTMUX_INT_FLAG_GROU
+0x00f0
+P28
+
+Size
+
+Reset
+Value
+
+Description
+
+W
+
+0x00000000 Interrupt Group3 Flag Register
+
+W
+
+0x00000000 Interrupt Group4 Flag Register
+
+W
+
+0x00000000 Interrupt Group5 Flag Register
+
+W
+
+0x00000000 Interrupt Group6 Flag Register
+
+W
+
+0x00000000 Interrupt Group7 Flag Register
+
+W
+
+0x00000000 Interrupt Group8 Flag Register
+
+W
+
+0x00000000 Interrupt Group9 Flag Register
+
+W
+
+0x00000000 Interrupt Group10 Flag Register
+
+W
+
+0x00000000 Interrupt Group11 Flag Register
+
+W
+
+0x00000000 Interrupt Group12 Flag Register
+
+W
+
+0x00000000 Interrupt Group13 Flag Register
+
+W
+
+0x00000000 Interrupt Group14 Flag Register
+
+W
+
+0x00000000 Interrupt Group15 Flag Register
+
+W
+
+0x00000000 Interrupt Group16 Flag Register
+
+W
+
+0x00000000 Interrupt Group17 Flag Register
+
+W
+
+0x00000000 Interrupt Group18 Flag Register
+
+W
+
+0x00000000 Interrupt Group19 Flag Register
+
+W
+
+0x00000000 Interrupt Group20 Flag Register
+
+W
+
+0x00000000 Interrupt Group21 Flag Register
+
+W
+
+0x00000000 Interrupt Group22 Flag Register
+
+W
+
+0x00000000 Interrupt Group23 Flag Register
+
+W
+
+0x00000000 Interrupt Group24 Flag Register
+
+W
+
+0x00000000 Interrupt Group25 Flag Register
+
+W
+
+0x00000000 Interrupt Group26 Flag Register
+
+W
+
+0x00000000 Interrupt Group27 Flag Register
+
+W
+
+0x00000000 Interrupt Group28 Flag Register
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1285
+
+RK3588 TRM-Part1
+Name
+
+Offset
+
+INTMUX_INT_FLAG_GROU
+0x00f4
+P29
+INTMUX_INT_FLAG_GROU
+0x00f8
+P30
+INTMUX_INT_FLAG_GROU
+0x00fc
+P31
+
+Size
+
+Reset
+Value
+
+Description
+
+W
+
+0x00000000 Interrupt Group29 Flag Register
+
+W
+
+0x00000000 Interrupt Group30 Flag Register
+
+W
+
+0x00000000 Interrupt Group31 Flag Register
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access
+
+9.3.4 Detail Registers Description
+
+INTMUX_INT_ENABLE_GROUP0
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP1
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP2
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP3
+Address: Operational Base + offset (0x000c)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP4
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1286
+
+RK3588 TRM-Part1
+INTMUX_INT_ENABLE_GROUP5
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP6
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP7
+Address: Operational Base + offset (0x001c)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP8
+Address: Operational Base + offset (0x0020)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP9
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP10
+Address: Operational Base + offset (0x0028)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP11
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1287
+
+RK3588 TRM-Part1
+Address: Operational Base + offset (0x002c)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP12
+Address: Operational Base + offset (0x0030)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP13
+Address: Operational Base + offset (0x0034)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP14
+Address: Operational Base + offset (0x0038)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP15
+Address: Operational Base + offset (0x003c)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP16
+Address: Operational Base + offset (0x0040)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP17
+Address: Operational Base + offset (0x0044)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1288
+
+RK3588 TRM-Part1
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP18
+Address: Operational Base + offset (0x0048)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP19
+Address: Operational Base + offset (0x004c)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP20
+Address: Operational Base + offset (0x0050)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP21
+Address: Operational Base + offset (0x0054)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP22
+Address: Operational Base + offset (0x0058)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP23
+Address: Operational Base + offset (0x005c)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1289
+
+RK3588 TRM-Part1
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP24
+Address: Operational Base + offset (0x0060)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP25
+Address: Operational Base + offset (0x0064)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP26
+Address: Operational Base + offset (0x0068)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP27
+Address: Operational Base + offset (0x006c)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP28
+Address: Operational Base + offset (0x0070)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP29
+Address: Operational Base + offset (0x0074)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1290
+
+RK3588 TRM-Part1
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP30
+Address: Operational Base + offset (0x0078)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_ENABLE_GROUP31
+Address: Operational Base + offset (0x007c)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+enable
+Each bit represents one interrupt enable bit.
+7:0
+RW 0x00
+1'b0: Interrupt disabled
+1'b1: Interrupt enabled
+INTMUX_INT_FLAG_GROUP0
+Address: Operational Base + offset (0x0080)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP1
+Address: Operational Base + offset (0x0084)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP2
+Address: Operational Base + offset (0x0088)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP3
+Address: Operational Base + offset (0x008c)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1291
+
+RK3588 TRM-Part1
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP4
+Address: Operational Base + offset (0x0090)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP5
+Address: Operational Base + offset (0x0094)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP6
+Address: Operational Base + offset (0x0098)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP7
+Address: Operational Base + offset (0x009c)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP8
+Address: Operational Base + offset (0x00a0)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP9
+Address: Operational Base + offset (0x00a4)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1292
+
+RK3588 TRM-Part1
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP10
+Address: Operational Base + offset (0x00a8)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP11
+Address: Operational Base + offset (0x00ac)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP12
+Address: Operational Base + offset (0x00b0)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP13
+Address: Operational Base + offset (0x00b4)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP14
+Address: Operational Base + offset (0x00b8)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP15
+Address: Operational Base + offset (0x00bc)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1293
+
+RK3588 TRM-Part1
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP16
+Address: Operational Base + offset (0x00c0)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP17
+Address: Operational Base + offset (0x00c4)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP18
+Address: Operational Base + offset (0x00c8)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP19
+Address: Operational Base + offset (0x00cc)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP20
+Address: Operational Base + offset (0x00d0)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP21
+Address: Operational Base + offset (0x00d4)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1294
+
+RK3588 TRM-Part1
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP22
+Address: Operational Base + offset (0x00d8)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP23
+Address: Operational Base + offset (0x00dc)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP24
+Address: Operational Base + offset (0x00e0)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP25
+Address: Operational Base + offset (0x00e4)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP26
+Address: Operational Base + offset (0x00e8)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP27
+Address: Operational Base + offset (0x00ec)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1295
+
+RK3588 TRM-Part1
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP28
+Address: Operational Base + offset (0x00f0)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP29
+Address: Operational Base + offset (0x00f4)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP30
+Address: Operational Base + offset (0x00f8)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+INTMUX_INT_FLAG_GROUP31
+Address: Operational Base + offset (0x00fc)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+flag
+Each bit represents one interrupt is in service.
+7:0
+RO 0x00
+1'b0: Interrupt in service
+1'b1: Interrupt out of service
+
+9.4 Interface Description
+There are two sets of serial debug interface for the three MCUs. When we debug using serial
+wire, not only set IOMUX, but also configure the bit[11:10] of SYS_GRF_SOC_CON10 to
+select the MCU that you want to debug.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1296
+
+RK3588 TRM-Part1
+Module Pin
+mcujtag_tckm0
+
+Table 9-2 MCU Serial Wire Debug Interface Description
+Direction
+Pad Name
+IOMUX Setting
+I
+
+SDMMC_CMD/PDM1_CLK1_M0/MCU_JTA
+G_TCK_M0/CAN0_TX_M1/UART5_RX_M0
+/PWM7_IR_M1/GPIO4_D4_u
+mcujtag_tmsm0
+I/O
+SDMMC_CLK/PDM1_CLK0_M0/TEST_CLK
+OUT_M0/MCU_JTAG_TMS_M0/CAN0_RX
+_M1/UART5_TX_M0/GPIO4_D5_d
+mcujtag_tckm1
+I
+HDMI_TX0_HPD_M1/PCIE30X2_PERSTN
+_M2/HDMI_RX_HPDOUT_M1/MCU_JTAG
+_TCK_M1/UART9_RX_M2/SPI0_CS0_M3/
+GPIO3_D4_d
+mcujtag_tmsm1
+I/O
+PCIE30X4_BUTTON_RSTN/DP1_HPDIN_
+M0/MCU_JTAG_TMS_M1/UART9_TX_M2/
+PWM11_IR_M3/SPI0_CS1_M3/GPIO3_D
+5_d
+Notes: I=input, O=output, I/O=input/output, bidirectional
+
+BUS_IOC_GPIO4D_IOMUX_S
+EL_H[3:0] = 4’h5
+BUS_IOC_GPIO4D_IOMUX_S
+EL_H[7:4] = 4’h5
+BUS_IOC_GPIO3D_IOMUX_S
+EL_H[3:0] = 4’h6
+BUS_IOC_GPIO3D_IOMUX_S
+EL_H[7:4] = 4’h6
+
+9.5 Application Notes
+9.5.1 Clock and Reset Generation
+
+Please refer to “Chapter CRU” for more detailed information.
+
+9.5.2 Memory Remap
+
+The memory map is divided into different memory types for different usage.
+To avoid the memory map conflict between different processors, the source space can be
+remap to another. In addition, these remap operation could not take effect until the MCU
+soft reset.
+Table 9-3 PMU_M0 Address Remap
+Before Remap
+Memory Type
+Usage
+After Remap
+0xA0000000 0xDFFFFFFF
+0x80000000 0x9FFFFFFF
+0x60000000 0x7FFFFFFF
+0x40000000 0x5FFFFFFF
+0x20000000 0x3FFFFFFF
+0x00000000 0x1FFFFFFF
+
+Before Remap
+0xA0000000 0xDFFFFFFF
+0x80000000 0x9FFFFFFF
+0x60000000 0x7FFFFFFF
+0x40000000 0x5FFFFFFF
+0x20000000 0x3FFFFFFF
+0x00000000 0x1FFFFFFF
+
+Before Remap
+0xA0000000 0xDFFFFFFF
+0x80000000 0x9FFFFFFF
+
+Device XN
+
+Peripherals
+
+Normal WT
+
+Off chip RAM
+
+Normal WBWA
+
+Off chip RAM
+
+Device XN
+
+Peripherals
+
+Normal WBWA
+
+On chip RAM
+
+Normal WT
+
+ROM or flash
+
+Before Remap - 0xA0000000 +
+{pmu1_sgrf_soc_con12[15:0],16’h0}
+Before Remap - 0x60000000 +
+{pmu1_sgrf_soc_con11[15:0],16’h0}
+Before Remap - 0x60000000 +
+{pmu1_sgrf_soc_con11[15:0],16’h0}
+Before Remap - 0x40000000 +
+0xF0000000
+Before Remap - 0x20000000 +
+{pmu1_sgrf_soc_con10[15:0],16’h0}
+Before Remap - 0x0000000 +
+{pmu1_sgrf_soc_con9[15:0],16’h0}
+
+Table 9-4 NPU_M0 Address Remap
+Memory Type
+Usage
+Device XN
+
+Peripherals
+
+Normal WT
+
+Off chip RAM
+
+Normal WBWA
+
+Off chip RAM
+
+Device XN
+
+Peripherals
+
+Normal WBWA
+
+On chip RAM
+
+Normal WT
+
+ROM or flash
+
+Table 9-5 DDR_M0 Address Remap
+Memory Type
+Usage
+Device XN
+
+Peripherals
+
+Normal WT
+
+Off chip RAM
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+After Remap
+
+Before Remap - 0xA0000000 +
+{bus_sgrf_mcu_con1[15:0],16’h0}
+Before Remap - 0x60000000 +
+{bus_sgrf_mcu_con2[15:0],16’h0}
+Before Remap - 0x60000000 +
+{bus_sgrf_mcu_con2[15:0],16’h0}
+Before Remap - 0x40000000 +
+0xF0000000
+Before Remap - 0x20000000 +
+{bus_sgrf_mcu_con3[15:0],16’h0}
+Before Remap - 0x0000000 +
+{bus_sgrf_mcu_con0[15:0],16’h0}
+
+After Remap
+
+Before Remap - 0xA0000000 +
+{bus_sgrf_mcu_con6[15:0],16’h0}
+Before Remap - 0x60000000 +
+{bus_sgrf_mcu_con7[15:0],16’h0}
+
+1297
+
+RK3588 TRM-Part1
+0x60000000 0x7FFFFFFF
+0x40000000 0x5FFFFFFF
+0x20000000 0x3FFFFFFF
+0x00000000 0x1FFFFFFF
+Notes:
+
+⚫
+⚫
+⚫
+⚫
+
+Normal WBWA
+
+Off chip RAM
+
+Device XN
+
+Peripherals
+
+Normal WBWA
+
+On chip RAM
+
+Normal WT
+
+ROM or flash
+
+Before Remap - 0x60000000 +
+{bus_sgrf_mcu_con7[15:0],16’h0}
+Before Remap - 0x40000000 +
+0xF0000000
+Before Remap - 0x20000000 +
+{bus_sgrf_mcu_con8[15:0],16’h0}
+Before Remap - 0x0000000 +
+{bus_sgrf_mcu_con5[15:0],16’h0}
+
+XN means execute-never.
+WT means write-through.
+WBWA means write-back-write-allocate.
+WT means write-through
+
+9.5.3 Interrupt for MCU
+
+Table 9-6 DDR_M0 Interrupt
+
+IRQ ID
+
+IRQ Source
+
+IRQ ID
+
+IRQ Source
+
+0
+
+Int_in[63:0]
+
+4
+
+Int_in[319:256]
+
+1
+
+Int_in[127:64]
+
+5
+
+Int_in[383:320]
+
+2
+
+Int_in[191:128]
+
+6
+
+Int_in[447:384]
+
+3
+
+Int_in[255:192]
+
+7
+
+Int_in[511:448]
+
+The Int_in[511:0] are system interrupts, and each 64 interrupts will multiplexed into one
+interrupt which connect to one DDR_M0 IRQ lines. Please refer to “Chapter System
+Overview” for the detail interrupt number.
+Table 9-7 PMU_M0 Interrupt
+IRQ ID
+
+IRQ Source
+
+IRQ ID
+
+IRQ Source
+
+0
+
+PMIC
+
+11
+
+PWM0
+
+1
+
+SDMMC_DETECTN
+
+12
+
+WDT_PMU
+
+2
+
+UART0
+
+13
+
+TIMER1_PMU
+
+3
+
+GPIO0
+
+14
+
+TIMER0_PMU
+
+4
+
+GPIO0_EXP
+
+15
+
+5
+
+I2C0
+
+16-23
+
+INTMUX_OUT
+
+6
+
+VAD
+
+24
+
+HPTIMER_PMU0
+
+7
+
+PDM0
+
+25
+
+OSC_CHK_RST_REQ
+
+8
+
+I2S1_8CH
+
+26
+
+CACHE_PMU
+
+9
+
+PVTM_PMU
+
+27-31
+
+RESERVED
+
+10
+
+PWM0_PWR
+
+CRC_CHK_RST_REQ_PMU0_SGRF|
+CRC_CHK_RST_REQ_PMU1SGRF
+
+The INTMUX_OUT are multiplexed from 512 system interrupts.
+Table 9-8 NPU_M0 Interrupt
+IRQ ID
+
+IRQ Source
+
+IRQ ID
+
+IRQ Source
+
+0
+
+Timer0_NPU
+
+5
+
+C1_RKNN
+
+1
+
+Timer1_NPU
+
+6
+
+C2_RKNN
+
+2
+
+PVTM_NPU
+
+7
+
+CACHE_NPU
+
+3
+
+WDT_NPU
+
+8-11
+
+MAILBOX2_AP
+
+4
+
+C0_RKNN
+
+12-15
+
+MAILBOX2_BB
+
+The 16 interrupts are connected to NPU_M0 without INTMUX directly.
+
+9.5.4 Cache Initialization
+
+The Cache is bypassed after reset and need to be initialized by the MCU. The basic
+initialization flow is:
+1. Configure to Write-Back or Write-Through mode by setting CACHE_CTRL.cache_wt_en
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1298
+
+RK3588 TRM-Part1
+and start initialization by configuring CACHE_CTRL.cache_en to high while keeping the
+Cache in bypass mode (CACHE_CTRL.cache_bypass is high). The store buffer must and
+only can be enabled for Write-Back mode, so you must disable the store buffer when
+Write-Through mode is selected. You can also enable the hot buffer for better
+performance. It is recommended that configure the I-Cache to Write-Through mode and
+configure the D-Cache to Write-Back mode.
+2. Wait for cache initialization to be finished by polling CACHE_STATUS.cache_init_finish.
+3. Disable cache bypass mode by configuring CACHE_CTRL.cache_bypass to low. Now that
+the Cache is enabled.
+4. Simply configure CACHE_CTRL.cache_bypass to bypass or enable the Cache again after
+the initialization flow.
+
+9.5.5 Cache Maintenance
+⚫
+⚫
+⚫
+⚫
+⚫
+
+The Cache Controller support the following cache maintenance operations:
+Clean by address: push the specified cache line data to external memory if it is valid and
+dirty.
+Invalidate by address: unconditionally clear the valid and dirty data of the specified
+cache lines.
+Clean and invalidate by address: clean and then invalidate the specified cache lines.
+Invalidate all: unconditionally clear the valid and dirty data for all the cache lines.
+Clean and invalidate all (Flush): clean and then invalidate all the cache lines.
+For the operation of cache clean and invalidate all, configure
+CACHE_CTRL.cache_flush to high first, and then wait for flush to be done by polling
+CACHE_STATUS.cache_flush_done. Finally, if the flush is done, you should configure
+CACHE_CTRL.cache_flush to low.
+For the other four maintenance operations, you should set the maintenance command
+and the address range of the cache lines by configuring CACHE_MAINTAIN0 and
+CACHE_MAINTAIN1, then start by configuring CACHE_MAINTAIN0.cache_m_valid to
+high. When the operation is finished, CACHE_MAINTAIN0.cache_m_valid will be
+automatically cleared to low. You can also poll CACHE_STATUS.cache_m_busy to
+judge whether the operation is done.
+
+9.5.6 Cache RAM Debug Mode
+
+When the Cache is enabled and not in the bypass mode, you can enter the cache
+RAM debug mode by configuring CACHE_RAM_DEBUG.ram_debug_en to high. In
+the RAM debug mode, the cache RAM can be accessed directly by the specific
+address, and all the other cacheable memory accesses are bypassed because the
+cache core is disabled.
+The following table shows the address map for the cache RAM debug.
+Table 9-6 Address Map for the Cache RAM Debug
+RAM Access Type
+RAM Access Size
+Address Range for Cache RAM
+Debug
+
+⚫
+⚫
+⚫
+
+Reserved
+
+7KB
+
+0xF6F26400 ~ 0xF6F27FFF
+
+TAG RAM1
+
+1KB
+
+0xF6F26000 ~ 0xF6F263FF
+
+Reserved
+
+7KB
+
+0xF6F24400 ~ 0xF6F25FFF
+
+TAG RAMCU
+
+1KB
+
+0xF6F24000 ~ 0xF6F243FF
+
+DATA RAM1
+
+8KB
+
+0xF6F22000 ~ 0xF6F23FFF
+
+DATA RAMCU
+8KB
+0xF6F20000 ~ 0xF6F21FFF
+As shown in the above table, there are 2 ways for each cache, and the size of one DATA
+RAM is 8KB. The following explanation may help you use the RAM debug method:
+Using the word-aligned address to access the TAG RAM.
+The bits[9:2] of the TAG RAM address are acted as the bits[12:5] of the corresponding
+memory address.
+Only the bits[20:0] of the TAG RAM data are available, and the bits[31:21] are always
+zero.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1299
+
+RK3588 TRM-Part1
+
+⚫
+⚫
+⚫
+
+◼ The bit[20] is the valid flag bit.
+◼ The bit[19] is the dirty flag bit.
+◼ The bits[18:0] are acted as the bits[31:13] of the corresponding memory address.
+The bits[12:0] of the DATA RAM address are acted as the bits[12:0] of the
+corresponding memory address.
+In order to get the cache line data at the wanted address, you should read the both of
+the TAG RAMs to find the matched address, and then read data from the corresponding
+DATA RAM.
+If write data to the DATA RAM, 8 copies of the 32bit data on the AHB bus will be written
+to the 32Byte cache line.
+
+9.5.7 TCM
+
+All MCU Subsystem implement data/instructions tightly-coupled memory to speed up code
+execute, but only MCU can access TCM. In addition, the base address of TCM are
+configurable to ease software. Refer to
+pmu1_sgrf_soc_con13/bus_sgrf_mcu_con4/bus_sgrf_mcu_con9 for more detail.
+
+9.5.8 Other Hints
+One interrupt request source is supported for the I/D-Cache, so you can query the interrupt
+register in the ISR if it is enabled. When CACHE_INT_EN.err_record_en is high, the Cache
+will generate a bus error interrupt if access to a wrong address. You can read
+CACHE_INT_ST.ahb_error_status for the cache interrupt status and get the recent error
+address information from CACHE_ERR_HADDR.status_haddr.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1300
+
+RK3588 TRM-Part1
+

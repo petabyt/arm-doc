@@ -1,0 +1,11450 @@
+12.9 Display Subsystem (DSS) and Peripherals
+This section describes the Display Subsystem (DSS) in the device, integrated together with display peripherals.
+=== Page 1924 ===
+12.9.1 Display Subsystem (DSS)
+This section describes the Display Subsystem (DSS) in the device.
+12.9.1.1 DSS Overview
+The Display Subsystem (DSS) is a flexible, multi-pipeline subsystem that supports high-resolution display
+outputs. DSS includes input pipelines providing multi-layer blending with transparency to enable on-the-fly
+composition. Various pixel processing capabilities are supported, such as color space conversion and scaling,
+among others. DSS includes a DMA engine, which allows direct access to the frame buffer (device system
+memory). Display outputs can connect seamlessly to an Open LVDS Display Interface transmitter (OLDITX), or
+can directly drive device pads as a Display Parallel Interface (DPI).
+Figure 12-452 is a high-level overview of the display subsystem.
+Figure 12-452. DSS Overview
+12.9.1.1.1 DSS Features
+The Display Subsystem module includes the following features:
+•
+Two display outputs
+•
+Up to 24-bit per pixel arallel or embedded sync output
+•
+Up to 200MHz pizel clock
+•
+Supports
+•
+1920x1080@60fps
+•
+1x 2048x1080 + 1x 1280x720 (constrained by DDR bandwidth)
+•
+Support for RGB/YUV422 modes
+•
+Support for progressive/interlaced modes
+•
+Two display pipelines support 2x OpenLDI 4-data/1clk link (either shared to provide a 4K display or
+mirroring the same display - independent displays on each OLDI are not supported)
+•
+Two input display processing pipelines
+•
+One video pipeline supporting full RGB and 8/10-bit YUV data formats with 3/5-tap 16-phase scaler
+capable of 0.25x to 16x resizing.
+•
+One video_lite pipeline supporting full RGB and 8/10 YUV data formats (no resizing support)
+•
+Two Overlay Managers with multi layer alpha blending
+•
+One DMA controller capable of supporting up to 2K input source width.
+=== Page 1925 ===
+•
+48-bit addressing (256 TB reach)
+•
+On-the-fly X/Y-axis flip of the source (Flip/Mirror mode support)
+•
+Safety check (freeze frame detection and data correctness check)
+Note
+Some features may not be available. See Module Integration for more information.
+12.9.1.1.2 Unsupported Features
+See the Module Integration section for information about unsupported features.
+=== Page 1926 ===
+12.9.1.2 DSS Environment
+This section describes the interfaces handled by the display subsystem.
+DSS supports two types of display interfaces:
+•
+Display parallel interface via DISPC Video Port 2 (VP2) output. For more information, see Section 12.9.1.2.1
+•
+Two low-voltage differential signaling (LVDS) interfaces, each with four data lanes and one clock lane, via
+Open LDI Transmitters (OLDITX0 and OLDITX1) connected to DISPC Video Port 1 (VP1) output. For more
+information, see Section 12.9.1.2.2.
+For more information on video ports configuration, see Section 12.9.1.4.1.10, DISPC Video Port Outputs.
+Figure 12-453 is a diagram of the DSS external connections.
+Figure 12-453. DSS Environment
+=== Page 1927 ===
+Note
+For more information about device level signals (pull-up/down resistors, buffer type, multiplexing and
+others), see tables Pin Attributes and Pin Multiplexing in the device-specific Datasheet.
+12.9.1.2.1 DSS Parallel Interface
+The DISPC Video Port 2 (VP2) outputs the required data and control signals to device pads to support the
+following display interface modes:
+•
+Parallel MIPI DPI 2.0 (Digital Pixel Interface): RGB 16/18/24-bit output with separate sync signals.
+•
+BT.656/BT.1120 interface: YUV422 output (8/10-bit modes) with embedded syncs.
+Table 12-411 describes the DISPC VP2 output signals.
+Table 12-411. DSS Signals for MIPI DPI 2.0 or BT.656/BT.1120
+Module Pin
+Device Level Signal
+Type(1)
+Description
+Module Pin Reset
+Value
+DSS_DPI2_DATA[23:0]
+VOUT1_DATA[23:0]
+O
+Pixel data output. RGB data for
+MIPI DPI 2.0 interface. YUV data for
+BT.656/BT.1120 interfaces.
+0
+DSS_DPI2_PCLK
+VOUT1_PCLK
+O
+Pixel clock output. The maximum
+interface frequency is 165MHz.
+0
+DSS_DPI2_VSYNC
+VOUT1_VSYNC
+O
+Vertical synchronization. The frame
+synchronization pulse (vsync) toggles
+after all the lines in a frame are
+transmitted and a programmable
+number of line clock cycles has
+elapsed at the beginning and the end
+of each frame.
+0
+DSS_DPI2_HSYNC
+VOUT1_HSYNC
+O
+Horizontal synchronization. The line
+synchronization pulse (hsync) toggles
+after all pixels in a line are transmitted
+and a programmable number of pixel
+clock wait-states has elapsed at the
+beginning and the end of each line.
+0
+DSS_DPI2_DE
+VOUT1_DE
+O
+Pixel data output-enable signal to
+indicate when data must be latched
+using the pixel clock.
+0
+(1)
+I = Input, O = Output, I/O = Input/Output
+Note
+The effective output pixel clock rate for interleaved data formats (that is, BT.656 output mode or TDM
+(Time Division Multiplexed) output mode) will be either 1/2 or 1/3 of the maximum pixel clock rate,
+respectively, depending on the interleaving ratio.
+12.9.1.2.1.1 Pixel Data Formats
+This section describes the pixel data bus for RGB formats and shows timing diagrams of transactions and
+synchronizations.
+For the active matrix display type, one pixel per pixel clock is displayed. The diagrams represent the
+configuration of assertion of the data on the rising edge of the pixel clock. It is possible to program the interface
+timing to output the data on the falling edge of the pixel clock.
+Figure 12-454 through Figure 12-457 show the interface to 12-, 16-, 18-, and 24-bit RGB active matrix
+displays. Each vertical line represents one output pixel. The width of the data bus can be configured through
+DSS0_CONTROL[10-8] DATALINES register bitfield.
+=== Page 1928 ===
+VP
+output
+Pixel
+clock
+(Pix1)R0
+(Pix1)R1
+(Pix1)R2
+(Pix1)R3
+(Pix2)R0
+(Pix2)R3
+(Pix3)R1
+(Pix2)R1
+(Pix3)R2
+(Pix2)R2
+(Pix3)R0
+(Pix3)R3
+(Pix1)B1
+(Pix1)B2
+(Pix1)B0
+(Pix2)B0
+(Pix3)B0
+(Pix2)B1
+(Pix3)B2
+(Pix2)B2
+(Pix3)B1
+(Pix1)B3
+(Pix3)B3
+(Pix2)B3
+(Pix1)G1
+(Pix1)G2
+(Pix1)G0
+(Pix2)G0
+(Pix3)G0
+(Pix2)G1
+(Pix3)G2
+(Pix2)G2
+(Pix3)G1
+(Pix1)G3
+(Pix3)G3
+(Pix2)G3
+data[4]
+data[5]
+data[6]
+data[7]
+data[8]
+data[9]
+data[10]
+data[11]
+data[0]
+data[1]
+data[2]
+data[3]
+DATA[11:0]
+dispc-050
+Figure 12-454. DISPC Video Port Pixel Data - 12-bit RGB Active Matrix
+=== Page 1929 ===
+VP
+output
+Pixel
+clock
+(Pix1)B1
+(Pix1)B2
+(Pix1)B0
+(Pix2)B0
+(Pix3)B0
+(Pix1)R1
+(Pix1)R2
+(Pix1)R3
+(Pix1)R4
+(Pix2)B1
+(Pix2)R1
+(Pix2)R4
+(Pix3)B2
+(Pix3)R2
+(Pix2)B2
+(Pix2)R2
+(Pix3)R3
+(Pix2)R3
+(Pix3)B1
+(Pix3)R1
+(Pix3)R4
+(Pix1)B3
+(Pix3)B3
+(Pix2)B3
+(Pix1)B4
+(Pix3)B4
+(Pix2)B4
+(Pix1)R0
+(Pix2)R0
+(Pix3)R0
+data[0]
+data[1]
+data[2]
+data[3]
+data[4]
+data[11]
+data[12]
+data[13]
+data[14]
+data[15]
+DATA[15:0]
+dispc-051
+Figure 12-455. DISPC Video Port Pixel Data - 16-bit RGB Active Matrix
+VP
+output
+Pixel
+clock
+(Pix1)B1
+(Pix1)B5
+(Pix1)B0
+(Pix2)B0
+(Pix3)B0
+(Pix1)R0
+(Pix1)R3
+(Pix1)R4
+(Pix1)R5
+(Pix2)B1
+(Pix2)R0
+(Pix2)R5
+(Pix3)B5
+(Pix3)R3
+(Pix2)B5
+(Pix2)R3
+(Pix3)R4
+(Pix2)R4
+(Pix3)B1
+(Pix3)R0
+(Pix3)R5
+data[0]
+data[1]
+data[5]
+data[12]
+data[15]
+data[16]
+data[17]
+DATA[17:0]
+dispc-052
+Figure 12-456. DISPC Video Port Pixel Data - 18-bit RGB Active Matrix
+=== Page 1930 ===
+VP
+output
+Pixel
+clock
+(Pix1)B1
+(Pix1)B7
+(Pix1)B0
+(Pix2)B0
+(Pix3)B0
+(Pix1)R0
+(Pix1)R5
+(Pix1)R6
+(Pix1)R7
+(Pix2)B1
+(Pix2)R0
+(Pix2)R7
+(Pix3)B7
+(Pix3)R5
+(Pix2)B7
+(Pix2)R5
+(Pix3)R6
+(Pix2)R6
+(Pix3)B1
+(Pix3)R0
+(Pix3)R7
+data[0]
+data[1]
+data[7]
+data[16]
+data[21]
+data[22]
+data[23]
+DATA[23:0]
+dispc-053
+Figure 12-457. DISPC Video Port Pixel Data - 24-bit RGB Active Matrix
+12.9.1.2.1.2 Display Timing Diagrams
+Figure 12-458 through Figure 12-461 show examples with timing diagrams of synchronization signals and pixel
+clocks for active matrix panels. The DISPC video ports directly drive these signals, which are related to the
+programmable fields listed in Table 12-412. For more information, see also Section 12.9.1.4.1.10.7, DISPC VP
+Timing Generator and Display Panel Settings.
+Table 12-412. DISPC Video Port Register Fields for Active Matrix Display
+Name
+Register
+Description
+PPL
+DSS0_SIZE_SCREEN[11-0] PPL value + 1
+Pixels per line
+LPP
+DSS0_SIZE_SCREEN[27-16] LPP value + 1
+Lines per panel
+HBP
+DSS0_TIMING_H[31-20] HBP value + 1
+Horizontal back porch
+HFP
+DSS0_TIMING_H[19-8] HFP value + 1
+Horizontal front porch
+HSW
+DSS0_TIMING_H[7-0] HSW value + 1
+Horizontal synchronization pulse width
+VBP
+DSS0_TIMING_V[31-20] VBP value
+Vertical back porch
+VFP
+DSS0_TIMING_V[19-8] VFP value
+Vertical front porch
+VSW
+DSS0_TIMING_V[7-0] VSW value + 1
+Vertical synchronization pulse width
+ALIGN
+DSS0_POL_FREQ[18] ALIGN
+Alignment between HSYNC and VSYNC assertion
+ONOFF
+DSS0_POL_FREQ[17] ONOFF
+HSYNC and VSYNC pixel clock control
+RF
+DSS0_POL_FREQ[16] RF
+HSYNC and VSYNC pixel clock edge control
+IEO
+DSS0_POL_FREQ[15] IEO
+Invert output enable
+IPC
+DSS0_POL_FREQ[14] IPC
+Invert PCLK
+IHS
+DSS0_POL_FREQ[13] IHS
+Invert HSYNC
+IVS
+DSS0_POL_FREQ[12] IVS
+Invert VSYNC
+•
+Active matrix timing configuration 1:
+•
+DSS0_POL_FREQ[17] ONOFF = 0
+•
+DSS0_POL_FREQ[16] RF = 0
+The HSYNC and VSYNC signals are driven on the opposite edge of PCLK from the pixel data.
+•
+DSS0_POL_FREQ[15] IEO = 0
+=== Page 1931 ===
+The DE signal is active high.
+•
+DSS0_POL_FREQ[14] IPC = 0
+The pixel data are driven on the rising edge of PCLK.
+•
+DSS0_POL_FREQ[13] IHS = 0
+The HSYNC signal is active high.
+•
+DSS0_POL_FREQ[12] IVS = 0
+The VSYNC signal is active high.
+•
+DSS0_POL_FREQ[18] ALIGN = 0
+The VSYNC and HSYNC assertion is not aligned.
+PIXELS
+HSW
+VSW
+VBP
+HBP
+dispc-033
+PCLK
+VSYNC
+HSYNC
+DE
+DATA[23:0]
+Figure 12-458. DISPC Display Timing Diagram of Configuration 1 (Start of Frame)
+PIXELS
+HBP
+HFP
+HSW
+HSW
+HBP
+PIXELS
+dispc-034
+PCLK
+VSYNC
+HSYNC
+DE
+DATA[23:0]
+Figure 12-459. DISPC Display Timing Diagram of Configuration 1 (Between Lines)
+PIXELS
+PIXELS
+HSW
+HFP
+VFP
+VSW
+HBP
+HSW
+VBP
+PCLK
+VSYNC
+HSYNC
+DE
+DATA[23:0]
+dispc-035
+Figure 12-460. DISPC Display Timing Diagram of Configuration 1 (Between Frames)
+PIXELS
+HBP
+HSW
+HSW
+HSW
+VFP
+dispc-036
+PCLK
+VSYNC
+HSYNC
+DE
+DATA[23:0]
+Figure 12-461. DISPC Display Timing Diagram of Configuration 1 (End of Frame)
+•
+Active matrix timing configuration 2:
+=== Page 1932 ===
+•
+DSS0_POL_FREQ[17] ONOFF = 1
+•
+DSS0_POL_FREQ[16] RF = 1
+The HSYNC and VSYNC signals are driven on the rising edge of PCLK.
+•
+DSS0_POL_FREQ[15] IEO = 1
+The DE signal is active low.
+•
+DSS0_POL_FREQ[14] IPC = 1
+The pixel data is driven on the falling edge of PCLK.
+•
+DSS0_POL_FREQ[13] IHS = 1
+The HSYNC signal is active low.
+•
+DSS0_POL_FREQ[12] IVS = 1
+The VSYNC signal is active low.
+•
+DSS0_POL_FREQ[18] ALIGN = 0
+The VSYNC and HSYNC assertion is not aligned.
+PIXELS
+HSW
+VSW
+VBP
+HBP
+dispc-037
+PCLK
+VSYNC
+HSYNC
+DE
+DATA[23:0]
+Figure 12-462. DISPC Display Timing Diagram of Configuration 2 (Start of Frame)
+PIXELS
+PIXELS
+HBP
+HFP
+HSW
+HSW
+HBP
+dispc-038
+PCLK
+VSYNC
+HSYNC
+DE
+DATA[23:0]
+Figure 12-463. DISPC Display Timing Diagram of Configuration 2 (Between Lines)
+PIXELS
+PIXELS
+HSW
+HFP
+VFP
+VSW
+HBP
+HSW
+VBP
+PCLK
+VSYNC
+HSYNC
+DE
+DATA[23:0]
+dispc-039
+Figure 12-464. DISPC Display Timing Diagram of Configuration 2 (Between Frames)
+=== Page 1933 ===
+PIXELS
+HBP
+HSW
+HSW
+HSW
+VFP
+dispc-040
+PCLK
+VSYNC
+HSYNC
+DE
+DATA[23:0]
+Figure 12-465. DISPC Display Timing Diagram of Configuration 2 (End of Frame)
+•
+Active matrix timing configuration 3:
+•
+DSS0_POL_FREQ[17] ONOFF = 1
+•
+DSS0_POL_FREQ[16] RF = 1
+The HSYNC and VSYNC signals are driven on the rising edge of PCLK.
+•
+DSS0_POL_FREQ[15] IEO = 0
+The DE signal is active high.
+•
+DSS0_POL_FREQ[14] IPC = 0
+The pixel data are driven on the rising edge of PCLK.
+•
+DSS0_POL_FREQ[13] IHS = 0
+The HSYNC signal is active high.
+•
+DSS0_POL_FREQ[12] IVS = 0
+The VSYNC signal is active high.
+•
+DSS0_POL_FREQ[18] ALIGN = 0
+The VSYNC and HSYNC assertion is not aligned.
+PIXELS
+HSW
+VSW
+VBP
+HBP
+dispc-041
+PCLK
+VSYNC
+HSYNC
+DE
+DATA[23:0]
+Figure 12-466. DISPC Display Timing Diagram of Configuration 3 (Start of Frame)
+PIXELS
+PIXELS
+HBP
+HFP
+HSW
+HSW
+HBP
+dispc-042
+PCLK
+VSYNC
+HSYNC
+DE
+DATA[23:0]
+Figure 12-467. DISPC Display Timing Diagram of Configuration 3 (Between Lines)
+=== Page 1934 ===
+PIXELS
+PIXELS
+HSW
+HFP
+VFP
+VSW
+HBP
+HSW
+VBP
+dispc-043
+PCLK
+VSYNC
+HSYNC
+DE
+DATA[23:0]
+Figure 12-468. DISPC Display Timing Diagram of Configuration 3 (Between Frames)
+PIXELS
+HBP
+HSW
+HSW
+HSW
+VFP
+dispc-044
+PCLK
+VSYNC
+HSYNC
+DE
+DATA[23:0]
+Figure 12-469. DISPC Display Timing Diagram of Configuration 3 (End of Frame)
+12.9.1.2.2 DSS LVDS Interface
+The LVDS display interface is provided via two single-link OLDITX modules, which receives parallel RGB pixel
+data and synchronization signals from DSS DISPC Video Port 1 (VP1). The VP1 pixel data format and timings
+are the same as described for VP2 in Section 12.9.1.2.1.1 and Section 12.9.1.2.1.2, respectively. OLDITX works
+only with 18-bit or 24-bit RGB input source data.
+The OLDITX translates 21-bit or 28-bit wide video and sync data into 3-bit or 4-bit wide serial data, 7-bits deep.
+The 24-bit serialized RGB pixel data is transmitted on four LVDS data lanes, clocked by one clock lane. OLDITX
+can also be configured to transmit only 18-bit RGB data (6-bits/pixel color component) on three LVDS lanes,
+when connected to a low-resolution display panel. In 18-bit configuration, only three LVDS data lanes and one
+clock lane are active. The fourth data lane is disabled.
+Table 12-413 describes the OLDITX output LVDS signals.
+Table 12-413. DSS OLDITX Signals for LVDS Interface
+Module Pin
+Device Level Signal
+Type(1)
+Description
+Module Pin Reset
+Value
+OLDI_DATA0X
+OLDI_A0P
+O
+OLDI differential data lane A0 (+)
+-
+OLDI_DATA0Y
+OLDI_A0N
+O
+OLDI differential data lane A0 (-)
+-
+OLDI_DATA1X
+OLDI_A1P
+O
+OLDI differential data lane A1 (+)
+-
+OLDI_DATA1Y
+OLDI_A1N
+O
+OLDI differential data lane A1 (-)
+-
+OLDI_DATA2X
+OLDI_A2P
+O
+OLDI differential data lane A2 (+)
+-
+OLDI_DATA2Y
+OLDI_A2N
+O
+OLDI differential data lane A2 (-)
+-
+OLDI_DATA3X
+OLDI_A3P
+O
+OLDI differential data lane A3 (+)
+-
+OLDI_DATA3Y
+OLDI_A3N
+O
+OLDI differential data lane A3 (-)
+-
+OLDI_CLOCKX
+OLDI_CLKP
+O
+OLDI differential clock lane CLK (+)
+-
+=== Page 1935 ===
+Table 12-413. DSS OLDITX Signals for LVDS Interface (continued)
+Module Pin
+Device Level Signal
+Type(1)
+Description
+Module Pin Reset
+Value
+OLDI_CLOCKY
+OLDI_CLKN
+O
+OLDI differential clock lane CLK (-)
+-
+(1)
+I = Input, O = Output, I/O = Input/Output
+Table 12-414 shows the supported LVDS pixel components mapping for 18-bit and 24-bit output data modes.
+The OLDI mapping type is defined in DSS0_DSS_OLDI_CFG[3-1] MAP register field as follows:
+•
+Type A = Single-link 18-bit. MAP = '000'.
+•
+Type B = Single-link 24-bit JEIDA. MAP = '001'.
+•
+Type C = Single-link 24-bit. MAP = '010'.
+•
+Type D = Dual-link 18-bit. MAP = '100'.
+•
+Type E = Dual-link 24-bit JEIDA. MAP = '101'.
+•
+Type F = Dual-link 24-bit. MAP = '110'.
+Table 12-414. DSS OLDITX LVDS Data Format
+Mode
+Single-link
+Single-link
+Single-link
+Dual-link
+Dual-link
+Dual-link
+18-bit
+24-bit JEIDA
+24-bit
+18-bit
+24-bit JEIDA
+24-bit
+OLDI mapping type
+A
+B
+C
+D
+E
+F
+Pixels per LVDS clock
+cycle
+1pixel/1clock
+1pixel/1clock
+1pixel/1clock
+2pixel/1clock
+2pixel/1clock
+2pixel/1clock
+Number of clock pairs
+1
+1
+1
+1or2
+1or2
+1or2
+Number of LVDS data
+pairs
+3
+4
+4
+6
+8
+8
+Color depth
+6
+8
+8
+6
+8
+8
+A00
+R0
+R2
+R0
+OR0
+OR2
+OR0
+A01
+R1
+R3
+R1
+OR1
+OR3
+OR1
+A02
+R2
+R4
+R2
+OR2
+OR4
+OR2
+A03
+R3
+R5
+R3
+OR3
+OR5
+OR3
+A04
+R4
+R6
+R4
+OR4
+OR6
+OR4
+A05
+R5
+R7
+R5
+OR5
+OR7
+OR5
+A06
+G0
+G2
+G0
+OG0
+OG2
+OG0
+A10
+G1
+G3
+G1
+OG1
+OG3
+OG1
+A11
+G2
+G4
+G2
+OG2
+OG4
+OG2
+A12
+G3
+G5
+G3
+OG3
+OG5
+OG3
+A13
+G4
+G6
+G4
+OG4
+OG6
+OG4
+A14
+G5
+G7
+G5
+OG5
+OG7
+OG5
+A15
+B0
+B2
+B0
+OB0
+OB2
+OB0
+A16
+B1
+B3
+B1
+OB1
+OB3
+OB1
+A20
+B2
+B4
+B2
+OB2
+OB4
+OB2
+A21
+B3
+B5
+B3
+OB3
+OB5
+OB3
+A22
+B4
+B6
+B4
+OB4
+OB6
+OB4
+A23
+B5
+B7
+B5
+OB5
+OB7
+OB5
+A24
+HSYNC
+HSYNC
+HSYNC
+HSYNC
+HSYNC
+HSYNC
+A25
+VSYNC
+VSYNC
+VSYNC
+VSYNC
+VSYNC
+VSYNC
+A26
+DEN
+DEN
+DEN
+DEN
+DEN
+DEN
+A30
+See (1)
+R0
+R6
+See (1)
+OR0
+OR6
+A31
+---
+R1
+R7
+---
+OR1
+OR7
+A32
+---
+G0
+G6
+---
+OG0
+OG6
+A33
+---
+G1
+G7
+---
+OG1
+OG7
+=== Page 1936 ===
+Table 12-414. DSS OLDITX LVDS Data Format (continued)
+Mode
+Single-link
+Single-link
+Single-link
+Dual-link
+Dual-link
+Dual-link
+A34
+---
+B0
+B6
+---
+OB0
+OB6
+A35
+---
+B1
+B7
+---
+OB1
+OB7
+A36
+---
+NA
+NA
+---
+NA
+NA
+A40
+See (2)
+See (2)
+See (2)
+ER0
+ER2
+ER0
+A41
+---
+---
+---
+ER1
+ER3
+ER1
+A42
+---
+---
+---
+ER2
+ER4
+ER2
+A43
+---
+---
+---
+ER3
+ER5
+ER3
+A44
+---
+---
+---
+ER4
+ER6
+ER4
+A45
+---
+---
+---
+ER5
+ER7
+ER5
+A46
+---
+---
+---
+EG0
+EG2
+EG0
+A50
+---
+---
+---
+EG1
+EG3
+EG1
+A51
+---
+---
+---
+EG2
+EG4
+EG2
+A52
+---
+---
+---
+EG3
+EG5
+EG3
+A53
+---
+---
+---
+EG4
+EG6
+EG4
+A54
+---
+---
+---
+EG5
+EG7
+EG5
+A55
+---
+---
+---
+EB0
+EB2
+EB0
+A56
+---
+---
+---
+EB1
+EB3
+EB1
+A60
+---
+---
+---
+EB2
+EB4
+EB2
+A61
+---
+---
+---
+EB3
+EB5
+EB3
+A62
+---
+---
+---
+EB4
+EB6
+EB4
+A63
+---
+---
+---
+EB5
+EB7
+EB5
+A64
+---
+---
+---
+NA
+NA
+NA
+A65
+---
+---
+---
+NA
+NA
+NA
+A66
+---
+---
+---
+DEN
+DEN
+DEN
+A70
+See (1)
+---
+---
+See (1)
+ER0
+ER6
+A71
+---
+---
+---
+---
+ER1
+ER7
+A72
+---
+---
+---
+---
+EG0
+EG6
+A73
+---
+---
+---
+---
+EG1
+EG7
+A74
+---
+---
+---
+---
+EB0
+EB6
+A75
+---
+---
+---
+---
+EB1
+EB7
+A76
+---
+---
+---
+---
+NA
+NA
+(1)
+Not used - output disabled.
+(2)
+Reserved for other video channel (Single-Link Mode)
+Figure 12-470 and Figure 12-471 show the LVDS data output bit format (that is, the pixel bit numbers onto LVDS
+interface bit numbers). The rising edge of the LVDS clock occurs two LVDS sub-symbols before the current cycle
+of data. The clock is composed of a 4 LVDS sub-symbol high time and a 3 LVDS sub-symbol low time.
+olditx-001
+CLK
+A0
+A1
+A2
+R0
+R1
+R2
+R3
+B2
+B3
+B4
+B5
+HS
+R4
+R5
+VS
+DE
+G1
+G2
+G3
+G4
+G5
+B0
+B1
+G0
+0
+1
+2
+3
+4
+5
+6
+OLDI type A
+6-bit color depth
+1 pixel / LVDS clock
+CLK
+A0
+A1
+A2
+R2
+R3
+R4
+R5
+B4
+B5
+B6
+B7
+HS
+R6
+R7
+VS
+DE
+G3
+G4
+G5
+G6
+G7
+B2
+B3
+G2
+0
+1
+2
+3
+4
+5
+6
+A3
+R0
+R1
+G0
+G1
+B0
+B1
+NA
+OLDI type B
+8-bit color depth
+1 pixel / LVDS clock
+CLK
+A0
+A1
+A2
+R0
+R1
+R2
+R3
+B2
+B3
+B4
+B5
+HS
+R4
+R5
+VS
+DE
+G1
+G2
+G3
+G4
+G5
+B0
+B1
+G0
+0
+1
+2
+3
+4
+5
+6
+A3
+B6
+R7
+G6
+G7
+B6
+B7
+NA
+OLDI type C
+8-bit color depth
+1 pixel / LVDS clock
+Figure 12-470. DSS OLDITX Pixel Bit Numbers on LVDS Output (Single-Link)
+=== Page 1937 ===
+Figure 12-471. DSS OLDITX Pixel Bit Numbers on LVDS Output (Dual-Link)
+Figure 12-472 and Figure 12-473 show the OLDITX input data mapped to LVDS output and the serial bit
+positions.
+olditx-002
+Previous cycle
+Current cycle
+CLK
+A0 +/-
+A1 +/-
+A2 +/-
+A3 +/-
+A00
+A01
+A30
+A31
+A32
+A33
+A34
+A35
+A02
+A03
+A36
+A20
+A21
+A22
+A23
+A24
+A04
+A05
+A25
+A26
+A10
+A11
+A12
+A13
+A14
+A15
+A16
+A06
+(Differential)
+(Single Ended)
+(Single Ended)
+(Single Ended)
+(Single Ended)
+bit0
+bit1
+bit2
+bit3
+bit4
+bit5
+bit6
++/-
+Figure 12-472. DSS OLDITX Inputs Mapped to LVDS Outputs
+=== Page 1938 ===
+olditx-003
+bit1
+n-1
+bit0
+n-1
+bit6
+n
+bit5
+n
+bit4
+n
+bit3
+n
+bit2
+n
+bit1
+n
+bit0
+n
+Cycle N
+1UI
+2UI
+3UI
+4UI
+5UI
+6UI
+7UI
+CLK +/-
+A0~A3 +/-
+Figure 12-473. DSS OLDITX LVDS Serial Bit Positions
+The OLDITX LVDS signal lines support a minimum bit time of 0.866 ns. This corresponds to a maximum pixel
+clock rate of 165 MHz (for a single link operation). A bit time period (known as TUI or Time Unit Interval) consists
+of several timing parameters:
+•
+TCCS (Transmitter Channel-to-Channel Skew) - refers to the max skew across the differential data pairs
+within a link (in a single-link mode).
+•
+SW - setup and hold time (internal data sample window) in the receiver.
+•
+RSKM (Receiver Input Skew Margin) - the total time margin that remains after subtracting the sampling
+window (SW) size and the transmitter channel-to-channel skew (TCCS) from the time unit interval (TUI).
+For more information on the OLDITX LVDS timing parameters, refer to device-specific Datasheet.
+12.9.1.3 Integration
+See the Module Integration section for information about clocks, resets and hardware requests.
+=== Page 1939 ===
+12.9.1.4 DSS Functional Description
+12.9.1.4.1 DISPC Functional Description
+12.9.1.4.1.1 DISPC Overview
+Figure 12-474 is a simplified block diagram of DISPC.
+Figure 12-474. DISPC Architecture Overview
+The DISPC integrated within DSS is capable of fetching pixel data from the device system memory through
+its single initiator port, performing various pixel processing, and then providing the processed pixels to an
+external display panel. The internal DMA engine tightly coupled to the DISPC is used for the pixel data transfer
+from system memory (frame buffer). The DISPC DMA engine is in charge of scheduling the memory requests.
+Several processes are configurable in order to manage the video pipeline features (color space conversion,
+up-sampling, down-sampling) and overlay features. The internal timing generator logic generates the video port
+output signals based on VESA DMT and CEA-861 standards. The DISPC video port output can be connected to
+display panels either directly (for MIPI DPI 2.0 or BT.656/BT.1120 support), or through Open LDI transmitter.
+Note
+DISPC does not support any tiled frame buffer, nor any compressed frame buffer. DISPC has no
+internal capability to support rotation of the frame buffer.
+Note
+The display resolution is programmable and can be any width in the range [1:4096] pixels. The
+following limitations apply, related to the type of display or the processing done:
+•
+Active Matrix screen + dithering forces a width multiple of 2 pixels
+•
+Active Matrix + TDM may force a width multiple of 2 pixels
+The display buffers in the system memory must consist of contiguous pixels.
+12.9.1.4.1.2 DISPC Clocks
+DISPC has one clock domain for its internal logic and separate domains for each video port output.
+The DISPC functional clock (DSS_FUNC_CLK) serves as the internal logic clock and also acts as the interface
+clock for the DISPC initiator and responder ports to system interconnect. There is no internal divisor on this
+clock.
+=== Page 1940 ===
+The DISPC pixel clocks (DPI_x_IN_CLK) serve as the clocks for the DISPC video port outputs to OLDITX0
+and OLDITX1 modules (VP1 pixel clock DPI_0_IN_CLK) or for the parallel display interface (VP2 pixel clock
+DPI_1_IN_CLK). There are no internal divisors on the pixel clocks.
+The frequency of DSS_FUNC_CLK clock must be greater or equal to the DPI_x_IN_CLK clocks, in order
+to get the DISPC internal logic to function properly. The frequency of the DPI_x_IN_CLK clocks depend on
+the output display resolution and required frame rate. For the maximum supported frequency ratings, refer to
+device-specific Datasheet.
+All input clocks are asynchronous to each other. They can be generated by different sources.
+The DSS0_COMMON_DSS_SYSCONFIG[0] AUTOCLKGATING register bit is set by default to allow the auto-
+gating of the interface and functional clocks. The AUTOCLKGATING bit can be reset to disable the auto-gating
+of the clocks, if required.
+DISPC provides also a clock-gating control on sub-module level, via configuration of the
+DSS0_COMMON_DISPC_CLKGATING_DISABLE register fields.
+12.9.1.4.1.3 DISPC Resets
+DISPC receives a single hardware reset signal. For more information, see DSS Integration.
+To perform a software reset on the DISPC, set the DSS0_COMMON_DSS_SYSCONFIG[1] SOFTRESET bit to
+0x1. The DSS0_COMMON_DSS_SYSSTATUS[0] DISPC_FUNC_RESETDONE bit indicates that the software
+reset is complete (for the DISPC internal logic) when its value is 0x1. When the software reset completes, the
+DSS0_COMMON_ DSS_SYSCONFIG[1] SOFTRESET bit is automatically reset. Software must ensure that the
+software reset completes before performing DISPC operations.
+The completion of the software reset for the video ports logic is indicated in the
+DSS0_COMMON_DSS_SYSSTATUS[3-1] DISPC_VP_RESETDONE register bit-field.
+12.9.1.4.1.4 DISPC Power Management
+DISPC supports a power management protocol with the device Power Sleep Controller (PSC).
+The (software) sequence, while performing a clkstop_req to DISPC, is as follows:
+1.
+Disable DISPC by programing the [0] ENABLE bit of DSS0_VP_CONTROL register to 0.
+2.
+DISPC hardware completes the output of the current frame. Then hardware sets the
+DSS0_COMMON_DSS_SYSSTATUS[9] DISPC_IDLE_STATUS register bit to 1.
+3.
+Poll the DSS_IDLE_STATUS bit to ensure that DISPC is in idle mode.
+4.
+PSC initiates clkstop_req to DISPC.
+5.
+DISPC hardware acknowledges with clkstop_ack immediately.
+=== Page 1941 ===
+12.9.1.4.1.5 DISPC Interrupt Requests
+independent monitoring and control of the interrupt events by two processor hosts at device level.
+DSS_INT0
+IRQSTATUS
+IRQENABLE
+IRQSTATUS
+IRQENABLE
+IRQSTATUS
+IRQENABLE
+.....
+Host 1
+Video Pipeline
+Overlay
+Video Port
+Second level
+interrupts
+First level
+interrupts
+DSS_INT1
+IRQSTATUS
+IRQENABLE
+IRQSTATUS
+IRQENABLE
+IRQSTATUS
+IRQENABLE
+.....
+Host 2
+Interrupt events from DISPC submodules
+dispc-111
+Figure 12-475. DISPC Interrupts Generation
+Each of the interrupt signals indicates that one or more interrupt events are detected by the hardware. Each event is independently maskable for each
+interrupt output.
+level of interrupt events consists of status and enable interrupt registers for each video pipeline and each video port.
+Table 12-415 describes the first level of interrupt events with associated mask and status register fields. Each interrupt event is captured in an interrupt
+updated status for all interrupt events.
+=== Page 1942 ===
+Table 12-415. DISPC Interrupts - First Level
+Interrupt Name
+DSS_INT0 Interrupt Mask
+DSS0_COMMON_DISPC_IRQENA
+BLE_SET
+DSS_INT0 Interrupt Status
+DSS0_COMMON_DISPC_IRQSTAT
+US
+DSS_INT1 Interrupt Mask
+DSS0_COMMON1_DISPC_IRQ
+ENABLE_SET
+DSS_INT1 Interrupt Status
+DSS0_COMMON1_DISPC_IRQ
+STATUS
+Description
+VID_IRQ
+[4] SET_VID_IRQ
+[4] VID_IRQ
+[4] SET_VID_IRQ
+[4] VID_IRQ
+At least one event
+of the VID pipeline
+interrupt events has
+occurred. See Table
+12-416 for more
+details.
+VIDL_IRQ
+[5] SET_VID_IRQ
+[5] VID_IRQ
+[5] SET_VID_IRQ
+[5] VID_IRQ
+At least one event
+of the VIDL1 pipeline
+interrupt events has
+occurred. See Table
+12-417 for more
+details.
+VP1_IRQ
+[0] SET_VP_IRQ
+[0] VP_IRQ
+[0] SET_VP_IRQ
+[0] VP_IRQ
+At least one event
+of the VP1 interrupt
+events has occurred.
+See Table 12-418 for
+more details.
+VP2_IRQ
+[1] SET_VP_IRQ
+[1] VP_IRQ
+[1] SET_VP_IRQ
+[1] VP_IRQ
+At least one event
+of the VP2 interrupt
+events has occurred.
+See Table 12-419 for
+more details.
+Table 12-416 describes the second level of interrupts for VID pipeline with associated mask and status register bits.
+Table 12-416. DISPC Interrupts - Second Level - VID Pipeline
+Interrupt Name
+DSS_INT0 Interrupt Mask
+DSS0_COMMON_VID_IRQEN
+ABLE_0
+DSS_INT0 Interrupt Status
+DSS0_COMMON_VID_IRQST
+ATUS_0
+DSS_INT1 Interrupt Mask
+DSS0_COMMON1_VID_IRQE
+NABLE_0
+DSS_INT1 Interrupt Status
+DSS0_COMMON1_VID_IRQS
+TATUS_0
+Description
+VIDENDWINDOW_IRQ
+[1] VIDENDWINDOW_EN
+[1] VIDENDWINDOW_IRQ
+[1] VIDENDWINDOW_EN
+[1] VIDENDWINDOW_IRQ
+End of the video
+window:
+The DMA engine has
+fetched all the data
+from memory for the
+video for the current
+frame.
+Peripherals
+1942
+=== Page 1943 ===
+Table 12-416. DISPC Interrupts - Second Level - VID Pipeline (continued)
+Interrupt Name
+DSS_INT0 Interrupt Mask
+DSS0_COMMON_VID_IRQEN
+ABLE_0
+DSS_INT0 Interrupt Status
+DSS0_COMMON_VID_IRQST
+ATUS_0
+DSS_INT1 Interrupt Mask
+DSS0_COMMON1_VID_IRQE
+NABLE_0
+DSS_INT1 Interrupt Status
+DSS0_COMMON1_VID_IRQS
+TATUS_0
+Description
+VIDBUFFERUNDERFLOW_IR
+Q
+[0]
+VIDBUFFERUNDERFLOW_EN
+[0]
+VIDBUFFERUNDERFLOW_IR
+Q
+[0]
+VIDBUFFERUNDERFLOW_EN
+[0]
+VIDBUFFERUNDERFLOW_IR
+Q
+Video DMA buffer
+underflow:
+The input video
+DMA buffer goes
+underflow. This does
+pixel is not in yet.
+VIDSAFETYREGION_IRQ
+[2] SAFETYREGION_EN
+[2] SAFETYREGION_IRQ
+[2] SAFETYREGION_EN
+[2] SAFETYREGION_IRQ
+Video output MISR
+Video output freeze
+frame detect.
+The MISR signature
+generated does not
+match the expected
+signature OR The
+Video output frame
+freeze detection has
+triggered.
+Table 12-417 describes the second level of interrupts for VIDL pipeline with associated mask and status register bits.
+Table 12-417. DISPC Interrupts - Second Level - VIDL Pipeline
+Interrupt Name
+DSS_INT0 Interrupt Mask
+DSS0_COMMON_VID_IRQEN
+ABLE_1
+DSS_INT0 Interrupt Status
+DSS0_COMMON_VID_IRQST
+ATUS_1
+DSS_INT1 Interrupt Mask
+DSS0_COMMON1_VID_IRQE
+NABLE_1
+DSS_INT1 Interrupt Status
+DSS0_COMMON1_VID_IRQS
+TATUS_1
+Description
+VIDENDWINDOW_IRQ
+[1] VIDENDWINDOW_EN
+[1] VIDENDWINDOW_IRQ
+[1] VIDENDWINDOW_EN
+[1] VIDENDWINDOW_IRQ
+End of the video
+window:
+The DMA engine has
+fetched all the data
+from memory for the
+video for the current
+frame.
+=== Page 1944 ===
+Table 12-417. DISPC Interrupts - Second Level - VIDL Pipeline (continued)
+Interrupt Name
+DSS_INT0 Interrupt Mask
+DSS0_COMMON_VID_IRQEN
+ABLE_1
+DSS_INT0 Interrupt Status
+DSS0_COMMON_VID_IRQST
+ATUS_1
+DSS_INT1 Interrupt Mask
+DSS0_COMMON1_VID_IRQE
+NABLE_1
+DSS_INT1 Interrupt Status
+DSS0_COMMON1_VID_IRQS
+TATUS_1
+Description
+VIDBUFFERUNDERFLOW_IR
+Q
+[0]
+VIDBUFFERUNDERFLOW_EN
+[0]
+VIDBUFFERUNDERFLOW_IR
+Q
+[0]
+VIDBUFFERUNDERFLOW_EN
+[0]
+VIDBUFFERUNDERFLOW_IR
+Q
+Video DMA buffer
+underflow:
+The input video
+DMA buffer goes
+underflow. This does
+pixel is not in yet.
+VIDSAFETYREGION_IRQ
+[2] SAFETYREGION_EN
+[2] SAFETYREGION_IRQ
+[2] SAFETYREGION_EN
+[2] SAFETYREGION_IRQ
+Video output MISR
+video output freeze
+frame detect.
+The MISR signature
+generated does not
+match the expected
+output frame freeze
+Table 12-418 describes the second level of interrupts for VP1 output with associated mask and status register bits.
+Table 12-418. DISPC Interrupts - Second Level - VP1 Output
+Interrupt Name
+DSS_INT0 Interrupt Mask
+DSS0_COMMON_VP_IRQEN
+ABLE_0
+DSS_INT0 Interrupt Status
+DSS0_COMMON_VP_IRQST
+ATUS_0
+DSS_INT1 Interrupt Mask
+DSS0_COMMON1_VP_IRQE
+NABLE_0
+DSS_INT1 Interrupt Status
+DSS0_COMMON1_VP_IRQS
+TATUS_0
+Description
+VPSYNC_IRQ
+[11] VPSYNC_EN
+[11] VPSYNC_IRQ
+[11] VPSYNC_EN
+[11] VPSYNC_IRQ
+Sync for VP1 output.
+Shadow to work copy
+of registers associated
+with VP1 has occurred.
+SECURITYVIOLATION_IRQ
+[10]
+SECURITYVIOLATION_EN
+[10]
+SECURITYVIOLATION_IRQ
+[10]
+SECURITYVIOLATION_EN
+[10]
+SECURITYVIOLATION_IRQ
+output.
+A security violation (for
+pipeline connected to
+occurred.
+Peripherals
+1944
+=== Page 1945 ===
+Table 12-418. DISPC Interrupts - Second Level - VP1 Output (continued)
+Interrupt Name
+DSS_INT0 Interrupt Mask
+DSS0_COMMON_VP_IRQEN
+ABLE_0
+DSS_INT0 Interrupt Status
+DSS0_COMMON_VP_IRQST
+ATUS_0
+DSS_INT1 Interrupt Mask
+DSS0_COMMON1_VP_IRQE
+NABLE_0
+DSS_INT1 Interrupt Status
+DSS0_COMMON1_VP_IRQS
+TATUS_0
+Description
+FRAMEDONE_IRQ
+[0] VPFRAMEDONE_EN
+[0] VPFRAMEDONE_IRQ
+[0] VPFRAMEDONE_EN
+[0] VPFRAMEDONE_IRQ
+Frame done for VP1
+output.
+After disabling the VP1
+interrupt is set when the
+VP1 has completed.
+VSYNC_IRQ
+[1] VPVSYNC_EN
+[1] VPVSYNC_IRQ
+[1] VPVSYNC_EN
+[1] VPVSYNC_IRQ
+VSYNC for VP1 output:
+VSYNC interrupt for the
+end of the frame.
+VSYNC_ODD_IRQ
+[2] VPVSYNC_ODD_EN
+[2] VPVSYNC_ODD_IRQ
+[2] VPVSYNC_ODD_EN
+[2] VPVSYNC_ODD_IRQ
+VSYNC for odd field.
+VSYNC_ODD interrupt
+has occurred at the end
+of the frame (EVSYNC
+received and the field
+polarity is odd).
+PROGRAMMEDLINENUMBER_I
+RQ
+[3]
+VPPROGRAMMEDLINENUM
+BER_EN
+[3]
+VPPROGRAMMEDLINENUM
+BER_IRQ
+[3]
+VPPROGRAMMEDLINENUM
+BER_EN
+[3]
+VPPROGRAMMEDLINENUM
+BER_IRQ
+The VP1 has reached
+number.
+SYNCLOST_IRQ
+[4] VPSYNCLOST_EN
+[4] VPSYNCLOST_IRQ
+[4] VPSYNCLOST_EN
+[4] VPSYNCLOST_IRQ
+Synchronization lost on
+VP1 output:
+Occurs when VSYNC
+width/front or back
+porches are not wide
+enough to load the
+pipeline with data (VP1
+output).
+VPSAFETYREGION_IRQ
+[9-6] SAFETYREGION_EN
+Bit [9] = Safety Region 3
+Bit [8] = Safety Region 2
+Bit [7] = Safety Region 1
+Bit [6] = Safety Region 0
+[9-6] SAFETYREGION_IRQ
+Bit [9] = Safety Region 3
+Bit [8] = Safety Region 2
+Bit [7] = Safety Region 1
+Bit [6] = Safety Region 0
+[9-6] SAFETYREGION_EN
+Bit [9] = Safety Region 3
+Bit [8] = Safety Region 2
+Bit [7] = Safety Region 1
+Bit [6] = Safety Region 0
+[9-6] SAFETYREGION_IRQ
+Bit [9] = Safety Region 3
+Bit [8] = Safety Region 2
+Bit [7] = Safety Region 1
+Bit [6] = Safety Region 0
+VP1 output MISR
+signature mismatch, or
+detect.
+The MISR signature
+the expected signature,
+or the VP1 output frame
+freeze detection has
+triggered.
+Table 12-419 describes the second level of interrupts for VP2 output with associated mask and status register bits.
+=== Page 1946 ===
+Table 12-419. DISPC Interrupts - Second Level - VP2 Output
+Interrupt Name
+DSS_INT0 Interrupt Mask
+DSS0_COMMON_VP_IRQEN
+ABLE_1
+DSS_INT0 Interrupt Status
+DSS0_COMMON_VP_IRQST
+ATUS_1
+DSS_INT1 Interrupt Mask
+DSS0_COMMON1_VP_IRQE
+NABLE_1
+DSS_INT1 Interrupt Status
+DSS0_COMMON1_VP_IRQS
+TATUS_1
+Description
+VPSYNC_IRQ
+[11] VPSYNC_EN
+[11] VPSYNC_IRQ
+[11] VPSYNC_EN
+[11] VPSYNC_IRQ
+Sync for VP2 output.
+Shadow to work copy
+of registers associated
+with VP2 has occurred.
+SECURITYVIOLATION_IRQ
+[10]
+SECURITYVIOLATION_EN
+[10]
+SECURITYVIOLATION_IRQ
+[10]
+SECURITYVIOLATION_EN
+[10]
+SECURITYVIOLATION_IRQ
+output.
+A security violation (for
+pipeline connected to
+occurred.
+FRAMEDONE_IRQ
+[0] VPFRAMEDONE_EN
+[0] VPFRAMEDONE_IRQ
+[0] VPFRAMEDONE_EN
+[0] VPFRAMEDONE_IRQ
+Frame done for VP2
+output.
+After disabling the VP2
+interrupt is set when the
+VP2 has completed.
+VSYNC_IRQ
+[1] VPVSYNC_EN
+[1] VPVSYNC_IRQ
+[1] VPVSYNC_EN
+[1] VPVSYNC_IRQ
+VSYNC for VP2 output:
+VSYNC interrupt for the
+end of the frame.
+VSYNC_ODD_IRQ
+[2] VPVSYNC_ODD_EN
+[2] VPVSYNC_ODD_IRQ
+[2] VPVSYNC_ODD_EN
+[2] VPVSYNC_ODD_IRQ
+VSYNC for odd field.
+VSYNC_ODD interrupt
+has occurred at the end
+of the frame (EVSYNC
+received and the field
+polarity is odd).
+PROGRAMMEDLINENUMBER_I
+RQ
+[3]
+VPPROGRAMMEDLINENUM
+BER_EN
+[3]
+VPPROGRAMMEDLINENUM
+BER_IRQ
+[3]
+VPPROGRAMMEDLINENUM
+BER_EN
+[3]
+VPPROGRAMMEDLINENUM
+BER_IRQ
+The VP2 has reached
+number.
+SYNCLOST_IRQ
+[4] VPSYNCLOST_EN
+[4] VPSYNCLOST_IRQ
+[4] VPSYNCLOST_EN
+[4] VPSYNCLOST_IRQ
+Synchronization lost on
+VP2 output:
+Occurs when VSYNC
+width/front or back
+porches are not wide
+enough to load the
+pipeline with data (VP2
+output).
+Peripherals
+1946
+=== Page 1947 ===
+Table 12-419. DISPC Interrupts - Second Level - VP2 Output (continued)
+Interrupt Name
+DSS_INT0 Interrupt Mask
+DSS0_COMMON_VP_IRQEN
+ABLE_1
+DSS_INT0 Interrupt Status
+DSS0_COMMON_VP_IRQST
+ATUS_1
+DSS_INT1 Interrupt Mask
+DSS0_COMMON1_VP_IRQE
+NABLE_1
+DSS_INT1 Interrupt Status
+DSS0_COMMON1_VP_IRQS
+TATUS_1
+Description
+VPSAFETYREGION_IRQ
+[9-6] SAFETYREGION_EN
+Bit [9] = Safety Region 3
+Bit [8] = Safety Region 2
+Bit [7] = Safety Region 1
+Bit [6] = Safety Region 0
+[9-6] SAFETYREGION_IRQ
+Bit [9] = Safety Region 3
+Bit [8] = Safety Region 2
+Bit [7] = Safety Region 1
+Bit [6] = Safety Region 0
+[9-6] SAFETYREGION_EN
+Bit [9] = Safety Region 3
+Bit [8] = Safety Region 2
+Bit [7] = Safety Region 1
+Bit [6] = Safety Region 0
+[9-6] SAFETYREGION_IRQ
+Bit [9] = Safety Region 3
+Bit [8] = Safety Region 2
+Bit [7] = Safety Region 1
+Bit [6] = Safety Region 0
+VP2 output MISR
+signature mismatch, or
+detect.
+The MISR signature
+the expected signature,
+or the VP2 output frame
+freeze detection has
+triggered.
+=== Page 1948 ===
+12.9.1.4.1.6 DISPC DMA Engine
+The DISPC DMA engine:
+•
+Requests and supplies data from system memory to the VID and VIDL pipelines through the system
+interconnect, based on the configuration of the video pipeline settings.
+•
+Is fully programmable and fetches pixel data via 128-bit requests using 1D burst.
+Each pipeline has a dedicated DMA buffer and channel with independent settings. If a pipeline is
+disabled (that is, not used), then its DMA buffer can be assigned to another pipeline by configuring the
+DSS0_COMMON_DISPC_GLOBAL_BUFFER register. For example, unused buffers for VIDL pipeline can be
+used by VID pipeline.
+Each DMA channel supports a total of 8 line buffers, each of which can store 1280 32-bit pixels.
+•
+The size of the DMA buffer associated to the video lite pipeline (VIDL1) is 8x320x128-bit.
+•
+The size of the DMA buffer associated to the video pipeline (VID) is 8x320x128-bit.
+The DMA engine fetches encoded pixels from the system memory only when the video layer is enabled (a valid
+configuration has been programmed for the video layer), that is, the video window is present and the video
+pipeline is active.
+12.9.1.4.1.6.1 DISPC DMA Addressing and Bursts
+For each line to be fetched, the DMA engine address generator:
+•
+Calculates the pixel address
+•
+Aligns the address
+•
+Determines byte enable pattern
+•
+Determines 1D burst length
+The meaning of the address bits is as follows:
+•
+Bits [31-0]: system (DDR) memory address (pixel address)
+•
+Bits [37-32]: 32 bits + address extension
+The address extension bits are defined by the programmable parameter DSS0_VID_BA_EXT_0/
+DSS0_VID_BA_EXT_1 and DSS0_VID_BA_UV_EXT_0/DSS0_VID_BA_UV_EXT_1 registers, optionally used
+to extend the BA memory addressing to 48-bit addressed external memory space (that is, to extend DISPC
+address space into 4GB+ space).
+The DDR scan pixel addresses are generated by the DMA engine in order to read data from the system memory.
+The base address defines the start address of the first pixel, and then the address is incremented based on the
+number of pixels per line, offset between two consecutive lines and number of lines. The DSS0_VID_ROW_INC
+register allow the access to a frame using 1D bursts (but as a two-dimensional block) by adding a fixed address
+offset at the end of a line. The ROW_INC can also be used to skip lines from the input frame.
+The byte address of each pixel in the frame buffer located in the system memory is determined by:
+Pixel address = base_address + x × (bpp/8) + y × (width × (bpp/8) + increment), where:
+•
+"base_address" corresponds to the base address defined by:
+•
+DSS0_VID_BA_0/DSS0_VID_BA_1[31-0] BA register bit-fields for all formats, and Y frame buffer in case
+of YUV-NV12 format. Optional extension bits in DSS0_VID_BA_EXT_0/DSS0_VID_BA_EXT_1 registers.
+•
+DSS0_VID_BA_UV_0/DSS0_VID_BA_UV_1[31-0] BA register bit-fields for UV frame buffer in case
+of YUV-NV12 format. Optional extension bits in DSS0_VID_BA_UV_EXT_0/DSS0_VID_BA_UV_EXT_1
+registers.
+•
+"bpp" corresponds to the number of bits per pixel defined by the DSS0_VID_ATTRIBUTES[6-1] FORMAT
+register bit-field.
+•
+"width" corresponds to the number of pixels per line defined by the DSS0_VID_PICTURE_SIZE[11-0]
+MEMSIZEX + 1 register bit-field.
+•
+"increment" corresponds to the number of bytes to skip between two contiguous lines defined by the
+DSS0_VID_ROW_INC[31-0] ROWINC ± 1 register bit-field.
+•
+"x" corresponds to the pixel position on the x-axis.
+=== Page 1949 ===
+•
+"y" corresponds to the pixel position on the y-axis.
+Note
+Since the base address is aligned on pixel size boundary the horizontal resolution is one pixel. In
+case of YUV422 formats, the resolution is 4 bytes (2 pixels). In case of RGB24 packed format the
+resolution is 4 pixels. In case of Y frame buffer (YUV-NV12 format) the resolution is one byte. The
+vertical resolution is one line.
+In case of YUV422 format, the number of pixels per line shall be a multiple of 2 pixels and the size
+of a pixel shall be considered as 2 bytes. In case of YUV420-NV12 or YUV420-NV21 format, the Y
+buffer shall be considered as an 8-bit frame buffer, and the CbCr shall be considered as a 16-bit frame
+buffer. The pixel size is 1 byte and 2 bytes, respectively for Y and CbCr.
+For YUV420-NV12 or YUV420-NV21 format, the pixel values are defined in two separate buffers (Y
+and UV buffers). The first buffer consists of Y values (8 bits for each Y sample). The second buffer
+consists of CbCr values (16 bits for each pair of CbCr samples). The base address of the Y and UV
+buffers are as defined earlier in this section.
+In case of interlaced mode, DSS0_VID_BA_0 and DSS0_VID_BA_UV_0 registers define the base
+address of the even field, and DSS0_VID_BA_1 and DSS0_VID_BA_UV_1 registers define the base
+address of the odd field.
+The number of bytes to skip between pixels and between lines are defined using
+DSS0_VID_PIXEL_INC and DSS0_VID_ROW_INC registers, respectively. They define the values
+to be used for the Y buffer. For the CbCr buffer, the DSS0_VID_ROW_INC_UV register define the
+values.
+Table 12-420 summarizes the register settings for a simple access of a picture in the system memory.
+Table 12-420. DISPC Register Settings for Accessing Image in Internal Memory
+Video Pipeline Registers
+Value
+DSS0_VID_BA_0 (1) and DSS0_VID_BA_1 (2)
+The physical base address (PBA) of image in the memory
+for all formats and Y buffer.
+DSS0_VID_BA_EXT_0 and DSS0_VID_BA_EXT_1
+Address extension bits of PBA for all formats and Y buffer.
+DSS0_VID_BA_UV_0 (1) and DSS0_VID_BA_UV_1 (2)
+The physical base address (PBA) of UV buffers image in
+the memory.
+DSS0_VID_BA_UV_EXT_0 and DSS0_VID_BA_UV_EXT_1
+Address extension bits of PBA for UV buffers.
+DSS0_VID_PIXEL_INC
+1 or other in pixel incremental value.
+DSS0_VID_ROW_INC
+1 or other in row incremental value. Used for Y buffer.
+DSS0_VID_ROW_INC_UV
+1 or other in row incremental value. Used for UV buffer.
+(1)
+Base address of even field, in case of interlaced mode.
+(2)
+Base address of odd field, in case of interlaced mode.
+An interconnect request (128 bits) corresponds to one or several pixels, depending on the bits per pixel.
+Therefore, the DMA engine determines the appropriate burst sequence to optimize the fetching of each new line.
+The DMA engine must prevent a single burst from crossing two lines. The DMA engine supports only 1D burst.
+1D burst is used, if the fetch data is linear in memory. The size of the burst can be one of the following values:
+1x128-bit, 2x128-bit, 4x128-bit, or 8x128-bit. Because the burst size must be aligned to the burst boundary, in
+case of misalignment, the DMA engine may issue one or more smaller burst requests.
+12.9.1.4.1.6.2 DISPC Read DMA Buffers
+When the vertical front porch (VFP) period starts after the last horizontal front porch (HFP) of the last line, the
+DMA buffers are flushed according to the video port output associated with the particular video pipeline. The
+DMA engine restarts fetching data from the memory through the DSS Initiator port. Enabling or disabling the
+DISPC flushes the DMA buffers.
+=== Page 1950 ===
+Programmable high and low thresholds, independent for each DMA buffer, are used by the DMA engine to start
+and stop requesting data through the Initiator port.
+•
+When low threshold (set in the DSS0_VID_BUF_THRESHOLD [15-0] BUFLOWTHRESHOLD register bit-
+field) is reached, the DMA engine starts a request on the device interconnect to fill the DMA buffer.
+•
+When high threshold (set in the DSS0_VID_BUF_THRESHOLD [31-16] BUFHIGHTHRESHOLD register
+bit-field) is reached, the DMA engine stops requesting encoded pixels.
+Note
+The configuration of thresholds for optimal performance can be defined using the
+DSS0_VID_BUF_SIZE_STATUS [15-0] BUFSIZE register field value, as follows:
+•
+For high threshold: BUFSIZE (in number of 128-bit words) ± 1
+•
+For low threshold: BUFSIZE (in number of 128-bit words) ± burst size (in number of 128-bit words)
+The following limitations for BUFLOWTHRESHOLD values must be also considered:
+•
+If the scaler in VID pipeline is disabled, BUFLOWTHRESHOLD can be programmed as low as
+interconnect latency and pixel output rate allow it.
+•
+If the scaler in VID pipeline is enabled, BUFLOWTHRESHOLD must be programmed to guarantee
+that at least four full lines can be stored.
+To avoid underflow at the beginning of a frame and have sufficient encoded pixel data to start some processing,
+a preloading of the DMA buffer is configurable between a fixed value of bytes and the high threshold value.
+The preload ensures a minimum number of pixels present in the buffer. When the preload value is reached,
+the associated channel will start pulling pixels out of the DMA buffer. To enable the preload based on the
+value entered in the DSS0_VID_PRELOAD [11-0] PRELOAD register bit-field, the DSS0_VID_ATTRIBUTES
+[19] BUFPRELOAD register bit must be set to 0x0.
+The vertical blanking between two frames must be long enough to allow fetching the number of pixels defined
+by the DSS0_VID_PRELOAD register and preloading the whole video pipeline. If the value set in the preload
+register is greater than some overflow conditions detected by the hardware, then data will start to be read from
+the video DMA buffer before the preload value is reached. If SYNCLOST_IRQ event occurs the video buffer
+needs to be increased (buffer merge). Preload value must be greater or equal to low threshold, and smaller or
+equal to high threshold value.
+Note
+When self-refresh mode is selected (which means that the data in the DMA buffer are used for
+multiple frames) the DMA buffers are not flushed at the end of each frame. Each DMA buffer
+has an independent control for selecting the self-refresh mode. For more information, see Section
+12.9.1.4.1.6.8.2, DISPC DMA Ultra-Low Power Mode.
+12.9.1.4.1.6.3 DISPC Flip/Mirror Support
+DISPC supports on-the-fly source image flip along the x/y-axis for 8-bit/component formats (ARGB or YUV)
+to create a mirror effect on the source data. The DMA engine reads the source frame from right to left by
+requesting burst transfers for each line in negative address increments while performing each burst transfer as
+a linear incremental burst. The read data is repacked and stored in the line buffer incrementally - effectively
+storing the frame as a flipped image for the processing pipeline. The configuration of the flip/mirror operation is
+explained in Table 12-421.
+Table 12-421. DISPC Flip/Mirror Configuration
+Flip Direction
+FLIP Bit
+Base Address
+Byte Increment
+Along Y-axis (vertical mirror)
+1
+Start of window
+1
+Along X-axis (horizontal mirror)
+0
+Start of last line of the window
+-(2(width of the line in bytes))
+=== Page 1951 ===
+Table 12-421. DISPC Flip/Mirror Configuration (continued)
+Flip Direction
+FLIP Bit
+Base Address
+Byte Increment
+Along both X-axis and Y-axis
+(horizontal and vertical mirror)
+1
+Start of last line of the window
+-(2(width of the line in bytes))
+In Table 12-421:
+•
+The FLIP bit is located in DSS0_VID_ATTRIBUTES register.
+•
+The base address of the video buffer must be configured as explained in Section 12.9.1.4.1.6.1, DISPC DMA
+Addressing and Bursts.
+•
+The number of bytes to increment at the end of the row in the video buffer can be configured
+through DSS0_VID_ROW_INC and DSS0_VID_ROW_INC_UV registers. For more information, see Section
+12.9.1.4.1.6.1, DISPC DMA Addressing and Bursts, and Section 12.9.1.4.1.6.4, DISPC DMA Predecimation.
+12.9.1.4.1.6.4 DISPC DMA Predecimation
+The predecimation process consists of downscaling an image by fetching only the necessary pixels out of the
+memory. Vertical and horizontal predecimation are possible:
+•
+Vertical predecimation: The picture stored in memory can be predecimated vertically by skipping lines. Burst
+mode is used to fetch the data when skipping lines. Only the lines that will be used by the DISPC are fetched
+from memory; the other lines are skipped. The DMA engine sends requests only for the useful lines using 1D
+burst. The base address indicates the first valid pixel to fetch from memory. The number of lines to skip is set
+in the DSS0_VID_ROW_INC and DSS0_VID_ROW_INC_UV registers.
+•
+Horizontal predecimation: When fetching data from memory, it is possible to skip 1 out of 2 pixels, up to 1 of
+2047 pixels, by setting the DSS0_VID_PIXEL_INC register to the number of pixels to skip (n), multiplied by
+the size of a pixel (in bytes), +1. The condition to generate a burst is that there is at least one useful pixel per
+128-bit OCP request. Therefore, when the pixels are 16/32-bit, the maximum number of pixels that can be
+skipped is 8/4. If PixelWidthInBytes+BytesToSkip is greater than 16, the programmed burst is changed into
+single request.
+No decimation is supported when the input format is 1, 2, 4, or 8-bit BITMAP.
+For RGB and YUV420 data formats, each pixel data container in memory holds 1 pixel. Thus, when configuring
+the DSS0_VID_PIXEL_INC register, the value of n equals the number of pixels to skip:
+•
+For RGB format, one pixel data container = 32 bits = 1 pixel
+•
+For YUV format:
+•
+One Y pixel data container = 8 bits = 1 pixel
+•
+One UV pixel data container = 16 bits = 1 pixel
+For YUV422 format, each 32-bit pixel data container holds the Luma components for 2 pixels, and the
+Chrominance component of 1 pixel (see Figure 12-476). Therefore, for the valid values of the PIXELINC bit
+field in the case of the following YUV422 format, caution must be taken because n equals the number of pixel
+data containers to skip, and not the number of pixels:
+•
+For n = 1, PIXELINC = 5
+•
+For n = 2, PIXELINC = 9
+•
+For n = 3, PIXELINC = 13
+•
+For n = 4, PIXELINC = 17, etc.
+=== Page 1952 ===
+Y0,Y1
+UV0
+Y2,Y3
+UV2
+Y4,Y5
+UV4
+Y6,Y7
+UV6
+Y8,Y9
+UV8
+Y10,Y11
+UV10
+Y12,Y13
+UV12
+Y14,Y15
+UV14
+Original line in memory
+32-bits
+Y0,Y1
+UV0
+Y4,Y5
+UV4
+Y8,Y9
+UV8
+Y12,Y13
+UV12
+Line in memory after predecimation
+n=1
+Y0,Y1
+UV0
+Y6,Y7
+UV6
+Y12,Y13
+UV12
+n=2
+Y0,Y1
+UV0
+Y8,Y9
+UV8
+n=3
+dispc-094
+Figure 12-476. DISPC YUV422 Predecimation
+12.9.1.4.1.6.5 DISPC DMA MFLAG Mechanism
+The MFLAG mechanism allows a dynamic increase of the priority of DISPC real-time traffic, when required,
+based on the fullness of the DISPC DMA read buffers.
+The MFLAG mechanism is used when fullness of the DMA buffers is critical (close to underflow). The
+mechanism is implemented for all DMA buffers of the video pipelines.
+Programmable buffer thresholds (forming hysteresis) are used to indicate when a local MFLAG signal is
+generated. The 1-bit MFLAG signal is generated on DISPC Initiator port in order to inform the system that
+the outstanding requests from DISPC shall be considered with higher priority in order to get faster interconnect
+responses. The MFLAG signal is asynchronous to any ongoing interconnect transaction.
+Each pipeline maintains its own MFLAG bit. The MFLAG bit is asserted depending on the fullness of the DMA
+buffers associated with the pipeline and depending on the thresholds programmed by software. All MFLAG
+signals are OR-ed together to generate the single 1-bit MFLAG for the Initiator port connected to the DISPC
+DMA engine.
+The threshold for video pipelines corresponds to the fullness of the associated DMA buffer, and is defined by two
+threshold parameters:
+•
+HT_MFLAG: High threshold.
+•
+For read access from video pipelines, when the pipeline buffer reaches the programmed value, the
+associated local MFLAG signal goes low (deasserted).
+•
+This threshold can be programmed in the DSS0_VID_MFLAG_THRESHOLD [31-16] HT_MFLAG register
+field.
+•
+LT_MFLAG: Low threshold.
+•
+For read access from video pipelines, when the pipeline buffer reaches the programmed value, the
+associated local MFLAG signal goes high (asserted).
+•
+This threshold can be programmed in the DSS0_VID_MFLAG_THRESHOLD [15-0] LT_MFLAG register
+field.
+Summary of the MFLAG value, based on DMA read buffer fullness:
+•
+If DMA read buffer fullness < LT_MFLAG, then MFLAG signal = 1
+•
+If LT_MFLAG < DMA read buffer fullness < HT_MFLAG, then MFLAG signal = 1
+•
+If DMA read buffer fullness > HT_MFLAG, then MFLAG signal = 0
+By default, the MFLAG mechanism is disabled (DSS0_COMMON_DISPC_GLOBAL_MFLAG_ATTRIBUTE[1-0]
+MFLAG_CTRL register field = 0x0), and the MFLAG signal is low (de-asserted). The arbitration scheme for the
+pipelines is the same as described in Section 12.9.1.4.1.6.7, DISPC DMA Arbitration. That is, round-robin either
+between high-priority pipelines, or between normal-priority pipelines (if all pipelines are of normal priority).
+When the MFLAG_CTRL register field is set to 0x2, the MFLAG mechanism is enabled, and the MFLAG signal
+is dynamically set to 0 or 1, depending on DMA buffer fullness and programmed threshold levels, as explained
+previously in this section. In this case, the arbitration scheme for the pipelines is round-robin between those
+=== Page 1953 ===
+high-priority pipelines, which have asserted their local MFLAG signals. If there are no high-priority pipelines
+with their local MFLAG signals asserted, then the arbitration scheme is the same as described in Section
+12.9.1.4.1.6.7, DISPC DMA Arbitration.
+The DSS0_COMMON_DISPC_GLOBAL_MFLAG_ATTRIBUTE[6] MFLAG_START bit defines the following
+additional rules for the MFLAG mechanism:
+•
+If the MFLAG_START bit is set to 0x0 (default value), then when the DMA buffer is empty at the beginning
+of the frame, the MFLAG signal of each pipeline is kept at 0 until PRELOAD is reached (for more information
+on preloading, see Section 12.9.1.4.1.6.2, DISPC Read DMA Buffers). Then, based on the setting of
+the DSS0_COMMON_DISPC_GLOBAL_MFLAG_ATTRIBUTE[1-0] MFLAG_CTRL register field, the MFLAG
+signal is generated and DISPC internal logic is arbitrating between pipeline requests.
+•
+If the MFLAG_START bit is set to 0x1, then even in the beginning of the frame when the DMA buffer is empty,
+the configuration of DSS0_COMMON_DISPC_GLOBAL_MFLAG_ATTRIBUTE[1-0] MFLAG_CTRL register
+field determines the generation of the MFLAG signal.
+12.9.1.4.1.6.6 DISPC DMA Priority Requests Control
+The DSS0_COMMON_DSS_CBA_CFG register controls the priority level for DMA requests going out to the
+memory through the system interconnect.
+As explained in Section 12.9.1.4.1.6.5, DISPC DMA MFLAG Mechanism, the DISPC Initiator port generates a
+1-bit MFLAG output signal to raise the priority of all requests made on that port, if any of its DMA buffers runs
+critically low (determined by a set of user programmable threshold values for each buffer).
+DSS uses the MFLAG signal from DISPC to set a 3-bit priority level output (Mpriority) for the Initiator port to
+either a low or high value (configurable in DSS0_COMMON_DSS_CBA_CFG[2-0] PRI_LO and [5-3] PRI_HI
+register fields with optional values of 0~7) as follows:
+•
+When MFLAG = 0, the PRI_LO register field determines the value of the Mpriority output for the normal
+transactions.
+•
+When MFLAG = 1, the PRI_HI register field determines the value of the Mpriority output for the high-priority
+transactions.
+This Mpriority output directly drives the respective input of the system interconnect port, which corresponds to
+the DISPC DMA Initiator port.
+CAUTION
+Upon a hardware reset, DSS0_COMMON_DSS_CBA_CFG[2-0] PRI_LO and [5-3] PRI_HI register
+fields are set by default to 4 and 1, respectively. Afterwards, these priority level register fields can
+only be modified by a secure host.
+12.9.1.4.1.6.7 DISPC DMA Arbitration
+The read requests sent to the system interconnect are pipelined and arbitrated in a round-robin scheme. The
+default arbitration scheme can be modified by setting the priority attribute of each pipeline as defined in the
+DSS0_VID_ATTRIBUTES[23] ARBITRATION register bit.
+By default, all pipelines have the same priority (normal priority), which means all pipeline requests are treated in
+a round-robin order manner. If one or more pipelines require a higher number of requests going to the system
+interconnect, its priority can be moved up to high priority. In this case, the high-priority pipeline is granted access
+before any pipeline in normal priority. If more than one active pipeline is in high priority, then the behavior is
+the same as all active pipelines in normal priority. Normal active pipelines are not treated until all high active
+pipelines are finished. The ARBITRATION bit cannot be modified during the entire frame.
+=== Page 1954 ===
+12.9.1.4.1.6.8 DISPC DMA Power Modes
+12.9.1.4.1.6.8.1 DISPC DMA Low Power Mode
+Each DMA buffer can be associated to the pipeline or merged with other DMA buffers. The total number of DMA
+buffers for each individual pipeline is from 0 (pipeline inactive) to number of pipelines (in that case all the DMA
+buffers are associated to a single pipeline) supported by the DMA engine.
+The user is responsible for configuring correctly the number of DMA buffers to guarantee no underflow. The
+DMA buffers allocated to each pipeline shall be greater or equal to the minimum required DMA buffer to support
+the throughput and the system latency.
+When the size of the buffer is changed, the thresholds shall be re-programmed by the user to reflect the new
+DMA buffer configuration. Increasing the size of the buffer used enables to put the interconnect and the system
+memory in standby for a longer period, therefore, leading to a possible system power reduction.
+The low power mode of the DISPC DMA can also be achieved by keeping the thresholds (bit-fields [31-16]
+BUFHIGHTHRESHOLD and [15-0] BUFLOWTHRESHOLD of DSS0_VID_BUF_THRESHOLD register) farther
+apart. The farther they are there will be longer periods of idling on the DMA fetch interface resulting in lower
+power. The user needs to ensure a minimum value of BUFLOWTHRESHOLD, so that there is no underflow.
+12.9.1.4.1.6.8.2 DISPC DMA Ultra-Low Power Mode
+In ultra-low power mode, the system interconnect is used to fill up the DMA buffers to store all the data required
+to display a full frame. Then, the system interconnect is not used anymore to fetch new pixels for the following
+frames. The data are fetched once into the DMA buffer and then the following frames re-use the DMA buffer to
+display on the screen.
+The programming of the ultra-low power mode is independent for each pipeline and is achieved via the
+DSS0_VID_ATTRIBUTES[24] SELFREFRESH register bit. One pipeline may have all frame pixels into the DMA
+buffer and other pipeline may have to refill the DMA buffers along the display scan, because the frame buffer is
+too big to be stored in the DMA buffer.
+Two ultra-low power modes can be entered, manual or automatic mode:
+•
+Manual self-refresh mode: Starting self-refresh mode is done manually by setting the SELFREFRESH bit to
+0x1 after capturing a frame in the DMA buffers. Self-refresh mode is stopped by setting the SELFREFRESH
+bit to 0x0. Software must first disable the SELFREFRESH bit during at least one frame in order to capture
+the data (by setting the GOBIT register bit of the video port the pipeline is associated with). Once the
+DSS0_VP_CONTROL[5] GOBIT bit has been set, the software must read the GOBIT bit to ensure that the
+frame has been loaded into the buffer, then it can set the SELFREFRESH bit to 1. Once SELFREFRESH is
+enabled, the fetch of data from the system memory is stopped for the following frames. The software needs
+to reset the SELFREFRESH bit in order to restart fetching data from system memory.
+•
+Automatic self-refresh mode: By setting the DSS0_VID_ATTRIBUTES[17] SELFREFRESHAUTO bit to 0x1,
+the transition from disabled to enabled for self-refresh mode is controlled by hardware. This allows the
+software to reset the SELFREFRESH bit to "disabled", and then automatically after the fetch of the first frame
+the hardware switches back SELFREFRESH bit to "enabled". The SELFREFRESH must be disabled during
+at least one frame in order to capture the data, so software must reset the bit to 0 every time the data in
+the DMA buffer needs to be updated. The hardware reads the data inside the DMA buffer without accessing
+the interconnect and system memory during the frame, then modifies the SELFREFRESH bit to reflect the
+current state of the self-refresh mode by setting the bit to 0x1.
+12.9.1.4.1.7 DISPC Pixel Data Formats
+The video pipelines support various types of memory formats, as listed in Table 12-422.
+For BITMAP formats the nibble mode (pixels in each byte are packed in reverse order) can be enabled by setting
+the DSS0_VID_ATTRIBUTES[10] NIBBLEMODE register bit to 0x1.
+The pixel data format can be selected by loading the corresponding value from Table 12-422 in the
+DSS0_VID_ATTRIBUTES [6-1] FORMAT register field.
+=== Page 1955 ===
+Table 12-422. DISPC Supported Pixel Data Formats
+FORMAT Register Field Value
+Pixel Format(4)
+Component Bit Depth
+Alpha
+Alpha-X
+0x00
+0x20
+ARGB16-4444
+4
+0x01
+0x21
+ABGR16-4444
+4
+0x02
+0x22
+RGBA16-4444
+4
+0x03
+NA
+RGB16-565
+5(R,B), 6(G)
+0x04
+NA
+BGR16-565
+5(R,B), 6(G)
+0x05
+0x25
+ARGB16-1555
+1(A), 5(R,G,B)
+0x06
+0x26
+ABGR16-1555
+1(A), 5(R,G,B)
+0x07
+0x27
+ARGB32-8888
+8
+0x08
+0x28
+ABGR32-8888
+8
+0x09
+0x29
+RGBA32-8888
+8
+0x0A
+0x2A
+BGRA32-8888
+8
+0x0B
+NA
+RGB24-888
+8
+0x0C
+NA
+BGR24-888
+8
+0x0E
+0x2E
+ARGB32-2101010
+2(A),10(R,G,B)
+0x0F
+0x2F
+ABGR32-2101010
+2(A),10(R,G,B)
+0x10
+0x30
+ARGB64-16161616
+16
+0x11
+0x31
+RGBA64-16161616
+16
+0x12
+NA
+BITMAP1
+1
+0x13
+NA
+BITMPA2
+2
+0x14
+NA
+BITMAP4
+4
+0x15
+NA
+BITMAP8
+8
+0x16
+NA
+RGB565A8 (1)
+5(R,B), 6(G), separate 8(A)
+0x17
+NA
+BGR565A8 (1)
+5(R,B), 6(G), separate 8(A)
+Packed
+Planar
+Pixel Format
+Component Bit Depth
+0x3E
+NA
+YUV422-YUV2
+8/10/12 (3)
+0x3F
+NA
+YUV422-UYVY
+8/10/12 (3)
+NA
+0x3D
+YUV420-NV12
+8/10/12 (3)
+NA
+See (2)
+YUV420-NV21
+8/10/12
+(1)
+The video pipelines support an optional 8-bit Alpha plane (separate buffer), if the pixel format of the source/destination buffer is either
+RGB16-565 or BGR16-565.
+(2)
+NV21 formats for YUV420 are indirectly supported through chroma swapping during the color space conversion.
+(3)
+10bit/12bit versions of these YUV formats are also supported in both packed and unpacked (in 16-bit container) formats. For
+unpacked formats, both LSB or MSB alignments are supported. These configurations are set using a separate configuration register
+DSS0_VID_ATTRIBUTES2). Default is 8-bit packed format support.
+(4)
+All RGB formats with alpha component include both pre/non-pre-multiplied data support. Also, alpha can be disabled to work as X (can
+be replaced with global alpha value).
+Figure 12-477 shows the pixel data memory organization for the bitmap pixel formats.
+=== Page 1956 ===
+BITMAP 1-bpp (0x12)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+P31
+P30
+P29
+P28
+P27
+P26
+P25
+P24
+P23
+P22
+P21
+P20
+P19
+P18
+P17
+P16
+P15
+P14
+P13
+P12
+P11
+P10
+P9
+P8
+P7
+P6
+P5
+P4
+P3
+P2
+P1
+P0
+BITMAP 2-bpp (0x13)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+P15
+P14
+P13
+P12
+P11
+P10
+P9
+P8
+P7
+P6
+P5
+P4
+P3
+P2
+P1
+P0
+BITMAP 1-bpp (0x14)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Pixel 7
+Pixel 6
+Pixel 5
+Pixel 4
+Pixel 3
+Pixel 2
+Pixel 1
+Pixel 0
+BITMAP 1-bpp (0x15)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Pixel 3
+Pixel 2
+Pixel 1
+Pixel 0
+For BITMPA P-1/2/4 bpp, the Nibble mode (pixels in each byte are packed in reverse order) is also
+supported.
+BITMAP 1-bpp (0x12) – Nibble Mode
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+P24
+P25
+P26
+P27
+P28
+P29
+P30
+P31
+P16
+P17
+P18
+P19
+P20
+P21
+P22
+P23
+P8
+P9
+P10
+P11
+P12
+P13
+P14
+P15
+P0
+P1
+P2
+P3
+P4
+P5
+P6
+P7
+BITMAP 2-bpp (0x13) – Nibble Mode
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+P12
+P13
+P14
+P15
+P8
+P9
+P10
+P11
+P4
+P5
+P6
+P7
+P0
+P1
+P2
+P3
+BITMAP 4-bpp (0x14) – Nibble Mode
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Pixel 6
+Pixel 7
+Pixel 4
+Pixel 5
+Pixel 2
+Pixel 3
+Pixel 0
+Pixel 1
+disp-301
+Figure 12-477. DISPC Bitmap Pixel Formats
+Figure 12-478 and Figure 12-479 show the pixel data memory organization for the RGB 16-bit pixel formats.
+=== Page 1957 ===
+ARGB16-4444 (0x00)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+A1
+R1
+G1
+B1
+A0
+R0
+G0
+B0
+xRGB16-4444 (0x20)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Unused
+R1
+G1
+B1
+Unused
+R0
+G0
+B0
+ABGR16-4444 (0x01)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+A1
+B1
+G1
+R1
+A0
+B0
+G1
+R0
+xBGR16-4444 (0x21)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Unused
+B1
+G1
+R1
+Unused
+B0
+G0
+R0
+RGBA16-4444 (0x02)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+R1
+G1
+B1
+A1
+R0
+G0
+B0
+A0
+RGBx16-4444 (0x22)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+R1
+G1
+B1
+Unused
+R0
+G0
+B0
+Unused
+RGB16-565 (0x03)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+R1
+G1
+B1
+R0
+G0
+B0
+BGR16-565 (0x04)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+B1
+G1
+R1
+B0
+G0
+R0
+dispc-302
+Figure 12-478. DISPC RGB 16-bit Pixel Formats 1
+=== Page 1958 ===
+RGB565A8 (0x16) and BGR565A8 (0x17) are RGB16-565 and BGR16-565, respectively, with a
+separate Alpha-8bit plane.
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+A3
+A2
+A1
+A0
+ARGB16-1555 (0x05)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+A
+1
+R1
+G1
+B1
+A
+0
+R0
+G0
+B0
+xRGB16-1555 (0x25)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+R1
+G1
+B1
+R0
+G0
+B0
+ABGR16-1555 (0x06)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+A
+1
+B1
+G1
+R1
+A
+0
+B0
+G0
+R0
+xBGR16-1555 (0x26)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+B1
+G1
+R1
+B0
+G0
+R0
+dispc-303
+Figure 12-479. DISPC RGB 16-bit Pixel Formats 2
+Figure 12-480 shows the pixel data memory organization for the RGB 24-bit pixel formats.
+RGB24-888 (0x0B)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+B1
+R0
+G0
+B0
++0x00
+G2
+B2
+R1
+G1
++0x04
+R3
+G3
+B3
+R2
++0x08
+BGR24-888 (0x0C)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+R1
+B0
+G0
+R0
++0x00
+G2
+R2
+B1
+G1
++0x04
+B3
+G3
+R3
+B2
++0x08
+dispc-304
+Figure 12-480. DISPC RGB 24-bit Pixel Formats
+Figure 12-481 and Figure 12-482 show the pixel data memory organization for the RGB 32-bit pixel formats.
+=== Page 1959 ===
+ARGB32-8888 (0x07)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+A
+R
+G
+B
+xRGB32-8888 (0x27)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Unused
+R
+G
+B
+ABGR32-8888 (0x08)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+A
+B
+G
+R
+xBGR32-8888 (0x28)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Unused
+B
+G
+R
+RGBA32-8888 (0x09)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+R
+G
+B
+A
+RGBx32-8888 (0x29)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+R
+G
+B
+Unused
+dispc-305
+Figure 12-481. DISPC RGB 32-bit Pixel Formats 1
+=== Page 1960 ===
+BGRA32-8888 (0x0A)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+B
+G
+R
+A
+BGRx32-8888 (0x2A)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+B
+G
+R
+Unused
+ARGB32-2101010 (0x0E)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+A
+R
+G
+B
+xRGB32-2101010 (0x2E)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Unused
+R
+G
+B
+ABGR32-2101010 (0x0F)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+A
+B
+G
+R
+xBGR32-2101010 (0x2F)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Unused
+B
+G
+R
+dispc-306
+Figure 12-482. DISPC RGB 32-bit Pixel Formats 2
+Figure 12-483 shows the pixel data memory organization for the RGB 64-bit pixel formats.
+=== Page 1961 ===
+ARGB64-16161616 (0x10)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+G
+B
++0x00
+A
+R
++0x04
+xRGB64-16161616 (0x30)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+G
+B
++0x00
+Unused
+R
++0x04
+RGBA64-16161616 (0x11)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+B
+A
++0x00
+R
+G
++0x04
+RGBx64-16161616 (0x31)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+B
+Unused
++0x00
+R
+G
++0x04
+dispc-307
+Figure 12-483. DISPC RGB 64-bit Pixel Formats
+Figure 12-484 and Figure 12-485 show the pixel data memory organization for the YUV 8-bit pixel formats,
+together with some specific register settings.
+ATTRIBUTES2.YUV_SIZE    = 0 (8b)
+ATTRIBUTES2.YUV_MODE = 0 (N/A)
+ATTRIBUTES2.YUV_ALIGN = 0 (N/A)
+YUV422 (1-plane/Packed)
+YUV2 4:2:2 (0x3E)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Cr0
+Y1
+Cb0
+Y0
++0x0
+Cr1
+Y3
+Cb1
+Y2
++0x4
+Cr2
+Y5
+Cb2
+Y4
++0x8
+Cr3
+Y7
+Cb3
+Y6
++0xC
+UYVY 4:2:2 (0x3F)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Y1
+Cr0
+Y0
+Cb0
++0x0
+Y3
+Cr1
+Y2
+Cb1
++0x4
+Y5
+Cr2
+Y4
+Cb2
++0x0
+Y7
+Cr3
+Y6
+Cb3
++0x4
+dispc-308
+Figure 12-484. DISPC YUV 8-bit Pixel Formats 1
+=== Page 1962 ===
+YUV420 (2-plane/Planar)
+YUV 4:2:0 – NV12 (0x3D)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Y3
+Y2
+Y1
+Y0
++0x0
+Y7
+Y6
+Y5
+Y4
++0x4
+Y11
+Y10
+Y9
+Y8
++0x8
+Y15
+Y14
+Y13
+Y12
++0xC
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Cr1
+Cb1
+Cr0
+Cb0
++0x0
+Cr3
+Cb3
+Cb2
+Cb2
++0x4
+Cr5
+Cb5
+Cr4
+Cb4
++0x8
+Cr7
+Cb7
+Cb6
+Cb6
++0xC
+YUV 4:2:0 – NV21
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Y3
+Y2
+Y1
+Y0
++0x0
+Y7
+Y6
+Y5
+Y4
++0x4
+Y11
+Y10
+Y9
+Y8
++0x8
+Y15
+Y14
+Y13
+Y12
++0xC
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Cb1
+Cr1
+Cb0
+Cr0
++0x0
+Cb3
+Cr3
+Cr2
+Cr2
++0x4
+Cb5
+Cr5
+Cb4
+Cr4
++0x8
+Cb7
+Cr7
+Cr6
+Cr6
++0xC
+NV21 is not directly supported. It must be specified as NV12 and then the chroma components must
+be swapped during the YUV to RGB conversion process.
+dispc-309
+Figure 12-485. DISPC YUV 8-bit Pixel Formats 2
+Figure 12-486 shows the pixel data memory organization for the YUV 10-bit pixel formats, together with some
+specific register settings.
+=== Page 1963 ===
+YUV 10-bit formats have the same component packing order as 8-bit formats except that the packing
+is done across a multiple 32-bit word with 2 MSB in each 32-bit word not used.
+Note: Each new line in memory must start at a 128-bit aligned address for this format
+ATTRIBUTES2.YUV_SIZE    = 1 (10b)
+ATTRIBUTES2.YUV_MODE = 0 (Packed)
+ATTRIBUTES2.YUV_ALIGN = 0 (N/A)
+YUV422 (1-plane/Packed)
+YUV2 4:2:2 – 10bit (0x3E)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Y1
+Cb0
+Y0
++0x0
+Cb1
+Y2
+Cr0
++0x4
+Y4
+Cr1
+Y3
++0x8
+Cr2
+Y5
+Cb2
++0xC
+UYVY 4:2:2 – 10bit (0x3F)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Cr0
+Y0
+Cb0
++0x0
+Y2
+Cb1
+Y1
++0x4
+Cb2
+Y3
+Cr1
++0x8
+Y5
+Cr2
+Y4
++0xC
+YUV420 (2-plane/Planar)
+YUV 4:2:0 – NV12 (10-bit) (0x3D)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Y2
+Y1
+Y0
++0x0
+Y5
+Y4
+Y3
++0x4
+Y8
+Y7
+Y6
++0x0
+Y11
+Y10
+Y9
++0x4
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Cb1
+Cr0
+Cb0
++0x0
+Cr2
+Cb2
+Cr1
++0x4
+Cb4
+Cr3
+Cb3
++0x8
+Cr5
+Cb5
+Cr4
++0xC
+dispc-310
+Figure 12-486. DISPC YUV 10-bit Pixel Formats
+Figure 12-487 and Figure 12-488 show the pixel data memory organization for the YUV 12-bit pixel formats,
+together with some specific register settings.
+=== Page 1964 ===
+YUV 12-bit formats have the same component packing order as 8-bit formats except that the packing
+is done across a multiple 64-bit word with 4 MSB in each 64-bit word not used.
+Note: Each new line in memory must start at a 128-bit aligned address for this format
+ATTRIBUTES2.YUV_SIZE    = 2 (12b)
+ATTRIBUTES2.YUV_MODE = 0 (Packed)
+ATTRIBUTES2.YUV_ALIGN = 0 (N/A)
+YUV422 (1-plane)
+YUV2 4:2:2 – 12bit (0x3E)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Y1[7:0]
+Cb0
+Y0
++0x0
+Y2
+Cr0
+Y1 [11:8]
++0x4
+Cr1[7:0]
+Y3
+Cb1
++0x8
+Cb2
+Y4
+Cr1[11:8]
++0xC
+Y6[7:0]
+Cr2
+Y5
++0x10
+Y7
+Cb3
+Y6[11:8]
++0x14
+Cb4[7:0]
+Y8
+Cr3
++018
+Cr4
+Y9
+Cb4[11:8]
++1C
+UYVY 4:2:2 – 12bit (0x3F)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Cr0[7:0]
+Y0
+Cb0
++0x0
+Cb1
+Y1
+Cr0 [11:8]
++0x4
+Y3[7:0]
+Cr1
+Y2
++0x8
+Y4
+Cb2
+Y3[11:8]
++0xC
+Cb3[7:0]
+Y5
+Cr2
++0x10
+Cr3
+Y6
+Cb3[11:8]
++0x14
+Y8[7:0]
+Cb4
+Y7
++018
+Y9
+Cr4
+Y8[11:8]
++1C
+dispc-311
+Figure 12-487. DISPC YUV 12-bit Pixel Formats 1
+=== Page 1965 ===
+YUV420 (2-plane)
+YUV 4:2:0 – NV12 (12-bit) (0x3D)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Y2[7:0]
+Y1
+Y0
++0x0
+Y4
+Y3
+Y2[11:8]
++0x4
+Y7[7:0]
+Y6
+Y5
++0x8
+Y9
+Y8
+Y7[11:8]
++0xC
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Cb1[7:0]
+Cr0
+Cb0
++0x0
+Cb2
+Cr1
+Cb1 [11:8]
++0x4
+Cr3[7:0]
+Cb3
+Cr2
++0x8
+Cr4
+Cb4
+Cr3[11:8]
++0xC
+dispc-312
+Figure 12-488. DISPC YUV 12-bit Pixel Formats 2
+Figure 12-489 through Figure 12-491 show the pixel data memory organization for the YUV 10-bit/12-bit
+unpacked pixel formats in 16-bit container, together with some specific register settings.
+=== Page 1966 ===
+YUV 10-bit/12-bit unpacked formats have the same component packing order as 8-bit formats except
+that each component is stored in a 16-bit container (with MSB or LSB bits within the 16 -bit container
+not used depending on the MSB/LSB alignment).
+ATTRIBUTES2.YUV_SIZE    = 1 or 2 (10b or 12b)
+ATTRIBUTES2.YUV_MODE = 1 (Unpacked)
+ATTRIBUTES2.YUV_ALIGN = 0 or 1 (LSB or MSB aligned )
+YUV422 (1-plane)
+10-bit unpacked LSB aligned
+YUV2 4:2:2 – 10bit (0x3E)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+unused
+Cb0
+unused
+Y0
++0x0
+unused
+Cr0
+unused
+Y1
++0x4
+UYVY 4:2:2 – 10bit (0x3F)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+unused
+Y0
+unused
+Cb0
++0x0
+unused
+Y1
+unused
+Cr0
++0x4
+10-bit unpacked MSB aligned
+YUV2 4:2:2 – 10bit (0x3E)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Cb0
+unused
+Y0
+unused
++0x0
+Cr0
+unused
+Y1
+unused
++0x4
+UYVY 4:2:2 – 10bit (0x3F)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Y0
+unused
+Cb0
+unused
++0x0
+Y1
+unused
+Cr0
+unused
++0x4
+dispc-313
+Figure 12-489. DISPC YUV 10-bit/12-bit Unpacked Pixel Formats 1
+=== Page 1967 ===
+YUV422 (1-plane)
+12-bit unpacked LSB aligned
+YUV2 4:2:2 – 12bit (0x3E)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+unused
+Cb0
+unused
+Y0
++0x0
+unused
+Cr0
+unused
+Y1
++0x4
+UYVY 4:2:2 – 12bit (0x3F)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+unused
+Y0
+unused
+Cb0
++0x0
+unused
+Y1
+unused
+Cr0
++0x4
+12-bit unpacked MSB aligned
+YUV2 4:2:2 – 12bit (0x3E)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Cb0
+unused
+Y0
+unused
++0x0
+Cr0
+unused
+Y1
+unused
+UYVY 4:2:2 – 12bit (0x3F)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Y0
+unused
+Cb0
+unused
+0x0
+Y1
+unused
+Cr0
+unused
+dispc-314
+Figure 12-490. DISPC YUV 10-bit/12-bit Unpacked Pixel Formats 2
+=== Page 1968 ===
+YUV420 (2-plane)
+10-bit unpacked LSB aligned
+YUV 4:2:0 – NV12 (10-bit) (0x3D)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+unused
+Y1
+unused
+Y0
++0x0
+unused
+Y3
+unused
+Y2
++0x4
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+unused
+Cr0
+unused
+Cb0
++0x0
+unused
+Cr1
+unused
+Cb1
++0x4
+10-bit unpacked MSB aligned
+YUV 4:2:0 – NV12 (10-bit) (0x3D)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Y1
+unused
+Y0
+unused
++0x0
+Y3
+unused
+Y2
+unused
++0x4
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Cr0
+unused
+Cb0
+unused
++0x0
+Cr1
+unused
+Cb1
+unused
++0x4
+12-bit unpacked LSB aligned
+YUV 4:2:0 – NV12 (12-bit) (0x3D)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+unused
+Y1
+unused
+Y0
++0x0
+unused
+Y3
+unused
+Y2
++0x4
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+unused
+Cr0
+unused
+Cb0
++0x0
+unused
+Cr1
+unused
+Cb1
++0x4
+12-bit unpacked MSB aligned
+YUV 4:2:0 – NV12 (12-bit) (0x3D)
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Y1
+unused
+Y0
+unused
++0x0
+Y3
+unused
+Y2
+unused
++0x4
+3
+1
+3
+0
+2
+9
+2
+8
+2
+7
+2
+6
+2
+5
+2
+4
+2
+3
+2
+2
+2
+1
+2
+0
+1
+9
+1
+8
+1
+7
+1
+6
+1
+5
+1
+4
+1
+3
+1
+2
+1
+1
+1
+0
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Cr0
+unused
+Cb0
+unused
++0x0
+Cr1
+unused
+Cb1
+unused
++0x4
+dispc-315
+Figure 12-491. DISPC YUV 10-bit/12-bit Unpacked Pixel Formats 3
+=== Page 1969 ===
+12.9.1.4.1.8 DISPC Video Pipelines
+DISPC includes two input pipelines:
+•
+Video pipeline (VID)
+•
+Video lite pipeline (VIDL1)
+The video pipeline (VID) consists of:
+•
+VC-1 range mapping unit for YUV422/YUV420 input formats;
+•
+Replication logic for ARGB input formats;
+•
+One 256 x 24-bit entries Color Look-up Table (CLUT);
+•
+Polyphase-filter based resizer unit (scaler) supporting chroma upsampling;
+•
+Color Space Conversion (CSC) unit (YUV to RGB), which can be used also for programmable BCHS
+(Brightness/Contrast/Hue/Saturation) control;
+The video lite pipeline (VIDL1) is identical to the video pipeline (VID), except for:
+•
+Polyphase-filter based resizer (scaler) is not included;
+•
+Chroma upsampling is done using dedicated YUV420-to-422 and YUV422-to-444 upsamplers (instead of
+using the scaler);
+Each pipeline processing block can be independently bypassed.
+Line
+buffer
+CLUT
+@
+Scaler polyphase filter
+Color space
+conversion
+YUV to RGB
+Brightness/Contrast/
+Hue/Saturation
+-----
+Bypass
+YUV
+VC-1 range
+mapping
+Video Pipeline (VID)
+From DMA buffer
+To Overlay
+Manager
+ARGB48/
+YUV
+Shadow
+registers
+dispc-004
+Bypass
+Bypass
+ARGB
+expansion
+logic
+BITMAP/RGB/YUV
+formats
+Bypass
+Bypass
+Vertical
+scaler
+Horizontal
+scaler
+BITMAP to RGB
+conversion
+-----
+RGB to RGB
+inverse gamma
+correction
+CLUT
+Bypass
+Luma Key
+Figure 12-492. DISPC Video Pipeline Configuration
+@
+YUV
+chroma upsampling
+Color space
+conversion
+YUV to RGB
+Brightness/Contrast/
+Hue/Saturation
+-----
+Bypass
+YUV
+VC-1 range
+mapping
+Video Lite Pipeline (VIDL1)
+From DMA buffer
+To Overlay
+Manager
+ARGB48/
+YUV
+Shadow
+registers
+dispc-004a
+Bypass
+Bypass
+ARGB
+expansion
+logic
+BITMAP/RGB/YUV
+formats
+BITMAP to RGB
+conversion
+-----
+RGB to RGB
+inverse gamma
+correction
+CLUT
+Bypass
+Luma Key
+Figure 12-493. DISPC Video Lite Pipeline Configuration
+The input of each pipeline is connected to the video DMA buffer controller. Each pipeline pixel output is always
+connected to the overlay managers (OVR1 and OVR2). Each pipeline configuration supports various BITMAP,
+RGB (ARGB and RGBA), and YUV formats, as listed in Table 12-422, DISPC Pixel Data Formats.
+The 256-entry CLUT is either used to convert BITMAP (1, 2, 4, or 8-bit indexed formats) into RGB format, or for
+RGB to RGB inverse gamma correction. For a BITMAP format data, scaling is not supported. Scaling and color
+=== Page 1970 ===
+look-up table features are mutually exclusive. If the color look-up feature is enabled, then video pipeline scaler
+has to be disabled.
+For chroma sub-sampled YUV formats (YUV422 and YUV420-NV12/NV21):
+•
+VID pipeline: the scaler unit upsamples the chrominance data using both vertical and horizontal polyphase
+filters;
+•
+VIDL1 pipeline: dedicated YUV420 to YUV422, and YUV422 to YUV444 chroma upsamplers are used;
+For ARGB source data with less than/equal to 10-bit component data size the replication logic (ARGB
+expansion) converts the data to ARGB48 by replicating the MSBs into the LSBs:
+•
+When scaling is disabled (or no scaler supported), the resulting ARGB48 data is directly provided to the
+pipeline output;
+•
+When vertical scaling is engaged, the resulting ARGB48 data is first truncated to ARGB8888, and then
+converted to ARGB10101010 (by MSBs replication into LSBs), before being fed to the vertical scaler input;
+•
+When vertical scaling is disabled, but horizontal scaling is engaged, the resulting ARGB48 data is directly
+provided to the horizontal scaler input;
+A pipeline can be enabled by setting the DSS0_VID_ATTRIBUTES[0] ENABLE register bit. If the video pipeline
+is disabled, the video window does not exist on the screen and the whole video pipeline and its DMA are
+inactive. Prior to enabling the video layer a valid configuration has to be set by the user.
+Note
+The DISPC input pipelines, VID and VID1L, will be commonly referred to as video pipeline (VID) in the
+following sections. Any differences in their functionality will be highlighted.
+12.9.1.4.1.8.1 DISPC VID Replication Logic
+The replication logic (ARGB expansion) converts ARGB pixel formats into ARGB48 format by replicating the
+MSBs into the LSBs. The logic is always enabled.
+Table 12-423 shows how some of the ARGB formats supported by video pipelines are remapped into ARGB48
+by default.
+Table 12-423. DISPC VID Replication: ARGB Pixel Formats Remapping into ARGB48-12121212
+Formats
+A[11:0]
+R[11:0]
+G[11:0]
+B[11:0]
+MSB - LSB
+MSB - LSB
+MSB - LSB
+MSB - LSB
+xRGB12-4444
+111111111111
+R[3:0]R[3:0]R[3:0]
+G[3:0]G[3:0]G[3:0]
+B[3:0]B[3:0]B[3:0]
+RGBx12-4444
+111111111111
+R[3:0]R[3:0]R[3:0]
+G[3:0]G[3:0]G[3:0]
+B[3:0]B[3:0]B[3:0]
+RGB16-565
+111111111111
+R[4:0]R[4:0]R[4:3]
+G[5:0]G[5:0]
+B[4:0]B[4:0]B[4:3]
+xRGB16-1555
+111111111111
+R[4:0]R[4:0]R[4:3]
+G[4:0]G[4:0]G[4:3]
+B[4:0]B[4:0]B[4:3]
+ARGB16-1555
+AAAAAAAAAA
+R[4:0]R[4:0]R[4:3]
+G[4:0]G[4:0]G[4:3]
+B[4:0]B[4:0]B[4:3]
+ARGB16-4444
+A[3:0]A[3:0]A[3:0]
+R[3:0]R[3:0]R[3:0]
+G[3:0]G[3:0]G[3:0]
+B[3:0]B[3:0]B[3:0]
+RGBA16-4444
+A[3:0]A[3:0]A[3:0]
+R[3:0]R[3:0]R[3:0]
+G[3:0]G[3:0]G[3:0]
+B[3:0]B[3:0]B[3:0]
+ARGB32-8888
+A[7:0]A[7:4]
+R[7:0]R[7:4]
+G[7:0]G[7:4]
+B[7:0]B[7:4]
+12.9.1.4.1.8.2 DISPC VID VC-1 Range Mapping Unit
+The VC-1 range mapping unit is used when the video frame picture is decoded using a VC-1 codec by the
+video accelerator. It remaps the Y, Cb, and Cr components to the full range (from the reduced data range)
+before displaying. The unit is used primarily for YUV4:2:0-NV12 (NV21) pixel format, but also can be applied to
+YUV4:2:2 pixel formats (YUV2 and UYVY).
+The VC-1 range mapping unit is enabled by setting the DSS0_VID_ATTRIBUTES2 [0] VC1ENABLE bit to 0x1.
+The VC-1 range mapping must be enabled only for 8 bits/component YUV input data.
+=== Page 1971 ===
+The DSS0_VID_ATTRIBUTES2 [3:1] VC1_RANGE_Y and [6:4] VC1_RANGE_CBCR bit fields are two 3-bit
+values programmed by the user.
+The equations for the mapping process are:
+Yout = CLIP(((( Yint ± 128) × (VC1_RANGE_Y + 9) + 4) / 8) + 128)
+Cb = CLIP(((( Cb ± 128) × (VC1_RANGE_CBCR + 9) + 4) / 8) + 128)
+Cr = CLIP(((( Cr ± 128) × (VC1_RANGE_CBCR + 9) + 4) / 8) + 128)
+Note
+The input and output pixel values are unsigned (Y, Cr, and Cb).
+The function CLIP () clips to 0 or 255 when minimum or maximum, respectively, is reached.
+Otherwise, the resulting output remains identical.
+12.9.1.4.1.8.3 DISPC VID Color Look-Up Table (CLUT)
+The video pipeline supports a look up table to perform either of the following operations:
+•
+Conversions of BITMAP formats (1, 2, 4, or 8-bit indexed) into RGB24 format (CLUT mode), or
+•
+Inverse gamma correction on non-linear RGB source data (gamma mode)
+The look-up table consists of 3 separate 256 x 8-bit memories and is indexed either by the source BITMAP data
+or by R/G/B component data. The table is loaded through direct register access by writing to the CLUT registers.
+The sequence to load the table is:
+1.
+SW writes (only writes are supported) 32-bit values using single access, or burst access in linear increment
+burst mode, into DSS0_VID_CLUT_0 through DSS0_VID_CLUT_15 registers. The LSB 24 bits [23:0] are
+used for the value, and the MSB 8 bits [31:24] are used for the index into the table (see Figure 12-494).
+2.
+Loop to Step 1, if there is a new access to the CLUT registers. Software can access other registers between
+two accesses to the CLUT registers.
+SW needs to ensure that there is no visible effect when modifying the table, since it is not under hardware
+control.
+The usage of the look-up table in CLUT mode is activated when a BITMAP format is selected in the
+DSS0_VID_ATTRIBUTES[6:1] FORMAT register bit-field.
+The usage of the look-up table for RGB inverse gamma correction can be enabled by setting
+DSS0_VID_ATTRIBUTES[30] GAMMAINVERSION register bit.
+31 30 29 28 27 26 25 24
+23 22 21 20 19 18 17 16 15 14 13 12 11 10
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Index
+R
+G
+B
+dispc-026b
+Figure 12-494. DISPC VID CLUT/Gamma Data Memory Organization
+Note
+Scaling and color look-up table features are mutually exclusive. If color look-up feature is enabled,
+then video pipeline scaler has to be disabled.
+12.9.1.4.1.8.4 DISPC VID Chrominance Resampling
+12.9.1.4.1.8.4.1 Chrominance Resampling for VID Pipeline
+The chrominance resampling from 8-bpc or 10-bpc to 12-bit color components is always performed using filtering
+(the scaler unit filter). Chrominance resampling and rescaling can be combined to support native rescaling of
+YUV formats.
+=== Page 1972 ===
+The usage of the scaler unit for resampling the chrominance of YUV420 and YUV422 is shown in Figure
+12-495 and Figure 12-496, respectively. The settings of the scaler unit to perform chrominance resampling are
+described in Section 12.9.1.4.1.8.5, DISPC VID Scaler Unit.
+Vertical
+scaler
+YUV4:2:0
+YUV4:4:4
+ARGB48
+Scaler unit
+Color space
+conversion
+Horizontal
+scaler
+dispc-008
+YUV4:2:2
+36 bits
+per pixel
+12 bits/pixel
+component
+Figure 12-495. DISPC VID YUV420 to ARGB48 Using Scaler Unit for Resampling Chrominance
+Vertical
+scaler
+YUV4:2:2
+YUV4:4:4
+ARGB48
+Scaler unit
+Color space
+conversion
+Horizontal
+scaler
+dispc-009
+YUV4:2:2
+36 bits
+per pixel
+12 bits/pixel
+component
+Figure 12-496. DISPC VID YUV422 to ARGB48 Using Scaler Unit for Resampling Chrominance
+The vertical scaler is not a mandatory block for resampling the chrominance of YUV422 data, as shown in Figure
+12-496.
+12.9.1.4.1.8.4.2 Chrominance Resampling for VIDL1 Pipeline
+VIDL1 pipeline does not include a scaler unit. Chroma upsampling is done using dedicated YUV420 to YUV422,
+and YUV422 to YUV444 chroma upsamplers.
+VIDL1 pipeline converts YUV420 (chroma) data to YUV422 (chroma) using a simple vertical average filter
+(average of two adjacent chroma lines to generate a missing line except for the very bottom line which is
+generated by repeating the previous chroma line). If the video image is a sub-image of a larger video frame data,
+then the vertical Luma line offset from the top should be an even number.
+VIDL1 pipeline converts YUV422 data to YUV444 format using a 4-tap filter (implementing the Catmull-Rom
+algorithm) to generate missing chroma data as shown below:
+Cout[2*i] = Cin[i]
+Cout[2*i+1] = CLIP (-1/16*Cin[i-1] + 9/16*Cin[i] + 9/16*Cin[i+1] ± 1/16*Cin[i+2])
+The missing chroma data is generated as a simple weighted average of the surrounding 4 chroma values, which
+is equivalent to a 4x1 filter kernel with values: [-1/16, 9/16, 9/16, -1/16]. In this algorithm, edge effects are treated
+by repeating the first and last pixel.
+12.9.1.4.1.8.5 DISPC VID Scaler Unit
+Note
+Only VID pipeline includes a resizer unit (scaler). VIDL1 pipeline does not include a scaler.
+The programmable scaler filter works with all supported video formats, including formats with alpha channel.
+Alpha channel is scaled with the same parameters as RGB color components. For the YUV formats, Y and
+Cb/Cr are processed independently. An RGB 64-bit source (16 bits per component) is truncated to 8-bit, if scaler
+is enabled. Otherwise, it will be truncated to ARGB48 format in the scaler bypass mode. 10-bit/12-bit YUV
+source is also truncated to 8-bit, since the scaler is enabled to either upsample the chroma component and/or
+resize the YUV frame data directly.
+=== Page 1973 ===
+The filter is based on a finite impulse response (FIR) filter with 16 phases. The filter is a 5-tap for horizontal
+filtering, and can be configured for 3 or 5 taps for vertical filtering. The filtering can be used for various
+processing:
+•
+Up-sampling of the picture
+•
+Down-sampling of the picture
+•
+Anti-aliasing reduction
+•
+Chrominance resampling in case of YUV data formats
+The following limitations must be considered:
+•
+The up-sampling ratio is up to x16.
+•
+The down-sampling ratio using 3-tap configuration is down to x0.5 for RGB format.
+•
+The down-sampling ratio using 5-tap configuration is down to x0.25 for RGB format.
+Note
+The user must set the correct size and position of the original video before resize in order for the
+up-sampled/down-sampled video to be displayed inside the screen boundaries.
+Figure 12-497 shows an example of video up-sampling, with corresponding video window attributes.
+Frame in memory
+LCD panel
+dispc-015
+PPL
+SIZEX
+LPP
+SIZEY
+MEMSIZEY
+MEMSIZEX
+POSY
+POSX
+Figure 12-497. DISPC Video Window Attributes
+The video window attributes can be configured in the following register bit-fields:
+•
+Source data format (input to the scaler unit) in DSS0_VID_ATTRIBUTES [6-1] FORMAT bit-field
+•
+Video picture width in system memory (frame buffer) in DSS0_VID_PICTURE_SIZE [11-0] MEMSIZEX bit-
+field. The window width is from 1 up to 4096 pixels. All the integer values in the range [1:4096] are allowed
+except for YUV 422 formats. In case of YUV2422 and UYVY422 formats the width has to be a multiple of 2
+pixels.
+•
+Video picture height in system memory (frame buffer) in DSS0_VID_PICTURE_SIZE [27-16] MEMSIZEY
+bit-field. The window width is from 1 up to 4096 pixels. All the integer values in the range [1:4096] are
+allowed.
+•
+Video window width at pipeline output (after resizing) in DSS0_VID_SIZE [11-0] SIZEX bit-field. The window
+width is from 1 up to 4096 pixels. All the integer values in the range [1:4096] are allowed up to the screen
+width minus the horizontal start location of the window on the screen.
+=== Page 1974 ===
+•
+Video window height at pipeline output (after resizing) in DSS0_VID_SIZE [27-16] SIZEY bit-field. The
+window height is from 1 up to 4096 pixels. All the integer values in the range [1:4096] are allowed up to the
+screen height minus the vertical start location of the window on the screen.
+•
+Video window overlay X-position in DSS0_OVR_ATTRIBUTES_0 [17-6] POSX bit-field. See Section
+12.9.1.4.1.9, DISPC Overlay Managers.
+•
+Video window overlay Y-position in DSS0_OVR_ATTRIBUTES_0 [30-19] POSY bit-field. See Section
+12.9.1.4.1.9, DISPC Overlay Managers.
+•
+For configuration of LPP and PPL video port output display parameters, see Section 12.9.1.4.1.10.7, DISPC
+VP Timing Generator and Display Panel Settings.
+For vertical up-sampling and down-sampling in a 3-tap configuration, the equations are:
+For RGB formats
+For YUV formats
+dispc-013
+1
+1
+)
+(
+)
+(
+)
+(
+i
+i
+i
+n
+Ain
+Ci
+n
+Aout
+)
+1
+)
+(
+(
+InWidth
+OutWidth
+Cwidth
+)1
+)
+(
+(
+)
+(
+)
+(
+)
+(
+1
+1
+InWidth
+OutWidth
+Cwidth
+i
+n
+Rin
+Ci
+n
+Rout
+i
+i
+)1
+)
+(
+(
+)
+(
+)
+(
+)
+(
+1
+1
+InWidth
+OutWidth
+Cwidth
+i
+n
+Gin
+Ci
+n
+Gout
+i
+i
+)1
+)
+(
+(
+)
+(
+)
+(
+)
+(
+1
+1
+InWidth
+OutWidth
+Cwidth
+i
+n
+Bin
+Ci
+n
+Bout
+i
+i
+)1
+)
+(
+(
+)
+(
+)
+(
+)
+(
+1
+1
+InWidth
+OutWidth
+Cwidth
+i
+n
+Yin
+y
+Cyi
+n
+Yout
+i
+i
+)1
+)
+(
+(
+)
+(
+)
+(
+)
+(
+1
+1
+InWidth
+OutWidth
+Cwidth
+i
+n
+Cbin
+c
+Cci
+n
+Cbout
+i
+i
+)1
+)
+(
+(
+)
+(
+)
+(
+)
+(
+1
+1
+InWidth
+OutWidth
+Cwidth
+i
+n
+Crin
+c
+Cci
+n
+Crout
+i
+i
+Component
+Vertical
+Horizontal
+Cwidth (Coefficient Width)
+10 bits
+10 bits
+InWidth (Input Width)
+10 bits
+12 bits
+OutWidth (Output Width)
+12 bits
+12 bits
+(10)
+For vertical and horizontal up-sampling and down-sampling in a 5-tap configuration, the equations are:
+dispc-012
+For RGB formats
+For YUV formats
+Component
+Vertical
+Horizontal
+Cwidth (Coefficient Width)
+10 bits
+10 bits
+InWidth (Input Width)
+10 bits
+12 bits
+OutWidth (Output Width)
+12 bits
+12 bits
+)1
+)
+(
+(
+)
+(
+)
+(
+)
+(
+2
+2
+InWidth
+OutWidth
+Cwidth
+i
+n
+Ain
+Ci
+n
+Aout
+i
+i
+)
+1
+)
+(
+(
+)
+(
+)
+(
+)
+(
+2
+2
+InWidth
+OutWidth
+Cwidth
+i
+n
+Rin
+Ci
+n
+Rout
+i
+i
+)1
+)
+(
+(
+)
+(
+)
+(
+)
+(
+2
+2
+InWidth
+OutWidth
+Cwidth
+i
+n
+Gin
+Ci
+n
+Gout
+i
+i
+)1
+)
+(
+(
+)
+(
+)
+(
+)
+(
+2
+2
+InWidth
+OutWidth
+Cwidth
+i
+n
+Bin
+Ci
+n
+Bout
+i
+i
+)1
+)
+(
+(
+)
+(
+)
+(
+)
+(
+2
+2
+InWidth
+OutWidth
+Cwidth
+i
+n
+Yin
+y
+Cyi
+n
+Yout
+i
+i
+)1
+)
+(
+(
+)
+(
+)
+(
+)
+(
+2
+2
+InWidth
+OutWidth
+Cwidth
+i
+n
+Cbin
+c
+Cci
+n
+Cbout
+i
+i
+)1
+)
+(
+(
+)
+(
+)
+(
+)
+(
+2
+2
+InWidth
+OutWidth
+Cwidth
+i
+n
+Crin
+c
+Cci
+n
+Crout
+i
+i
+(11)
+Note
+The pixel (n + 1) is the previous pixel with respect to pixel (n). The line (n + 1) is the previous line with
+respect to line (n).
+The coefficients Ci() depend on the phase between input and output pixels.
+The coefficients are different for Y and Cr/Cb filtering because the calculations are independent due to
+the chrominance resampling for YUV422 and YUV420.
+First, the vertical filter is applied to the encoded input pixel data, and then the horizontal filter is applied on the
+resulting pixel values to generate the output pixel values. The vertical input of the filter consists of:
+=== Page 1975 ===
+•
+Six lines of 1280 × 32 bits for 5-tap configuration
+•
+Three lines of 2560 x 32 bits for 3-tap configuration
+Table 12-424 lists some of the scaler supported configurations.
+Table 12-424. DISPC VID Line Buffer Width for Scaler Unit
+Pixel Format
+Maximum Input Width (Pixels) for 5-tap
+Maximum Input Width (Pixels) for 3-tap
+32 bits per pixel (ARGB32-8888,
+ARGB-2101010, etc.)
+1280 pixels wide (1)
+2560 pixels wide
+YUV420, YUV422
+2560 pixels wide
+4096 pixels wide
+(1)
+For the 5-tap configuration, the 6th video line is used on the output of the horizontal scaler, so that horizontal down-scaling can be
+supported with a minimum clock ratio equal to 1. The maximum output width is limited to 1280 pixels in order to be able to support
+clock ratio of 1 due to the 6th video line buffer. The 6th video line is also used in order to start the next output line generation while
+the video pipeline output is being stalled by the overlay manager (either due to display in blanking period and/or in background pixel
+period). The 6th line buffer is actually 48-bit wide to allow storage of ARGB48 format pixel data.
+At the beginning of frame scaling processing, the first line may be duplicated multiple times depending on the
+initial vertical phase programmed for the poly-phase filter.
+At the end of frame scaling processing the last line is duplicated, if the scaling logic requires loading more lines
+and the last line has been reached.
+Similarly, the first pixel may be duplicated multiple times depending on the initial horizontal phase programmed
+for the poly-phase filter. The last pixel is duplicated, if the scaling logic requires loading more pixels and the last
+pixel has been reached.
+The programmable coefficients of the polyphase filters are signed 10-bit values (except for the central
+coefficient, which is unsigned). The vertical video scaler has a 10-bit input and a 12-bit output. The horizontal
+scaling stage takes the resulting 12-bit input and produces 12-bit output.
+Figure 12-498 and Figure 12-499 show the scaler macro-architecture for components A, R, G, and B. Figure
+12-500 and Figure 12-501 show the scaler macro-architecture for components Y, Cr, and Cb.
+Note
+The scaling and CSC clipping is set by the same bit, DSS0_VID_ATTRIBUTES[11] FULLRANGE.
+X(n – 2)
+12-bit (unsigned)
+C
+10-bit (signed)
+h(-1)
+X(n + 1)
+12-bit (unsigned)
+X(n – 1)
+12-bit (unsigned)
+C
+10-bit (unsigned)
+h(0)
+X(n)
+12-bit (unsigned)
+C
+10-bit (signed)
+h(1)
+C
+10-bit (signed)
+h(-2)
+X(n + 2)
+12-bit (unsigned)
+C
+10-bit (signed)
+h(2)
+dispc-070
+Shifted value (right by 9)
+Adder
+X() = Ain, Rin, Gin, or Bin input component
+Ch() = Horizontal scaling coefficient
+Clipping to [0:4095]
+Clipping to [0:Aout(n)]
+Rout(n), Gout(n), and Bout(n)
+Output component for pixel (n)
+12-bit (unsigned)
+Premultiplied (automatically selected by HW)
+12 bits
+12 bits
+12 bits
+Aout(n)
+Output component for pixel (n)
+12-bit (unsigned)
+A, R, G, and B
+R, G, and B only
+Figure 12-498. DISPC VID Macro-Architecture of the Horizontal Scaling for A, R, G, and B Components
+(5-tap Restriction)
+=== Page 1976 ===
+C
+10-bit (signed)
+v(-1)
+X(n + 1)
+10-bit (unsigned)
+X(n – 1)
+10-bit (unsigned)
+C
+10-bit (unsigned)
+v(0)
+X(n)
+10-bit (unsigned)
+C
+10-bit (signed)
+v(1)
+Clipping to [0:4095]
+C
+-2)
+10-bit (signed)
+v(
+X(n – 2)
+10-bit (unsigned)
+X(n + 2)
+10-bit (unsigned)
+C
+10-bit (signed)
+v(2)
+Clipping to [0:Aout(n)]
+Rout(n), Gout(n), and Bout(n)
+Output component for pixel (n)
+12-bit (unsigned)
+Premultiplied (automatically selected by HW)
+5 taps only
+dispc-069
+Shifted value (right by 7)
+Adder
+12 bits
+X() = Ain, Rin, Gin, or Bin input component
+Cv() = Vertical scaling coefficient
+12 bits
+12 bits
+Aout(n)
+Output component for pixel (n)
+12-bit (unsigned)
+A, R, G, and B
+R, G, and B only
+Figure 12-499. DISPC VID Macro-Architecture of the Vertical Scaling for A, R, G, and B Components (5
+and 3 taps)
+C
+10-bit (signed)
+h(-1)
+X(n + 1)
+12-bit (unsigned)
+X(n – 1)
+12-bit (unsigned)
+C
+10-bit (unsigned)
+h(0)
+X(n)
+12-bit (unsigned)
+C
+10-bit (signed)
+h(1)
+C
+10-bit (signed)
+h(-2)
+X(n – 2)
+12-bit (unsigned)
+X(n + 2)
+12-bit (unsigned)
+C
+10-bit (signed)
+h(2)
+dispc-072
+X() = Yin, Cbin, or Crin input component
+Ch() = Horizontal scaling coefficient
+FULLRANGE
+1
+0
+Clipping to [0:4095]
+Clipping to
+[256:3840] for Cb and Cr
+[256:3760] for Y
+Yout(n), Cbout(n), and Crout(n)
+Output component for pixel (n), 12-bit (unsigned)
+Shifted value (right by 9)
+Adder
+12 bits
+12 bits
+Figure 12-500. DISPC VID Macro-Architecture of the Horizontal Scaling for Y, Cr, and Cb Components
+(5-tap Restriction)
+=== Page 1977 ===
+C
+10-bit (signed)
+v(-1)
+X(n + 1)
+10-bit (unsigned)
+X(n – 1)
+10-bit (unsigned)
+C
+10-bit (unsigned)
+v(0)
+X(n)
+10-bit (unsigned)
+C
+10-bit (signed)
+v(1)
+C
+-2)
+10-bit (signed)
+v(
+X(n – 2)
+10-bit (unsigned)
+X(n + 2)
+10-bit (unsigned)
+C
+10-bit (signed)
+v(2)
+FULLRANGE
+1
+0
+dispc-071
+Clipping to [0:4095]
+Clipping to
+[256:3840] for Cb and Cr
+[256:3760] for Y
+Yout(n), Cbout(n), and Crout(n)
+Output component for pixel (n), 12-bit (unsigned)
+5 taps only
+Shifted value (right by 7)
+Adder
+12 bits
+X() = Yin, Cbin, or Crin input component
+Cv() = Vertical scaling coefficient
+12 bits
+Figure 12-501. DISPC VID Macro-Architecture of the Vertical Scaling for Y, Cr, and Cb Components (5 and
+3 taps)
+Table 12-425 list the register fields in the function of the coefficients for the VID horizontal scaler in
+the DSS0_VID_FIR_COEF_H0_0 to DSS0_VID_FIR_COEF_H0_8, and DSS0_VID_FIR_COEF_H12_0 to
+DSS0_VID_FIR_COEF_H12_15 registers.
+Table 12-425. DISPC Register Fields Associated to Coefficients for ARGB and Y Configuration in VID
+Horizontal Scaler
+Phases
+Ch(2)
+Ch(1)
+Ch(0)
+Ch(-1)
+Ch(-2)
+Signed coefficient
+[29-20] FIRHC2
+bitfield
+Signed coefficient
+[19-10] FIRHC1
+bitfield
+Unsigned central
+coefficient
+[9-0] FIRHC0 bitfield
+Signed coefficient
+[19-10] FIRHC1
+bitfield
+Signed coefficient
+[29-20] FIRHC2
+bitfield
+0
+DSS0_VID_FIR_COE
+F_H12_0
+DSS0_VID_FIR_COE
+F_H12_0
+DSS0_VID_FIR_COE
+F_H0_0
+DSS0_VID_FIR_COE
+F_H12_0
+DSS0_VID_FIR_COE
+F_H12_0
+1
+DSS0_VID_FIR_COE
+F_H12_1
+DSS0_VID_FIR_COE
+F_H12_1
+DSS0_VID_FIR_COE
+F_H0_1
+DSS0_VID_FIR_COE
+F_H12_15
+DSS0_VID_FIR_COE
+F_H12_15
+2
+DSS0_VID_FIR_COE
+F_H12_2
+DSS0_VID_FIR_COE
+F_H12_2
+DSS0_VID_FIR_COE
+F_H0_2
+DSS0_VID_FIR_COE
+F_H12_14
+DSS0_VID_FIR_COE
+F_H12_14
+3
+DSS0_VID_FIR_COE
+F_H12_3
+DSS0_VID_FIR_COE
+F_H12_3
+DSS0_VID_FIR_COE
+F_H0_3
+DSS0_VID_FIR_COE
+F_H12_13
+DSS0_VID_FIR_COE
+F_H12_13
+4
+DSS0_VID_FIR_COE
+F_H12_4
+DSS0_VID_FIR_COE
+F_H12_4
+DSS0_VID_FIR_COE
+F_H0_4
+DSS0_VID_FIR_COE
+F_H12_12
+DSS0_VID_FIR_COE
+F_H12_12
+5
+DSS0_VID_FIR_COE
+F_H12_5
+DSS0_VID_FIR_COE
+F_H12_5
+DSS0_VID_FIR_COE
+F_H0_5
+DSS0_VID_FIR_COE
+F_H12_11
+DSS0_VID_FIR_COE
+F_H12_11
+6
+DSS0_VID_FIR_COE
+F_H12_6
+DSS0_VID_FIR_COE
+F_H12_6
+DSS0_VID_FIR_COE
+F_H0_6
+DSS0_VID_FIR_COE
+F_H12_10
+DSS0_VID_FIR_COE
+F_H12_10
+7
+DSS0_VID_FIR_COE
+F_H12_7
+DSS0_VID_FIR_COE
+F_H12_7
+DSS0_VID_FIR_COE
+F_H0_7
+DSS0_VID_FIR_COE
+F_H12_9
+DSS0_VID_FIR_COE
+F_H12_9
+8
+DSS0_VID_FIR_COE
+F_H12_8
+DSS0_VID_FIR_COE
+F_H12_8
+DSS0_VID_FIR_COE
+F_H0_8
+DSS0_VID_FIR_COE
+F_H12_8
+DSS0_VID_FIR_COE
+F_H12_8
+9
+DSS0_VID_FIR_COE
+F_H12_9
+DSS0_VID_FIR_COE
+F_H12_9
+DSS0_VID_FIR_COE
+F_H0_7
+DSS0_VID_FIR_COE
+F_H12_7
+DSS0_VID_FIR_COE
+F_H12_7
+10
+DSS0_VID_FIR_COE
+F_H12_10
+DSS0_VID_FIR_COE
+F_H12_10
+DSS0_VID_FIR_COE
+F_H0_6
+DSS0_VID_FIR_COE
+F_H12_6
+DSS0_VID_FIR_COE
+F_H12_6
+11
+DSS0_VID_FIR_COE
+F_H12_11
+DSS0_VID_FIR_COE
+F_H12_11
+DSS0_VID_FIR_COE
+F_H0_5
+DSS0_VID_FIR_COE
+F_H12_5
+DSS0_VID_FIR_COE
+F_H12_5
+12
+DSS0_VID_FIR_COE
+F_H12_12
+DSS0_VID_FIR_COE
+F_H12_12
+DSS0_VID_FIR_COE
+F_H0_4
+DSS0_VID_FIR_COE
+F_H12_4
+DSS0_VID_FIR_COE
+F_H12_4
+=== Page 1978 ===
+Table 12-425. DISPC Register Fields Associated to Coefficients for ARGB and Y Configuration in VID
+Horizontal Scaler (continued)
+Phases
+Ch(2)
+Ch(1)
+Ch(0)
+Ch(-1)
+Ch(-2)
+13
+DSS0_VID_FIR_COE
+F_H12_13
+DSS0_VID_FIR_COE
+F_H12_13
+DSS0_VID_FIR_COE
+F_H0_3
+DSS0_VID_FIR_COE
+F_H12_3
+DSS0_VID_FIR_COE
+F_H12_3
+14
+DSS0_VID_FIR_COE
+F_H12_14
+DSS0_VID_FIR_COE
+F_H12_14
+DSS0_VID_FIR_COE
+F_H0_2
+DSS0_VID_FIR_COE
+F_H12_2
+DSS0_VID_FIR_COE
+F_H12_2
+15
+DSS0_VID_FIR_COE
+F_H12_15
+DSS0_VID_FIR_COE
+F_H12_15
+DSS0_VID_FIR_COE
+F_H0_1
+DSS0_VID_FIR_COE
+F_H12_1
+DSS0_VID_FIR_COE
+F_H12_1
+Note
+In Table 12-425, the cells without color are duplicated from the grey cells.
+Similar table approach applies to the vertical scaler (registers DSS0_VID_FIR_COEF_V0_0 to
+DSS0_VID_FIR_COEF_V0_8, and DSS0_VID_FIR_COEF_V12_0 to DSS0_VID_FIR_COEF_V12_15
+are used).
+Similar table approach applies to the coefficients for Cb/Cr filtering in case of
+YUV format (registers DSS0_VID_FIR_COEF_H0_C_0 to DSS0_VID_FIR_COEF_H0_C_8,
+and DSS0_VID_FIR_COEF_H12_C_0 to DSS0_VID_FIR_COEF_H12_C_15,
+and DSS0_VID_FIR_COEF_V0_C_0 to DSS0_VID_FIR_COEF_V0_C_8 and
+DSS0_VID_FIR_COEF_V12_C_0 to DSS0_VID_FIR_COEF_V12_C_15 are used) .
+The VID scaler unit vertical and/or horizontal sampling is selected by configuring the
+DSS0_VID_ATTRIBUTES[8-7] RESIZEENABLE bit field.
+Prior to enabling the video up/down-sampling block a valid configuration has to be set by the user. After
+configuring the required VID registers change the DSS0_VP_CONTROL[5] GOBIT register bit of the video port
+the video pipeline is associated with. The software has to wait before setting the GO bit that the hardware has
+reset the bit. The software reset is not recommended since the application cannot guarantee to be able to reset it
+before the H/W.
+The following fields define the configuration of the video up-sampling/down-sampling block in the VID pipeline for
+ARGB and YUV formats:
+•
+Vertical upsampling and downsampling increment value in the [23-0] FIRVINC bit field of DSS0_VID_FIRV
+(for ARGB and Y) and DSS0_VID_FIRV2 (for CbCr) registers. The unsigned integer value range is 223.
+Software calculates the value using the following equation:
+MEMSIZEY+1
+SIZEY+1
+FIRVINC
+*
+dispc-066
+•
+Horizontal upsampling and downsampling increment value in the [23-0] FIRHINC bit field of the
+DSS0_VID_FIRH (for ARGB and Y) and DSS0_VID_FIRH2 (for CbCr) registers. The unsigned integer value
+range is [1:16384]. Software calculates the value using the following equation:
+MEMSIZEH+1
+SIZEH+1
+FIRHINC
+*
+dispc-067
+•
+Vertical up/downsampling accumulator value in the [23-0] VERTICALACCU bit field of the
+DSS0_VID_ACCUV_0 and DSS0_VID_ACCUV_1 (for ARGB and Y), and DSS0_VID_ACCUV2_0 and
+DSS0_VID_ACCUV2_1 (for CbCr) registers. The accumulator value indicates on which phase the vertical
+filtering starts. The DSS0_VID_ACCUV_0 register is used for progressive output, while for interlace output
+both DSS0_VID_ACCUV_0 and DSS0_VID_ACCUV_1 registers are used. The DSS0_VID_ACCUV2_0 and
+DSS0_VID_ACCUV2_1 registers are used in the same manner for progressive or interlace output.
+=== Page 1979 ===
+•
+Vertical upsampling and downsampling line buffer configuration via the DSS0_VID_ATTRIBUTES[21]
+VERTICALTAPS bit: The default value at reset time is 0x0 (3-tap configuration is used). If the bit field is
+reset, the 3-tap configuration is used.
+•
+Horizontal upsampling and downsampling accumulator value in the [23-0] HORIZONTALACCU bit field of
+the DSS0_VID_ACCUH_0 and DSS0_VID_ACCUH_1 (for ARGB and Y), and DSS0_VID_ACCUH2_0 and
+DSS0_VID_ACCUH2_1 (for CbCr) registers. The accumulator value indicates on which phase the horizontal
+filtering starts. The register DSS0_VID_ACCUH_0 is used for progressive output, while for interlace output
+both DSS0_VID_ACCUH_0 and DSS0_VID_ACCUH_1 registers are used. The DSS0_VID_ACCUH2_0 and
+DSS0_VID_ACCUH2_1 are used in the same manner for progressive or interlace output.
+Table 12-426 lists the scaler vertical and horizontal accumulator values and phases.
+Table 12-426. DISPC VID Scaler Vertical and
+Horizontal Accumulator Phases
+Accumulator Value
+(MSB bits)
+Phases f
+0
+0
+256 or -3840
+1
+512 or -3584
+2
+768 or -3328
+3
+1024 or -3072
+4
+1280 or -2816
+5
+1536 or -2560
+6
+1792 or -2304
+7
+2048 or -2048
+8
+2304 or -1792
+9
+2560 or -1536
+10
+2816 or -1280
+11
+3072 or -1024
+12
+3328 or -768
+13
+3584 or -512
+14
+3840 or -256
+15
+•
+Vertical upsampling and downsampling central coefficients:
+•
+For ARGB and Y, the vertical upsampling and downsampling central coefficients are defined in the
+DSS0_VID_FIR_COEF_V0_0 to DSS0_VID_FIR_COEF_V0_8 registers. There are 9 registers for the 16
+phases with 1 coefficient for each of them. Symmetrical implementation is used, so only 9 coefficients are
+used. Each register contains one 10-bit unsigned coefficient (the central one).
+•
+Four CbCr, the vertical upsampling and downsampling central coefficients are set in
+DSS0_VID_FIR_COEF_V0_C_0 to DSS0_VID_FIR_COEF_V0_C_8 registers.
+•
+Vertical upsampling and downsampling coefficients:
+•
+For ARGB and Y, the vertical upsampling and downsampling coefficients are defined in the
+DSS0_VID_FIR_COEF_V12_0 to DSS0_VID_FIR_COEF_V12_15 registers. There are 16 registers for
+the 16 phases with 2 coefficient for each of them, so a total of 32 programmable coefficients for the
+vertical up/down-sampling block. Each register contains two 10-bit signed coefficients.
+•
+Four CbCr, the vertical upsampling and downsampling coefficients are set in
+DSS0_VID_FIR_COEF_V12_C_0 to DSS0_VID_FIR_COEF_V12_C_15 registers.
+•
+Horizontal upsampling and downsampling central coefficients:
+•
+For ARGB and Y, the horizontal upsampling and downsampling central coefficients are defined in the
+DSS0_VID_FIR_COEF_H0_0 to DSS0_VID_FIR_COEF_H0_8 registers. There are 9 registers for the 16
+phases with 1 coefficient for each of them. Symmetrical implementation is used, so only 9 coefficients are
+used. Each register contains one 10-bit unsigned coefficient (the central one).
+=== Page 1980 ===
+•
+Four CbCr, the horizontal upsampling and downsampling central coefficients are set in
+DSS0_VID_FIR_COEF_H0_C_0 to DSS0_VID_FIR_COEF_H0_C_8 registers.
+•
+Horizontal upsampling and downsampling coefficients:
+•
+For ARGB and Y, the horizontal upsampling and downsampling coefficients are defined in the
+DSS0_VID_FIR_COEF_H12_0 to DSS0_VID_FIR_COEF_H12_15 registers. There are 16 registers for
+the 16 phases with 2 coefficient for each of them, so a total of 32 programmable coefficients for the
+horizontal up/down-sampling block. Each register contains two 10-bit signed coefficients.
+•
+Four CbCr, the horizontal upsampling and downsampling coefficients are set in
+DSS0_VID_FIR_COEF_H12_C_0 to DSS0_VID_FIR_COEF_H12_C_15 registers.
+The YUV filtering is based on the equations of the ARGB filtering. In addition to the registers used for ARGB
+filtering configuration, a second set of registers for filtering is used. The first set of registers is used for
+Y configuration (instead of ARGB configuration) and the second set of registers is used for CbCr filtering
+configuration. The two sets of registers can be the same when the YUV format is not converted to RGB after
+filtering. When the RGB conversion is required after filtering, then the chrominance needs to be re-sampled with
+a different filtering configuration because:
+•
+Chrominance samples are offset to the luminance samples. That is, DSS0_VID_FIRH2 and
+DSS0_VID_FIRV2, and DSS0_VID_ACCUV2_0/DSS0_VID_ACCUV2_1 and DSS0_VID_ACCUH2_0/
+DSS0_VID_ACCUH2_1 registers need to be configured differently than DSS0_VID_FIRH
+and DSS0_VID_FIRV, and DSS0_VID_ACCUH_0/DSS0_VID_ACCUH_1 and DSS0_VID_ACCUV_0/
+DSS0_VID_ACCUV_1 registers used for the luminance filtering.
+•
+Chrominance is sub-sampled by two horizontally only in case of YUV422, and horizontally and vertically in
+case of YUV420. The coefficients for the vertical chrominance re-sampling are identical to the coefficients for
+vertical luminance filtering in case of YUV422. The coefficients for the horizontal and vertical chrominance
+re-sampling are different than the ones for luminance filtering in case of YUV420.
+12.9.1.4.1.8.6 DISPC VID Color Space Conversion YUV to RGB
+The Color Space Conversion (CSC) unit converts the video-encoded pixel values from YUV444 format into
+ARGB48 format (12-bit value per component A, R, G, and B, with A fixed at 0xFFF).
+In case of YUV420 or YUV422 formats, a chrominance resampling to YUV444 is performed before converting
+the YUV into RGB values (see Section 12.9.1.4.1.8.4, DISPC VID Chrominance Resampling). The YUV422/
+YUV420 to YUV444 chrominance resampling is a pre-processing to the color space conversion.
+Figure 12-502 and Figure 12-503 show the 3 × 3 11-bit coefficients used to convert from YUV444 into ARGB48.
+The value of A component is fixed at 0xFFF in the output. The coefficients are set according to the standard
+used to encode the pixel data in YUV color space. Table 12-427 summarizes the coefficients with their
+respective register bit fields.
+Table 12-427. DISPC VID CSC - YUV to RGB Register Settings
+Coefficients
+Register Fields
+RY
+DSS0_VID_CSC_COEF0[10-0] C00
+RCr
+DSS0_VID_CSC_COEF0[26-16] C01
+RCb
+DSS0_VID_CSC_COEF1[10-0] C02
+GY
+DSS0_VID_CSC_COEF1[26-16] C10
+GCr
+DSS0_VID_CSC_COEF2[10-0] C11
+GCb
+DSS0_VID_CSC_COEF2[26-16] C12
+BY
+DSS0_VID_CSC_COEF3[10-0] C20
+BCr
+DSS0_VID_CSC_COEF3[26-16] C21
+BCb
+DSS0_VID_CSC_COEF4[10-0] C22
+Y offset
+DSS0_VID_CSC_COEF5[15-3] PREOFFSET1
+Cr offset
+DSS0_VID_CSC_COEF5[31-19] PREOFFSET2
+Cb offset
+DSS0_VID_CSC_COEF6[15-3] PREOFFSET3
+=== Page 1981 ===
+•
+Limited video data range conversion
+If the active range for the luminance samples (Y) is [256:3760] and for the chrominance samples (Cb and Cr)
+is [256:3840], the following equation in Figure 12-502 (based on 11-bit coefficients) must be used to convert
+the YUV to RGB. To clip the values of R, G, and B output components to the full output data range [0:4095],
+set the DSS0_VID_ATTRIBUTES[11] FULLRANGE bit to 0x1.
+dispc-005
+ROUT
+GOUT
+BOUT
+1
+256
+RY
+GY
+BY
+Rcr
+Gcr
+Bcr
+Rcb
+Gcb
+Bcb
+=
+Y – 256
+IN
+Cr – 2048
+IN
+CbIN– 2048
+Figure 12-502. DISPC VID CSC YCbCr to RGB Equation (Limited Video Range), 12-Bit Outputs
+In Figure 12-502, the offset values (-256, -2048, -2048) are also programmed via corresponding register
+bit-fields shown in Table 12-427, DISPC VID CSC - YUV to RGB Register Settings).
+•
+Full video data range conversion
+If the active range for the luminance samples (Y) and chrominance samples (Cb and Cr) is [0:4095], the
+following equation in Figure 12-503 (based on 11-bit coefficients) must be used to convert the YUV to
+RGB. To clip the values of R, G, and B output components to the full output data range [0:4095], set the
+DSS0_VID_ATTRIBUTES[11] FULLRANGE bit to 0x1.
+dispc-006
+ROUT
+GOUT
+BOUT
+1
+256
+RY
+GY
+BY
+Rcr
+Gcr
+Bcr
+Rcb
+Gcb
+Bcb
+=
+YIN
+Cr – 2048
+IN
+CbIN– 2048
+Figure 12-503. DISPC VID CSC YCbCr to RGB Equation (Full Video Range), 12-Bit Outputs
+In Figure 12-503, the offset values (0, -2048, -2048) are also programmed via corresponding register bit-
+fields shown in Table 12-427, DISPC VID CSC - YUV to RGB Register Settings).
+Note
+In case of YUV420-NV21 data, the coefficients for Cr and Cb must be swapped in order to correctly
+support YUV420-NV21 format.
+The scaling and CSC clipping is set by the same bit, DSS0_VID_ATTRIBUTES[11] FULLRANGE.
+12.9.1.4.1.8.7 DISPC VID Brightness/Contrast/Saturation/Hue Control
+The brightness/contrast/saturation controls are implemented in the same Color Space Conversion (CSC) block
+by making adjustments to the conversion coefficients and input/output offset values as shown in Figure 12-504:
+dispc-101
+offset
+B
+offset
+G
+offset
+R
+offset
+Cb
+Cb
+offset
+Cr
+Cr
+adj
+offset
+Y
+Y
+C
+k
+m
+B
+k
+m
+A
+m
+C
+k
+m
+B
+k
+m
+A
+m
+C
+k
+m
+B
+k
+m
+A
+m
+B
+G
+R
+_
+_
+_
+_
+_
+_
+_
+2
+*
+*
+2
+*
+*
+2
+*
+1
+*
+*
+1
+*
+*
+1
+*
+0
+*
+*
+0
+*
+*
+0
+*
+Figure 12-504. DISPC VID Brightness/Contrast/Saturation Equation for YUV to RGB
+In Figure 12-504 the following terminology is used:
+•
+A/B/C coefficients and the offset parameters are for YUV to RGB conversion. See Table 12-428 below for
+coefficients and offsets mapping to register fields.
+=== Page 1982 ===
+•
+The gain term (m) is used for contrast control. The allowed range is: 0 < m <= 2.0 (where m=1 means
+contrast bypass).
+•
+The gain term (k) is used for saturation control. The allowed range is: 0 < k <= 2.0 (where k=1 means
+saturation bypass).
+•
+The brightness offset (b) is added to Y_offset_adj. The allowed range (for 8-bit example) is: -128 <= b <=
++127 (where b=0 means brightness bypass).
+The hue adjustment can also be built into the above equation (Figure 12-504) to comprehend the following Cb/Cr
+hue angle adjustments:
+Cb_hue_adj = (Cb*cosφ + Cr* sinφ)
+Cr_hue_adj = (Cr*cosφ - Cb* sinφ), where φ is the desired hue angle (with φ=0 meaning hue adjustment
+bypass)
+The final combined matrix equation for controlling brightness/contrast/saturation/hue (BCSH) during YUV to RGB
+conversion is shown in Figure 12-505
+dispc-102
+offset
+B
+offset
+G
+offset
+R
+offset
+Cb
+Cb
+offset
+Cr
+Cr
+adj
+offset
+Y
+Y
+Hue
+B
+Hue
+C
+k
+m
+Hue
+C
+Hue
+B
+k
+m
+A
+m
+Hue
+B
+Hue
+C
+k
+m
+Hue
+C
+Hue
+B
+k
+m
+A
+m
+Hue
+B
+Hue
+C
+k
+m
+Hue
+C
+Hue
+B
+k
+m
+A
+m
+B
+G
+R
+_
+_
+_
+_
+_
+_
+_
+)]
+sin(
+*
+2
+)
+cos(
+*
+2
+[
+*
+*
+)]
+sin(
+*
+2
+)
+cos(
+*
+2
+[
+*
+*
+2
+*
+)]
+sin(
+*
+1
+)
+cos(
+*
+1
+[
+*
+*
+)]
+sin(
+*
+1
+)
+cos(
+*
+1
+[
+*
+*
+1
+*
+)]
+sin(
+*
+0
+)
+cos(
+*
+0
+[
+*
+*
+)]
+sin(
+*
+0
+)
+cos(
+*
+0
+[
+*
+*
+0
+*
+Figure 12-505. DISPC VID Brightness/Contrast/Saturation/Hue Equation for YUV to RGB
+Gain and offset terms in the above equation (Figure 12-505) are programmed in the hardware registers as
+adjusted CSC coefficients (11-bit signed) and offset values (13-bit signed) to control the brightness, contrast,
+saturation and hue. Mapping of the coefficients and offsets to register fields is provided in Table 12-428. Outputs
+are clipped to keep the output values in the proper range.
+Table 12-428. DISPC VID BCSH Register Settings for YUV to RGB
+Coefficients
+Register Fields
+A0
+DSS0_VID_CSC_COEF0[10-0] C00
+B0
+DSS0_VID_CSC_COEF0[26-16] C01
+C0
+DSS0_VID_CSC_COEF1[10-0] C02
+A1
+DSS0_VID_CSC_COEF1[26-16] C10
+B1
+DSS0_VID_CSC_COEF2[10-0] C11
+C1
+DSS0_VID_CSC_COEF2[26-16] C12
+A2
+DSS0_VID_CSC_COEF3[10-0] C20
+B2
+DSS0_VID_CSC_COEF3[26-16] C21
+C2
+DSS0_VID_CSC_COEF4[10-0] C22
+Y offset
+DSS0_VID_CSC_COEF5[15-3] PREOFFSET1
+Cr offset
+DSS0_VID_CSC_COEF5[31-19] PREOFFSET2
+Cb offset
+DSS0_VID_CSC_COEF6[15-3] PREOFFSET3
+R offset
+DSS0_VID_CSC_COEF6[31-19] POSTOFFSET1
+G offset
+DSS0_VID_CSC_COEF7[15-3] POSTOFFSET2
+B offset
+DSS0_VID_CSC_COEF7[31-19] POSTOFFSET3
+For RGB input formats, the same CSC block can be used to adjust contrast, brightness, saturation, and hue
+using the matrix equation from Figure 12-506.
+=== Page 1983 ===
+dispc-103
+offset
+B
+offset
+G
+offset
+R
+Bin
+Gin
+Rin
+c
+b
+a
+c
+b
+a
+c
+b
+a
+Hue
+B
+Hue
+C
+k
+m
+Hue
+C
+Hue
+B
+k
+m
+A
+m
+Hue
+B
+Hue
+C
+k
+m
+Hue
+C
+Hue
+B
+k
+m
+A
+m
+Hue
+B
+Hue
+C
+k
+m
+Hue
+C
+Hue
+B
+k
+m
+A
+m
+Bout
+Gout
+Rout
+_
+_
+_
+2
+2
+2
+1
+1
+1
+0
+0
+0
+)]
+sin(
+*
+2
+)
+cos(
+*
+2
+[
+*
+*
+)]
+sin(
+*
+2
+)
+cos(
+*
+2
+[
+*
+*
+2
+*
+)]
+sin(
+*
+1
+)
+cos(
+*
+1
+[
+*
+*
+)]
+sin(
+*
+1
+)
+cos(
+*
+1
+[
+*
+*
+1
+*
+)]
+sin(
+*
+0
+)
+cos(
+*
+0
+[
+*
+*
+)]
+sin(
+*
+0
+)
+cos(
+*
+0
+[
+*
+*
+0
+*
+1
+2
+2
+2
+1
+1
+1
+0
+0
+0
+2
+2
+2
+1
+1
+1
+0
+0
+0
+C
+B
+A
+C
+B
+A
+C
+B
+A
+c
+b
+a
+c
+b
+a
+c
+b
+a
+Coefficients a/b/c are related to A/B/C (for RGB to YUV and YUV to RGB conversions) as follows:
+Figure 12-506. DISPC VID Brightness/Contrast/Saturation/Hue Equation for RGB Input
+In Figure 12-506 the following specifics apply:
+•
+A/B/C coefficients and the RGB offset parameters mapping to register fields is provided in Table 12-428.
+•
+The gain term (m) is used for contrast control. The allowed range is: 0 < m <= 2.0 (where m=1 means
+contrast bypass).
+•
+The gain term (k) is used for saturation control. The allowed range is: 0 < k <= 2.0 (where k=1 means
+saturation bypass).
+•
+The brightness is controlled by the RGB offset values.
+•
+The Hue angle is used to adjust hue. Hue φ=0 means hue adjustment bypass.
+Outputs are clipped to keep the output values in the proper range.
+12.9.1.4.1.8.8 DISPC VID Luma Key Support
+The video pipeline supports luma key transparency for Blue-ray video layer composition. When enabled,
+Y value of each pixel will be checked against luma key range values. The range values are defined in
+DSS0_VID_LUMAKEY register fields, as follows: [11-0] LUMAKEYMIN < Y < [27-16] LUMAKEYMAX. If this
+condition is true, then the pixel alpha value will be forced to zero (transparent) to make the pixel transparent
+during the blending process in the overlay manager.
+12.9.1.4.1.9 DISPC Overlay Managers
+An overlay manager (OVR) is responsible for compositing selected input layers together to generate the
+final display output frame. DISPC implements two identical overlay managers (see Figure 12-474, DISPC
+Architecture Overview):
+•
+OVR1, with output connected to Video Port (VP1).
+•
+OVR2, with output connected to Video Port (VP2).
+Each OVR is preceded by a programmable input pipeline selector which re-maps the outputs of the selected
+input pipeline according to the overlay manager z-order configuration.
+The output of each OVR is connected to the Color Phase Rotation (CPR) unit through a gamma table of the
+corresponding video port.
+dispc-104
+Overlay
+Manager 1
+Video Port 1
+Output
+Processing
+Video
+Pipeline
+Overlay
+Manager 2
+Video Port 2
+Output
+Processing
+Video Lite
+Pipeline
+Input
+Selector
+Input
+Selector
+Figure 12-507. DISPC Overlay Manager and Input Selector
+=== Page 1984 ===
+Note
+The DISPC overlay managers, OVR1 and OVR2, will be commonly referred to as overlay manager
+(OVR) in the following sections.
+12.9.1.4.1.9.1 DISPC Overlay Input Selector
+The overlay input selector before the overlay manager is a n-input to n-output crossbar switch. As such, any
+input can be connected to any output in the selector. The selection is based on the z-order layer selection in the
+overlay configuration through the following register fields:
+•
+DSS0_OVR_ATTRIBUTES_0[4-1] CHANNELIN field for layer 0, z-order 0
+•
+DSS0_OVR_ATTRIBUTES_1[4-1] CHANNELIN field for layer 1, z-order 1
+The z-order determines the order in which the selected layers are blended together to generate the final output
+by the overlay manager:
+•
+The lowest enabled order input is the bottom-most layer, just above the background color
+•
+The highest enabled order input is the top-most layer
+The OVR input selector also passes the following attributes from the selected input pipeline to the corresponding
+selector output port:
+•
+Source pipeline size attributes:
+•
+Number of pixels per line (from DSS0_VID_SIZE [11-0] SIZEX register field)
+•
+Number of lines (from DSS0_VID_SIZE [27-16] SIZEY register field)
+•
+Source pipeline global blending level (from DSS0_VID_GLOBAL_ALPHA register)
+Then, the overlay manager uses the above listed attributes as input layer attributes along with POSX and POSY
+overlay manager configuration parameters. POSX and POSY can be configured as follows:
+•
+For layer 0, z-order 0, in DSS0_OVR_ATTRIBUTES_0[17-6] POSX and [30-19] POSY register fields
+•
+For layer 1, z-order 1, in DSS0_OVR_ATTRIBUTES_1[17-6] POSX and [30-19] POSY register fields
+Note
+The output of an input pipeline can be mapped to more than one overlay manager simultaneously, if
+and only if the following conditions are true:
+•
+All video port timing generators controlling the overlay managers are identically programmed
+(same frame width/height with same blanking parameters running at same frame rate) and clocked
+by the same pixel clock source, and ...
+•
+The pipeline output is positioned on each display output at the same frame position.
+The software is responsible for managing the pipeline assignment and setting up the video port timing
+generators properly in order to avoid any resource conflicts that may cause the DSS to lock up (sync
+loss).
+12.9.1.4.1.9.2 DISPC Overlay Mechanism
+The overlay mechanism consists of displaying more than one layer (VID and/or VIDL1 pipeline layers) using:
+•
+A priority rule based on the display Z-order (selected by configuring the overlay input selector, as described in
+Section 12.9.1.4.1.9.1)
+•
+Transparency color keys configuration (destination and source transparency)
+•
+Alpha blending values (using the alpha component of each pixel or a global alpha value set by the user)
+•
+Size and position attributes of the source window data, as described in Section 12.9.1.4.1.9.1
+The overlay manager is configured using the Z-order parameter. The Z-order value defined for each pipeline
+indicates the visibility order to the window on the screen. If the Z-order value of window A is lower than the
+Z-order to layer B, then layer A is displayed below layer B. The transparency color keys and the alpha blending
+factors are then used to blend the layers together (see Section 12.9.1.4.1.9.2.1, Overlay Alpha Blender, and
+Section 12.9.1.4.1.9.2.2, Overlay Transparency Color Keys).
+=== Page 1985 ===
+Figure 12-508 gives an example of how input pipeline frame outputs are merged together to generate the final
+display output.
+Figure 12-508. DISPC Overlay Example and Display Attributes
+As shown in Figure 12-508, each input pipeline generates one rectangular sub-frame output in ARGB48
+format. The overlay is responsible for positioning the sub-frame in the display output frame (specified by
+DSS0_VP_SIZE_SCREEN[11-0] PPL and [27-16] LPP video port register fields), using the overlay window
+position parameters (specified by DISPC_OVR_ATTRIBUTES_0/DISPC_OVR_ATTRIBUTES_1 [17-6] POSX
+and [30-19] POSY overlay register fields), and the window size parameters (specified by DSS0_VID_SIZE[11-0]
+SIZEX and [27-16] SIZEY pipeline register fields). When the overlay manager does not require the input pipeline
+data (either because it is currently outputting the background color pixel or it is being stalled by the VP output
+module), the overlay manager stalls the input pipeline.
+When there are no video-encoded pixels at a specific position, the programmable solid background
+color appears. The solid background color is set in the DSS0_OVR_DEFAULT_COLOR and
+DSS0_OVR_DEFAULT_COLOR2 registers.
+The entire pixels of the video window have to be inside the display screen. Depending on the width of the buffer
+to be displayed in the video layer and the position, the width must be adjusted by software to limit the right edge
+of the window inside the display screen. The same is also true for the video layer height in the input pipe line
+configuration.
+=== Page 1986 ===
+12.9.1.4.1.9.2.1 Overlay Alpha Blender
+The alpha blending value is defined by:
+•
+The component value A when using an ARGB or RGBA pixel format (alpha in the source pixel data is
+converted to 8-bit alpha value in the input pipeline logic):
+•
+For ARGB-1555, the alpha blending is defined using a 1-bit value. It is converted into an 8-bit value by
+duplicating the 1-bit value (see Table 12-429).
+•
+For ARGB-4444, the alpha blending is defined using a 4-bit value. It is converted into an 8-bit value by
+duplicating the 4-bit value (see Table 12-429).
+•
+If the pixel format contains no alpha blending value, the pixel alpha value is considered to be 0xFF, and if
+alpha is equal to 0xFF, there is no multiplication.
+•
+For BITMAP or YUV formats, there is no alpha blending factor associated with each pixel value. Only the
+global alpha blending factor associated with the window displaying the BITMAP or YUV format is used.
+•
+The global alpha blending value can be set in the DSS0_VID_GLOBAL_ALPHA register of the input pipeline,
+and is updated in synch with the selected output channel.
+•
+The modulated alpha blending value (that is, a total alpha blending value, when a combination of the pixel
+alpha blending value A and a global alpha blending are present) is determined as: Alpha = (Pixel Alpha ×
+Global Alpha) / 256.
+Table 12-429 shows the remapping and the percentage of alpha blending achieved.
+Table 12-429. DISPC Overlay Alpha Blending ± ARGB
+Alpha Blending 1-Bit Value
+(ARGB16-1555)
+Alpha Blending 4-Bit Value
+(ARGB16-4444)
+Alpha Blending 8-Bit Value
+(Converted Value)
+% Blending
+0x0
+0x0
+0x00
+100% (transparent)
+N/A
+0x1
+0x11
+93.33%
+N/A
+0x2
+0x22
+86.6%
+N/A
+...
+...
+...
+N/A
+0xE
+0xEE
+6.6%
+0x1
+0xF
+0xFF
+0% (opaque)
+Premultiplied Alpha
+The image ARGB may have its RGB component already premultiplied with the alpha (AR'G'B') where:
+•
+R' = A*R
+•
+G' = A*G
+•
+B' = A*B
+In that case, the processing is as follows:
+•
+Color components of premultiplied layers are multiplied with the global alpha, if global alpha is not equal to 0.
+•
+Color components of the composed underlying layer are multiplied with (1 - A*global alpha).
+The additional premultiplied alpha option is accessible through the DSS0_VID_ATTRIBUTES [28]
+PREMULTIPLYALPHA register bit of the input pipeline. The following settings are available:
+•
+PREMULTIPLYALPHA bit = 0: Source is not premultiplied with alpha. Full blending is done in the overlay
+manager.
+•
+PREMULTIPLYALPHA bit = 1: Source is premultiplied with alpha. Partial blending is done.
+Note
+There is no alpha blending between the background and the next layer (layer-0) above it.
+Layer-0 cannot be pre-multiplied, if the overlay output is driving the display, since that layer (or the
+background color) defines the bottom most layer. In this case, layer-0 alpha is 1 always.
+=== Page 1987 ===
+12.9.1.4.1.9.2.2 Overlay Transparency Color Keys
+The overlay manager supports two color transparency modes - source and destination. These modes cannot be
+active at the same time.
+The source transparency is tied to the top most layer, so the layer to have this transparency applied to has
+to be mapped to the highest z-ordered input (layer-1) of the overlay manager. The destination transparency is
+tied to the bottom most layer, so the layer to have this transparency applied to has to be mapped to the lowest
+z-ordered input (layer-0) of the overlay manager.
+The source and destination transparencies are defined as following:
+•
+Source color transparency: Top layer pixel that meets the source transparency color check is made
+transparent.
+•
+Destination color transparency: Top layer pixel is made transparent, only if the bottom layer pixel does not
+meet the destination transparency color check.
+The transparency color key is enabled via the DSS0_OVR_CONFIG[10] TCKLCDENABLE register bit.
+The minimum transparency color values are specified in the TRANSCOLORKEY field of the
+DSS0_OVR_TRANS_COLOR_MIN and DSS0_OVR_TRANS_COLOR_MIN2 registers.
+The maximum transparency color values are specified in the TRANSCOLORKEY field of the
+DSS0_OVR_TRANS_COLOR_MAX and DSS0_OVR_TRANS_COLOR_MAX2 registers.
+The transparency color key values defined in the registers are compared with the pixel values. If each color
+component (R, G, and B) is in the range defined by MIN and MAX, then there is a match. If at least one of the
+color component is not in the range, then there is no match.
+•
+Source transparency color key
+The values of the source transparency color key define the range of encoded pixel data considered as a
+transparent pixel. The encoded pixel values with the source color key value inside the valid range are not
+visible, and the encoded pixel values of the under layers or solid background color are visible.
+The source transparency color key can be used with YUV and RGB formats (ARGB, RGB, RGBA, xRGB,
+and RGBx). In that case the A information is ignored for the comparison between the pixel value and the
+color key value. It is possible to use YUV formats with some care, since the comparison is between the input
+pixel value of the overlay manager from pipeline and the color key value. The YUV data is converted to RGB
+format. The user must consider the color space conversion processing in order to define the RGB color key
+value used for the comparison, in case the original format is YUV.
+The scaler can be enabled as a preprocessor in the video pipelines. The pixel scaling processing can be
+considered in order to define the color key value to be used after the rescaling for the comparison between
+the input pixel value to the overlay manager and the color key value.
+The source transparency color key mode is selected by setting the DSS0_OVR_CONFIG[11]
+TCKLCDSELECTION register bit to 0x1.
+Figure 12-509 shows an example of source transparency color key usage. The pixels with the transparency
+color key are not displayed. Instead, pixels of the resulting layer underneath are shown.
+=== Page 1988 ===
+Transparency color key
+Top layer
+Result of layers below the top layer
+dispc-021
+Source color key
+applied blending result
+Figure 12-509. DISPC Overlay Source Transparency Color Key Example
+•
+Destination transparency color key
+The destination transparency color key values define the range of the encoded pixels in layer-0 (bottom
+layer), which are not going to be displayed. That is, the encoded pixel values matching the destination color
+key value range are pixels not visible on the screen. Pixels at the same position in the layers above layer-0
+are visible. The destination transparency color key is applicable in the layer in the background only when
+there is an overlap between the layer in background position and the layer just above it, otherwise, the
+destination transparency color key is ignored. See Section 12.9.1.4.1.9.2, DISPC Overlay Mechanism, for
+details on layer position depending on the Z-order parameter.
+The destination transparency color key can be used only with RGB formats (ARGB, RGB, xRGB, RGBA, and
+RGBx). In that case the A information is ignored for the comparison between the pixel value and the color key
+value. It is possible to use YUV formats with some care since the comparison is between the input pixel value
+of the overlay manager from pipeline and the color key value. The YUV data is converted to RGB format. The
+user must consider the color space conversion processing in order to define the RGB color key value used
+for the comparison in case the original format is YUV.
+The scaler can be enabled as a preprocessor in the pipelines. The pixel scaling processing must be
+considered in order to define the color key value to be used after rescaling for the comparison between
+the input pixel value to the overlay manager and the color key value.
+The source transparency color key mode is selected by setting the DSS0_OVR_CONFIG[11]
+TCKLCDSELECTION register bit to 0x0.
+Figure 12-510 shows an example of the destination color key usage. The pixels from layer-0 (bottom layer)
+equal to the transparency color key are not displayed and are replaced by the pixels from layer-1 (top layer).
+All other layer-0 pixels, different from the transparency color key, are displayed over layer-1.
+=== Page 1989 ===
+Result of layers below the top layer
+Top layer
+Transparency color key
+dispc-022
+Destination color key
+applied blending result
+Figure 12-510. DISPC Overlay Destination Transparency Color Key Example
+12.9.1.4.1.9.3 Overlay 3D Support
+In order to support S3D (Stereoscopic 3D) by combining in hardware left and right frames into the same output
+frame, the following configurations (defined by HDMI 1.4b standard specification) can be used:
+•
+Separate pipeline mode: Left/Right or Top/Bottom. One layer is used for left/top and another layer is used for
+right/bottom.
+12.9.1.4.1.9.4 Overlay Color Bar Insertion
+Each overlay manager supports a simple internal color bar insertion in each display output path to enable testing
+of display output interface without using the frame buffer data from the memory.
+The colors are: White, Yellow, Cyan, Green, Magenta, Red, Blue, Black, as shown in below. These make three
+primary colors, three secondary colors, white, and black.
+dispc-105
+Figure 12-511. DISPC Overlay Internal Color Bar
+When the DSS0_OVR_CONFIG[1] COLORBAREN register bit is set to 1, the overlay output data is replaced by
+the predefined ARGB48 color bar data.
+When color bar mode is used, the color space conversion matrix should be appropriately programmed, so that it
+can convert the full-range RGB to the desired color format.
+=== Page 1990 ===
+Table 12-430. DISPC Overlay Color Bar Table
+Color
+G
+B
+R
+White
+0xFFF
+0xFFF
+0xFFF
+Yellow
+0xFFF
+0
+0xFFF
+Cyan
+0xFFF
+0xFFF
+0
+Green
+0xFFF
+0
+0
+Magenta
+0
+0xFFF
+0xFFF
+Red
+0
+0
+0xFFF
+Blue
+0
+0xFFF
+0
+Black
+0
+0
+0
+12.9.1.4.1.10 DISPC Video Port Outputs
+DISPC implements two identical Video Port (VP) outputs:
+•
+VP1 processes data received from Overlay Manager 1 (OVR1)
+•
+VP2 processes data received from Overlay Manager 2 (OVR2)
+A VP output path consists of several processing blocks (see Figure 12-512):
+•
+Gamma correction unit
+•
+Color phase rotation (CPR) unit, also used for RGB to YUV color space conversion (CSC)
+•
+Active matrix dithering with TDM (multiple cycle output format)
+•
+BT.656/BT.1120
+•
+Timing generator
+•
+Async buffer
+Gamma
+LUT
+Gamma
+Overlay
+Manager
+(OVR)
+Video Port (VP) Output
+Shadow
+registers
+CPR / CSC
+(RGB to YUV)
+Gamma
+Gamma
+Timing
+generator
+dispc-028
+Active
+matrix
+dithering
+TDM
+Sync
+buffer
+DATA[23:0]
+VSYNC
+HSYNC
+DE
+BT.656 /
+BT.1120
+PCLK
+RGB
+YUV
+Figure 12-512. DISPC VP Output Architecture
+The CSC processing can be configured to occur either before or after the gamma correction in the VP
+output module via the DSS0_VP_CONFIG[26] COLORCONVPOS register bit. For RGB to YUV color space
+conversion, the conversion must be done after the gamma correction. For other RGB output applications, the
+conversion must be done before the final gamma correction.
+Note
+The DISPC video port (VP) outputs, VP1 and VP2, will be commonly referred to as video port (VP) in
+the following sections.
+=== Page 1991 ===
+12.9.1.4.1.10.1 DISPC VP Gamma Correction Unit
+The VP supports a look up table to perform the gamma correction on the display output. The look up table
+consists of 3 separate 256x8-bit memories, which are indexed by R/G/B component data.
+When performing gamma correction, the selected encoded pixel values from the video pipeline path are sent
+by the overlay manager to the gamma curve table. Each R/G/B component of the encoded pixel value is used
+as a pointer to index 1 out of 256 x 24-bit gamma curve entries in the table. Each 8-bit component is replaced
+with the 8-bit table value corresponding to R, G, or B component. The table is loaded by software via the
+DSS0_VP_GAMMA_TABLE_0 through DSS0_VP_GAMMA_TABLE_15 registers. It is possible to load only part
+of the table. For each access to the table, the 24-bit value is associated with index in the table by concatenating
+the 24-bit value (LSB of 32-bit access) and the 8-bit index value (MSB of the 32-bit access).
+The sequence to load the gamma table is:
+1.
+SW writes (only writes are supported) 32-bit gamma correction values using single access, or burst access
+in linear increment burst mode, into the 64-byte region starting at DSS0_VP_GAMMA_TABLE_0 register
+address. The LSB 24 bits [23:0] are used for the value, and the MSB 8 bits [31:24] are used for the index
+into the table.
+2.
+Loop to step #1, if there is a new access to the gamma table register. The software can access other
+registers between two accesses to the gamma table register.
+Software needs to ensure that there is no visible effect when modifying the table, since it is not under hardware
+control.
+The usage of the gamma table is activated by setting DSS0_VP_CONFIG[2] GAMMAENABLE register bit.
+Figure 12-513 describes the format of one of the gamma curve values in the memory.
+31 30 29 28 27 26 25 24
+23 22 21 20 19 18 17 16 15 14 13 12 11 10
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Gamma-B
+Index
+Gamma-R
+Gamma-G
+dispc-027
+Figure 12-513. DISPC VP Output Gamma Table Write Data Format
+12.9.1.4.1.10.2 DISPC VP Color Phase Rotation Unit
+If required, a color phase rotation (CPR) processing can be applied on the "gamma" data before the spatial/
+temporal dithering.
+The CPR can be selected to correct the non-pure white backlight of the display panel by using a programmable
+matrix to convert the 36-bit RGB pixel value into a new 36-bit RGB pixel value. The matrix is programmed
+through a set of nine 11-bit signed coefficients. The output of the calculation is clipped to [0:4095]. The CPR is
+enabled by setting the DSS0_VP_CONFIG[15] CPR bit to 0x1.
+The CPR processing is expressed by the equation shown in Figure 12-514. Table 12-431 lists all coefficients
+with their respective register bitfields for settings.
+Rr
+Rb
+Br
+Bb
+Rg
+Bg
+Gg
+Gr
+Gb
+=
+Rout
+Gout
+Bout
+Rin
+Gin
+Bin
+dispc-023
+1
+256
+Figure 12-514. DISPC VP CPR Matrix
+Table 12-431. DISPC VP CPR and CSC Coefficients with Associated Register Fields
+Register Field
+Color Phase Rotation
+Color Space Conversion
+RGB to YUV
+DSS0_VID_CSC_COEF0[10-0] C00
+RR
+YR
+=== Page 1992 ===
+Table 12-431. DISPC VP CPR and CSC Coefficients with Associated Register Fields (continued)
+Register Field
+Color Phase Rotation
+Color Space Conversion
+RGB to YUV
+DSS0_VID_CSC_COEF0[26-16] C01
+RG
+YG
+DSS0_VID_CSC_COEF1[10-0] C02
+RB
+YB
+DSS0_VID_CSC_COEF1[26-16] C10
+GR
+CrR
+DSS0_VID_CSC_COEF2[10-0] C11
+GG
+CrG
+DSS0_VID_CSC_COEF2[26-16] C12
+GB
+CrB
+DSS0_VID_CSC_COEF3[10-0] C20
+BR
+CbR
+DSS0_VID_CSC_COEF3[26-16] C21
+BG
+CbG
+DSS0_VID_CSC_COEF4[10-0] C22
+BB
+CbB
+DSS0_VID_CSC_COEF6[31-19]
+POSTOFFSET1
+-
+R offset
+DSS0_VID_CSC_COEF7[15-3]
+POSTOFFSET2
+-
+G offset
+DSS0_VID_CSC_COEF7[31-19]
+POSTOFFSET3
+-
+B offset
+12.9.1.4.1.10.3 DISPC VP Color Space Conversion - RGB to YUV
+The RGB to YUV color space conversion (CSC) in the video port is done by using the same programable logic
+used for CPR. If CPR is also required, then the process can be combined with the CSC processing by adjusting
+matrix coefficients. Table 12-431 lists the associated coefficients with their respective register bit-fields. The CSC
+processing is enabled by setting the DSS0_VP_CONFIG[24] COLORCONVENABLE register bit.
+The color space conversion can be selected in order to convert from 36-bit RGB to YUV444. The conversion
+matrix is programmed through a set of nine 11-bit signed coefficients. The result is clipped to [256:3760] for
+the luminance and [256:3840] for the chrominance, when a full-range YUV output is not desired (equivalent to
+clipping to [16..235] and [16..240] in 8-bit video). It his case the DSS0_VP_CONFIG[25] FULLRANGE register
+bit must be set to 0x0.
+256
+2048
+2048
+dispc-098
+YOUT
+CbOUT
+CrOUT
+1
+256
+YR
+CbR
+CrR
+YG
+CbG
+CrG
+YB
+CbB
+CrB
+=
+RIN
+GIN
+BIN
++
+Figure 12-515. DISPC VP CSC RGB to YUV Matrix (FULLRANGE=0)
+If the programmed active range for the luminance samples (Y) and chrominance samples (Cb and Cr) is
+[0:4095], then the values Y, Cb, and Cr are clipped to the range [0:4095]. The following equation gives the
+11-bit coefficients of the RGB to YUV color space conversion, for full-range (when DSS0_VP_CONFIG[25]
+FULLRANGE = 0x1).
+0
+2048
+2048
+dispc-099
+YOUT
+CbOUT
+CrOUT
+1
+256
+YR
+CbR
+CrR
+YG
+CbG
+CrG
+YB
+CbB
+CrB
+=
+RIN
+GIN
+BIN
++
+Figure 12-516. DISPC VP CSC RGB to YUV Matrix (FULLRANGE=1)
+In order to provide YUV422 data to the BT.656 or BT.1120 blocks, the YUV444 format is further converted
+to YUV422 by sub-sampling the chrominance values. The hardware does this by averaging two-by-two the
+=== Page 1993 ===
+chrominance samples. The conversion from YUV444 to YUV422 is performed when the color space conversion
+in the VP is enabled.
+12.9.1.4.1.10.4 DISPC VP BT.656 and BT.1120 Modes
+Each VP output can be configured in BT.656 or BT.1120 mode. The following standards are not supported in
+BT.656 mode:
+•
+BT.470 (Support for conventional Analog TV Systems)
+•
+BT.803 (The avoidance of interference generated by digital television studio equipment)
+•
+BT.1364 (Format of ancillary data signals carried in digital component studio interfaces)
+Unsupported formats when BT.1120 mode is used:
+•
+BT.1364 (Support for Ancillary Data during blanking period)
+BT.656/BT.1120 modes use embedded EAV/SAV syncs.
+Enabling BT.656 or BT.1120 format for a VP output is done by setting DSS0_VP_CONFIG[20] BT656ENABLE or
+[21] BT1120ENABLE register bit, respectively
+Note
+It is not possible to enable BT.656 and BT.1120 mode simultaneously on the same output.
+Figure 12-517 shows signal mapping on video port DATA[23:0] output data bus. Bits 9 to 0 are dedicated for
+BT.656 mode (10-bit). In BT.656 mode however, for compatibility with existing 8-bit interfaces, the two LSBs are
+ignored and only bits [9-2] are effectively used.
+2
+3
+0
+1
+6
+7
+4
+5
+10
+11
+8
+9
+14
+15
+12
+13
+18
+19
+16
+17
+22
+23
+20
+21
+Unused
+BT.656
+Figure 12-517. DISPC VP Data Mapping for BT.656 Mode
+Figure 12-518 shows signal mapping on video port DATA[23:0] output data bus for BT.1120 mode. Bits [19-10]
+(CbCr) and [9-0] (Y) are used in 20-bit mode. Bits [19-12] (CbCr) and [9-2] (Y) are used in 16-bit mode
+(YCbCr422).
+2
+3
+0
+1
+6
+7
+4
+5
+10
+11
+8
+9
+14
+15
+12
+13
+18
+19
+16
+17
+22
+23
+20
+21
+Unused
+BT.1120 (CbCr, 20-bit mode)
+dispc-049x
+BT.1120 (CbCr, 16-bit mode)
+BT.1120 (Y, 16-bit mode)
+BT.1120 (Y, 20-bit mode)
+Figure 12-518. DISPC VP Data Mapping for BT.1120 Mode
+VP outputs support both interlace and progressive content in BT.656/BT.1120 modes. For more information on
+timings configuration, see Section 12.9.1.4.1.10.7, DISPC VP Timing Generator and Display Panel Settings.
+Note
+In progressive BT.656/BT.1120 mode the maximum output resolution will be limited, as it requires two
+pixel clock cycles to send out one pixel.
+12.9.1.4.1.10.4.1 DISPC BT Mode Blanking
+During the transmission of the video signal, the portion of the stream in-between active video data segments is
+known as the horizontal blanking interval.
+Strictly speaking this entire region is the blanking interval, but this interval also includes the EAV and SAV
+codes. The remaining bytes of information in a digital blanking interval are filled with values corresponding to the
+=== Page 1994 ===
+blanking levels of the Cb, Y and Cr signals respectively, and in accordance with the standard multiplex sequence
+for the stream (CbYCrY..). The blanking levels are as follows:
+•
+Cb = 80h
+•
+Y = 10h
+•
+Cr = 80h.
+The sequence in the BLANKING region of the data stream is therefore: 80h, 10h, 80h, 10h.....80h, 10h
+For more details on setting the blanking timing values for BT.1120 and/or BT.656 mode, see Section
+12.9.1.4.1.10.7, DISPC VP Timing Generator and Display Panel Settings.
+12.9.1.4.1.10.4.2 DISPC BT Mode EAV and SAV
+The End of Active Video (EAV) and Start of Active Video (SAV) parts of the stream are timing codes. Their
+function can be summarized as follows:
+•
+EAV ± marks the end of the active video data within the current line and therefore also the start of the
+subsequent line.
+•
+SAV ± heralds the start of the active video data within the current line.
+These codes are embedded within the BT.656 video data stream, thereby eliminating the need for additional
+timing signals (HSYNC, VSYNC) to be included as part of the interface.
+Both EAV and SAV codes are comprised of a sequence of four bytes ( FFh ± 00h ± 00h - XY). The first three
+bytes in the sequence constitute a fixed preamble. The fourth byte, contains information about the field being
+transmitted (Field 1 or Field 2 in an interlaced video signal), the state of field blanking (Vertical) and the state
+of line blanking (Horizontal). The bit assignment for this byte of the code is shown in Figure 12-519, with the
+function of each bit described inTable 12-432.
+P3
+P2
+P1
+P0
+1
+F
+V
+H
+LSB
+MSB
+Figure 12-519. DISPC BT Mode Bit-Assignment for the Fourth Byte of EAV/SAV Codes
+Table 12-432. DISPC BT Mode Bit Function
+Bit
+Symbol
+Function
+7
+1
+Always set to '1'.
+6
+F
+Field bit.
+0 ± Field 1
+1 ± Field 2
+5
+V
+Vertical Blanking Status bit. This bit goes High during a vertical field
+blanking interval, otherwise it remains Low.
+4
+H
+Horizontal Blanking Status bit.
+0 ± byte is part of SAV code (i.e. stream is entering an active video data
+region for the current line)
+1 ± byte is part of EAV code (i.e. stream has entered a horizontal
+blanking interval - start of a new line)
+3
+P3
+Protection bit 3
+2
+P2
+Protection bit 2
+1
+P1
+Protection bit 1
+0
+P0
+Protection bit 0
+The protection bits allow for detection and correction of 1-bit errors and the detection of 2-bit errors. The status
+of P3, P2, P1 and P0 depend on the states of bits F, V, and H. This dependency is shown in Table 12-433.
+Table 12-433. DISPC BT Mode Status of Protection Bits in Function of F, V, and H
+F
+V
+H
+P3
+P2
+P1
+P0
+0
+0
+0
+0
+0
+0
+0
+=== Page 1995 ===
+Table 12-433. DISPC BT Mode Status of Protection Bits in Function of F, V, and H (continued)
+F
+V
+H
+P3
+P2
+P1
+P0
+0
+0
+1
+1
+1
+0
+1
+0
+1
+0
+1
+0
+1
+1
+0
+1
+1
+0
+1
+1
+0
+1
+0
+0
+0
+1
+1
+1
+1
+0
+1
+1
+0
+1
+0
+1
+1
+0
+1
+1
+0
+0
+1
+1
+1
+0
+0
+0
+1
+12.9.1.4.1.10.5 DISPC VP Spatial/Temporal Dithering
+The active spatial/temporal dithering logic can be enabled to minimize the color banding when displaying
+the data on an LCD panel with color depth lower than 24-bit. The dithering logic is integrated after the color/
+gamma conversion blocks and before the TDM (Time Division Multiplexed) block. The spatial/temporal dithering
+algorithm is based on the (x,y) pixel position and frame rate control (the value of removed bits and the frame
+number). The dithering logic can process the pixels over one frame, two frames, or four frames. The number
+of frames is selected by setting the DSS0_VP_CONTROL[31-30] SPATIALTEMPORALDITHERINGFRAMES
+register field. In the case of a single frame, only spatial processing is applied. In case of multiple frames,
+both spatial and temporal processing are applied to the pixels. The number of frame is initialized before
+enabling the spatial/temporal dithering logic. It must be never changed by the software while the spatial/
+temporal logic is enabled. The spatial/temporal dithering logic is enabled by setting the DSS0_VP_CONTROL[7]
+STDITHERENABLE bit to 0x1.
+Note
+•
+If the interface data bus is smaller than the pixel format size and spatial/temporal dithering is not
+enabled, the MSBs of the pixel color components are output on the interface data bus.
+•
+If the interface data bus is larger than the pixel format size, then by programming the pixel
+components replication active/inactive the MSB is replicated to the LSB of the interface data bus.
+12.9.1.4.1.10.6 DISPC VP Multiple Cycle Output Format (TDM)
+The pixels (only RGB components) after the active matrix dithering unit are formatted on one or multiple cycles
+(from 1 to 3 cycles). On three cycles, two pixels can concatenate and send to the panel. The cycle format is
+selected through the DSS0_VP_CONTROL[24-23] TDMCYCLEFORMAT bit field. The number of bits for each
+cycle is set in the DSS0_VP_DATA_CYCLE_0 register for the first cycle, the DSS0_VP_DATA_CYCLE1 register
+for the second cycle, and the DSS0_VP_DATA_CYCLE2 register for the third cycle. The output interface data
+bus width, when TDM mode is enabled (DSS0_VP_CONTROL[20] TDMENABLE register bit = 1), can be 8, 9,
+12, or 16 bits, configurable through the DSS0_VP_CONTROL[22-21] TDMPARALLELMODE register field.
+When the TDM is disabled (DSS0_VP_CONTROL[20] TDMENABLE = 0), the video port output interface data
+bus width is configured through the DSS0_VP_CONTROL[10-8] DATALINES register field.
+When using TDM mode, only up to 24 bits per pixel can be output on the interface. For higher color depth, only
+the upper bits are kept before converting each pixel into TDM output.
+Figure 12-520 through Figure 12-523 show various examples of TDM settings in the function of pixel data
+formats and the interface data bus width.
+=== Page 1996 ===
+24-bpp
+1st cycle
+2nd cycle
+3rd cycle
+Data[7]
+R0[7]
+G0[7]
+B0[7]
+Data[6]
+R0[6]
+G0[6]
+B0[6]
+Data[5]
+R0[5]
+G0[5]
+B0[5]
+Data[4]
+R0[4]
+G0[4]
+B0[4]
+Data[3]
+R0[3]
+G0[3]
+B0[3]
+Data[2]
+R0[2]
+G0[2]
+B0[2]
+Data[1]
+R0[1]
+G0[1]
+B0[1]
+Data[0]
+R0[0]
+G0[0]
+B0[0]
+CONTROL[24-23] TDMCYCLEFORMAT = 0x2
+DATA_CYCLE0 = 0x00000008
+DATA_CYCLE1 = 0x00000008
+DATA_CYCLE2 = 0x00000008
+18-bpp
+1st cycle
+2nd cycle
+3rd cycle
+Data[7]
+R0[5]
+G0[3]
+x
+Data[6]
+R0[4]
+G0[2]
+x
+Data[5]
+R0[3]
+G0[1]
+x
+Data[4]
+R0[2]
+G0[0]
+x
+Data[3]
+R0[1]
+B0[5]
+x
+Data[2]
+R0[0]
+B0[4]
+x
+Data[1]
+G0[5]
+B0[3]
+B0[1]
+Data[0]
+G0[4]
+B0[2]
+B0[0]
+16-bpp
+1st cycle
+2nd cycle
+Data[7]
+R0[4]
+G0[2]
+Data[6]
+R0[3]
+G0[1]
+Data[5]
+R0[2]
+G0[0]
+Data[4]
+R0[1]
+B0[4]
+Data[3]
+R0[0]
+B0[3]
+Data[2]
+G0[5]
+B0[2]
+Data[1]
+G0[4]
+B0[1]
+Data[0]
+G0[3]
+B0[0]
+12-bpp
+1st cycle
+2nd cycle
+Data[7]
+R0[3]
+x
+Data[6]
+R0[2]
+x
+Data[5]
+R0[1]
+x
+Data[4]
+R0[0]
+x
+Data[3]
+G0[3]
+B0[3]
+Data[2]
+G0[2]
+B0[2]
+Data[1]
+G0[1]
+B0[1]
+Data[0]
+G0[0]
+B0[0]
+CONTROL[24-23] TDMCYCLEFORMAT = 0x2
+DATA_CYCLE0 = 0x00000008
+DATA_CYCLE1 = 0x00000008
+DATA_CYCLE2 = 0x00000002
+CONTROL[24-23] TDMCYCLEFORMAT = 0x1
+DATA_CYCLE0 = 0x00000008
+DATA_CYCLE1 = 0x00000008
+CONTROL[24-23] TDMCYCLEFORMAT = 0x1
+DATA_CYCLE0 = 0x00000008
+DATA_CYCLE1 = 0x00000004
+dispc-057
+Figure 12-520. DISPC VP TDM 8-Bit Interface Settings
+=== Page 1997 ===
+24-bpp
+1st cycle
+2nd cycle
+3rd cycle
+Data[8]
+R0[7]
+G0[6]
+x
+Data[7]
+R0[6]
+G0[5]
+x
+Data[6]
+R0[5]
+G0[4]
+x
+Data[5]
+R0[4]
+G0[3]
+B0[5]
+Data[4]
+R0[3]
+G0[2]
+B0[4]
+Data[3]
+R0[2]
+G0[1]
+B0[3]
+Data[2]
+R0[1]
+G0[0]
+B0[2]
+Data[1]
+R0[0]
+B0[7]
+B0[1]
+Data[0]
+G0[7]
+B0[6]
+B0[0]
+1st cycle
+2nd cycle
+Data[8]
+R0[5]
+G0[2]
+Data[7]
+R0[4]
+G0[1]
+Data[6]
+R0[3]
+G0[0]
+Data[5]
+R0[2]
+B0[5]
+Data[4]
+R0[1]
+B0[4]
+Data[3]
+R0[0]
+B0[3]
+Data[2]
+G0[5]
+B0[2]
+Data[1]
+G0[4]
+B0[1]
+Data[0]
+G0[3]
+B0[0]
+1st cycle
+2nd cycle
+Data[8]
+R0[4]
+x
+Data[7]
+R0[3]
+x
+Data[6]
+R0[2]
+G0[1]
+Data[5]
+R0[1]
+G0[0]
+Data[4]
+R0[0]
+B0[4]
+Data[3]
+G0[5]
+B0[3]
+Data[2]
+G0[4]
+B0[2]
+Data[1]
+G0[3]
+B0[1]
+Data[0]
+G0[2]
+B0[0]
+1st cycle
+2nd cycle
+R0[3]
+x
+R0[2]
+x
+R0[1]
+x
+R0[0]
+x
+G0[3]
+x
+G0[2]
+x
+G0[1]
+B0[2]
+G0[0]
+B0[1]
+B0[3]
+B0[0]
+CONTROL[24-23] TDMCYCLEFORMAT = 0x2
+DATA_CYCLE0 = 0x00000009
+DATA_CYCLE1 = 0x00000009
+DATA_CYCLE2 = 0x00000006
+CONTROL[24-23] TDMCYCLEFORMAT = 0x1
+DATA_CYCLE0 = 0x00000009
+DATA_CYCLE1 = 0x00000009
+CONTROL[24-23] TDMCYCLEFORMAT = 0x1
+DATA_CYCLE0 = 0x00000009
+DATA_CYCLE1 = 0x00000003
+CONTROL[24-23] TDMCYCLEFORMAT = 0x1
+DATA_CYCLE0 = 0x00000009
+DATA_CYCLE1 = 0x00000007
+12-bpp
+18-bpp
+16-bpp
+dispc-058
+Data[8]
+Data[7]
+Data[6]
+Data[5]
+Data[4]
+Data[3]
+Data[2]
+Data[1]
+Data[0]
+Figure 12-521. DISPC VP TDM 9-Bit Interface Settings
+=== Page 1998 ===
+24-bpp
+1st cycle
+2nd cycle
+Data[11]
+R0[7]
+G0[3]
+Data[10]
+R0[6]
+G0[2]
+Data[9]
+R0[5]
+G0[1]
+Data[8]
+R0[4]
+G0[0]
+Data[7]
+R0[3]
+B0[7]
+Data[6]
+R0[2]
+B0[6]
+Data[5]
+R0[1]
+B0[5]
+Data[4]
+R0[0]
+B0[4]
+Data[3]
+G0[7]
+B0[3]
+Data[2]
+G0[6]
+B0[2]
+Data[1]
+G0[5]
+B0[1]
+Data[0]
+G0[4]
+B0[0]
+1st cycle
+2nd cycle
+3rd cycle
+Data[11]
+R0[5]
+B0[5]
+G1[5]
+Data[10]
+R0[4]
+B0[4]
+G1[4]
+Data[9]
+R0[3]
+B0[3]
+G1[3]
+Data[8]
+R0[2]
+B0[2]
+G1[2]
+Data[7]
+R0[1]
+B0[1]
+G1[1]
+Data[6]
+R0[0]
+B0[0]
+G1[0]
+Data[5]
+G0[5]
+R1[5]
+B1[5]
+Data[4]
+G0[4]
+R1[4]
+B1[4]
+Data[3]
+G0[3]
+R1[3]
+B1[3]
+Data[2]
+G0[2]
+R1[2]
+B1[2]
+Data[1]
+G0[1]
+R1[1]
+B1[1]
+Data[0]
+G0[0]
+R1[0]
+B1[0]
+1st cycle
+2nd cycle
+Data[11]
+R0[4]
+x
+Data[10]
+R0[3]
+x
+Data[9]
+R0[2]
+x
+Data[8]
+R0[1]
+x
+Data[7]
+R0[0]
+x
+Data[6]
+G0[5]
+x
+Data[5]
+G0[4]
+x
+Data[4]
+G0[3]
+x
+Data[3]
+G0[2]
+B0[3]
+Data[2]
+G0[1]
+B0[2]
+Data[1]
+G0[0]
+B0[1]
+Data[0]
+B0[4]
+B0[0]
+1st cycle
+Data[11]
+R0[3]
+Data[10]
+R0[2]
+Data[9]
+R0[1]
+Data[8]
+R0[0]
+Data[7]
+G0[3]
+Data[6]
+G0[2]
+Data[5]
+G0[1]
+Data[4]
+G0[0]
+Data[3]
+B0[3]
+Data[2]
+B0[2]
+Data[1]
+B0[1]
+Data[0]
+B0[0]
+16-bpp
+18-bpp
+12-bpp
+CONTROL[24-23] TDMCYCLEFORMAT = 0x1
+DATA_CYCLE0 = 0x0000000C
+DATA_CYCLE1 = 0x00000004
+CONTROL[24-23] TDMCYCLEFORMAT = 0x0
+DATA_CYCLE0 = 0x0000000C
+CONTROL[24-23] TDMCYCLEFORMAT = 0x3
+DATA_CYCLE0 = 0x0000000C
+DATA_CYCLE1 = 0x00060606
+DATA_CYCLE2 = 0x000C0000
+CONTROL[24-23] TDMCYCLEFORMAT = 0x1
+DATA_CYCLE0 = 0x0000000C
+DATA_CYCLE1 = 0x0000000C
+dispc-059
+Figure 12-522. DISPC VP TDM 12-Bit Interface Settings
+=== Page 1999 ===
+24-bpp
+1st cycle
+2nd cycle
+3rd cycle
+Data[15]
+R0[7]
+B0[7]
+G1[7]
+Data[14]
+R0[6]
+B0[6]
+G1[6]
+Data[13]
+R0[5]
+B0[5]
+G1[5]
+Data[12]
+R0[4]
+B0[4]
+G1[4]
+Data[11]
+R0[3]
+B0[3]
+G1[3]
+Data[10]
+R0[2]
+B0[2]
+G1[2]
+Data[9]
+R0[1]
+B0[1]
+G1[1]
+Data[8]
+R0[0]
+B0[0]
+G1[0]
+Data[7]
+G0[7]
+R1[7]
+B1[7]
+Data[6]
+G0[6]
+R1[6]
+B1[6]
+Data[5]
+G0[5]
+R1[5]
+B1[5]
+Data[4]
+G0[4]
+R1[4]
+B1[4]
+Data[3]
+G0[3]
+R1[3]
+B1[3]
+Data[2]
+G0[2]
+R1[2]
+B1[2]
+Data[1]
+G0[1]
+R1[1]
+B1[1]
+Data[0]
+G0[0]
+R1[0]
+B1[0]
+1st cycle
+2nd cycle
+Data[15]
+R0[5]
+x
+Data[14]
+R0[4]
+x
+Data[13]
+R0[3]
+x
+Data[12]
+R0[2]
+x
+Data[11]
+R0[1]
+x
+Data[10]
+R0[0]
+x
+Data[9]
+G0[5]
+x
+Data[8]
+G0[4]
+x
+Data[7]
+G0[3]
+X
+Data[6]
+G0[2]
+x
+Data[5]
+G0[1]
+x
+Data[4]
+G0[0]
+x
+Data[3]
+B0[5]
+x
+Data[2]
+B0[4]
+x
+Data[1]
+B0[3]
+B0[1]
+Data[0]
+B0[2]
+B0[0]
+1st cycle
+Data[15]
+R0[4]
+Data[14]
+R0[3]
+Data[13]
+R0[2]
+Data[12]
+R0[1]
+Data[11]
+R0[0]
+Data[10]
+G0[5]
+Data[9]
+G0[4]
+Data[8]
+G0[3]
+Data[7]
+G0[2]
+Data[6]
+G0[1]
+Data[5]
+G0[0]
+Data[4]
+B0[4]
+Data[3]
+B0[3]
+Data[2]
+B0[2]
+Data[1]
+B0[1]
+Data[0]
+B0[0]
+1st cycle
+Data[15]
+x
+Data[14]
+x
+Data[13]
+x
+Data[12]
+x
+Data[11]
+R0[3]
+Data[10]
+R0[2]
+Data[9]
+R0[1]
+Data[8]
+R0[0]
+Data[7]
+G0[3]
+Data[6]
+G0[2]
+Data[5]
+G0[1]
+Data[4]
+G0[0]
+Data[3]
+B0[3]
+Data[2]
+B0[2]
+Data[1]
+B0[1]
+Data[0]
+B0[0]
+CONTROL[24-23] TDMCYCLEFORMAT = 0x3
+DATA_CYCLE0 = 0x00000010
+DATA_CYCLE1 = 0x00080808
+DATA_CYCLE2 = 0x00100000
+CONTROL[24-23] TDMCYCLEFORMAT = 0x1
+DATA_CYCLE0 = 0x00000010
+DATA_CYCLE1 = 0x00000002
+CONTROL[24-23] TDMCYCLEFORMAT = 0x0
+DATA_CYCLE0 = 0x00000010
+CONTROL[24-23] TDMCYCLEFORMAT = 0x0
+DATA_CYCLE0 = 0x0000000C
+18-bpp
+16-bpp
+12-bpp
+dispc-060
+Figure 12-523. DISPC VP TDM 16-Bit Interface Settings
+12.9.1.4.1.10.7 DISPC VP Timing Generator and Display Panel Settings
+Each video port output has a dedicated timing generator supporting progressive and interlaced mode. It is
+clocked using the pixel clock and is configured to generate the video data and sync signals to match the desired
+video display standard timings.
+Two-level configuration for enabling the video ports exists:
+=== Page 2000 ===
+•
+Via the individual DSS0_VP_CONTROL[0] ENABLE register bit for each VP. It allows each VP to be
+independently controlled by two different hosts.
+•
+Via the common DSS0_COMMON_DISPC_GLOBAL_OUTPUT_ENABLE[2-0] VP_ENABLE register field. It
+allows two or more VP timing generators to be in sync by enabling them simultaneously with a single register
+write.
+Both ENABLE and VP_ENABLE register fields must be set in order for a VP (timing generator) to start.
+Figure 12-524 shows the timing generator display parameters.
+LCD panel
+Active region
+HS
+VS
+(0,0)
+x
+y
+HSW (IHS=0)
+(pixel clock cycle unit)
+VBP
+(line clock cycle unit)
+LPP
+(line unit)
+VFP
+(line clock cycle unit)
+HFP
+(pixel clock cycle unit)
+HBP
+(line clock cycle unit)
+PPL
+(pixel unit)
+VSW (IVS=0)
+(line clock cycle unit)
+dispc-031
+Figure 12-524. DISPC VP Display Timing Parameters
+The width of VP output data bus is configured in the DSS0_VP_CONTROL[10-8] DATALINES register field,
+when TDM feature is disabled. When TDM is enabled, the width of the output data bus is defined according to
+Section 12.9.1.4.1.10.6, DISPC VP Multiple Cycle Output Format (TDM).
+The size of the display panel is defined by:
+•
+Number of lines per frame, DSS0_VP_SIZE_SCREEN[27-16] LPP bit field, with a value from 1 to 4096
+•
+Number of pixels per line, DSS0_VP_SIZE_SCREEN[11-0] PPL bit field, with a value from 1 to 4096
+Standard HSYNC/VSYNC timing generation is programmable as follows:
+•
+Horizontal front porch is set in the DSS0_VP_TIMING_H[19-8] HFP bit field.
+•
+Horizontal back porch is set in the DSS0_VP_TIMING_H[31-20] HBP bit field.
+•
+Horizontal synchronization pulse width is set in the DSS0_VP_TIMING_H[7-0] HSW bit field.
+•
+Vertical front porch is set in the DSS0_VP_TIMING_V[19-8] VFP bit field.
+•
+Vertical back porch is set in the DSS0_VP_TIMING_V[31-20] VBP bit field.
+•
+Vertical synchronization pulse width is set in the DSS0_VP_TIMING_V[7-0] VSW bit field.
+When the output is in BT.1120 or BT.656 mode, the following timing constants are mapped onto the
+DSS0_VP_TIMING_H and DSS0_VP_TIMING_V registers:
+•
+Progressive mode:
+•
+Horizontal blanking (12 bits) is set in the {DSS0_VP_TIMING_V[3-0] VSW, DSS0_VP_TIMING_H[7-0]
+HSW} register fields (up to 2048 bytes of horizontal blanking supported).
+=== Page 2001 ===
+•
+Vertical frame blanking No 1 is set in the DSS0_VP_TIMING_V[19-8] VFP bit field.
+•
+Vertical frame blanking No 2 is set in the DSS0_VP_TIMING_V[31-20] VBP bit field.
+•
+Number of lines per frame is set in the DSS0_VP_SIZE_SCREEN[27-16] LPP bit field.
+•
+Number of pixels per line is set in the DSS0_VP_SIZE_SCREEN[11-0] PPL bit field.
+•
+Interlaced mode:
+•
+Horizontal blanking (12 bits) is set in the {DSS0_VP_TIMING_V[3-0] VSW, DSS0_VP_TIMING_H[7-0]
+HSW} register fields (up to 2048 bytes of horizontal blanking supported).
+•
+Vertical field blanking No.1 for Even Field is set in the DSS0_VP_TIMING_H[19-8] HFP bit field.
+•
+Vertical field blanking No.2 for Even Field is set in the DSS0_VP_TIMING_H[31-20] HBP bit field.
+•
+Vertical field blanking No.1 for Odd Field is set in the DSS0_VP_TIMING_V[19-8] VFP bit field.
+•
+Vertical field blanking No.2 for Odd Field is set in the DSS0_VP_TIMING_V[31-20] VBP bit field.
+•
+Number of lines per field (even) is set in the DSS0_VP_SIZE_SCREEN[27-16] LPP bit field.
+•
+Delta number of odd field compared to even field (in a single line) is set in the
+DSS0_VP_SIZE_SCREEN[15-14] DELTA_LPP bit field. The DELTA_LPP field only controls the output
+channel and not the size of the field fetched from the frame buffer in memory. This field must be set to
+zero for YUV420 format.
+•
+Number of pixels per line is set in the DSS0_VP_SIZE_SCREEN[11-0] PPL bit field.
+Horizontal/vertical synchronization and output enable signals polarity are programmable by setting the
+DSS0_VP_POL_FREQ[12] IVS, [13] IHS, and [15] IEO register bits. These signals can be gated by setting the
+DSS0_VP_CONFIG[7] VSYNCGATED and [6] HSYNCGATED register bits. In addition, the alignment between
+VSYNC and HSYNC signals can be programmed via the DSS0_VP_POL_FREQ[18] ALIGN register bit.
+The latch of data can be driven on the rising or falling edge of the pixel clock by setting the
+DSS0_VP_POL_FREQ[14] IPC register bit. The drive of the SYNC and VSYNC signals in the function of the
+pixel clock is done by setting the DSS0_VP_POL_FREQ[16] RF bit.
+Note
+To set the pixel clock, CTRL_MMR_DPI0_CLK_CTRL[8] DPI0_CLK_CTRL_DATA_CLK_INVDIS
+setting should always be opposite the DSS0_VP_POL_FREQ[14] IPC setting, and
+CTRL_MMR_DPI0_CLK_CTRL[9] DPI0_CLK_CTRL_SYNC_CLK_INVDIS setting should always be
+opposite the DSS0_VP_POL_FREQ[16] RF setting.
+For example, if CTRL_MMR_DPI0_CLK_CTRL[8] DPI0_CLK_CTRL_DATA_CLK_INVDIS is set to 0,
+DSS0_VP_POL_FREQ[14] IPC should be set to 1.
+Each VP output can be configured in progressive output mode or interlaced output mode. The selection is done
+by writing into the bit-field DSS0_VP_CONFIG[22] OUTPUTMODEENABLE register bit. The default setting is
+for progressive mode. The selection can be changed only when the corresponding VP output is disabled. The
+configuration is independent for each VP output. It is possible to change the configuration of one of the VP
+outputs while the other VP is enabled.
+The pixel clock for each VP output can be gated by setting the DSS0_VP_CONFIG[5] PIXELCLOCKGATED
+register bit.
+The hold time of the pixels on the data bus is determined in clock cycles by the DSS0_VP_CONTROL[16-14] HT
+register field.
+12.9.1.4.1.11 DISPC Safety Features
+For safety critical system applications, DSS supports the following safety features in hardware:
+•
+Data correctness check: To verify intended data is shown correctly on the display.
+•
+Freeze frame detection: To notify a possible frame freeze, when there is no change in the display frame over
+multiple frame periods.
+These features are implemented by collecting signatures from user-defined regions within each pipeline output
+frame and the final display output frame, and comparing them to reference signatures provided by the user
+=== Page 2002 ===
+(software) and/or to previously saved signatures. The signature from each region is generated by using a MISR
+(Multiple Input Signature Register) module.
+=== Page 2003 ===
+12.9.1.4.1.11.1 Safety Check Regions
+DSS supports the following safety check regions to implement the safety features:
+•
+Video pipelines: One safety check region at the output of each video pipeline.
+•
+Video port outputs: Up to four sub-regions within the active video output area of the final display output of each video port.
+dss-106
+DISPC
+Overlay
+Manager 1
+Video Port 1
+Output
+Processing
+DMA Engine
+Video
+Pipeline
+Overlay
+Manager 2
+Video Port 2
+Output
+Processing
+Video Lite
+Pipeline
+Input Selectors
+DMA channel 1
+DMA channel 2
+DATA [23:0]
+PCLK/DE/SYNCs
+DATA [23:0]
+PCLK/DE/SYNCs
+Arbitration
+Source pipeline output safety check
+Video port output safety check
+Figure 12-525. DISPC Safety Check Regions
+Table 12-434 lists the parameters supported by each of the safety check regions, together with the associated register control fields.
+Table 12-434. DISPC Safety Check Regions Parameters
+Safety Region
+Parameter
+Video Pipeline
+Control Register
+Video Port
+Sub-region 0
+Control Register
+Video Port
+Sub-region 1
+Control Register
+Video Port
+Sub-region 2
+Control Register
+Video Port
+Sub-region 3
+Control Register
+X position
+DSS0_VID_SAFETY_POSITIO
+N[11-0] POSX
+DSS0_VP_SAFETY_POSITION_
+0[11-0] POSX
+DSS0_VP_SAFETY_POSITION_
+1[11-0] POSX
+DSS0_VP_SAFETY_POSITION_
+2[11-0] POSX
+3[11-0] POSX
+Y position
+DSS0_VID_SAFETY_POSITIO
+N[27-16] POSY
+DSS0_VP_SAFETY_POSITION_
+0[27-16] POSY
+DSS0_VP_SAFETY_POSITION_
+1[27-16] POSY
+DSS0_VP_SAFETY_POSITION_
+2[27-16] POSY
+3[27-16] POSY
+Width
+DSS0_VID_SAFETY_SIZE[11-0]
+SIZEX
+DSS0_VP_SAFETY_SIZE_0[11-
+0] SIZEX
+DSS0_VP_SAFETY_SIZE_1[11-
+0] SIZEX
+DSS0_VP_SAFETY_SIZE_2[11-
+0] SIZEX
+0] SIZEX
+Height
+DSS0_VID_SAFETY_SIZE[27-1
+6] SIZEY
+DSS0_VP_SAFETY_SIZE_0[27-
+16] SIZEY
+DSS0_VP_SAFETY_SIZE_1[27-
+16] SIZEY
+DSS0_VP_SAFETY_SIZE_2[27-
+16] SIZEY
+16] SIZEY
+Data
+Correctness
+Check Mode
+Enable
+DSS0_VID_SAFETY_ATTRIBUT
+ES[1] CAPTUREMODE
+DSS0_VP_SAFETY_ATTRIBUT
+ES_0[1] CAPTUREMODE
+DSS0_VP_SAFETY_ATTRIBUT
+ES_1[1] CAPTUREMODE
+DSS0_VP_SAFETY_ATTRIBUT
+ES_2[1] CAPTUREMODE
+ES_3[1] CAPTUREMODE
+=== Page 2004 ===
+Table 12-434. DISPC Safety Check Regions Parameters (continued)
+Safety Region
+Parameter
+Video Pipeline
+Control Register
+Video Port
+Sub-region 0
+Control Register
+Video Port
+Sub-region 1
+Control Register
+Video Port
+Sub-region 2
+Control Register
+Video Port
+Sub-region 3
+Control Register
+Freeze Frame
+Detection Mode
+Enable
+DSS0_VID_SAFETY_ATTRIBUT
+ES[1] CAPTUREMODE
+DSS0_VP_SAFETY_ATTRIBUT
+ES_0[1] CAPTUREMODE
+DSS0_VP_SAFETY_ATTRIBUT
+ES_1[1] CAPTUREMODE
+DSS0_VP_SAFETY_ATTRIBUT
+ES_2[1] CAPTUREMODE
+ES_3[1] CAPTUREMODE
+Region Safety
+Check Enable
+DSS0_VID_SAFETY_ATTRIBUT
+ES[0] ENABLE
+DSS0_VP_SAFETY_ATTRIBUT
+ES_0[0] ENABLE
+DSS0_VP_SAFETY_ATTRIBUT
+ES_1[0] ENABLE
+DSS0_VP_SAFETY_ATTRIBUT
+ES_2[0] ENABLE
+ES_3[0] ENABLE
+Freeze Frame
+Detection
+Threshold
+DSS0_VID_SAFETY_ATTRIBUT
+ES[10-3] THRESHOLD
+DSS0_VP_SAFETY_ATTRIBUT
+ES_0[10-3] THRESHOLD
+DSS0_VP_SAFETY_ATTRIBUT
+ES_1[10-3] THRESHOLD
+DSS0_VP_SAFETY_ATTRIBUT
+ES_2[10-3] THRESHOLD
+ES_3[10-3] THRESHOLD
+Frames to Skip
+DSS0_VID_SAFETY_ATTRIBUT
+ES[12-11] FRAMESKIP
+DSS0_VP_SAFETY_ATTRIBUT
+ES_0[12-11] FRAMESKIP
+DSS0_VP_SAFETY_ATTRIBUT
+ES_1[12-11] FRAMESKIP
+DSS0_VP_SAFETY_ATTRIBUT
+ES_2[12-11] FRAMESKIP
+ES_3[12-11] FRAMESKIP
+Reference
+Signature
+DSS0_VID_SAFETY_REF_SIGN
+ATURE[31-0] SIGNATURE
+DSS0_VP_SAFETY_REF_SIGN
+ATURE_0[31-0] SIGNATURE
+DSS0_VP_SAFETY_REF_SIGN
+ATURE_1[31-0] SIGNATURE
+DSS0_VP_SAFETY_REF_SIGN
+ATURE_2[31-0] SIGNATURE
+ATURE_3[31-0] SIGNATURE
+MISR Seed
+DSS0_VID_SAFETY_LFSR_SE
+ED[31-0] SEED
+DSS0_VID_SAFETY_LFSR_SE
+ED
+DSS0_VID_SAFETY_LFSR_SE
+ED
+DSS0_VID_SAFETY_LFSR_SE
+ED
+ED
+MISR Seed
+Selection
+DSS0_VID_SAFETY_ATTRIBUT
+ES[2] SEEDSELECT
+DSS0_VP_SAFETY_ATTRIBUT
+ES_0[2] SEEDSELECT
+DSS0_VP_SAFETY_ATTRIBUT
+ES_1[2] SEEDSELECT
+DSS0_VP_SAFETY_ATTRIBUT
+ES_2[2] SEEDSELECT
+ES_3[2] SEEDSELECT
+MISR Captured
+Signature
+DSS0_VID_SAFETY_CAPT_SIG
+NATURE[31-0] SIGNATURE
+DSS0_VP_SAFETY_CAPT_SIG
+NATURE_0[31-0] SIGNATURE
+DSS0_VP_SAFETY_CAPT_SIG
+NATURE_1[31-0] SIGNATURE
+DSS0_VP_SAFETY_CAPT_SIG
+NATURE_2[31-0] SIGNATURE
+Peripherals
+2004
+=== Page 2005 ===
+Figure 12-526 shows examples of one safety region in the video pipeline output stage and up to 4 possible regions in the final video port output stage.
+dss-107
+VFP
+VBP
+LCD panel
+Active region
+PPL
+LPP
+HS
+VS
+(0,0)
+x
+y
+HBP
+HFP
+Up to 4
+Programmable
+Safety Check
+Regions
+Video pipeline
+output frame
+SIZEX
+SIZEY
+(0,0)
+X
+y
+One
+Programmable
+Safety Check
+Region
+Full size
+SubRegion
+Safety region at video pipeline output
+Safety regions at video port output
+Figure 12-526. DISPC Safety Check Region Examples
+The safety region in the video pipeline captures data only if the embedded alpha data is not equal to 0 (that is, non-transparent pixels). The safety
+typically non-overlapping areas of the screen, but the hardware does not restrict them to be non-overlapping.
+Figure 12-527 shows the locations within DISPC data path where the data is analyzed.
+=== Page 2006 ===
+dispc-108
+Overlay
+Manager 1
+Video Port 1
+Output
+Processing
+Video
+Pipeline
+Overlay
+Manager 2
+Video Port 2
+Output
+Processing
+Video Lite
+Pipeline
+Input
+Selector
+Input
+Selector
+DATA[23:0]
+DATA[23:0]
+MISR/
+Safety Checks
+MISR/
+Safety Checks
+MISR/
+Safety Checks
+Figure 12-527. DISPC Safety Check Locations
+Peripherals
+2006
+=== Page 2007 ===
+12.9.1.4.1.11.2 Safety Signature Generator Using MISR
+A 32-bit multiple input signature register (MISR) with 32-bit Galois LFSR polynomial, P(x)=X32+X22+X2+x+1, is
+used to capture a signature of active video pixel data (the 10 MSB bits of each color component) for each safety
+region, as shown in Figure 12-528 and the algorithm below it.
+dispc-109
+D31
+Q31
+D30
+Q30
+D29
+Q29
+D28
+Q28
+D10
+Q10
+D9
+Q9
+D8
+Q8
+D0
+Q 0
+P (x)=X32+X22+X 2+X+1
+D[31:0] = {2'b0,R,G ,B }
+Signature [31:0] =Q[31:0]
+Figure 12-528. DISPC Safety 32-bit MISR Implementation
+The MISR (32-bit Galois LFSR based) signature generation algorithm is as follows:
+Tap _polynomial = 32’hE000_0200
+lfsr_q = seed // initial LFSR value - any none zero value should work
+For each (pixel data in the safety region) {
+data_in[31:0] = { 2’b0, r,g,b } // 10 MSB bits of R,G,B components
+lfsr_d = (data_in(lfsr_q >> 1))
+If (lfsr_q[0]) lfsr_d = lfsr_dTap_polynomial
+lsfr_q = lfsr_d
+}
+signature = lfsr_q
+All MISRs are initialized at the beginning of each frame with a non-zero "seed" value either with the default
+constant value (0xFFFF_FFFF) or with the programmable seed configuration value in SAFETY_LFSR_SEED
+register for each group of regions (refer to Table 12-434, DISPC Safety Check Regions Parameters). Note that a
+same seed must be used to compare signatures between two frames. If different than the default seed value is
+desired, then a SEEDSELECT parameter must be set before the corresponding SAFETY_LFSR_SEED register
+is configured with the customer seed value.
+All captured signatures from safety regions are memory mapped to read-only registers
+SAFETY_CAPT_SIGNATURE for each video port (refer to Table 12-434, DISPC Safety Check Regions
+Parameters). A SAFETY_CAPT_SIGNATURE register is updated with the signature from each sub-region at
+the end of every frame. This register returns the signature of the last frame data when the MISR is enabled.
+When MISR is disabled, this register is cleared.
+The MISR aliasing (faulty signature matches fault-free signature) probability is:
+(2(L-n)-1)/(2L-1) = ~ 2(L-n)/2L = 2-n for large L, where
+n = length of signature register
+L = length of input sequence
+Using the above approximation, the result is:
+=== Page 2008 ===
+n=4, aliasing probability = 6.25%
+n=16, aliasing probability = 0.0015%
+...
+n=32 (as in DISPC MISR), aliasing probability is ~2-32 (negligible)
+12.9.1.4.1.11.3 Safety Checks
+If the data correctness check is enabled (see Table 12-434, DISPC Safety Check Regions Parameters):
+•
+When a new signature is generated, it is compared against the reference signature provided by the software.
+A SAFETY_REF_SIGNATURE register must be configured with a reference signature data, see Table
+12-434, DISPC Safety Check Regions Parameters.
+•
+If signatures do not match, an interrupt event is generated to indicate data mismatch.
+If the freeze frame detection is enabled (see Table 12-434, DISPC Safety Check Regions Parameters):
+•
+When a new signature is generated, it is first compared against the saved signature (from previous frame).
+•
+If signatures match, an internal counter used to keep track of the number of frames with no data change (for
+the region) is incremented.
+•
+If signatures do not match, the counter is cleared.
+•
+If the counter value is greater than the user programmed freeze frame detection threshold value (see
+Table 12-434, DISPC Safety Check Regions Parameters), an interrupt event (VIDSAFETYREGION_IRQ
+or VPSAFETYREGION_IRQ, see Section 12.9.1.4.1.5, DISPC Interrupt Requests) is generated to indicate
+a possible freeze frame detection. The threshold value must be configured with the maximum number of
+identical successive frames allowed before an interrupt is generated.
+•
+After the comparison, the signature is saved as the previous signature.
+•
+The counter is cleared when the interrupt event is generated or when freeze frame detection check is
+disabled.
+This frame freeze is different from the display frozen due to pipeline lock up. In that case, the DISPC
+will generate an SYNCLOST_IRQ and/or DMA VIDBUFFERUNDERFLOW_IRQ interrupt. The freeze frame
+detection is for source data frozen while the DSS is working normally.
+The two safety checks are continuously performed over multiple frames as long as their mode enable register
+bits are set.
+12.9.1.4.1.11.4 Safety Check Limitations
+The safety check will only be available when the DISPC is outputting RGB/YUV component data with separate
+sync signals. The safety functions are not available for following modes:
+•
+YUV422 embedded sync modes (BT.656 and BT.1120)
+•
+RGB TDM (Time Division Multiplex) mode
+12.9.1.4.1.12 DISPC Security Management
+12.9.1.4.1.12.1 Security Implementation
+DSS supports the following security features:
+•
+Secure mode configuration
+•
+Illegal connection prevention
+Secure Mode
+DISPC supports a secure mode configuration register (DSS0_COMMON1_DISPC_SECURE) which defines the
+"secure mode: attribute of each pipeline, overlay manager, and video port instance in DISPC. This register
+can only be modified by a host with an appropriate secure privilege (MReqSecure=1). When the secure bit
+corresponding to an instance is set by a secure host, the instance is deemed to be in "secure mode" and the
+DISPC hardware prevents the output of the instance getting connected to a non-secure downstream module.
+Also, any DMA transfer initiated by a secure pipeline will have its OCP in-band signal MReqSecure set to HIGH
+to indicate that is a secure mode transaction request.
+=== Page 2009 ===
+By default, all pipelines, overlay managers, and video port instances are in a "non-
+secure mode". The DSS0_COMMON1_DISPC_SECURE register bits are active, only when the
+DSS0_COMMON_DISPC_SECURE_DISABLE[0] SECURE_DISABLE register bit is configured properly to 0x0.
+When the SECURE_DISABLE bit is set to 0x1, the DSS0_COMMON1_DISPC_SECURE register bits are non-
+active and DISPC will behave as non-secure module.
+Illegal Connection Prevention
+DISPC hardware enforces the following rules to prevent an illegal connection:
+•
+Secure input pipeline can only connect to a secure overlay manager: If any host (secure or non-secure)
+configures an overlay manager input selection to connect a secure input pipeline to a non-secure overlay
+manager, then the DISPC hardware will block the connection and issue a "security violation" interrupt
+(SECURITYVIOLATION_IRQ) to alert the host.
+dispc-110
+DMA Pipe
+Msecure=1
+DMA Pipe
+Msecure=0
+Secure bit = 1
+OVR1
+(Secure=1)
+OVR2
+MReqSecure = 1 for
+DDR request
+Secure Content
+READ Allowed
+Secure Content
+READ Not Allowed
+Security Setting per Pipeline
+Security Setting per
+Overlay Manager
+OK
+OK
+OK
+Blocked
+VP1
+Security Setting per
+Video Port
+(Secure=0)
+(*)
+VP2
+(*)
+Overlay path selection is
+allowed, only if the security
+condition is met. Otherwise
+connection is not made
+and IRQ is generated.
+The VP security setting
+is ignored.
+Secure bit = 0
+MReqSecure = 0 for
+DDR request
+Figure 12-529. DISPC Secure Bit Setting and Illegal Connection Block
+12.9.1.4.1.12.2 Secure Mode Configuration
+The secure bit of DSS0_COMMON1_DISPC_SECURE register is set/reset by a secure transaction. When the
+secure bit has been set, the software in "secure mode" is responsible for checking the DISPC configuration. The
+secure bit is propagated by DISPC to the system Interconnect in order to qualify all DISPC requests as secure or
+non-secure requests, based on the secure bits defined in the control register.
+When DISPC accesses the frame buffer, in the case the secure bit has been reset and the frame buffer has
+been set secure, the display controller will receive an "error" in response of non-secure requests.
+12.9.1.4.1.13 DISPC Shadow Registers
+Some DISPC registers are termed shadow registers. The shadow registers allow the software to modify them
+at any time, without direct effect on the DISPC hardware configuration. When all the values for a given
+configuration are written into the shadow registers, software must set only one register bit to validate the
+configuration. When the hardware reaches the end of the current frame and sees that the bit has been set by
+software, the new configuration is now the configuration used by the hardware.
+The DSS0_VP_CONTROL[5] GOBIT bit enables the hardware to use the new configuration, for all shadow
+registers associated with each VP output.
+The registers are statically associated to a particular output (for example, timing registers) or dynamically
+associated to one output at a time (for example, video registers).
+=== Page 2010 ===
+12.9.1.4.2 OLDITX Functional Description
+12.9.1.4.2.1 OLDITX Overview
+The OpenLDI transmitter (OLDITX) supports serialized RGB pixel data transmission between host and flat panel
+display over LVDS (Low Voltage Differential Sampling) interface. The LVDS interface complies with ANSI/TIA/
+EIA644-A standard (Electrical Characteristics of Low Voltage Differential Signaling (LVDS) Interface Circuits).
+The OLDITX consists of 7-to-1 data serializers, and 4-data and 1-clock LVDS outputs. The OLDITX translates 21
+or 28-bit wide video/sync data into LVDS data, 3 or 4 bits wide and 7 bits deep. At a maximum pixel rate of 170
+MHz, the speed of a single LVDS data lane is 1.19 Gbps providing a total throughput of 4.76 Gbps over a single
+OLDI link.
+Figure 12-530 shows the high level overview of the OLDITX module.
+Figure 12-530. OLDITX Block Diagram
+12.9.1.4.2.2 OLDITX Clocks
+OLDITX receives one pixel clock, OLDI_FWD_P_CLK. The pixel clock rate is 1/7 of serial clock rate in single-link
+mode and 2/7 of serial clock rate in dual-link mode.
+OLDITX receives one serial clock (OLDI_PLL_CLK) to perform 7-to-1 serialization. OLDI_PLL_CLK is 3.5x or 7x
+OLDI_FWD_P_CLK frequency, where 25MHz < OLDI_FWD_P_CLK (freq) < 170MHz.
+For more details on OLDITX clocks, see DSS Integration.
+12.9.1.4.2.3 OLDITX Resets
+There are two resets for the OLDITX module:
+•
+Hardware reset, OLDITX_RST.
+•
+Software reset, OLDITX_SW_RST, driven by DSS0_VP_DSS_OLDI_CFG[12] SOFTRST register bit. The
+software reset is combined with OLDITX_RST to drive the reset to all the sub-modules.
+The reset status of OLDITX module can be read in DSS0_COMMON_DSS_SYSSTATUS[5]
+OLDI_RESETDONE register bit.
+12.9.1.4.2.4 OLDITX Input Interface
+The input to the OLDITX is a standard DPI interface bus (direct output of a DSS DISPC video port), which
+consists of the following signals:
+•
+VSync and HSync sync signals
+•
+DE, data enable (active video signal)
+•
+RGB[23:0] parallel data
+OLDITX receives 18-bit or 24-bit RGB input source data from the DSS DISPC video port. The DSS interface
+is clocked on the rising edge of OLDI_FWD_P_CLK pixel clock (whose frequency is exactly 1/7 of the
+=== Page 2011 ===
+OLDI_PLL_CLK serial clock). The DATA, VS, HS, and DE signals are treated as data to be mapped
+onto the LVDS output shifter. The start of accepting and processing the DSS interface data happens after
+DSS0_VP_DSS_OLDI_CFG[0] ENABLE bit is asserted to 0x1 and synchronized to the internal pixel clock.
+12.9.1.4.2.4.1 OLDITX 24-bit RGB Input
+The 24-bit RGB input source data (either non-dithered or dithered to 24-bit) coming from the DSS DISPC video
+port is expected to have the components mapping shown in Table 12-435. The DSS0_VP_DSS_OLDI_CFG[8]
+MSB register bit must be set for 24-bit input.
+Table 12-435. OLDITX 24-bit RGB Input for 24-bit LVDS Output
+23
+22
+21
+20
+19
+18
+17
+16
+15
+14
+13
+12
+11
+10
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+R[7:0]
+G[7:0]
+B[7:0]
+Both 18-bit and 24-bit LVDS output mappings are supported with this 24-bit input format. For 18-bit LVDS output
+mapping however, the 6 MSB bits of each component are mapped to the output as shown in Table 12-436.
+OLDITX does not support dithering to reduce 24-bit RGB input to 18-bit RGB LVDS output. If dithering is
+required, then DSS DISPC must perform the dithering and send the data to OLDITX as an 18-bit panel data as
+shown in Section 12.9.1.4.2.4.2, OLDITX 18-bit RGB Input.
+Table 12-436. OLDITX 24-bit RGB Input for 18-bit LVDS Output
+23
+22
+21
+20
+19
+18
+17
+16
+15
+14
+13
+12
+11
+10
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+R[5:0]
+Unused
+G[5:0]
+Unused
+B[5:0]
+Unused
+12.9.1.4.2.4.2 OLDITX 18-bit RGB Input
+The 18-bit RGB source data (typically dithered to 18-bit) coming from the DSS DISPC video port is expected to
+have the component mapping shown in Table 12-437. The DSS0_VP_DSS_OLDI_CFG[8] MSB register bit must
+be set for 18-bit input. Only 18-bit LVDS output mapping is supported with this input type.
+Table 12-437. OLDITX 18-bit RGB Input
+23
+22
+21
+20
+19
+18
+17
+16
+15
+14
+13
+12
+11
+10
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Unused
+R[5:0]
+G[5:0]
+B[5:0]
+12.9.1.4.2.5 OLDITX Output Mode Configuration
+OLDITX0 and OLDITX1 support:
+•
+Single link output mode: This is a single stream format for which up to four serial data lanes (four LVDS pairs)
+are used to transmit a video stream. An additional lane is used to transmit the pixelclock.
+•
+2x Single-link (duplication) output mode: This is a dual stream format for which up to four serial data lanes
+are used to transmit each video stream (8 total). An additional lane is used to transmit each pixel clock.
+•
+Dual link output mode: This is a single stream format which up to eight serial data lanes are used to transmit
+a video stream. An additional two lanes are used to transmit the pixelclock.
+A single OpenLDI interface is capable of driving up to WUXGA (1920x1200@60p, 162 MHz pixel clock)
+resolution, and can be used as long as the receiving display or link bridge device can accept the video output
+from the device through a single OLDI link. Typically, only display resolutions less than 1366x768 require a
+single link interface. Adding the second interface for dual-link operation does not increase available bandwidth,
+but decreases required pixel clock by half.
+The sequence of bringing up OLDITX in single link mode is as follows:
+1.
+Configure all PLLs that provide the required OLDITX clocks (see Module Integration).
+2.
+Keep OLDITX_SW_RST in the default reset state 0 (controlled via DSS0_VP_DSS_OLDI_CFG[12]
+SOFTRST register bit).
+3.
+Configure the following parameters:
+=== Page 2012 ===
+•
+Input video data and pixel clock source, in DSS0_VP_DSS_OLDI_CFG[4] SRC register bit
+•
+OLDITX module enable, in DSS0_VP_DSS_OLDI_CFG[0] ENABLE register bit
+•
+DE input polarity, in DSS0_VP_DSS_OLDI_CFG[7] DEPOL register bit
+•
+Combining of links, in DSS0_VP_DSS_OLDI_CFG[11] DUALMODESYNC register bit:
+•
+Zero for single-link(s)
+•
+One for dual-link
+•
+Link mode, in DSS0_VP_DSS_OLDI_CFG[5] MODE register bit:
+•
+Zero for single stream
+•
+One for stream duplication
+•
+Mapping of video to LVDS channel (for single link mode), in DSS0_VP_DSS_OLDI_CFG[3-1] MAP
+register field:
+•
+A, B, or C Types for single-link
+•
+D, E, or F Types for dual-link
+•
+Input data format (for 18-bit LVDS output), in DSS0_VP_DSS_OLDI_CFG[8] MSB register bit
+•
+Test pattern enable (must be 0 for normal operation), in DSS0_VP_DSS_OLDI_CFG[13] TPATCFG
+register bit
+4.
+Software checks that the PLLs are stable and locked.
+5.
+Release OLDITX_SW_RST = 1 (by configuring DSS0_VP_DSS_OLDI_CFG[12] SOFTRST register bit).
+6.
+Software waits for DSS0_COMMON_DSS_SYSSTATUS[5] OLDI_RESETDONE register bit = 1.
+7.
+DSS sends RGB data.
+Typically, OLDITX should be configured to send out 24-bit RGB data on four LVDS data lanes. But, it can
+also be configured (via DSS0_VP_DSS_OLDI_CFG[3-1] MAP register field) to send only 18-bit RGB data
+(6-bits/component) on three LVDS lanes, when connecting to a low resolution monitor. In this configuration,
+only 4 LVDS pairs (3 data lanes + 1 clock lane) are active, while the 4th data lane is disabled. When OLDITX
+is configured to send out 18-bit LVDS-mapped data, then the DSS0_VP_DSS_OLDI_CFG[8] MSB register bit
+must be used to select the format of the input source data bus (for more information, see Section 12.9.1.4.2.4,
+OLDITX Input Interface).
+Note
+Software may change the mode of operation by first asserting low the OLDITX_SW_RST reset, then
+follow the sequence described in this section.
+Software needs to ensure that OLDITX_SW_RST is asserted low, if the PLLs are not locked.
+For more information on LVDS data format mapping and LVDS data output bit format, see Section 12.9.1.2.2,
+DSS LVDS Interface.
+12.9.1.4.2.6 OLDITX Loopback Test Mode
+OLDITX supports data loopback mode to check for DC faults in the digital (parallel to serial conversion logic) and
+analog (LVDS transmitter) data signal path.
+In the loopback test mode, the sending module (DSS DISPC) drives all OLDITX input signals (data and
+sync) to either all 1s or 0s. All 1s and all 0s will be captured as a static 1 or 0 at the output of the LVDS
+loopback receiver (enabled only during the test mode). To ensure that there are no faults in the parallel to serial
+conversion logic path, a simple pattern check of 1s or 0s is be performed on the serializer data and reported
+back along with the LVDS loopback value. These signals are then passed back to DSS and mapped to the
+DSS0_VP_DSS_OLDI_LB[9-0] LBRDATA register field for test software to read.
+For loopback testing of the clock differential output signals, OLDITX drives all 0s or 1s pattern (based on the
+DSS0_VP_DSS_OLDI_CFG[10] LBDATA register bit configuration) instead of the normal clock pattern, when the
+loopback test is enabled.
+=== Page 2013 ===
+Since there is no de-serializer in the loopback path, the loopback mode is intended for facilitating a system
+diagnostic testing with a constant data output (all 0s or 1s) at low-speed. In normal operation, the loopback mode
+must be disabled.
+When looback is enabled in DSS0_VP_DSS_OLDI_CFG[9] LBEN register bit, the loopback of data in
+this order from MSB to LSB {all_0_1[4:0], oldi_ch_ret_clock, oldi_ch_ret_data[3:0]} will be returned in
+DSS0_VP_DSS_OLDI_LB[9-0] LBRDATA register field.
+Verifying loopback
+Set up OLDITX for a single mode and select the DSS input data. Configure the parameters as shown for either
+Case 1 or Case 2 below. Set DSS0_VP_DSS_OLDI_CFG[9] LBEN = 1 and enable OLDITX to start sending
+data. Check after 10 pixel clock periods.
+Case 1, all 0’s stuck-at test:
+•
+DSS0_VP_DSS_OLDI_CFG[3-1] MAP = 000
+•
+DSS0_VP_DSS_OLDI_CFG[10] LBDATA = 0
+•
+OLDI_0_DATA[23:0] = all 0's (this is input data from DSS)
+•
+OLDI_0_HS, OLDI_0_VS, OLDI_0_DE = 0's (these are input signals from DSS)
+Check:
+•
+DSS0_VP_DSS_OLDI_LB[9-5] LBRDATA = 11111
+•
+DSS0_VP_DSS_OLDI_LB[4-0] LBRDATA = 00000
+Case 2, all 1’s stuck-at test:
+•
+DSS0_VP_DSS_OLDI_CFG[3-1] MAP = 000
+•
+DSS0_VP_DSS_OLDI_CFG[10] LBDATA = 1
+•
+OLDI_0_DATA[23:0] = all 1s (this is input data from DSS)
+•
+OLDI_0_HS, OLDI_0_VS, OLDI_0_DE = 1's (these are input signals from DSS)
+Check:
+•
+DSS0_VP_DSS_OLDI_LB[9-5] LBRDATA = 11111
+•
+DSS0_VP_DSS_OLDI_LB[4-0] LBRDATA = 11111
+Note that DSS0_VP_DSS_OLDI_LB[3] LBRDATA = 1. In functional operation, the LVDS A30:A36 in 18-bit
+single mode are not being driven by input data, rather all 0’s. In loopback mode, each of A30:A36 is driven
+by OLDI_0_DE. In other single modes, the "reserved or NA" bit fields, as described in the LVDS data format
+mapping tables in Section 12.9.1.2.2, DSS LVDS Interface, are driven by OLDI_0_DE in loopback mode.
+12.9.2 Graphics Processing Unit (GPU)
+12.9.2.1 GPU Registers Description....................................................................................................................2014
+=== Page 2014 ===
+12.9.2.1 GPU Registers Description
+A description of the GPU registers can be found at GPU Registers Description

@@ -1,0 +1,178 @@
+Chapter 15 Debug
+15
+
+15.1 Overview
+The chip uses the DAP-LITE2 Technology to support Cortex-A55/Cortex-A76 real-time debug.
+
+15.1.1 Features
+⚫
+⚫
+
+Invasive debug with core halted
+SW-DP
+
+15.1.2 Debug components address map
+
+The following table shows the debug components address in debug memory map:
+Module
+Base Address
+DAP_ROM
+0x00000
+
+15.2 Block Diagram
+Chip
+Cortex-A55/Cortex-A76
+Debug
+Block
+
+Debug
+APB
+
+Serial Wire
+DAPLITE2
+
+System APB
+
+Fig. 15-1 Debug System Structure
+
+15.3 Function Description
+1.1
+2.1
+3.1
+4.1
+5.1
+
+15.3.1 DAP
+
+The DAP has following components:
+⚫ Serial Wire JTAG Debug Port(SWJ-DP)
+⚫ APB Access Port(APB-AP)
+⚫ ROM table
+The debug port is the host tools interface to access the DAP-Lite2. This interface controls
+any access ports provided within the DAP-Lite2. The DAP-Lite2 supports a combined debug
+port which includes both JTAG and Serial Wire Debug(SWD), with a mechanism that
+supports switching between them.
+The APB-AP acts as a bridge between SWJ-DP and APB bus which translate the Debug
+request to APB bus.
+The DAP provides an internal ROM table connected to the master Debug APB port of the
+APB-Mux. The Debug ROM table is loaded at address 0x00000000 and 0x80000000 of this
+bus and is accessible from both APB-AP and the system APB input. Bit[31] of the address
+bus is not connected to the ROM Table, ensuring that both views read the same value. The
+ROM table stores the locations of the components on the Debug APB.
+Please refer to the document CoreSight_DAPLite2_TRM_r0p0.pdf for the debug detail
+description.
+
+15.4 Register Description
+Please refer to the document CoreSight_DAPLite2_TRM_r0p0.pdf for the debug detail
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1394
+
+RK3588 TRM-Part1
+description.
+
+15.5 Interface Description
+15.5.1 DAP SWJ-DP Interface
+
+The following figure is the DAP SWJ-DP interface, the SWJ-DP is a combined JTAG-DP and
+SW-DP that enable you connect either a Serial Wire Debug(SWJ) to JTAG probe to a target.
+
+Fig. 15-2 DAP SWJ Interface
+
+15.5.2 DAP SW-DP Interface
+
+This implementation is taken from ADIv5.1 and operates with a synchronous serial interface.
+This uses a single bidirectional data signal, and a clock signal.
+The figure below describes the interaction between the timing of transactions on the serial
+wire interface, and the DAP internal bus transfers. It shows when the target responds with a
+WAIT acknowledgement.
+
+Fig. 15-3 SW-DP Acknowledgement Timing
+There are three sets of serial debug interface to debug. By default, jtag_tckm0 and
+jtag_tmsm0 are connected to corresponding IO pad.
+Table 15-1 SW-DP Interface Description
+le pin
+jtag_tck
+m0
+jtag_tms
+m0
+
+Direction
+
+I
+I/O
+
+Pad name
+SDMMC_D2/PDM1_SDI1
+_M0/JTAG_TCK_M0/I2C
+8_SCL_M0/UART5_CTS
+N_M0/GPIO4_D2_u
+SDMMC_D3/PDM1_SDI0
+_M0/JTAG_TMS_M0/I2C
+8_SDA_M0/UART5_RTS
+N_M0/PWM10_M1/GPIO
+4_D3_u
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+IOMUX
+BUS_IOC_GPIO4D_IOMUX_SEL_L[
+11:8]=4’b0101
+BUS_IOC_GPIO4D_IOMUX_SEL_L[
+15:12]=4’b0101
+
+1395
+
+RK3588 TRM-Part1
+le pin
+
+Direction
+
+jtag_tck
+m1
+
+I
+
+Pad name
+
+IOMUX
+
+SDMMC_D0/PDM1_SDI3 BUS_IOC_GPIO4D_IOMUX_SEL_L[
+_M0/JTAG_TCK_M1/I2C 3:0]=4’b0101
+3_SCL_M4/UART2_TX_
+M1/PWM8_M1/GPIO4_D
+0_u
+jtag_tms
+I/O
+SDMMC_D1/PDM1_SDI2 BUS_IOC_GPIO4D_IOMUX_SEL_L[
+m1
+_M0/JTAG_TMS_M1/I2C 7:4]=4’b0101
+3_SDA_M4/UART2_RX_
+M1/PWM9_M1/GPIO4_D
+1_u
+jtag_tck
+I
+I2S1_MCLK_M1/JTAG_T PMU2_IOC_GPIO0B_IOMUX_SEL_
+m2
+CK_M2/I2C1_SCL_M0/U H[7:4]=4’b0010
+ART2_TX_M0/PCIE30X1
+_1_CLKREQN_M0/GPIO
+0_B5_d
+jtag_tms
+I/O
+I2S1_SCLK_M1/JTAG_T PMU2_IOC_GPIO0B_IOMUX_SEL_
+m2
+MS_M2/I2C1_SDA_M0/
+H[11:8]=4’b0010
+UART2_RX_M0/PCIE30X
+1_1_WAKEN_M0/GPIO0
+_B6_d
+Notes: I=input, O=output, I/O=input/output, bidirectional.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1396
+
+RK3588 TRM-Part1
+

@@ -1,0 +1,403 @@
+4.4 Device Configuration
+4.4.1 Control Module (CTRL_MMR)
+This section contains the integration details for the CTRL_MMR module on this device. For further information,
+see the Memory Mapped Control Register Modules (CTRL_MMR) section of the Device Configuration chapter.
+4.4.1.1 Module Allocations
+Table 4-30. CTRL_MMR Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+CTRL_MMR0
+✓
+MCU_CTRL_MMR0
+✓
+WKUP_CTRL_MMR0
+✓
+4.4.1.2 Resets, Interrupts, and Clocks
+Table 4-31. CTRL_MMR Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+CTRL_MMR0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_A
+LWAYSON
+0
+ON
+NO
+NONE
+WKUP_CTRL_
+MMR0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_A
+LWAYSON
+0
+ON
+NO
+NONE
+MCU_CTRL_M
+MR10
+WKUP_PSC0
+GP_CORE_CT
+L_MCU
+LPSC_MCU_AL
+WAYSON
+0
+ON
+NO
+NONE
+Table 4-32. CTRL_MMR Resets
+Module Instance
+Source
+Description
+CTRL_MMR0
+PSC0_PSC_0
+CTRL_MMR0 reset
+CTRL_MMR0
+PLLCTRL0
+CTRL_MMR0 reset
+WKUP_CTRL_MMR0
+PSC0_PSC_0
+WKUP_CTRL_MMR0 reset
+WKUP_CTRL_MMR0
+PLLCTRL0
+WKUP_CTRL_MMR0 reset
+MCU_CTRL_MMR0
+WKUP_PSC0
+MCU_CTRL_MMR0 reset
+MCU_CTRL_MMR0
+MCU_PLLCTRL0
+MCU_CTRL_MMR0 reset
+Table 4-33. CTRL_MMR Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+CTRL_MMR0
+CTRL_MMR0_access
+_err_0
+GICSS0_spi_IN_129
+GICSS0
+CTRL_MMR0
+interrupt request
+level
+CTRL_MMR0
+CTRL_MMR0_access
+_err_0
+R5FSS0_CORE0_intr
+_IN_128
+R5FSS0_CORE0
+CTRL_MMR0
+interrupt request
+level
+CTRL_MMR0
+CTRL_MMR0_access
+_err_0
+TIFS0_nvic_IN_220
+TIFS0
+CTRL_MMR0
+interrupt request
+level
+CTRL_MMR0
+CTRL_MMR0_access
+_err_0
+HSM0_nvic_IN_220
+HSM0
+CTRL_MMR0
+interrupt request
+level
+=== Page 116 ===
+Table 4-33. CTRL_MMR Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+WKUP_CTRL_MMR0=WKUP_CTRL_MMR0
+_access_err_0
+GICSS0_spi_IN_129
+GICSS0
+WKUP_CTRL_MMR0
+interrupt request
+level
+WKUP_CTRL_MMR0=WKUP_CTRL_MMR0
+_access_err_0
+R5FSS0_CORE0_intr
+_IN_128
+R5FSS0_CORE0
+WKUP_CTRL_MMR0
+interrupt request
+level
+WKUP_CTRL_MMR0=WKUP_CTRL_MMR0
+_access_err_0
+TIFS0_nvic_IN_220
+TIFS0
+WKUP_CTRL_MMR0
+interrupt request
+level
+WKUP_CTRL_MMR0=WKUP_CTRL_MMR0
+_access_err_0
+HSM0_nvic_IN_220
+HSM0
+WKUP_CTRL_MMR0
+interrupt request
+level
+WKUP_CTRL_MMR0=WKUP_CTRL_MMR0
+_access_err_0
+GICSS0_spi_IN_129
+GICSS0
+WKUP_CTRL_MMR0
+interrupt request
+level
+WKUP_CTRL_MMR0=WKUP_CTRL_MMR0
+_access_err_0
+R5FSS0_CORE0_intr
+_IN_128
+R5FSS0_CORE0
+WKUP_CTRL_MMR0
+interrupt request
+level
+WKUP_CTRL_MMR0=WKUP_CTRL_MMR0
+_access_err_0
+TIFS0_nvic_IN_220
+TIFS0
+WKUP_CTRL_MMR0
+interrupt request
+level
+WKUP_CTRL_MMR0=WKUP_CTRL_MMR0
+_access_err_0
+HSM0_nvic_IN_220
+HSM0
+WKUP_CTRL_MMR0
+interrupt request
+level
+MCU_CTRL_MMR0
+MCU_CTRL_MMR0_I
+PC_SET0_ipc_set_ip
+cfg_0
+R5FSS0_CORE0_intr
+_IN_0
+R5FSS0_CORE0
+MCU_CTRL_MMR0
+interrupt request
+level
+MCU_CTRL_MMR0
+MCU_CTRL_MMR0_
+access_err_0
+GICSS0_spi_IN_129
+GICSS0
+MCU_CTRL_MMR0
+interrupt request
+level
+MCU_CTRL_MMR0
+MCU_CTRL_MMR0_
+access_err_0
+R5FSS0_CORE0_intr
+_IN_128
+R5FSS0_CORE0
+MCU_CTRL_MMR0
+interrupt request
+level
+MCU_CTRL_MMR0
+MCU_CTRL_MMR0_
+access_err_0
+TIFS0_nvic_IN_220
+TIFS0
+MCU_CTRL_MMR0
+interrupt request
+level
+MCU_CTRL_MMR0
+MCU_CTRL_MMR0_
+access_err_0
+HSM0_nvic_IN_220
+HSM0
+MCU_CTRL_MMR0
+interrupt request
+level
+Table 4-34. CTRL_MMR Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+CTRL_MMR0
+FICLK
+MAIN_SYSCLK0/4
+CTRL_MMR0 Functional
+and Interface Clock
+WKUP_CTRL_MMR0
+FICLK
+DM_CLK/4
+WKUP_CTRL_MMR0
+Functional and Interface
+Clock
+MCU_CTRL_MMR0
+FICLK
+MCU_SYSCLK0/4
+MCU_CTRL_MMR0
+Functional and Interface
+Clock
+4.4.2 Pad Configuration Module (PADCFG_CTRL)
+This section contains the integration details for the PADCFG_CTRL module on this device. For further
+information, see the Pad Configuration Register Modules (PADCFG_CTRL) section of the Device Configuration
+chapter.
+=== Page 117 ===
+4.4.2.1 Module Allocations
+Table 4-35. PADCFG_MMR Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+PADCFG_CTRL0
+✓
+WKUP_PADCFG_CTRL0
+✓
+4.4.2.2 Resets, Interrupts, and Clocks
+Table 4-36. PADCFG_MMR Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+PADCFG_CTR
+L0
+PSC0
+GP_CORE_CT
+L
+LPSC_MAIN_A
+LWAYSON
+0
+ON
+NO
+NONE
+WKUP_PADCF
+G_CTRL0
+WKUP_PSC0
+GP_CORE_CT
+L_MCU
+LPSC_MCU_AL
+WAYSON
+0
+ON
+NO
+NONE
+Table 4-37. PADCFG_MMR Resets
+Module Instance
+Source
+Description
+PADCFG_CTRL0
+PSC0
+PADCFG_CTRL0 reset
+PLLCTRL0
+PADCFG_CTRL0 reset
+WKUP_PADCFG_CTRL0
+WKUP_PSC0
+WKUP_PADCFG_CTRL0 reset
+MCU_PLLCTRL0
+WKUP_PADCFG_CTRL0 reset
+Table 4-38. PADCFG_MMR Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+PADCFG_CTRL0
+PADCFG_CTRL0_ac
+cess_err_0
+GICSS0_spi_IN_129
+GICSS0
+PADCFG_CTRL0
+interrupt request
+level
+R5FSS0_CORE0_intr
+_IN_128
+R5FSS0_CORE0
+PADCFG_CTRL0
+interrupt request
+level
+TIFS0_nvic_IN_220
+TIFS0
+PADCFG_CTRL0
+interrupt request
+level
+HSM0_nvic_IN_220
+HSM0
+PADCFG_CTRL0
+interrupt request
+level
+WKUP_PADCFG_CT
+RL0
+WKUP_PADCFG_CT
+RL0_access_err_0
+GICSS0_spi_IN_129
+GICSS0
+WKUP_PADCFG_CT
+RL0 interrupt request
+level
+R5FSS0_CORE0_intr
+_IN_128
+R5FSS0_CORE0
+WKUP_PADCFG_CT
+RL0 interrupt request
+level
+TIFS0_nvic_IN_220
+TIFS0
+WKUP_PADCFG_CT
+RL0 interrupt request
+level
+HSM0_nvic_IN_220
+HSM0
+WKUP_PADCFG_CT
+RL0 interrupt request
+level
+=== Page 118 ===
+Table 4-39. PADCFG_MMR Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+PADCFG_CTRL0
+FICLK
+MAIN_SYSCLK0/4
+PADCFG_CTRL0
+Functional and Interface
+Clock
+WKUP_PADCFG_CTRL0
+FICLK
+MCU_SYSCLK0/4
+WKUP_PADCFG_CTRL0
+Functional and Interface
+Clock
+=== Page 119 ===

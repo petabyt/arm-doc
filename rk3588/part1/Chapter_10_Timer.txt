@@ -1,0 +1,967 @@
+Chapter 10 Timer
+10.1 Overview
+TIMER is a programmable timer peripheral. This component is an APB slave device. In RK3588,
+there are three types of TIMER according to the count type, which are normal decrement count
+TIMER, normal increment count TIMER and special function increment count TIMER. The
+normal decrement count TIMER is called NDCTIMER. The normal increment count TIMER is
+called NICTIMER. The special function increment count TIMER is called HPTIMER(High
+Precision TIMER).
+5 normal decrement count TIMERs and 1 normal increment count TIMER constitute a 6channel TIMER. In 6-channel TIMER, TIMER5 is the normal increment count TIMER, and the
+other channel TIMER is the normal decrement count TIMER.
+2 normal increment count TIMERs form a 2-channel TIMER.
+HPTIMER has calibration function and provides count value for CPU.
+Timer supports the following features:
+⚫ All three kinds of counter support 32 bits APB slave.
+⚫ All three kinds of counter loading count value support configurable.
+⚫ All three kinds of counter support two counting modes: free-running and user-defined
+count.
+⚫ All three kinds of counters support maskable interrupts.
+⚫ HPTIMER with three timer mode: Normal, Hardware adjust, Software adjust.
+⚫ Hardware adjust mode HPTIMER can be calibrated back to the exact count value without
+software calculation.
+⚫ Software adjust mode HPTIMER can be calibrated back to the exact count value with
+software-aided calculation.
+⚫ Common multiples of slow and fast clock cycles are configurable.
+
+10.2 Block Diagram
+10.2.1 Normal count TIMER block diagram
+
+Fig. 10-1 Normal Timer Block Diagram
+Fig. 10-1 show 6-channel TIMER and 2-channel TIMER. At 6CH_TIMER, the TIMER ch0~ch4
+are the normal decrement count TIMER and ch5 is the normal increment count TIMER. At
+2CH_TIMER, ch0 and ch1 are common normal increment count TIMER. APB is the read and
+write interface of timer register. reset_timern and clk_timern are reset and count clock for
+each channel timer. Timern_int and timern_en are interrupt and clock enable for each
+channel timer respectively. (timern is the signal corresponding to TIMER CHn)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1301
+
+RK3588 TRM-Part1
+
+10.2.2 HPTIMER block diagram
+
+Fig. 10-2 HPTIMER Block Diagram
+Fig. 10-2 shows the block diagram of HPTIMER.
+HPTIMER has a set of APB interfaces for reading and writing registers.
+lp_ena is the low power enable signal sent by PMU to HPTIMER, and it is also the indication
+signal of clk_timer frequency switching.
+timer_core_value[63:0], timer_core_upd_req, timer_core_upd_ack is the interaction signal
+with core. timer_core_value[63:0] is the count update value, timer_core_upd_req is the
+update count request signal, timer_core_upd_ack is the update count response signal.
+timer_hp_en is the enabling signal of clk_32k and clk_timer clocks. timer_hp_int is the
+interrupt output of HPTIMER.
+
+10.3 Function Description
+10.3.1 TIMER clock
+The clock frequency of the counting clock source of NICTIMER and NDCTIMER is 24MHz. The
+clock source clock of clk_32k of HPTIMER is 32KHz, and the clock frequency of clk_timer
+clock source is switched between 24MHz and 32KHz.
+
+10.3.2 Programming sequence
+10.3.2.1 NDCTIMER and NICTIMER programming sequence
+1. Initialize the TIMER by the TIMER_TIMERn_CONTROLREG (0≤n≤5) register:
+1) Disable the timer by writing a “0” to the timer enable bit (bit 0). Accordingly, the
+timer_en output signal is de-asserted.
+2) Program the timer mode—free-running or user-defined—by writing a “0” or “1”
+respectively, to the timer mode bit (bit 1).
+3) Set the interrupt mask as either masked or not masked by writing a “0” or “1”
+respectively, to the timer interrupt mask bit (bit 2).
+2. Load the timer count value into the TIMER_TIMERn_LOAD_COUNT1 (0≤n≤5) and
+TIMER_TIMERn_LOAD_COUNT0 (0≤n≤5) register.
+3. Enable the TIMER by writing a “1” to bit 0 of TIMER_TIMERn_CONTROLREG (0≤n≤5).
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1302
+
+RK3588 TRM-Part1
+Initialize Timer
+
+Load Count Value
+
+Enable Timer
+
+Fig. 10-3 Timer Usage Flow
+
+10.3.2.2 HPTIMER programming sequence
+⚫ Normal mode
+1. Initialize the HPTIMER by the TIMER_HP_CTRL register:
+(1) Disable the HPTIMER by writing a ‘0’ to the timer enable bit (bit 0). Accordingly, the
+timer_hp_en output signal is de-asserted.
+(2) Program the timer mode, normal mode by writing a 0x0 to the timer mode bits (bit 1
+to bit 2).
+(3) Program the count mode, free-running or user-defined by writing a ‘0’ or ‘1’ to the
+count mode bit (bit 3).
+2. Load the HPTIMER count value into the TIMER_HP_LOAD_COUNT1 and TIMER_HP_LOAD_
+COUNT0 register.
+3. Enable the HPTIMER by writing a ‘1’ to bit 0 of TIMER_HP_CTRL.
+If you want to do another count, repeat steps 1 to 3.
+⚫ Hardware adjust mode
+1. Initialize the HPTIMER by the TIMER_HP_CTRL register:
+(1)Disable the HPTIMER by writing a ‘0’ to the timer enable bit (bit 0). Accordingly, the
+timer_hp_en output signal is de-asserted.
+(2) Program the timer mode, normal mode by writing a 0x1 to the timer mode bits (bit 1
+to bit 2).
+(3) Program the count mode, free-running or user-defined by writing a ‘0’ or ‘1’ to the
+count mode bit (bit 3).
+2. Initialize the HPTIMER by the TIMER_HP_INTR_STATUS register. Write 0x7 to TIMER_HP_
+INTR_STATUS register to clear TIMER_HP_INTR_STATUS register.
+3. Load the HPTIMER count value into the TIMER_HP_LOAD_COUNT1 and TIMER_HP_LOAD_
+COUNT0 register.
+4. Configure the HPTIMER GCD register.
+(1) Divide the least common multiple of clk_timer and clk_32k clock cycle by clk_timer
+clock cycle and configure it in TIMER_HP_T24_GCD register.
+(2) Divide the least common multiple of clk_timer and clk_32k clock cycle by clk_32k
+clock cycle and configure it in TIMER_HP_T32_GCD register.
+5. Enable the HPTIMER by writing a ‘1’ to bit 0 of TIMER_HP_CTRL.
+6. Read out the INTR_STATUS register until the ini_adj_done bit segment (bit 1) is ‘1’, which
+means that the HPTIMER 32K count is initially adjusted. The low power mode can only be
+entered after the initial adjustment is completed.
+7. The chip enters and exits the low power consumption mode at any time in between.
+8. Read out the INTR_STATUS register until the sync_done bit segment (bit 2) is ‘1’,
+indicating that the HPTIMER count is adjusted.
+9. Write 0x7 to TIMER_HP_ INTR_STATUS register to clear TIMER_HP_INTR_STATUS
+register.
+If the chip enters and exits the low power consumption mode again, repeat steps 7 to 9.
+⚫ Software adjust mode
+1. Initialize the HPTIMER by the TIMER_HP_CTRL register:
+(1) Disable the HPTIMER by writing a ‘0’ to the timer enable bit (bit 0). Accordingly, the
+timer_hp_en output signal is de-asserted.
+(2) Program the timer mode, normal mode by writing a 0x2 to the timer mode bits (bit 1
+to bit 2).
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1303
+
+RK3588 TRM-Part1
+(3) Program the count mode, free-running or user-defined by writing a ‘0’ or ‘1’ to the
+count mode bit (bit 3).
+2. Initialize the HPTIMER by the TIMER_HP_INTR_STATUS and BEGIN_END_VALID register.
+Write 0x7 to TIMER_HP_ INTR_STATUS register to clear TIMER_HP_INTR_STATUS register.
+write 0x3 to BEGIN_END_VALID register to clear BEGIN_END_VALID register.
+3. Load the HPTIMER count value into the TIMER_HP_LOAD_COUNT1 and TIMER_HP_LOAD_
+COUNT0 register.
+4. Enable the HPTIMER by writing a ‘1’ to bit 0 of TIMER_HP_CTRL.
+5. The chip enters and exits the low power consumption mode at any time in between.
+6. Read out BEGIN_END_VALID register until the value of it is 0x3, which indicates that the
+chip has entered and exited the low power consumption mode, then you can adjust the
+timer count value. Then write 0x3 to BEGIN_END_VALID register to clear the register.
+7. The count value of HPTIMER compensation.
+(1) Read out TIMER_HP_T24_32BEGIN1, TIMER_ HP_T24_32BEGIN0, TIMER_HP_T32_
+24END1 and TIMER_HP_T32_24END0 register.
+(2) configure TIMER_HP_T24_DELAT_COUNT1 and TIMER_HP_T24_DELAT_COUNT0
+registers to compensate for the count values according to the values of these registers
+read out above.
+(3) Write 0x1 to TIMER_HP_SYNC_REQ register to start compensation counting.
+(4) Read out the INTR_STATUS register until the sync_done bit segment (bit 2) is ‘1’,
+indicating that the compensation count is completed.
+8. Write 0x7 to TIMER_HP_ INTR_STATUS register to clear TIMER_HP_INTR_STATUS
+register.
+If the chip enters and exits the low power consumption mode again, repeat steps 5 to 8.
+
+10.3.3 Loading a timer count value
+For the descending TIMER(that is, the value from which it counts down). The initial value for
+each TIMER is loaded into the TIMER using the load count register (TIMER_TIMERn_LOAD_
+COUNT1 and TIMER_TIMERn_ LOAD_COUNT0). Two events can cause a TIMER to load the
+initial value from its load count register:
+⚫
+TIMER is enabled after reset or disabled.
+⚫
+TIMER counts down to 0, when TIMER is configured into free-running mode.
+For the incremental TIMER(that is, the value from which it counts up). The initial value for
+each timer is zero. The count register will count up to the value loaded in the register
+TIMER_ TIMERn_LOAD_COUNT1 and TIMER_TIMERn_ LOAD_COUNT0. Two events can cause
+a TIMER to load zero:
+⚫
+TIMER is enabled after reset or disabled.
+⚫
+TIMER counts up to the value stored in TIMER_TIMERn_LOAD_COUNT1 and TIMER_
+TIMERn_LOAD_COUNT0, when timer is configured into free-running mode.
+
+10.3.4 Timer mode selection
+⚫
+
+⚫
+
+User-defined count mode – TIMER loads TIMER_TIMERn_LOAD_COUNT1 and TIMER_
+TIMERn_LOAD_ COUNT0 registers (for descending TIMER) or zero (for incremental
+TIMER) as initial value. When the TIMER counts down to 0 (for descending TIMER) or
+counts up to the value in TIMER_TIMERn_LOAD_COUNT1 and TIMER_TIMERn_ LOAD_
+COUNT0 (for incremental TIMER), it will not automatically reload the count register. User
+need to disable timer firstly and follow the programming sequence to make timer work
+again.
+Free-running mode – TIMER loads the TIMER_TIMERn_LOAD_COUNT1 and TIMER_
+TIMERn_LOAD_COUNT0(for descending TIMER) or zero(for incremental TIMER) register
+as initial value. TIMER will automatically reload the count register, when timer counts
+down to 0(for descending TIMER) or counts up to the value in TIMER_TIMERn_LOAD_
+COUNT1 and TIMER_TIMERn_LOAD_COUNT0 (for incremental TIMER).
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1304
+
+RK3588 TRM-Part1
+
+10.4 Register Description
+10.4.1 Registers Summary
+10.4.1.1 Normal Count TIMER Register Summary
+For 2-channel normal count TIMER, the base address of channel 1 is greater than that of
+channel 0 by 0x20. For 6-channel normal count TIMER, the base address of channel 1 is
+greater than that of channel 0 by 0x20, the base address of channel 2 is greater than that of
+channel 1 by 0x20, and so on. The revision register offset of 2-channel / 6-channel normal
+count TIMER is 0xf0.
+If you want to know that each TIMER is 2-channel or 6-channel, please refer to the “TIMER
+attributes” section at the end of “Chapter TIMER”.
+Reset
+Name
+Offset
+Size
+Description
+Value
+TIMER_TIMERn_LOAD_CO 0x0000
+UNT0
++n*0x20
+
+W
+
+0x00000000 Timern Load Count Register 0
+
+TIMER_TIMERn_LOAD_CO 0x0004
+UNT1
++n*0x20
+
+W
+
+Timern Load Count Register
+1.Higher 32 bits Value to be
+0x00000000 loaded into Timer n. This is the
+value from which counting
+commences
+
+TIMER_TIMERn_CURRENT 0x0008
+_VALUE0
++n*0x20
+
+W
+
+0x00000000 Timern Current Value Register 0
+
+TIMER_TIMERn_CURRENT 0x000c
+_VALUE1
++n*0x20
+
+W
+
+Timern Current Value Register
+0x00000000 1.High 32 bits of Current Value of
+Timer n
+
+TIMER_TIMERn_CONTROL 0x0010
+REG
++n*0x20
+
+W
+
+0x00000000 Timern Control Register
+
+W
+
+0x00000000 Timern Interrupt Status Register
+
+W
+W
+
+0x15650302 2-channel TIMER version
+0x11972006 6-channel TIMER version
+
+TIMER_TIMERn_INTSTAT
+US
+TIMER_2CH_REVISION
+TIMER_6CH_REVISION
+
+0x0018
++n*0x20
+0x00F0
+0x00F0
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access
+
+1.4.1.2
+
+HPTIMER Register Summary
+Name
+
+TIMER_HP_REVISION
+TIMER_HP_CTRL
+TIMER_HP_INTR_EN
+TIMER_HP_T24_GCD
+TIMER_HP_T32_GCD
+TIMER_HP_LOAD_COUNT
+0
+TIMER_HP_LOAD_COUNT
+1
+TIMER_HP_T24_DELAT_C
+OUNT0
+TIMER_HP_T24_DELAT_C
+OUNT1
+
+0x0000
+0x0004
+0x0008
+0x000C
+0x0010
+
+W
+W
+W
+W
+W
+
+Reset
+Description
+Value
+0x13D10201 HPTIMER version
+0x00000000 HPTIMER control
+0x00000000 Interrupt musk
+0x00000000 Common multiple div 24M
+0x00000000 Common multiple div 32K
+
+0x0014
+
+W
+
+0x00000000 Low 32bits of load count value
+
+0x0018
+
+W
+
+0x00000000 High 32bits of load count value
+
+0x001C
+
+W
+
+0x00000000
+
+0x0020
+
+W
+
+Offset
+
+Size
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Low 32bits of 24M clock delay
+time count value
+High 32bits of 24M clock delay
+0x00000000
+time count value
+
+1305
+
+RK3588 TRM-Part1
+Name
+
+Offset
+
+TIMER_HP_CURR_32K_VA
+0x0024
+LUE0
+TIMER_HP_CURR_32K_VA
+0x0028
+LUE1
+TIMER_HP_CURR_TIMER_
+0x002C
+VALUE0
+TIMER_HP_CURR_TIMER_
+0x0030
+VALUE1
+TIMER_HP_T24_32BEGIN
+0x0034
+0
+TIMER_HP_T24_32BEGIN
+0x0038
+1
+TIMER_HP_T32_24END0 0x003C
+TIMER_HP_T32_24END1 0x0040
+TIMER_HP_BEGIN_END_V
+0x0044
+ALID
+TIMER_HP_SYNC_REQ
+0x0048
+TIMER_HP_INTR_STATUS 0x004C
+
+Size
+
+Reset
+Value
+
+W
+
+0x00000000
+
+W
+W
+W
+
+Description
+
+Low 32bits of current cnt_32k
+value
+High 32bits of current cnt_32k
+0x00000000
+value
+Low 32bits of current timer_cnt
+0x00000000
+value
+High 32bits of current timer_cnt
+0x00000000
+value
+
+W
+
+0x00000000 Low 32 bits of low power begin
+
+W
+
+0x00000000 High 32 bits of low power begin
+
+W
+W
+
+0x00000000 Low 32 bits of low power end
+0x00000000 High 32 bits of low power end
+
+W
+
+0x00000000 Low power count value valid
+
+W
+W
+
+0x00000000 Synchronize request
+0x00000000 Interrupt status
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+10.4.2 Detail Register Description
+10.4.2.1 Normal Count TIMER Detail Register Description
+TIMER_TIMERn_LOAD_COUNT0
+Address: Operational Base + offset (0x0000+n*0x20)
+Bit Attr Reset Value
+Description
+31:0
+
+RW 0x00000000
+
+load_count_0
+Lower 32 bits Value to be loaded into Timer n. This is the value
+from which counting commences.
+
+TIMER_TIMERn_LOAD_COUNT1
+Address: Operational Base + offset (0x0004+n*0x20)
+Bit Attr Reset Value
+Description
+31:0
+
+RW 0x00000000
+
+load_count_1
+Higher 32 bits Value to be loaded into Timer n. This is the value
+from which counting commences.
+
+TIMER_TIMERn_CURRENT_VALUE0
+Address: Operational Base + offset (0x0008+n*0x20)
+Bit Attr Reset Value
+Description
+31:0
+
+RO
+
+0x00000000
+
+timern_current_value0
+Lower 32 bits of Current Value of Timer n.
+
+TIMER_TIMERn_CURRENT_VALUE1
+Address: Operational Base + offset (0x000c+n*0x20)
+Bit Attr Reset Value
+Description
+31:0
+
+RO
+
+0x00000000
+
+timern_current_value1
+Higher 32 bits of Current Value of Timer n.
+
+TIMER_TIMERn_CONTROLREG
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1306
+
+RK3588 TRM-Part1
+Address: Operational Base + offset (0x0010+n*0x20)
+Bit Attr Reset Value
+Description
+31:3
+
+2
+
+1
+
+0
+
+RO
+
+0x0
+
+Reserved
+
+RW 0x0
+
+timer_int_en
+Timer interrupt enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+timer_mode
+Timer mode
+1'b0: Free-running mode
+1'b1: User-defined count mode
+
+RW 0x0
+
+timer_en
+Timer enable
+1'b0: Disable
+1'b1: Enable
+
+TIMER_TIMERn_INTSTATUS
+Address: Operational Base + offset (0x0018+n*0x20)
+Bit Attr Reset Value
+Description
+31:1
+
+RO
+
+0x0
+
+Reserved
+
+0
+
+RO
+
+0x0
+
+timern_int
+This register contains the interrupt status for timern.
+
+TIMER_2CH_REVISION
+Address: Operational Base + offset (0x00F0)
+Bit Attr Reset Value
+Description
+svn_revision
+31:16 RO 0x1565
+SVN revision: 16'd5477.
+15:10 RO 0x00
+reserved
+ch1_type
+9
+RW 0x1
+Channel 1 is a count up counter.
+ch0_type
+8
+RW 0x1
+Channel 0 is a count up counter.
+ip_function
+7:0
+RO 0x02
+IP function: 16'd2.
+TIMER_6CH_REVISION
+Address: Operational Base + offset (0x00F0)
+Bit Attr Reset Value
+Description
+svn_revision
+31:16 RW 0x1197
+SVN revision: 16'd4503.
+15:14 RO 0x0
+reserved
+ch5_type
+13
+RW 0x1
+Channel 5 is a count up counter.
+ch4_type
+12
+RW 0x0
+Channel 4 is a count down counter.
+ch3_type
+11
+RW 0x0
+Channel 3 is a count down counter.
+ch2_type
+10
+RW 0x0
+Channel 2 is a count down counter.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1307
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+9
+
+RW 0x0
+
+8
+
+RW 0x0
+
+7:0
+
+RW 0x06
+
+Description
+ch1_type
+Channel 1 is a count down counter.
+ch0_type
+Channel 0 is a count down counter.
+ip_function
+IP function: 16'd6.
+
+10.4.2.2 HPTIMER Detail Register Description
+TIMER_HP_REVISION
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+svn_revision
+31:16 RO 0x13d1
+SVN revision: 16'd5073.
+15:10 RO 0x00
+reserved
+ch_type
+9:8
+RW 0x2
+Channel 0 is a low power recovery self-correction count up
+counter.
+ip_function
+7:0
+RO 0x01
+IP function: 16'd1.
+TIMER_HP_CTRL
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+count_mode
+Timer count mode
+3
+RW 0x0
+1'b0: Free-running mode
+1'b1: User-defined count mode
+timer_mode
+Select timer as which timer
+2:1
+RW 0x0
+2'b00: Normal timer
+2'b01: Adjust timer with hardware adjust
+2'b10: Adjust timer with software adjust
+timer_en
+Timer enable
+0
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+TIMER_HP_INTR_EN
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+Description
+31:3 RO 0x00000000 reserved
+sync_done_intr_en
+Synchronization done interrupt enable
+2
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+ini_adj_done_intr_en
+Initial adjust done interrupt enable
+1
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+count_reach_intr_en
+Timer count reach load_count interrupt enable
+0
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1308
+
+RK3588 TRM-Part1
+TIMER_HP_T24_GCD
+Address: Operational Base + offset (0x000C)
+Bit Attr Reset Value
+Description
+t24_gcd
+31:0 RW 0x00000000 The least common multiple of 24M and 32K clock cycles divided
+by 24M clock cycles.
+TIMER_HP_T32_GCD
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+Description
+t32_gcd
+31:0 RW 0x00000000 The least common multiple of 24M and 32K clock cycles divided
+by 32K clock cycles.
+TIMER_HP_LOAD_COUNT0
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+Description
+load_count0
+31:0 RW 0x00000000
+Low 32bits of load count value.
+TIMER_HP_LOAD_COUNT1
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+Description
+load_count1
+31:0 RW 0x00000000
+High 32bits of load count value.
+TIMER_HP_T24_DELAT_COUNT0
+Address: Operational Base + offset (0x001C)
+Bit Attr Reset Value
+Description
+t24_delay_time_count0
+31:0 RW 0x00000000
+Low 32bits of 24M clock delay time count value.
+TIMER_HP_T24_DELAT_COUNT1
+Address: Operational Base + offset (0x0020)
+Bit Attr Reset Value
+Description
+t24_delay_time_count1
+31:0 RW 0x00000000
+High 32bits of 24M clock delay time count value.
+TIMER_HP_CURR_32K_VALUE0
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+Description
+current_32k_value0
+31:0 RO 0x00000000
+Low 32bits of current cnt_32k value.
+TIMER_HP_CURR_32K_VALUE1
+Address: Operational Base + offset (0x0028)
+Bit Attr Reset Value
+Description
+current_32k_value1
+31:0 RO 0x00000000
+High 32bits of current cnt_32k value.
+TIMER_HP_CURR_TIMER_VALUE0
+Address: Operational Base + offset (0x002C)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1309
+
+RK3588 TRM-Part1
+Bit
+31:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+current_value0
+Low 32bits of current timer_cnt value.
+
+TIMER_HP_CURR_TIMER_VALUE1
+Address: Operational Base + offset (0x0030)
+Bit Attr Reset Value
+Description
+current_value1
+31:0 RO 0x00000000
+High 32bits of current timer_cnt value.
+TIMER_HP_T24_32BEGIN0
+Address: Operational Base + offset (0x0034)
+Bit Attr Reset Value
+Description
+t24_32begin0
+31:0 RO 0x00000000
+24M switches to 32K clock, with a low 32 bits of timer_cnt value.
+TIMER_HP_T24_32BEGIN1
+Address: Operational Base + offset (0x0038)
+Bit Attr Reset Value
+Description
+t24_32begin1
+31:0 RO 0x00000000
+24M switches to 32K clock, with a high 32 bits of timer_cnt value.
+TIMER_HP_T32_24END0
+Address: Operational Base + offset (0x003C)
+Bit Attr Reset Value
+Description
+t32_24end0
+31:0 RO 0x00000000
+32K switches to 24M clock, with a low 32 bits of timer_cnt value.
+TIMER_HP_T32_24END1
+Address: Operational Base + offset (0x0040)
+Bit Attr Reset Value
+Description
+t32_24end1
+31:0 RO 0x00000000
+32K switches to 24M clock, with a high 32 bits of timer_cnt value.
+TIMER_HP_BEGIN_END_VALID
+Address: Operational Base + offset (0x0044)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+t32_24end_valid
+W1
+T32_24END value valid
+1
+0x0
+C
+1'b0: Invalid
+1'b1: Valid
+t24_32begin_valid
+W1
+T24_32BEGIN value valid
+0
+0x0
+C
+1'b0: Invalid
+1'b1: Valid
+TIMER_HP_SYNC_REQ
+Address: Operational Base + offset (0x0048)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+sync_request
+R/W
+0
+0x0
+SC
+Timer_cnt synchronize request.
+TIMER_HP_INTR_STATUS
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1310
+
+RK3588 TRM-Part1
+Address: Operational Base + offset (0x004C)
+Bit Attr Reset Value
+Description
+31:3 RO 0x00000000 reserved
+sync_done
+W1
+2
+0x0
+C
+Timer_cnt synchronization done.
+ini_adj_done
+W1
+1
+0x0
+C
+Cnt_32k initial adjust done.
+W1
+count_reach
+0
+0x0
+C
+Normal counter: timer_cnt reach load_count value.
+
+10.5 Application Notes
+10.5.1 Clock and Enable
+In the chip, the timer_clk is from 24MHz XIN_OSC, asynchronous to the pclk. When user
+disables the timer enables bit (bit 0 of TIMERn_CONTROLREG (0≤n≤5)), the timer en
+output signal is de-asserted, and timer_clk will stop. When user enables the timer, the
+timer_en signal is asserted and timer_clk will start running.
+The application is only allowed to re-config registers when timer_en is low.
+
+timer_clk
+timer_en
+Fig. 10-4 Timing between timer_en and timer_clk
+Please refer to function description section for the timer usage flow.
+
+10.5.2 HPTIMER application notes
+⚫
+⚫
+⚫
+
+Initial adjustment, synchronous counting adjustment time is about 2ms.
+When HPTIMER is used as software / hardware adjustment count, the count reaches the
+TIMER_HP_LOAD_COUNT value, the interrupt status bit will be set, but the count will not
+stop and continue to count.
+The timer_en of the CTRL register will output as a reference signal for timer clock
+gating. When timer_en is ‘0’, it will gate the 24M and 32K clocks of the input timer. The
+application is only allowed to re-config registers when timer_en is low.
+
+10.5.3 TIMER attributes
+Table 10-1 shows the TIMER name corresponding to each TIMER, the total number of
+channels and their PD. It also shows the base address of each TIMER, in which the
+difference of TIMER address offset between adjacent channels in each TIMER is 0x20.
+Table 10-1 TIMER attribute
+TIMER Name
+TIMER_PMU
+TIMER_NPU
+TIMER_DDR
+TIMER_S_0
+TIMER_S_1
+TIMER_NS_0
+TIMER_NS_1
+HP_TIMER
+
+CH NUM
+2
+2
+2
+6
+6
+6
+6
+1
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+PD
+pd_pmu1
+pd_npu
+pd_center
+pd_secure
+pd_bus
+pd_bus
+pd_bus
+pd_pmu0
+
+Base Address
+0xfd8f0000
+0xfdb00000
+0xfe118000
+0xfe3d0000
+0xfed30000
+0xfeae0000
+0xfeae8000
+0xfd8c8000
+
+1311
+
+RK3588 TRM-Part1
+

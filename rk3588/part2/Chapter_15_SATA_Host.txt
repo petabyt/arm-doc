@@ -1,0 +1,3521 @@
+Chapter 15 SATA Host
+15.1 Overview
+
+SATA Host implements the Serial Advanced Technology Attachment (SATA) storage interface
+for physical storage devices.
+SATA Host supports the following features:
+⚫ Include 3 ports, and each port can connect up to 5 devices using PM switching
+⚫ SATA 1.5Gb/s, SATA 3.0Gb/s, SATA 6.0Gb/s speeds
+⚫ eSATA
+⚫ Compliant with Serial ATA 3.3 specifications
+⚫ Compliant with AHCI Revision 1.3.1
+⚫ OOB signaling detection and generation
+⚫ Digital support of Mechanical presence switch and cold presence detect
+⚫ Activity LED support
+⚫ Digital support of device hot-plugging
+⚫ Output port to indicate speed that is negotiated after COMRESET for power optimization
+⚫ Memory Data Protection (ECC) and Error Correction (ECC)
+⚫ Memory Data Protection Diagnostic Error Injection
+⚫ SATA 1.5Gb/s, SATA 3.0Gb/s, and SATA 6.0Gb/s speed negotiation
+⚫ Asynchronous signal recovery, including retry polling
+⚫ Power management features including automatic partial-to-slumber transition
+⚫ BIST loopback modes
+⚫ Hardware-assisted Native Command Queuing for up to 32 entries
+⚫ Port Multiplier with FIS-based switching
+⚫ Disabling RX and TX Data clocks during power down modes
+⚫ Any sector sizes
+⚫ AXI interface used for configuration only support single
+⚫ AXI interface used to fetch data from memory
+
+15.2 Block Diagram
+PHY
+I/F
+
+RX Clock
+
+Application Clock
+
+DMA
+I/F
+
+RX FIFO
+PHY
+I/F
+
+DS FIFO
+
+Link
+layer
+
+Port DMA
+
+TX FIFO
+
+Master
+I/F
+
+AXI Master
+
+Transport
+layer
+
+TX Clock
+
+Bus Interface
+Unit
+
+Port Register
+
+REG
+I/F
+
+SATA PIPE Interface
+Keep-alive Clock
+Generic
+Registers
+
+REG
+I/F
+
+Slave
+I/F
+AXI Slave
+
+Fig. 15-1 SATA host Architecture
+
+15.3 Function Description
+
+15.3.1 Bus Interface Unit (BIU)
+The Bus Interface Unit provides two interfaces:
+AXI Master - This interface enables the SATA AHCI DMA engine to read and write to an AXI
+slave connected to AXI BIU.
+AXI Slave - This interface enables an AXI master to read and write through the AXI BIU to
+the SATA AHCI registers.
+
+15.3.2 Generic Registers (GCSR)
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2283
+
+RK3588 TRM-Part2
+This module implements all global registers and provides the following functions:
+⚫ Generic configuration and control
+⚫ Global interrupt support
+⚫ BIST operation
+
+15.3.3 Port Registers (PCSR)
+The port registers module implements all Port-specific registers:
+⚫ Command list and FIS Based address
+⚫ Interrupt status/ enable
+⚫ Port command / status
+⚫ Task file data/signature /serial ATA
+⚫ DMA status/control
+
+15.3.4 Port DMA(PDMA)
+This module performs the following functions:
+⚫ Monitors commands posted by system software using the CI register
+⚫ Control data transfer between the Transport layer FIFOs and system memory using
+Physical Region Descriptor Table (PRDT)
+⚫ Transfers non-Data FISes received from the device to system memory using Received
+FIS Structure
+Most of the communication between the PDMA and software is done using two system
+memory descriptors that are constructed by software prior to initiating the transfer: FIS
+descriptor, which contains FISes received from that device; and the command list, which
+contains a list of 1 to 32 commands available for Port to execute and the pointers for data
+transfers. Some additional communication is done by registers located in the GCSR and
+PCSR modules.
+System memory structures are described in the SATA AHCI specification and are not
+repeated in this document.
+The PDMA module operates in the application clock(aclk) domain.
+
+15.3.5 Port Transport layer
+The transport layer block provides FIS reception and transmission functions of the SATA
+transport layer. It operates in two clock domains: transmit and application. During reception,
+the transport layer receives a new FIS from the link layer through the RX FIFO, decodes the
+FIS type, and instructs the PDMA to route the FIS payload data to the appropriate location in
+system memory. During transmission, the transport layer instructs the PDMA to construct
+the appropriate FIS, and then passes it to the link layer through the TX FIFO. The transport
+layer block receives all the PHY/Link errors from the link layer, detects transport errors and
+passes them to the PCSR for setting the corresponding error bits.
+The transport layer processes one FIS at time on the transmit side, meaning only one FIS is
+allowed in the TX FIFO at a time. On the receive side, RX FIFO can potentially contain more
+than one FIS at a time. For example, when the device transmits several DMA data FISes
+back-to-back with minimal delay, the RX FIFO still has the previous Data FIS while the next
+FIS is being received. The transport layer also contains a small internal eight-DWORD RX
+FIFO1 that is used for non-data FISes and FIS “End Status.”
+
+15.3.6 Port Link layer
+This module optional OOB signaling, system initialization, speed negotiation, frame
+negotiation and arbitration, envelope framing/de-framing, CRC calculating, insertion and
+checking, flow control, frame acknowledgement and status reporting, data scrambling/descrambling for EMI reduction, repeat primitive data transmission and reception handling,
+ALIGN primitive detection, dropping and data alignment and power management.
+
+15.4 Register Description
+15.4.1 Internal Address Mapping
+Slave address can be divided into different length for different usage, which is shown as
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2284
+
+RK3588 TRM-Part2
+follows.
+
+15.4.2 Registers Summary
+Name
+
+Offset
+
+Size
+
+SATA_CAP
+
+0x0000
+
+W
+
+SATA_GHC
+
+0x0004
+
+W
+
+SATA_IS
+
+0x0008
+
+W
+
+SATA_PI
+
+0x000C
+
+W
+
+SATA_VS
+
+0x0010
+
+W
+
+SATA_CCC_CTL
+
+0x0014
+
+W
+
+SATA_CCC_PORTS
+
+0x0018
+
+W
+
+SATA_CAP2
+
+0x0024
+
+W
+
+SATA_BISTAFR
+
+0x00A0
+
+W
+
+SATA_BISTCR
+
+0x00A4
+
+W
+
+SATA_BISTFCTR
+
+0x00A8
+
+W
+
+SATA_BISTSR
+
+0x00AC
+
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Reset
+Value
+
+Description
+
+This register indicates basic
+0x6737FF80 capabilities of the SATA Host to
+the software.
+This register controls various
+0x80000000
+global actions of the SATA Host.
+This register indicates which of
+the ports within the SATA Host
+0x00000000
+have an interrupt pending and
+require service
+This register indicates which ports
+are exposed by the SATA Host and
+0x00000000
+are available for the software to
+use. It is loaded by the BIOS.
+This register indicates the major
+and minor version of the AHCI
+0x00010300 specification that the SATA Host
+implementation supports. The
+SATA Host supports version 1.3.0
+This register is used to configure
+the command completion
+0x00010108
+coalescing (CCC) feature for the
+SATA Host.
+This register specifies the ports
+that are coalesced as part of the
+0x00000000
+command completion coalescing
+(CCC) feature.
+This register indicates capabilities
+0x00000000
+of the SATA Host to the software.
+This register contains the pattern
+0x00000000 definition and data pattern fields
+of the received BIST Activate FIS.
+This register is used in BIST
+initiator modes and for general
+0x00000000 PHY/Link control. It is loaded by
+the host software prior to sending
+BIST Activate FIS to the device.
+This register contains the received
+BIST FIS count in the loopback
+0x00000000 initiator Far-end Retimed, Far-end
+Analog and Near-end Analog
+modes.
+This register contains errors
+detected in the received BIST FIS
+in the loopback initiator Far-end
+0x00FFFFFF Retimed, Far-end Analog and
+Near-end Analog modes. It is
+updated each time a new BIST
+FIS is received.
+
+2285
+
+RK3588 TRM-Part2
+Name
+
+SATA_BISTDECR
+
+Offset
+
+Size
+
+0x00B0
+
+W
+
+SATA_MEMEDFBSERRDAT
+0x00B4
+A
+
+W
+
+SATA_MEMEDADDRERRIN
+0x00B8
+J
+
+W
+
+SATA_OOBR
+
+0x00BC
+
+W
+
+SATA_MEMEDTXFERRDAT
+0x00C0
+AU
+
+W
+
+SATA_DIAGNR3
+
+0x00C4
+
+W
+
+SATA_TIMER1MS
+
+0x00E0
+
+W
+
+SATA_MEMDPCR
+
+0x00E4
+
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Reset
+Value
+
+Description
+
+This register contains the number
+of DWORD errors detected in the
+received BIST frame in the
+loopback initiator Far-end
+0xFFFFF000
+Retimed, Far-end Analog and
+Near-end Analog modes. It is
+updated each time a new BIST
+frame is received.
+This is read-only per-port FBS
+0x00000000 RAM Data Ecc/Parity error location
+(address) and syndrome register.
+This per-port register controls the
+ECC/Parity error injection
+functionality. Single-bit and
+double-bit pseudo-random errors
+can be injected in each of the
+three memory interfaces (RX FIFO
+0x00000000
+RAM, TX FIFO RAM, FBS RAM).
+The register allows for just one
+memory element to be injected
+with an error or for continuous
+error injection in each memory
+element.
+This register controls the Link
+layer OOB detection counters. The
+default values, MIN_COMWAKE,
+MAX_COMWAKE, MIN_COMINIT
+0x00000000 and MAX_COMINIT are calculated
+based on the RXOOB_CLK_FREQ
+parameter and loaded on powerup or asynchronous SATA Host
+reset.
+When the TX FIFO RAM Data
+parity error syndrome width
+excess the range of the register
+MEMEDTXFERRDATA.mem_txf_err
+0x00000000 _synd, extra bits are logged in
+this register. If the upper
+syndrome bits are not enough for
+filling all the bits of this register,
+redundancy bits filled with 0.
+0x00000000 DIAGNR3
+This register is used to generate a
+1-ms tick for the command
+0x00000000 completion coalescing (CCC) or
+DevSleep logic, based on the
+AMBA bus clock frequency.
+This register is used to control the
+various options associated with
+0x00000000 the Data protection (ECC/Parity)
+and Address protection (Parity)
+functionality.
+
+2286
+
+RK3588 TRM-Part2
+Name
+
+Offset
+
+Size
+
+SATA_TESTR
+
+0x00F4
+
+W
+
+SATA_VERSION
+
+0x00F8
+
+W
+
+SATA_IDR
+
+0x00FC
+
+W
+
+SATA_P0CLB
+
+0x0100
+
+W
+
+SATA_P0FB
+SATA_P0IS
+SATA_P0IE
+
+0x0108
+0x0110
+0x0114
+
+W
+W
+W
+
+SATA_P0CMD
+
+0x0118
+
+W
+
+SATA_P0TFD
+
+0x0120
+
+W
+
+SATA_P0SIG
+
+0x0124
+
+W
+
+SATA_P0SSTS
+
+0x0128
+
+W
+
+SATA_P0SCTL
+
+0x012C
+
+W
+
+SATA_P0SERR
+
+0x0130
+
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Reset
+Value
+
+Description
+
+This register is used to put the
+SATA Host slave interface into a
+0x00000000
+test mode and to select a Port for
+BIST operation.
+This 32-bit read-only register
+contains hard-coded hexadecimal
+0x00000000
+SATA Host component version
+value.
+This register contains a hardcoded hexadecimal SATA Host
+0x00000000 identification value, as determined
+by the configuration parameter
+External User Core ID Port.
+Port Command List Base Address
+0x00000000
+Register
+0x00000000 Port FIS Base Address Register
+0x00000000 Port Interrupt Status Register.
+0x00000000 Port Interrupt Enable Register.
+Port Command Register. This
+0x00000000 register contains bits controlling
+various Port functions.
+Port Task File Data Register. This
+register contains Error and Status
+registers updated every time a
+0x00000000
+new Register FIS, PIO Setup FIS,
+or Set Device Bits FIS is received
+from the device.
+0x00000000 Port Signature Register
+Port Serial ATA Status (SStatus)
+Register. This 32-bit register
+conveys the current state of the
+interface and host. The Port
+updates it continuously and
+asynchronously. When the Port
+0x00000000
+transmits a COMRESET to the
+device, this register is updated to
+its reset values (such as, Global
+reset, Port reset, or device
+disconnect ('PHY Ready'
+negation)).
+Port Serial ATA Control Register.
+This 32-bit read-write register is
+used by the software to control
+SATA interface capabilities. Writes
+0x00000000 to this register result in an action
+being taken by the Port PHY
+interface. Reads from the register
+return the last value written to it.
+Reset on Global reset.
+Port Serial ATA Error Register. This
+32-bit register represents all the
+0x00000000 detected interface errors
+accumulated since the last time it
+was cleared.
+
+2287
+
+RK3588 TRM-Part2
+Name
+
+Offset
+
+Size
+
+SATA_P0SACT
+SATA_P0CI
+
+0x0134
+0x0138
+
+W
+W
+
+SATA_P0SNTF
+
+0x013C
+
+W
+
+SATA_P0FBS
+
+0x0140
+
+W
+
+SATA_P0DMACR
+
+0x0170
+
+W
+
+Reset
+Description
+Value
+0x00000000 Port Serial ATA Active Register
+0x00000000 Port Command Issue Register
+Port Serial ATA Notification
+Register. This register is used to
+determine when asynchronous
+0x00000000 notification events have occurred
+for directly connected devices and
+devices connected to a Port
+Multiplier.
+Port FIS-Based Switching Control
+Register. This register is used to
+0x00000000
+control and obtain status for Port
+Multiplier FIS-based switching.
+Port DMA Control Register. This
+register contains bits for
+controlling the Port DMA engine.
+The software can change the
+0x00000000
+fields of this register only when
+P0CMD.ST=0. This register is
+reset to its default value on
+power-up (system reset) only.
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+15.4.3 Detail Registers Description
+SATA_CAP
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+s64a
+31
+RO 0x0
+Supports 64-bit addressable data structures by utilizing P0FBU
+and P0CLBU registers.
+sncq
+30
+RO 0x1
+Supports SATA native command queuing by handing DMA Setup
+FIS natively.
+ssntf
+29
+RO 0x1
+Supports P0SNTF (SNotification) register and its associated
+functionality.
+smps
+28
+RW 0x0
+This bit is set by the system firmware/BIOS when platform
+supports mechanical presence for hot plug operation.
+sss
+This bit is set by the system firmware/BIOS to indicate platform
+27
+RW 0x0
+support for staggered devices' spin-up. SATA Host supports this
+feature through the P0CMD.SUD bit functionality.
+salp
+Supports auto-generating Link Layer requests to the PARTIAL or
+26
+RO 0x1
+SLUMBER power management states when there are no
+commands to process.
+sal
+25
+RO 0x1
+Supports activity indication using signal P0_act_led.
+sclo
+24
+RO 0x1
+Supports the P0CMA.CLO bit functionality for Port Multiplier
+devices' enumeration.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2288
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+23:20 RO
+
+0x3
+
+19
+
+RO
+
+0x0
+
+18
+
+RO
+
+0x1
+
+17
+
+RO
+
+0x1
+
+16
+
+RO
+
+0x1
+
+15
+
+RO
+
+0x1
+
+14
+
+RO
+
+0x1
+
+13
+
+RO
+
+0x1
+
+12:8
+
+RO
+
+0x1f
+
+7
+
+RO
+
+0x1
+
+6
+
+RO
+
+0x0
+
+5
+
+RO
+
+0x0
+
+4:0
+
+RO
+
+0x00
+
+Description
+iss
+Supports SATA 1.5Gb/s, SATA 3Gb/s, SATA 6Gb/s interface
+speeds.
+snzo
+This feature is not supported.
+sam
+Supports AHCI mode only and does not supports legacy, task-file
+based register interface.
+spm
+Supports command-based switching Port Multiplier on any of its
+ports.
+fbss
+FIS-Based Switching supported.
+pmd
+Supports multiple DRQ block data transfer for the PIO command
+protocol.
+ssc
+Supports transitions to the interface SLUMBER power
+management state.
+psc
+Supports transitions to the interface PARTIAL power management
+state.
+ncs
+Supports 32 command slots per Port.
+cccs
+Command Completion Coalescing Supported
+ems
+SATA Host does not support enclosure management.
+sxs
+The options for this field are:
+1'h0: Indicates that the SATA Host has no ports that have a
+signal only connector externally accessible;
+1'h1: Indicates that the SATA Host has one or more ports that
+has a signal only connector (power is not part of that connector)
+that is externally accessible. When this bit is set to 1, the
+software can refer to the P0CMD.ESP bit to determine whether a
+specific Port has its signal connector externally accessible.
+np
+Indicating the numbers of ports supported by the SATA Host.
+
+SATA_GHC
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+ae
+31
+RO 0x1
+This bit is always set since SATA Host supports only AHCI mode
+as indicated by the CAP.SAM=1.
+30:2 RO 0x00000000 reserved
+ie
+This global bit enables interrupts from the SATA Host. When
+1
+RW 0x0
+cleared, all interrupt sources from all the ports are disabled.
+When set, interrupts are enabled and ant SATA Host interrupt
+event caused interrupt assertion.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2289
+
+RK3588 TRM-Part2
+Bit
+
+0
+
+Attr Reset Value
+
+WO 0x0
+
+Description
+hr
+When set by the software, this bit causes an internal Global reset
+of the SATA Host. All state machines that relate to data transfers
+and queuing return to and idle state, and all the ports are reinitialized by sending COMRESET when staggered spin-up is not
+supported. When staggered spin-up is supported, then the
+software must spin-up each port after this reset has complete.
+
+SATA_IS
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+ips
+When set, this bit indicates that the corresponding Ports or
+Command Completion Coalescing logic has an interrupt pending.
+The software can use this information to determine which ports
+1:0
+RW 0x0
+require service after an interrupt. The bits of this field are set by
+the ports that have interrupt events pending in the P0IS bits and
+enabled by the P0IE or CCC interrupt is generated. Set bits are
+cleared by the software writing 1 to all bits to clear.
+SATA_PI
+Address: Operational Base + offset (0x000C)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+pi
+This register is bit significant.
+0
+RW 0x0
+1'h0: The Port is not available for the software to use;
+1'h1: The corresponding Port is available for the software to use.
+SATA_VS
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+Description
+mjr
+31:16 RO 0x0001
+Indicates that the major AHCI version is 1.
+mnr
+15:0 RO 0x0300
+Indicates that the minor AHCI version is 30 or 31.
+SATA_CCC_CTL
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+Description
+tv
+31:16 RO 0x0001
+This field specifies the CCC time-out value in 1ms intervals. The
+software loads this value prior to enabling CCC.
+cc
+This field specifies the number of command completions that are
+necessary to cause a CCC interrupt.
+15:8 RW 0x01
+The value 8'h00 for this field disables CCC interrupts being
+generated based on the number of commands completed. In this
+case, CCC interrupts are only generated based on the timer.
+intr_int
+7:3
+RO 0x01
+This field specifies the interrupt used by the ccc feature, using
+the number of ports configured for the core.
+2:1
+RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2290
+
+RK3588 TRM-Part2
+Bit
+
+0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+en
+The options for this field are:
+1'h0: CCC feature is disabled and no CCC interrupts are
+generated;
+1'h1: CCC feature is enabled and CCC interrupts may be
+generated based on the time-out or command completion
+conditions.
+
+SATA_CCC_PORTS
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+prt
+This field is bit significant. Each bit corresponds to a particular
+Port, where bit 0 corresponds to Port0.The options for this field
+are:
+0
+RW 0x0
+1'h0: The corresponding Port is not part of the CCC feature.
+1'h1: The corresponding Port is part of the CCC feature.
+Bits set in this register must also have the corresponding bit set
+in the PI (Ports Implemented Register).
+SATA_CAP2
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+deso
+5
+RO 0x0
+SATA Host supports DevSleep entrance from any Link state
+(active, Partial, or Slumber).
+sadm
+4
+RO 0x0
+SATA Host supports hardware assertion of the P0_phy_devslp
+output after the idle timer expires.
+sds
+3
+RO 0x0
+SATA Host supports hardware assertion of the P0_phy_devslp
+output after the idle timer expires.
+apst
+2
+RO 0x0
+Automatic Partial to Slumber Transitions
+nvmp
+1
+RO 0x0
+SATA Host does not support NVMHCI.
+bph
+0
+RO 0x0
+SATA Host does not support BOH.
+SATA_BISTAFR
+Address: Operational Base + offset (0x00A0)
+Bit Attr Reset Value
+31:16 RO 0x0000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2291
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+15:8
+
+RO
+
+0x00
+
+7:0
+
+RO
+
+0x00
+
+Description
+ncp
+Least significant byte of the received BIST Activate FIS second
+DWORD (bits [7:0]). This value defines the required pattern for
+Far-end transmit only mode (BISTAFR.PD=0xC0 or 0xE0):
+8'h4A: High frequency test pattern (HFTP);
+8'h78: Mid frequency test pattern (MFTP);
+8'h7E: Low frequency test pattern (LFTP);
+8'h7F: Simultaneous switching outputs pattern (SSOP);
+8'hAB: Low frequency spectral component pattern (LFSCP);
+8'hB5: High transition density pattern (HTDP);
+8'hF1: Low transition density pattern (LTDP).
+When none of these values is decoded, the Lone bit pattern (LBP)
+is transmitted by default.
+pd
+Indicates the pattern definition field of the received BIST Activate
+FIS - bits [23:16] of the first DWORD. It is used to put the SATA
+Host in one of the following BIST modes:
+8'h08: Far-end Analog (when PHY supports this mode);
+8'h10: Far-end Retimed;
+8'hC0: Far-end Transmit only;
+8'hE0: Far-end Transmit only with scrambler bypassed.
+All other values should not be used by the device, otherwise, the
+FIS is negatively acknowledged with R_ERRp.
+For Far-end Transmit only modes BISTAFR.NCP field contains the
+required data pattern.
+
+SATA_BISTCR
+Address: Operational Base + offset (0x00A4)
+Bit Attr Reset Value
+Description
+31:26 RO 0x00
+reserved
+old_phy_ready
+25
+RO 0x0
+Old phy_ready
+late_phy_ready
+When set, this bit changes monitoring of phy_ready to be the
+"OR" of phy_ready or phy_rx_data_vld so that a "late arriving",
+or even "never asserting" phy_ready. This requires that
+phy_rx_data_vld does not become valid until after the PHY has
+24
+RO 0x0
+locked onto post OOB incoming ALIGNs, and the ALIGNs are valid
+from the PHY. This will not work if phy_rx_data_vld is asserted
+during OOB data bursts.
+This behavior is intended for PHYs that assert phy_ready late, but
+will also work if phy_ready never asserts or is not present.
+23:21 RO 0x0
+reserved
+ferlb
+When set, this bit is used to put the SATA Host Link into Far-end
+20
+WO 0x0
+Retimed mode, without the BIST Activate FIS, regardless whether
+the device is connected or disconnected (Link in NOCOMM state).
+This field is one-shot type and reads returns 0.
+19
+RO 0x0
+reserved
+txo
+This bit is used to initiate transmission of one of the non18
+WO 0x0
+compliant patterns defined by the BISTCR.PATTERN value when
+the device is disconnected.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2292
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+17
+
+WO 0x0
+
+16
+
+WO 0x0
+
+15
+
+RW 0x0
+
+14
+
+RO
+
+13
+
+RW 0x0
+
+12
+
+RW 0x0
+
+11
+
+RO
+
+0x0
+
+0x0
+
+Description
+cntclr
+This bit clears BIST error count registers. This field is one-shot
+type and reads returns 0.
+1'h1: Clear BISTFCTR, BISTSR, and BISTDECR registers.
+nearlb
+This bit places the Port PHY into Near-end Analog loopback mode.
+This field is one-shot type and reads returns 0.
+1'h0: Near-end Analog loopback disabled;
+1'h1: Near-end Analog loopback request. BISTCR.PATTERN field
+contains the appropriate pattern.
+This mode should be initiated either in the PARTIAL or SLUMBER
+power mode, or with the device disconnected from the Port PHY
+(Link NOCOMM state).
+BIST Activate FIS is not sent to the device in this mode.
+llb
+When set, masks out phy_sig_det from the OOB Detector in BIST
+Loopback Mode, and the only way to exit BIST Loopback mode is
+to clear the register bit (requires access to the Device AMBA
+register interface), then issue COMRESET or receive COMINIT as
+normal. Alternately, a power on reset will automatically clear the
+BIST Loopback Mode register bit.
+qphyinit
+When set, this bit enables quick PHY initialization feature. The
+Link does not require any ALIGNs to transition from OOB to
+normal operation.
+errlossen
+This bit is cleared until it is set via programming.
+sdfe
+This bit is cleared until it is set via programming. It is not
+affected by a Global reset or COMRESET.
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2293
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+10:8
+
+RW 0x0
+
+7
+
+RO
+
+6
+
+RW 0x0
+
+5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+0x0
+
+Description
+llc
+This field controls the Port Link Layer functions: scrambler, descrambler, and repeat primitive drop. Note the different meanings
+for normal and BIST modes of operation:
+Bit 8 - SCRAM
+The options for this field are:
+1'h0: Scrambler disabled in normal mode, enabled in BIST mode;
+1'h1: Scrambler enabled in normal mode, disabled in BIST mode.
+Bit 9 - DESCRAM
+The options for this field are:
+1'h0: Descrambler disabled in normal mode, enabled in BIST
+mode;
+1'h1: Descrambler enabled in normal mode, disabled in BIST
+mode.
+Bit 10 - RPD
+The options for this field are:
+1'h0: Repeat primitive drop function disabled in normal mode, NA
+in BIST mode;
+1'h1: Repeat primitive drop function enabled in normal mode, NA
+in BIST mode.
+The SCRAM bit is cleared (enabled) by the Port when the Port
+enters a responder far-end transmit BIST mode with scrambling
+enabled (BISTAFR.PD=0xC0).
+In normal mode, the functions scrambler, descrambler, or RPD
+can be changed only during Port reset (P0SCTL.DET=0x1)
+reserved
+erren
+This bit is used to allow or filter (disable) PHY internal errors
+outside the FIS boundary to set corresponding P0SERR bits.
+The options for this field are:
+1'h0: Filter errors outside the FIS, allow errors inside the FIS;
+1'h1: Allow errors outside or inside the FIS.
+flip
+This bit is used to change disparity of the current test pattern to
+the opposite every time its state is changed by the software.
+pv
+This bit is used to select either short or long version of the SSOP,
+HTDP, LTDP, LFSCP, COMP patterns.
+The options for this field are:
+1'h0: Short pattern version;
+1'h1: Long pattern version.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2294
+
+RK3588 TRM-Part2
+Bit
+
+3:0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+pattern
+This field defines one of the following SATA-compliant patterns for
+Far-end Retimed/Far-end Analog/Near-end Analog initiator
+modes, or non-compliant patterns for Transmit-only responder
+mode when initiated by the software writing to the BISTCR.TXO
+bit.
+The options for this field are:
+4'h0: Simultaneous switching outputs pattern (SSOP);
+4'h1: High transition density pattern (HTDP);
+4'h2: Low transition density pattern (LTDP);
+4'h3: Low frequency spectral component pattern (LFSCP);
+4'h4: Composite pattern (COMP);
+4'h5: Lone bit pattern (LBP);
+4'h6: Mid frequency test pattern (MFTP);
+4'h7: High frequency test pattern (HFTP);
+4'h8: Low frequency test pattern (LFTP).
+All other values are reserved and should not be used.
+If the value is none of the listed previously, Composite pattern
+(COMP) is transmitted by default.
+
+SATA_BISTFCTR
+Address: Operational Base + offset (0x00A8)
+Bit Attr Reset Value
+Description
+count
+31:0 RO 0x00000000
+Received BIST FIS Count
+SATA_BISTSR
+Address: Operational Base + offset (0x00AC)
+Bit Attr Reset Value
+Description
+31:24 RO 0x00
+reserved
+brsterr
+This field contains the burst error count. It is accumulated each
+23:16 RO 0xff
+time a burst error condition is detected: DWORD error is detected
+in the received frame and 1.5 seconds (27,000 frames) passed
+since the previous burst error was detected.
+framerr
+This field contains the frame error count. It is accumulated (new
+15:0 RO 0xffff
+value is added to the old value) each time a new BIST frame with
+a CRC error is received.
+SATA_BISTDECR
+Address: Operational Base + offset (0x00B0)
+Bit Attr Reset Value
+Description
+dwerr
+This field contains the DWORD error count. It is accumulated
+31:0 RO 0xfffff000
+(new value is added to the old value) each time a new BIST
+frame is received.
+SATA_MEMEDFBSERRDATA
+Address: Operational Base + offset (0x00B4)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2295
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+31:12 RO
+
+0x00000
+
+11:0
+
+0x000
+
+RO
+
+Description
+mem_fbs_err_synd
+This field logs the error syndrome of the RAM Data Ecc/Parity
+error, if the syndrome with excess the range of the filed
+MEMEDFBSERRDATA.mem_fbs_err_synd, extra bits is logged in
+another register MEMEDFBSERRDATAU.mem_fbs_err_synd_u.
+mem_fbs_err_addr
+This filed logs the error location (the address of which the RAM
+data Ecc/Parity error detected)
+
+SATA_MEMEDADDRERRINJ
+Address: Operational Base + offset (0x00B8)
+Bit Attr Reset Value
+Description
+31:18 RO 0x0000
+reserved
+ued
+17
+RW 0x0
+Indicates a single bit uncorrected, or multiple bit error was
+detected. Cleared by writing '1' to this field.
+ced
+16
+RW 0x0
+Indicates a single bit error was corrected. Cleared by writing '1'
+to this field.
+15:5 RO 0x000
+reserved
+oneB_2B
+When MEM_DP_TYPE=1 (Parity), only single-bit error injection is
+4
+RW 0x0
+allowed in Parity mode and hence the value programmed in this
+bit is 'don't care'.
+cont
+3
+RW 0x0
+Selects 'one-shot' (0) or 'continuous' (1) errors
+mem_sel
+2'h0: All three memory interfaces;
+2:1
+RW 0x0
+2'h1: RX FIFO Memory;
+2'h2: TX FIFO Memory;
+2'h3: FBS RAM.
+err_inj_valid
+0
+RW 0x0
+The values in the rest of the fields of this register are valid only
+when this bit is set to 1.
+SATA_OOBR
+Address: Operational Base + offset (0x00BC)
+Bit Attr Reset Value
+Description
+we
+The options for this field are:
+31
+RW 0x0
+1'h0: OOBR bits [30:0] are read-only;
+1'h1: OOBR bits [30:0] can be written.
+This bit is cleared when COMRESET is detected.
+cwMin
+30:24 RW 0x00
+This field is RW when WE=1 and RO when WE=0.
+cwMax
+23:16 RW 0x00
+This field is RW when WE=1 and RO when WE=0.
+ciMin
+15:8 RW 0x00
+This field is RW when WE=1 and RO when WE=0.
+ciMax
+7:0
+RW 0x00
+This field is RW when WE=1 and RO when WE=0.
+SATA_MEMEDTXFERRDATAU
+Address: Operational Base + offset (0x00C0)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2296
+
+RK3588 TRM-Part2
+Bit
+31:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+mem_txf_err_synd_u
+When the TX FIFO RAM Data parity error syndrome width excess
+the range of the register MEMEDTXFERRDATA.mem_tx_err_synd,
+extra bits is logged in this field.
+
+SATA_DIAGNR3
+Address: Operational Base + offset (0x00C4)
+Bit Attr Reset Value
+Description
+fbcsw_cnt
+31:0 RO 0x00000000
+FIS-based context switching counter
+SATA_TIMER1MS
+Address: Operational Base + offset (0x00E0)
+Bit Attr Reset Value
+Description
+31:20 RO 0x000
+reserved
+timv
+This field contains the following value for the internal timer to
+generate 1-ms tick: Famba*1000, where Famba = AMBA clock
+frequency in MHz.
+19:0 RW 0x00000
+The options for this field are:
+RW when CCC_CTL.EN=0 and CCC_SUPPORT = Include
+RO when CCC_CTL.EN=1 and CCC_SUPPORT = Include
+RW when CCC_SUPPORT=Exclude and
+DEVSLP_SUPPORT=Include
+SATA_MEMDPCR
+Address: Operational Base + offset (0x00E4)
+Bit Attr Reset Value
+Description
+31:10 RO 0x000000
+reserved
+mem_par_even
+This value is derived from the MEM_PAR_EVEN parameter.
+The options for this field are as follows:
+9
+RO 0x0
+1'h0: Generate odd type of parity for data (if parity type
+protection selected) and address;
+1'h1: Generate even type of parity for data (if parity type
+protection selected) and address.
+mem_err_inj_loc
+The options for this field are as follows:
+8
+RW 0x0
+1'h0: Inject error on data bits;
+1'h1: Inject error on data check bits.
+mem_ed_log_clr_en
+1'h0: All error detection and correction logging registers are
+7
+RW 0x0
+cleared by Global or COMRESET.
+1'h1: All error detection and correction logging registers are
+cleared only when MEMDPCR.EM_ED_LOG_CLR is set.
+mem_ed_log_clr
+This field clears all error detection and correction logging
+6
+WO 0x0
+registers when written. This bit clears itself one cycle after
+written.
+mem_ed_log_dis
+5
+RW 0x0
+This field disables error detection and correction logging when
+set.
+mem_ed_ce_en
+4
+RW 0x0
+This field enables correctable error detection interrupt (INFS).
+(For diagnostic purposes only)
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2297
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+mem_ed_pdmaf_dis
+This field disables PDMA from entering a fatal error state when an
+incorrect error is detected. (For diagnostic purposes only)
+mem_ed_ifs_dis
+This field disables setting the IFS interrupt register bit (interface
+fatal error status interrupt) when an incorrect error is detected
+when MEM_DP_TYPE selects ECC, or a Parity error is detected
+when MEM_DP_TYPE selects Parity.
+mem_ec_dis
+When set, disables the single error correcting features
+everywhere, and all errors are reported as incorrect. This field
+has no effect when MEM_DP_TYPE = Parity or when MEM_DP_EN
+= 0.
+mem_ed_dis
+All ECC/Parity error detection, correction, interrupt generation
+and Fatal error state transitions are disabled when this bit is set
+to 1. This field has no effect when the hardware parameter
+MEM_DP_EN = 0.
+
+SATA_TESTR
+Address: Operational Base + offset (0x00F4)
+Bit Attr Reset Value
+Description
+31:26 RO 0x00
+reserved
+bsel
+This field is used to select a bank for BIST or Data Protection
+operation or Address Protection operation. The options for this
+field are:
+25:24 RW 0x0
+2'h0: BIST registers selected
+2'h1: Data Protection registers selected
+2'h2: Address Protection registers selected
+2'h3: Reserved
+23:19 RO 0x00
+reserved
+psel
+This field is used to select a Port for BIST operation.
+The options for this field are:
+3'h0: Port0 is selected;
+3'h1: Port1 is selected;
+18:16 RW 0x0
+3'h2: Port2 is selected;
+3'h3: Port3 is selected;
+3'h4: Port4 is selected;
+3'h5: Port5 is selected;
+3'h6: Port6 is selected;
+3'h7: Port7 is selected.
+15:1 RO 0x0000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2298
+
+RK3588 TRM-Part2
+Bit
+
+0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+test_if
+This bit is used to put the SATA Host slave interface into the test
+mode.
+The options for this field are:
+1'h0: Normal mode: the read back value of some registers is a
+function of the SATA Host state and does not match the value
+written;
+1'h1: Test mode: the read back value of the registers matches
+the value written. Normal operation is disabled. The following
+registers can be accessed in this mode:
+GHC register IE bit
+BISTAFR register NCP and PD bits become read-write
+BISTCR register LLC, ERREN, FLIP, PV, PATTERN
+BISTFCTR, BISTSR, BISTDECR become read-write
+P0CLB/CLBU, P0FB/FBU registers
+P0IS register RW1C and UFS bits become read-write
+P0IE register RW bits (CPDE is RO if DEV_CP_DET = Exclude,
+DMPE bit is RO if DEV_MP_SWITCH = Exclude)
+P0CMD register ASP, ALPE, DLAE, ATAPI, PMA bits
+P0TFD, P0SIG registers become read-write
+P0SCTL register RW bits [9:8], [5:4], and [2:0] (Bits [2:0]
+cannot be written with the 3'b001 value if P0CMD.SUD=0)
+P0SERR register RW1C bits become read-write bits
+P0SACT, P0CI, P0SNTF registers become read-write
+P0DMACR register
+P0PHYCR register
+P0PHYSR register becomes read-write GPSR register becomes
+read-write
+
+SATA_VERSION
+Address: Operational Base + offset (0x00F8)
+Bit Attr Reset Value
+Description
+version
+31:0 RO 0x00000000
+SATA Host hard-coded hexadecimal version value.
+SATA_IDR
+Address: Operational Base + offset (0x00FC)
+Bit Attr Reset Value
+Description
+id
+31:0 RO 0x00000000
+Hard-coded hexadecimal identification value.
+SATA_P0CLB
+Address: Operational Base + offset (0x0100)
+Bit Attr Reset Value
+Description
+clb
+Indicates the 32-bit base physical address for the command list
+for this Port. This base is used when fetching commands to
+31:10 RW 0x000000
+execute. The structure pointed to by this address range is 1 KB in
+length. This address must be 1-KB-aligned as indicated by bits
+[9:0] being read only.
+9:0
+RO 0x000
+reserved
+SATA_P0FB
+Address: Operational Base + offset (0x0108)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2299
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+31:8
+
+RW 0x000000
+
+7:0
+
+RO
+
+0x00
+
+Description
+fb
+Indicates the 32-bit base physical address for received FISes. The
+structure pointed to by this address range is 256 bytes in length.
+This address must be 256byte-aligned as indicated by bits [7:0]
+being read only.
+reserved
+
+SATA_P0IS
+Address: Operational Base + offset (0x0110)
+Bit Attr Reset Value
+Description
+cpds
+This bit is set when the P0_cp_det input changes its state due to
+31
+RW 0x0
+the insertion or removal of the device. This bit is only valid when
+the Port supports cold presence detect as indicated by the
+P0CMD.CPD set to 1.
+tfes
+30
+RW 0x0
+This bit is set whenever the P0TFD.STS register is updated by the
+device and the error bit [0] is set.
+hbfs
+This bit is set when SATA Host AMBA Master detects an ERROR
+response from the slave.
+29
+RW 0x0
+Port DMA transitions to a fatal state until the software clears
+P0CMD.ST bit or resets the interface by way of Port or Global
+reset.
+hbds
+28
+RW 0x0
+This bit is always cleared to 0.
+ifs
+This bit is set when any of the following conditions are detected:
+SYNC escape is received from the device during non-Data or Data
+FIS transmission or reception (P0SERR.DIAG_S and ERR_P are
+set);
+One or more of the following errors are detected during Data FIS
+transfer:
+Protocol (P0SERR.ERR_P)
+CRC (P0SERR.DIAG_C)
+Handshake (P0SERR.DIAG_H)
+PHY Not Ready (P0SERR.ERR_C)
+Unknown FIS is received with good CRC, but the length exceeds
+64 bytes;
+27
+RW 0x0
+PRD table byte count is zero;
+DMA Setup FIS is received with a TAG corresponding to inactive
+(P0SACT bit is cleared) command slot;
+RAM address protection error detected (when hardware
+configuration parameter MEM_AP_SUPPORT is set to Include, and
+the MEM_AP_ERRFB_EN is set to Include, and the
+MEMDPCR.MEM_ADDR_ED_IFS_DIS register bit is set to 0);
+and/or
+Uncorrected error detected (when hardware configuration
+parameter MEM_DP_SUPPORT is set to Include, and the
+MEMDPCR.MEM_ED_IFS_DIS register bit is set to 0).
+Port DMA transitions to a fatal state until the software clears
+PCMD.ST bit or resets the interface by way of Port or Global
+reset.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2300
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+26
+
+RW 0x0
+
+25
+
+RO
+
+24
+
+RW 0x0
+
+23
+
+RW 0x0
+
+22
+
+RW 0x0
+
+21:8
+
+RO
+
+7
+
+RW 0x0
+
+6
+
+RO
+
+5
+
+RW 0x0
+
+0x0
+
+0x0000
+
+0x0
+
+Description
+infs
+This bit is set when any of the following conditions are detected:
+One or more of the following errors are detected during non-data
+FIS transfer:
+Protocol (P0SERR.ERR_P)
+CRC (P0SERR.DIAG_C)
+Handshake (P0SERR.DIAG_H)
+PHY Not Ready (P0SERR.ERR_C)
+Command list underflow during read operation (such as, DMA
+read) when the software builds command table that has more
+total bytes than the transaction given to the device
+Corrected error detected (when hardware configuration
+parameter MEM_DP_SUPPORT is set to Include, MEM_DP_TYPE is
+set to ECC, and the MEMDPCR.MEM_ED_CE_EN register bit is set
+to 1)
+In both cases Port operation continues normally. When error is
+detected during non-data FIS transmission, this FIS is
+retransmitted continuously until it succeeds, or until the software
+times out and resets the interface.
+reserved
+ofs
+This bit is set when command list overflow is detected during
+read or write operation when the software builds command table
+that has fever total bytes than the transaction given to the
+device.
+Port DMA transitions to a fatal state until the software clears
+P0CMD.ST bit or resets the interface by way of Port or Global
+reset.
+ipms
+Indicates that the HBA received a FIS from a device whose Port
+Multiplier field did not match what was expected.
+This bit may be set during enumeration of devices on a Port
+Multiplier due to the normal Port Multiplier enumeration process.
+The software must use the IPMS bit only after enumeration is
+complete on the Port Multiplier.
+prcs
+This bit reflects the state of the P0SERR.DIAG_N bit.
+When set to 1, indicates the internal P0_phy_ready signal
+changed state.
+To clear this bit, the software must clear the P0SERR.DIAG_N bit
+to 0.
+reserved
+dmps
+This bit is set when the P0_mp_switch input changes its state as
+a result of a mechanical switch attached to this Port opening or
+closing.
+This bit is valid only when both CAP.SMPS and P0CMD.MPSP are
+set.
+pcs
+This bit reflects the state of the P0SERR.DIAG_X bit:
+1'h0: No change in Current Connect Status;
+1'h1: Change in Current Connect Status.
+This bit is cleared only when P0SERR.DIAG_X is cleared.
+dps
+A PRD with the I bit set has transferred all of its data.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2301
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+4
+
+RO
+
+0x0
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+ufs
+When set to 1, indicates that an unknown FIS was received and
+has been copied into system memory.
+This bit is cleared to 0 by the software clearing the
+P0SERR.DIAG_F bit to 0.
+sdbs
+A Set Device Bits FIS has been received with the 'I' bit set and
+has been copied into system memory.
+dss
+A DMA Setup FIS has been received with the 'I' bit set and has
+been copied into system memory.
+pss
+A PIO Setup FIS has been received with the 'I' bit set, it has been
+copied into system memory, and the data related to that FIS has
+been transferred.
+dhrs
+A Device-to-Host Register FIS has been received with the 'I' bit
+set, and has been copied into system memory.
+
+SATA_P0IE
+Address: Operational Base + offset (0x0114)
+Bit Attr Reset Value
+Description
+cpde
+When the following conditions are true, the interrupt output
+signal is asserted:
+31
+RW 0x0
+This bit=1
+GHC.IE=1
+P0IS.CPDS=1
+tfee
+when the following conditions are true, the interrupt output signal
+is asserted:
+30
+RW 0x0
+This bit=1
+GHC.IE=1
+P0IS.TFES=1
+hbfe
+When the following conditions are true, the interrupt output
+signal is asserted:
+29
+RW 0x0
+This bit=1
+GHC.IE=1
+P0IS.HBFS=1
+hbde
+When the following conditions are true, the interrupt output
+signal is asserted:
+28
+RW 0x0
+This bit=1
+GHC.IE=1
+P0IS.HBDS=1
+ife
+When the following conditions are true, the interrupt output
+signal is asserted:
+27
+RW 0x0
+This bit=1
+GHC.IE=1
+P0IS.IFS=1
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2302
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+26
+
+RW 0x0
+
+25
+
+RO
+
+24
+
+RW 0x0
+
+23
+
+RW 0x0
+
+22
+
+RW 0x0
+
+21:8
+
+RO
+
+7
+
+RW 0x0
+
+6
+
+RO
+
+5
+
+RW 0x0
+
+4
+
+RO
+
+0x0
+
+0x0000
+
+0x0
+
+0x0
+
+Description
+infe
+When the following conditions are true, the interrupt output
+signal is asserted:
+This bit=1
+GHC.IE=1
+P0IS.INFS=1
+reserved
+ofe
+When the following conditions are true, the interrupt output
+signal is asserted:
+This bit=1
+GHC.IE=1
+P0IS.OFS=1
+ipme
+When the following conditions are true, the interrupt output
+signal is asserted:
+This bit=1
+GHC.IE=1
+P0IS.IPMS=1
+prce
+When the following conditions are true, the interrupt output
+signal is asserted:
+This bit=1
+GHC.IE=1
+P0IS.PRCS=1
+reserved
+dmpe
+When the following conditions are true, the interrupt output
+signal is asserted:
+This bit=1
+GHC.IE=1
+P0IS.DMPS=1
+pce
+When the following conditions are true, the interrupt output
+signal is asserted:
+This bit=1
+GHC.IE=1
+P0IS.PCS=1
+dpe
+When the following conditions are true, the interrupt output
+signal is asserted:
+This bit=1
+GHC.IE=1
+P0IS.DPS=1
+ufe
+When the following conditions are true, the interrupt output
+signal is asserted:
+This bit=1
+GHC.IE=1
+P0IS.UFS=1
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2303
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+sdbe
+When the following conditions are true, the interrupt output
+signal is asserted:
+This bit=1
+GHC.IE=1
+P0IS.SDBS=1
+dse
+When the following conditions are true, the interrupt output
+signal is asserted:
+This bit=1
+GHC.IE=1
+P0IS.DSS=1
+pse
+When the following conditions are true, the interrupt output
+signal is asserted:
+This bit=1
+GHC.IE=1
+P0IS.PSS=1
+dhre
+Dependencies: when the following conditions are true, the
+interrupt output signal is asserted:
+This bit=1
+GHC.IE=1
+P0IS.DHRS=1
+
+SATA_P0CMD
+Address: Operational Base + offset (0x0118)
+Bit Attr Reset Value
+Description
+icc
+This field is used to control power management states of the
+interface. When the Link layer is currently in the L_IDLE state or
+L_NoCommPower state, writes to this field cause the Port to
+initiate a transition to the interface power management state
+requested. When the Link layer is not currently in the L_IDLE
+state or L_NoCommPower, writes to this field have no effect.
+4'h1: Active. This causes the Port to request a transition of the
+31:28 RW 0x0
+interface into the active state;
+4'h2: Partial. This causes the Port to request a transition of the
+interface to the Partial state. The SATA device can reject the
+request and the interface remains in its current state;
+4'h6: Slumber. This causes the Port to request a transition of the
+interface to the Slumber state. The SATA device can reject the
+request and the interface remains in its current state;
+Else: Reserved.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2304
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+27
+
+RW 0x0
+
+26
+
+RW 0x0
+
+25
+
+RW 0x0
+
+24
+
+RW 0x0
+
+23
+
+RW 0x0
+
+22
+
+RW 0x0
+
+21
+
+RW 0x0
+
+20
+
+RW 0x0
+
+19
+
+RW 0x0
+
+Description
+asp
+The options for this field are:
+When set to 1, and P0CMD.ALPE=1, the Port aggressively enters
+the SLUMBER state when one of the following conditions is true:
+The Port clears the P0CI and the P0SACT register is cleared.
+The Port clears the P0SACT register and P0CI is cleared.
+When cleared to 0, and P0CMD.ALPE=1, the Port aggressively
+enters the PARTIAL state when one of the following conditions is
+true:
+The Port clears the P0CI register and the P0SACT register is
+cleared.
+The Port clears the P0SACT register and P0CI is cleared.
+alpe
+When set to 1, the Port aggressively enters a lower link power
+state (PARTIAL or SLUMBER) based on the setting of the
+P0CMD.ASP bit.
+When cleared to 0, aggressive power management state
+transition is disabled.
+dlae
+When set to 1, P0CMD.ATAPI=1, and commands are active, the
+Port asserts P0_act_led output.
+atapi
+This bit is used by the Port to control whether to assert
+P0_act_led output when commands are active.
+The options for this field are:
+1'h0: Non-ATAPI device;
+1'h1: ATAPI device.
+apste
+When this bit is set and the SATA Host Link layer negotiates
+Partial power management state with the device, it transitions
+into the Slumber state directly, regardless whether it was host
+software-, Port (aggressive)-, or device-initiated.
+fbscp
+When set to 1, indicates that this Port supports Port Multiplier
+FIS-based switching. When cleared to 0, indicates that this Port
+does not support FIS-based switching.
+esp
+When set to 1, indicates that this Port's signal only connector is
+externally accessible. When set to 1, CAP.SXS is also set to 1.
+When cleared to 0, indicates that this Port's signal only connector
+is not externally accessible.
+cpd
+The options for this field are:
+1'h0: Platform does not support cold presence detection on this
+Port;
+1'h1: Platform supports cold presence detection on this Port.
+When this bit is set to 1, P0CMD.HPCP must also be set to 1.
+mpsp
+To enable the SATA Host mechanical presence detection feature.
+The options for this field are:
+1'h0: Indicates the platform does not support a mechanical
+presence switch attached to this Port. When this bit is set to 1,
+P0CMD.HPCP should also be set to 1;
+1'h1: Indicates the platform supports a mechanical presence
+switch attached to this Port.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2305
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+18
+
+RW 0x0
+
+17
+
+RO
+
+0x0
+
+16
+
+RO
+
+0x0
+
+15
+
+RO
+
+0x0
+
+14
+
+RO
+
+0x0
+
+13
+
+RO
+
+0x0
+
+12:8
+
+RW 0x00
+
+7:5
+
+RO
+
+0x0
+
+Description
+hpcp
+The options for this field are:
+1'h0: Indicates that this Port's signal and power connectors are
+not externally accessible;
+1'h1: Indicates that this Port's signal and power connectors are
+externally accessible via a joint signal-power connector for blind
+mate device hot plug.
+pma
+The software is responsible for detecting whether a Port Multiplier
+is present; the SATA Host Port does not auto-detect the presence
+of a Port Multiplier.
+The options for this field are:
+1'h0: A Port Multiplier is not attached to this Port;
+1'h1: A Port Multiplier is attached to this Port.
+cps
+This bit reports whether a device is currently detected on this
+Port as indicated by the P0_cp_det input state.
+The options for this field are:
+1'h0: No device attached to this Port;
+1'h1: Device is attached to this Port.
+cr
+When this bit is set to '1', the command list DMA engine for this
+Port is running.
+fr
+When set to '1', the FIS Receive DMA engine for the Port is
+running.
+mpss
+The software must use this bit only when both CAP.SMPS and
+P0CMD.MPSP are set. This bit reports the state of a mechanical
+presence switch attached to this Port as indicated by the
+P0_mp_switch input state.
+The options for this field are:
+1'h0: Switch is closed;
+1'h1: Switch is open.
+When CAP.SMPS=0 then this bit is cleared to 0.
+ccs
+This field is set to the command slot value of the command that
+is currently being issued by the Port.
+When P0CMD.ST transitions from 1 to 0, this field is cleared again
+to 5'h0.
+After P0CMD.ST transitions from 0 to 1, the highest priority slot
+to issue from next is command slot 0.
+After the first command has been issued, the highest priority slot
+to issue from next is P0CMD.CCS+1.
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2306
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+4
+
+RW 0x0
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+fre
+When set to 1, the Port may post received FISes into the FIS
+receive area pointed to by P0FB. When cleared, received FISes
+are not accepted by the Port, except for the first D2H register FIS
+after the initialization sequence, and no FISes are posted to the
+FIS receive area.
+The software must not set this bit until P0FB has been
+programmed with a valid pointer to the FIS receive area.
+When the software wishes to move the base, this bit must first be
+cleared, and the software must wait for the P0CMD.FR bit to be
+cleared.
+clo
+Setting this bit to 1 cause P0TFD.STS.BSY and P0TFD.STS.DRQ to
+be cleared to 0. This allows a software reset to be transmitted to
+the device regardless of whether the BSY and DRQ bits are still
+set in the P0TFD.STS register. This bit is cleared to 0 when
+P0TFD.STS.BSY and P0TFD.STS.DRQ have been cleared to 0. A
+write to this register with a value of '0' has no effect.
+This bit should only be set to 1 immediately prior to setting
+P0CMD.ST bit to 1 from a previous value of 0. Setting this bit to 1
+at any other time is not supported and results in indeterminate
+behaviors.
+pod
+This bit is read/write when cold presence detection is supported
+on this Port as indicated by P0CMD.CPD=1. This bit is read-only 1
+when cold presence detection is not supported and
+P0CMD.CPD=0. When set, the Port asserts the P0_cp_pod output
+pin so that it may be used to provide power to a cold-presence
+detectable Port.
+sud
+This bit is read/write when staggered spin-up is supported as
+indicated by the CAP.SSS=1. This bit is read-only 1 when
+staggered spin-up is not supported and CAP.SSS=0. On an edge
+detect from 0 to 1, the Port starts a COMRESET initialization
+sequence to the device. Clearing this bit causes no action on the
+interface.
+st
+When set to 1, the Port processes the command list. When
+cleared, the Port does not process the command list. Whenever
+this bit is changed from a 0 to a 1, the Port starts processing the
+command list at entry 0. Whenever this bit is changed from a 1
+to a 0, the P0CI register is cleared by the Port upon transition
+into an idle state.
+
+SATA_P0TFD
+Address: Operational Base + offset (0x0120)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+err
+15:8 RO 0x00
+This field contains the latest copy of the task file error register.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2307
+
+RK3588 TRM-Part2
+Bit
+
+7:0
+
+Attr Reset Value
+
+RO
+
+0x00
+
+Description
+sts
+This field contains the latest copy of the task file status register.
+The bits that affect SATA Host operation are:
+Bit [7] BSY: Indicates the interface is busy;
+Bits [6:4] cs: Command specific;
+Bit [3] DRQ: Indicates a data transfer is requested;
+Bits [2:1] cs: Command specific;
+Bit [0] ERR: Indicates an error during the transfer.
+
+SATA_P0SIG
+Address: Operational Base + offset (0x0124)
+Bit Attr Reset Value
+Description
+sig
+This field contains the signature received from a device on the
+first D2H Register FIS. The bit order as follows:
+Bits [31:24]: LBA High (Cylinder High) Register;
+31:0 RO 0x00000000 Bits [23:16]: LBA Mid (Cylinder Low) Register;
+Bits [15:8]: LBA Low (Sector Number) Register;
+Bits [7:0]: Sector Count Register.
+This field is updated once after a reset sequence (cause by
+asynchronous, port, or soft reset). Reset on Global or Port reset.
+SATA_P0SSTS
+Address: Operational Base + offset (0x0128)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+ipm
+Indicates the current interface state.
+The options for this field are:
+4'h0: Device not present or communication not established;
+11:8 RO 0x0
+4'h1: Interface in Active state;
+4'h2: Interface in Partial power management state;
+4'h6: Interface in Slumber power management state;
+4'h8: Interface in DevSleep power management state.
+spd
+Indicates the negotiated interface communication speed.
+The options for this field are:
+7:4
+RO 0x0
+4'h0: Device not present or communication not established;
+4'h1: 1.5 Gb/s communication rate negotiated;
+4'h2: 3.0 Gb/s communication rate negotiated;
+4'h3: 6.0 Gb/s communication rate negotiated.
+det
+Indicates the interface device detection and PHY state.
+The options for this field are:
+4'h0: No device detected and PHY communication not
+established;
+4'h1: Device presence detected but PHY communication not
+3:0
+RO 0x0
+established (COMINIT is detected);
+4'h3: Device presence detected and PHY communication
+established ('PHY Ready' is detected);
+4'h4: PHY in offline mode as a result of the interface being
+disabled or running in a BIST loopback mode.
+All other values reserved.
+SATA_P0SCTL
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2308
+
+RK3588 TRM-Part2
+Address: Operational Base + offset (0x012C)
+Bit Attr Reset Value
+Description
+31:10 RO 0x000000
+reserved
+ipm
+This field indicates which power states the Port PHY interface is
+allowed to transition to. When an interface power management
+state is disabled, the Port does not initiate that state and any
+request from the device to enter that state is rejected via
+9:8
+RW 0x0
+PMNAKp.
+The options for this field are:
+2'h0: No interface power management state restrictions;
+2'h1: Transitions to the Partial state disabled;
+2'h2: Transitions to the Slumber state disabled;
+2'h3: Transitions to both Partial and Slumber states disabled.
+7:6
+RO 0x0
+reserved
+spd
+This field indicates the highest allowable speed of the Port PHY
+interface.
+The options for this field are:
+2'h0: No speed negotiation restrictions
+5:4
+RW 0x0
+2'h1: Limit speed negotiation to SATA 1.5 Gb/s communication
+rate
+2'h2: Limit speed negotiation to SATA 3.0 Gb/s communication
+rate
+2'h3: Limit speed negotiation to a rate not greater than SATA 6.0
+Gb/s communication rate.
+3
+RO 0x0
+reserved
+det
+Controls the Port's device detection and interface initialization.
+The options for this field are:
+3'h0: No device detection or initialization action requested
+3'h1: Perform interface initialization sequence to establish
+communication. This results in the interface being reset and
+2:0
+RW 0x0
+communication re initialized. The SATA Host asserts the
+corresponding P0_phy_reset(_n) output when DET=0x1. It
+negates P0_phy_reset(_n) and sends COMRESET OOB sequence
+when DET=0x0.
+3'h4: Disable the Serial ATA interface and put the Port PHY in
+offline mode.
+SATA_P0SERR
+Address: Operational Base + offset (0x0130)
+Bit Attr Reset Value
+Description
+31:27 RO 0x00
+reserved
+diag_x
+26
+RW 0x0
+This bit is set to 1 when PHY COMINIT signal is detected. This bit
+is reflected in the P0IS.PCS bit.
+diag_f
+This bit indicates that one or more FISes were received by the
+25
+RW 0x0
+Transport layer with good CRC, but had a type field that was not
+recognized/known and the length was less than or equal to 64
+bytes.
+diag_t
+24
+RW 0x0
+This bit indicates that a Transport Layer protocol violation was
+detected since the last time this bit was cleared.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2309
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+23
+
+RW 0x0
+
+22
+
+RW 0x0
+
+21
+
+RW 0x0
+
+20
+
+RO
+
+19
+
+RW 0x0
+
+18
+
+RW 0x0
+
+17
+
+RW 0x0
+
+16
+
+RW 0x0
+
+15:12 RO
+
+0x0
+
+0x0
+
+11
+
+RW 0x0
+
+10
+
+RW 0x0
+
+9
+
+RW 0x0
+
+8
+
+RW 0x0
+
+7:2
+
+RO
+
+0x00
+
+Description
+diag_s
+This bit indicates that one or more Link state machine error
+conditions was encountered. One of the conditions that cause this
+bit to be set is device doing SYNC escape during FIS
+transmission.
+diag_h
+This bit indicates that one or more R_ERRp was received in
+response to frame transmission. Such errors may be the result of
+a CRC error detected by the device, a disparity or 8b/10b
+decoding error, or other error condition leading to a negative
+handshake on a transmitted frame.
+diag_c
+This bit indicates that one or more CRC errors were detected by
+the Link layer during FIS reception.
+diag_d
+This bit is always cleared to 0 since it is not used by the AHCI
+specification.
+diag_b
+This bit indicates errors were detected by 10b/8b decoder.
+diag_w
+This bit is set when PHY COMWAKE signal is detected.
+diag_i
+This bit is set when the PHY detects some internal error as
+indicated by the assertion of the P0_phy_rx_err input.
+diag_n
+This bit indicates that the PHY Ready signal changed state. This
+bit is reflected in the P0IS.PRCS bit.
+reserved
+err_e
+This bit is set to 1 when one or more AMBA bus ERROR responses
+are detected on the master interface.
+err_p
+This bit is set to 1 when any of the following conditions are
+detected.
+Transport state transition error (DIAG_T)
+Link sequence error (DIAG_S)
+RX FIFO overflow
+Link bad end error (WTRM instead of EOF is received).
+err_c
+This bit is set to 1 when PHY Ready signal is negated due to the
+loss of communication with the device or problems with interface,
+but not after transition from active to Partial or Slumber power
+management state.
+err_t
+This bit is set when any of the following P0SERR register bits are
+set during Data FIS transfer:
+ERR_P (Protocol)
+DIAG_C (CRC)
+DIAG_H (Handshake)
+ERR_C ('PHY Ready' negation)
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2310
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+err_m
+This bit is set to 1 when the PHY Ready condition is asserted
+under the following conditions:
+At any time except when there is a transition from power-down
+mode to Active state
+After interface initialization (after power on or COMRESET)
+err_i
+This bit is set when any of the following P0SERR register bits is
+set during non-Data FIS transfer:
+ERR_P (Protocol)
+DIAG_C (CRC)
+DIAG_H (Handshake)
+
+SATA_P0SACT
+Address: Operational Base + offset (0x0134)
+Bit Attr Reset Value
+Description
+ds
+This field is bit significant. Each bit corresponds to the TAG and
+command slot of a native queued command, where bit 0
+corresponds to TAG 0 and command slot 0.
+Software sets this field prior to issuing a native queued command
+for a particular command slot. Prior to writing P0CI[TAG] to 1,
+the software sets DS[TAG] to 1 to indicate that a command with
+that TAG is outstanding.
+31:0 RW 0x00000000 This field is cleared to 0 when:
+The software writes P0CMD.ST from a 1 to a 0.
+The device sends a Set Device Bits FIS to the Port. The Port
+clears bits in this field that are set in the SActive field of the Set
+Device Bits FIS. The Port clears only bits that correspond to
+native queued commands that have completed successfully.
+This field is not cleared by the following:
+Port reset (COMRESET).
+Software reset.
+SATA_P0CI
+Address: Operational Base + offset (0x0138)
+Bit Attr Reset Value
+Description
+ci
+This field is bit significant. Each bit corresponds to a command
+slot, where bit 0 corresponds to command slot 0. This field is set
+by the software to indicate to the Port that a command has been
+built in system memory for a command slot and may be sent to
+31:0 RW 0x00000000
+the device.
+When the Port receives a FIS which clears the BSY, DRQ, and ERR
+bits for the command, it clears the corresponding bit in this
+register for that command slot. Bits in this field can only be set to
+1 by the software when P0CMD.ST is set to 1.
+SATA_P0SNTF
+Address: Operational Base + offset (0x013C)
+Bit Attr Reset Value
+31:16 RO 0x0000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2311
+
+RK3588 TRM-Part2
+Bit
+
+15:0
+
+Attr Reset Value
+
+RW 0x0000
+
+Description
+pmn
+This field indicates whether a particular device with the
+corresponding PM Port number issued a Set Device Bits FIS to the
+SATA Host Port with the Notification bit set:
+PM Port 0 sets bit 0.
+PM Port 1 sets bit 1.
+...
+PM Port 15 sets bit 15.
+Individual bits are cleared by the software writing 1s to the
+corresponding bit positions.
+This field is reset on Global reset, but it is not reset by Port reset
+(COMRESET) or software reset.
+
+SATA_P0FBS
+Address: Operational Base + offset (0x0140)
+Bit Attr Reset Value
+Description
+31:20 RO 0x000
+reserved
+dwe
+This field is set by the SATA Host core to the value of the Port
+19:16 RO 0x0
+Multiplier port number of the device that experienced a fatal error
+condition. This field is only valid when P0FBS.SDE=1.
+ado
+15:12 RW 0x0
+This field is hard-wired to the FBS_PMPN_MAX value.
+dev
+Software sets this field to the Port Multiplier port value of the
+next command to issue. This field enables the SATA Host core to
+11:8 RW 0x0
+know the port the command to be issues to without fetching the
+command header. Software should not issue commands to
+multiple Port Multiplier ports on the same write of the P0CI
+register. This bit is reset on Global reset.
+7:3
+RO 0x00
+reserved
+sde
+When this field is set to 1 and a fatal error condition has
+occurred, the SATA Host core believes the error is localized to one
+device such that software's first error recovery step should be to
+utilize the P0FBS.DEC functionality. When cleared to 0 and a fatal
+2
+RW 0x0
+error condition has occurred, the error applies to the entire Port.
+To clear the error, software should clear P0CMD.ST to 0. This bit
+is cleared on P0FBS.DEC being set to 1 or on P0CMD.ST being
+cleared to 0.
+This bit is reset on Global reset.
+dec
+When set to 1 by software, the SATA Host core clears the devicespecific error condition. It flushes any commands outstanding for
+the device that experienced the error, including clearing P0CI and
+1
+RW 0x0
+P0SACT bits for that device to 0. The SATA Host core clears this
+bit to 0 when it completes error recovery actions. When software
+writes a 0 to this bit, there is no effect. Software should only set
+this bit to 1 if P0FBS.EN=1 and P0FBS.SDE=1.
+This bit is reset on Global reset.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2312
+
+RK3588 TRM-Part2
+Bit
+
+0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+en
+1'h0: FIS-based switching is not being used (command-based
+switching is used instead). Software should only change the value
+of this bit when P0CMD.ST=0;
+1'h1: A Port Multiplier is attached and the SATA Host uses FISbased switching to communicate with it.
+This bit is reset on Global reset.
+
+SATA_P0DMACR
+Address: Operational Base + offset (0x0170)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+rxts
+This field defines the Port DMA transaction size in FIFO words for
+receive (system bus write, device read) operation. The options for
+this field are:
+4'h0: 1
+4'h1: 2
+4'h2: 4
+4'h3: 8
+4'h4: 16
+7:4
+RW 0x0
+4'h5: 32
+4'h6: 64
+4'h7: 128
+4'h8: 256
+4'h9: 512
+4'hA: 1024
+All other values are reserved and should not be used.
+This field is read-write when P0CMD.ST=0 and read-only when
+P0CMD.ST=1.
+txts
+This field defines the DMA transaction size in FIFO words for
+transmit (system bus read, device write) operation.
+The options for this field are:
+4'h0: 1
+4'h1: 2
+4'h2: 4
+4'h3: 8
+3:0
+RW 0x0
+4'h4: 16
+4'h5: 32
+4'h6: 64
+4'h7: 128
+4'h8: 256
+4'h9: 512
+4'hA: 1024
+All other values are reserved and should not be used. This field is
+read-write when P0CMD.ST=0 and read-only when P0CMD.ST=1.
+
+15.5 Interface Description
+Table 1- 1 SATA host interface description
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2313
+
+RK3588 TRM-Part2
+Modu
+le Pin
+
+SATA0
+_CPDE
+T
+
+SATA1
+_CPDE
+T
+
+SATA2
+_CPDE
+T
+
+SATA0
+_MPS
+WITC
+H
+
+SATA1
+_MPS
+WITC
+H
+
+SATA2
+_MPS
+WITC
+H
+
+SATA0
+_CPPO
+D
+
+SATA1
+_CPPO
+D
+
+D
+i Pad Name
+r
+
+IOMUX Setting
+
+I2S1_SDO2_M1/PDM0_SDI2_M1/PWM3_IR_M0/I2C1_SCL_
+M2/CAN2_RX_M1/HDMI_TX0_SDA_M1/SPI3_CS0_M2/PCIE
+30X2_PERSTN_M0/SATA_CPDET/GPIO0_D4_u
+
+SYS_GRF_SOC_
+CON7[1:0]=2’b0
+0
+BUS_IOC_GPIO0
+D_IOMUX_SEL_
+H[3:0]=4’hd
+
+I2S1_SDO2_M1/PDM0_SDI2_M1/PWM3_IR_M0/I2C1_SCL_
+M2/CAN2_RX_M1/HDMI_TX0_SDA_M1/SPI3_CS0_M2/PCIE
+30X2_PERSTN_M0/SATA_CPDET/GPIO0_D4_u
+
+SYS_GRF_SOC_
+CON7[1:0]=2’b0
+1
+BUS_IOC_GPIO0
+D_IOMUX_SEL_
+H[3:0]=4’hd
+
+I2S1_SDO2_M1/PDM0_SDI2_M1/PWM3_IR_M0/I2C1_SCL_
+M2/CAN2_RX_M1/HDMI_TX0_SDA_M1/SPI3_CS0_M2/PCIE
+30X2_PERSTN_M0/SATA_CPDET/GPIO0_D4_u
+
+SYS_GRF_SOC_
+CON7[1:0]=2’b1
+0
+BUS_IOC_GPIO0
+D_IOMUX_SEL_
+H[3:0]=4’hd
+
+I2S1_SDO3_M1/CPU_BIG1_AVS/I2C1_SDA_M2/CAN2_TX_
+M1/HDMI_TX0_SCL_M1/SPI3_CS1_M2/SATA_MP_SWITCH/
+GPIO0_D5_u
+
+SYS_GRF_SOC_
+CON7[1:0]=2’b0
+0
+BUS_IOC_GPIO0
+D_IOMUX_SEL_
+H[7:4]=4’hd
+
+I2S1_SDO3_M1/CPU_BIG1_AVS/I2C1_SDA_M2/CAN2_TX_
+M1/HDMI_TX0_SCL_M1/SPI3_CS1_M2/SATA_MP_SWITCH/
+GPIO0_D5_u
+
+SYS_GRF_SOC_
+CON7[1:0]=2’b0
+1
+BUS_IOC_GPIO0
+D_IOMUX_SEL_
+H[7:4]=4’hd
+
+I2S1_SDO3_M1/CPU_BIG1_AVS/I2C1_SDA_M2/CAN2_TX_
+M1/HDMI_TX0_SCL_M1/SPI3_CS1_M2/SATA_MP_SWITCH/
+GPIO0_D5_u
+
+SYS_GRF_SOC_
+CON7[1:0]=2’b1
+0
+BUS_IOC_GPIO0
+D_IOMUX_SEL_
+H[7:4]=4’hd
+
+I2S1_SDI1_M1/NPU_AVS/UART0_RTSN/PWM5_M1/SPI0_C
+O LK_M0/PCIE30X4_CLKREQN_M0/SATA_CP_POD/GPIO0_C6
+_u
+
+SYS_GRF_SOC_
+CON7[1:0]=2’b0
+0
+BUS_IOC_GPIO0
+C_IOMUX_SEL_
+H[11:8]=4’hd
+
+I2S1_SDI1_M1/NPU_AVS/UART0_RTSN/PWM5_M1/SPI0_C
+O LK_M0/PCIE30X4_CLKREQN_M0/SATA_CP_POD/GPIO0_C6
+_u
+
+SYS_GRF_SOC_
+CON7[1:0]=2’b0
+1
+BUS_IOC_GPIO0
+C_IOMUX_SEL_
+H[11:8]=4’hd
+
+I
+
+I
+
+I
+
+I
+
+I
+
+I
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2314
+
+RK3588 TRM-Part2
+D
+i Pad Name
+r
+
+IOMUX Setting
+
+SATA2
+_CPPO
+D
+
+I2S1_SDI1_M1/NPU_AVS/UART0_RTSN/PWM5_M1/SPI0_C
+O LK_M0/PCIE30X4_CLKREQN_M0/SATA_CP_POD/GPIO0_C6
+_u
+
+SYS_GRF_SOC_
+CON7[1:0]=2’b1
+0
+BUS_IOC_GPIO0
+C_IOMUX_SEL_
+H[11:8]=4’hd
+
+SATA0
+_ACTL
+ED
+
+BT1120_D12/PCIE30X4_PERSTN_M1/HDMI_RX_HPDOUT_M
+O 0/SATA0_ACT_LED_M0/I2C5_SCL_M1/PWM13_M1/SPI3_M
+OSI_M1/GPIO4_B6_d
+
+BUS_IOC_GPIO4
+B_IOMUX_SEL_
+H[11:8]=4’h6
+
+SATA0
+_ACTL
+ED
+
+O
+
+PDM1_CLK1_M1/PCIE30X1_0_WAKEN_M2/SATA0_ACT_LED
+_M1/UART4_TX_M2/SPI0_CLK_M2/GPIO1_B3_d
+
+BUS_IOC_GPIO1
+B_IOMUX_SEL_L
+[15:12]=4’h6
+
+SATA1
+_ACTL
+ED
+
+BT1120_D11/PCIE30X4_WAKEN_M1/HDMI_RX_CEC_M0/SA
+O TA1_ACT_LED_M0/UART9_RX_M1/PWM12_M1/SPI3_MISO_
+M1/GPIO4_B5_d
+
+BUS_IOC_GPIO4
+B_IOMUX_SEL_
+H[7:4]=4’h6
+
+SATA1
+_ACTL
+ED
+
+PCIE30X1_1_WAKEN_M2/DP1_HPDIN_M2/SATA1_ACT_LED
+O _M1/I2C2_SCL_M4/UART6_TX_M1/SPI4_MOSI_M2/GPIO1_
+A1_d
+
+BUS_IOC_GPIO1
+A_IOMUX_SEL_L
+[7:4]=4’h6
+
+SATA2
+_ACTL
+ED
+
+MIPI_CAMERA0_CLK_M0/SPDIF1_TX_M1/I2S1_SDO0_M0/P
+O CIE30X1_0_BUTTON_RSTN/SATA2_ACT_LED_M0/I2C6_SCL
+_M3/UART8_RX_M0/SPI0_CS1_M1/GPIO4_B1_u
+
+BUS_IOC_GPIO4
+B_IOMUX_SEL_L
+[7:4]=4’h6
+
+SATA2
+_ACTL
+ED
+
+MIPI_CAMERA2_CLK_M0/SPDIF1_TX_M0/PCIE30X2_PERST
+O N_M3/HDMI_RX_CEC_M2/SATA2_ACT_LED_M1/I2C5_SDA_
+M3/UART1_RX_M1/PWM13_M2/GPIO1_B7_u
+
+BUS_IOC_GPIO1
+B_IOMUX_SEL_
+H[15:12]=6’h6
+
+Modu
+le Pin
+
+15.6 Application Notes
+15.6.1 Data transfer
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2315
+
+RK3588 TRM-Part2
+
+Start
+
+Find a free command slot
+
+Build DMA read/write
+command to the command list
+
+Wirte the correspondding CI
+bit to enable DMA engine
+
+Wait interrupt
+
+Enable aggressive power
+management
+Y
+
+N
+
+Enter partial or slumber if
+enable aggressive
+powermanagement
+
+End
+
+Fig. 1- 1 Data transfer flow
+
+15.6.2 Port multiple support
+
+⚫
+⚫
+⚫
+⚫
+
+When a port is connected to a Port Multiplier, software must first enumerate it by issuing
+software reset to Port 0xF (control Port) on the Port Multiplier. When the signature
+returned corresponds to a Port Multiplier, then a Port Multiplier is attached. When the
+signature returned corresponds to another device type, then a Port Multiplier is not
+attached.
+The SATA host provides command list override feature via CMD.CLO to help software
+reliably enumerate the Port Multiplier:
+software ensures that CMD.ST bit is 0;
+software constructs the two register FISes required for a software reset in the command
+list, where the PM port field value in the register FIS is set to 0xF;
+software set CMD.CLO to 1 to force the BSY and DRQ bits in the TFD register to be
+cleared;
+software sets CMD.ST bit to 1 and set appropriate CI bits in order to begin execution of
+the software reset command.
+
+15.6.3 Interrupt
+
+The SATA host uses two-tiered interrupt structure.
+First tier (GIS register)
+The first tier is identified by the GIS and GHC registers. GHC.IE bit enables interrupts for
+the entire host: when it is cleared, interrupt output is not asserted regardless of any
+bits set in the GIS register. GHC.IE bit acts as a mask and does not affect the
+setting of any interrupt status bits.
+Second tier (PIS registers)
+The second tier is identified in each port through the PIS (status) and PIE (interrupt
+enable) register. The PIS register has various interrupt bits that can be individually
+enabled or disabled by setting the corresponding bit in the PIE. The status bit in the
+PIS is always set regardless of the setting of the corresponding PIE bit.
+
+15.6.4 reset condition
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2316
+
+RK3588 TRM-Part2
+System reset
+System bus resets SATA host by asserting aresetn=0. It is usually initiated on
+power-up or during system bus failure. All components of the host are initialized,
+including ports, Generic registers, BIU.
+Global reset
+Software may globally reset host by setting GHC.HR to 1. When software sets the
+GHC.HR bit to 1, the host performs an internal reset action, then clears this bit to 0
+when the reset is complete. A software writes of 0 to GHC.HR has no affect.
+Port reset (COMRESET)
+Software causes a Port reset by writing 1h to the SCTL.DET field to invoke
+COMRESET on the interface and start a re-establishment of the PHY Layer
+communication. Software should wait at least 1ms before clearing SCTL.DET to 0h.
+After clearing SCTL.DET to 0h, software should wait for communication to be reestablished as indicated by 0 of SSTS.DET being set to 1. Then software should
+write all ones to SERR register to clear any bits that were set as part of the Port
+reset.
+Software reset
+Software builds two H2D register FISes in the command list. The first register FIS
+has the SRST bit set to 1 in the control field of the register FIS, the “C” bit is
+cleared to “0” in the register FIS, and the command table has the CH[R] (reset) and
+CH[C] (clear BSY ON R_OK) bits set to “1”. The CH[R] bit causes the Port to
+perform a SYNC escape when necessary to put the device into an idle condition
+before sending the software reset. The CH[C] bit needs to be set for the first
+register FIS to clear the BSY bit and proceed to issue the next register FIS since the
+device does not send a response to the first register FIS in a software reset
+sequence. The second register FIS has SRST=”0” in the control field of the register
+FIS, the “C” bit is cleared to “0” in the register FIS, and the command tables has
+the CH[R] and CH[C] bits cleared to “0”. When issuing a software reset sequence,
+there should not be other commands in the command list. Before issuing the
+software reset, software must clear CMD.ST, wait for the Port to be idle, and then
+re-set CMD.ST. TFD.STS.BSY and TFD.STS.DRQ must be cleared prior to issuing the
+reset. When TFD.STS.BSY or TFD.STS.DRQ is still set based on the failed command,
+then a Port reset should be attempted or command list override should be used.
+
+15.6.5 Staggered spin-up
+
+The CMD.SUD bit is used to manipulate the PHY behavior. SCTL.DET and CMD.SUD
+must be set correctly in order to avoid illegal combinations of the two values. Table
+1-1 describes interaction between the CMD.SUD and SCTL.DET bits.
+
+SCTL.DET
+0
+
+0
+0
+1
+1
+
+Table 15-1 CMD.SUD and SCTL.DET interaction
+CMD.SUD
+Mode
+Behavior
+0
+Interface is in a reduced power state.
+When COMINIT is received then SERR.DIAG_X is set
+and no response is sent to the device COMWAVE is
+ignored.
+The application must place the Port into this state only
+when no device is detected as connected to this Port.
+In this mode, the Port forces the PHY into a low power
+state without requesting a SLUMBER transition on the
+link.
+0->1
+Port sends COMRESET, begins initialization sequence.
+1
+Normal operating state when the Port is performing
+data transfer.
+0
+Illegal
+This combination is prohibited in hardware, i.e.
+CMD.SUD can’t be cleared when SCTL/DET=1, and
+SCTL.DET can’t be set to 1 when CMD.SUD=0.
+1
+Reset
+Port continuously transmits COMRESET and does not
+listen for COMINIT. When COMINIT is received in this
+state, the SERR.DIAG_X bit is set.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2317
+
+RK3588 TRM-Part2
+SCTL.DET
+1->0
+
+CMD.SUD
+1
+
+4
+
+N/A
+
+Mode
+Initializ
+e
+Off
+
+Behavior
+Port stops sending COMRESET, being initialization
+sequence
+Port PHY is off.
+
+Software must only clear CMD.SUD when it believes that no device is attached. In
+listen mode, the Port PHY enters a reduced power state, equivalent to the SLUMBER
+power management state. The Port PHY enters this state without negotiating a
+transition to SLUMBER on the link, as asking for a transition to SLUMBER when no
+device is attached fails, and therefore the PHY remains in a high power state. To
+avoid this software should ensure that SSTS.DET=0x0 indicating that no device is
+present before clearing CMD.SUD.
+
+15.6.6 Activity LED
+⚫
+⚫
+⚫
+⚫
+
+The CAP.SAL=1 indicates that the activity LED feature is enabled to software.
+Act_led outputs is used to drive an external LED based upon activity of the Port:
+1 - LED On
+0 - LED Off
+The port drives the LED active if:
+(CI!=0 or SACT!=0) and CMD.ATAPI = 0
+(CI!=0 or SACT!=0) and CMD.ATAPI = 1 and CMD.DLAE = 1
+The Port drives the LED off when CI and SACT are both cleared to 0.
+
+15.6.7 Asynchronous notification
+
+The SATA host supports asynchronous notification feature as indicated by the
+CAP.SSNT=1. This feature allows an ATAPI device to send a signal to the host when
+media is inserted or removed and avoid polling the device for media changes. The
+signal sent to the host is Set Device Bits FIS with the “I” and “N” bits set to “1”.
+To use asynchronous notification, software should set the IS.SDBS bit to enable
+interrupt notification on a Set Device Bits FIS. When accesses to the ATAPI device
+are idle, software should place the device in a low power state. When the device
+has media change, it signals this to the host with a Set Device Bits FIS. In response
+to receiving a IS.SDBS interrupt on an idle Port, the software should interrogate the
+device to determine the cause of the interrupt.
+The first DWORD of any FIS received by the host contains a 4-bit Port Multiplier
+field. The PM port field indicates which Port behind the Port Multiplier issued the FIS
+to the host. When a set device bits FIS is received by the host and “N” bit is set, the
+bit position in the SNTF register corresponding to the PM Port field is set. The host
+sets the IS.SDBS to “1” when the “I” bit is set in the set device bits FIS. This causes
+an interrupt to be generated when that interrupt is enabled.
+
+15.6.8 BIST operation
+1.6.8.1 Loopback responder
+
+⚫
+
+Software must ensure that the CMD.ST bit is set, the Port is in idle state, and there
+are no outstanding commands by checking CI and SACT registers are both cleared,
+TFD.STS register BSY, DRQ and ERR bits are all cleared.
+The host enters one of the BIST loopback responder modes when a corresponding
+BIST Activate FIS is successfully received from the device and is supported by the
+host. SSTS.DET field return 4h when read. Since BIST registers’ locations are
+shared between all the active ports, software must first select the Port for BIST
+operation by writing the Port number to the TESTR.PSEL field before accessing
+BISTAFR.
+The following loopback responder modes are supported by the host:
+Far-end Retimed
+◼ The Port receives BIST activate FIS with pattern definition field=0x10 from the RX
+FIFO and stores it in the BIST AFR.PD field
+◼ All the data received from the device in the form of a SATA-compliant pattern is
+retimed in the Link Layer and transmitted back to the device.
+◼ Alternately, this mode can be initiated with device disconnected from the Port PHY
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2318
+
+RK3588 TRM-Part2
+
+⚫
+
+⚫
+
+when software writes BISTCR.FERLB=1. After the device is connected to the host,
+the device must transmit the number of ALIGNs required for the PHY to sync.
+Far-end Analog
+◼ The Port receives BIST active FIS with pattern definition field =0x08 from the RX
+FIFO and stores it in the BISTAFR.PD field
+◼ The Port asserts phy_farafelb signal to the PHY to put it to the Far-end analog
+loopback mode. The PHY receives and retransmits the raw data without retiming
+Far-end Transmit only
+◼ The Port receives BIST activate FIS with pattern definition field = 0xC0(scrambling is
+enabled) or 0xE0 (scrambling is bypassed) from the RX FIFO and stores it in the
+BISTAFR.PD field. The second DWORD of the BIST activate FIS least significant byte
+is stored in the BISTAFR.NCP field.
+◼ The Port transmits corresponding a SATA non-compliant test pattern to the device
+based on the BISTAFR.NCP value:
+◆ 0xF1: Low transition density pattern (LTDP)
+◆ 0xB5: High transition density pattern (HTDP)
+◆ 0xAB: Low frequency spectral component pattern (LFSCP)
+◆ 0x7F: Simultaneous switching outputs pattern (SSOP)
+◆ 0x78: Mid frequency test pattern (MFTP)
+◆ 0x4A: High frequency test pattern (HFTP)
+◆ 0x7E: Low frequency test pattern (LFTP)
+If none of the previous pattern is decoded, the Lone bit pattern (LBP) is transmitted by
+default.
+◼ Alternately, this mode can be initiated with the device disconnected from the Port
+PHY when software writes a one to BISTCR.TXO bit. Host transmits non-compliant
+BIST pattern defined by the value in the BISTCR.PATTERN field.
+Loopback responder BIST modes can be exited either when the device signals
+COMINIT OOB condition, or when the software initiates Port reset.
+
+1.6.8.2 Loopback initiator
+
+⚫
+
+The software first selects the Port for BIST operation by writing the Port number to
+the TESTR.PSEL field, then the required pattern by writing to the BISTCR.PATTERN
+field.
+The software builds a BIST FIS with the required mode in the commands list and
+sets CTBAz[B]. Once a BIST command is placed into the list, software is not allowed
+to build any more commands until it clears CMD.ST. After the Port successfully
+transmits this FIS, it enters this mode and generates/receives the compliant test
+pattern selected by the BISTCR.PATTERN field.
+SSTS.DET return 4h when read. BISTCR and BISTFCTR registers are updated with
+error/FIS count information for each received BIST FIS.
+The following BIST initiator modes can be requested by the software:
+Far-end Retimed
+◼ The host software writes the BISTCR.PATTERN field to select one of the SATA-defined
+compliant patterns:
+◆ 0x0: Simultaneous switching outputs pattern (SSOP)
+◆ 0x1: High transition density pattern (HTDP)
+◆ 0x2: Low transition density pattern (LTDP)
+◆ 0x3: Low frequency spectral component pattern (LFSCP)
+◆ 0x4: Composite pattern (COMP)
+◆ 0x5: Lone bit pattern (LBP)
+◆ 0x6: Mid frequency test pattern (MFTP)
+◆ 0x7: High frequency test pattern (HFTP)
+◆ 0x8: Low frequency test pattern (LFTP)
+◼ The software prepares BIST Activate FIS with bits [23:16] = 8’h10 of the first
+DWORD in the command list. The Port sends this BIST Activate FIS to the device.
+◼ After successful transmission of the BIST Activate FIS the Port generates the
+requested compliant pattern in the form of BIST frames continuously and checks for
+errors on the receive side.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2319
+
+RK3588 TRM-Part2
+◼
+
+◼
+
+BISTCTR register is updated with received BIST frame count and BISTSR - with
+frame /burst error count. SERR register is updated with CRC, disparity and 10B8B
+errors for each frame. BISTFCTR, BISTSR, and BISTDECR registers can be cleared
+by writing 1 to the BISTCR.CNTCLR bit.
+To change the pattern, the software issues a Port Reset, write to the
+BISTCR.PATTERN field to select a new pattern and re-issues the command by setting
+the CI bit.
+
+⚫
+
+Far-end Analog
+◼ The software prepares BIST Activate FIS with bits [23:16] = 8’h8 of the first
+DWORD in the command list. The Port sends this BIST Activate FIS to the device.
+◼ The operation proceeds as described in the Far-end retimed test above.
+
+⚫
+
+Near-end Analog
+◼ This mode can be initiated either in the PARTIAL power management mode or with
+the device disconnected from the Port PHY. The software issues a PARTIAL power
+state request to the device via CMD.ICC field and sets the BISTCR.NEALB bit. The
+BISTCR.PATTERN field selects the required BIST pattern.
+◼ The Port asserts phy_nearfelb to the PHY. The PHY loops the data from its
+transmitter to its receiver and ignores any data coming from the device.
+
+⚫
+
+Far-end Transmit only
+◼ The software prepares BIST Activate FIS in the command list with the second and
+third DWORDs containing the required pattern, and the first DWORD - with the
+Pattern definition value corresponding to the required mode - Bit 23 is set, bits
+20,19,17 cleared and bits 22,21 and 18 are used to enable the following options:
+◆ Bit 22 is set - Bypass ALIGN
+◆ Bit 21 is set - Bypass scrambling
+◆ Bit 18 is set - primitive bit
+◼ The Port sends this BIST Activate FIS to the device.
+◼ After the device acknowledges the reception of this FIS with R_OKp, the Port
+disables the PHY receiver and transmitter.
+Loopback initiator BIST modes can be terminated either by the device when it signals
+COMINIT OOB condition (except the near-end analog mode), or when the software
+initiates Port reset.
+
+15.6.9 command completion coalescing
+
+⚫
+⚫
+
+A command completion coalescing (CCC) feature is used to reduce the interrupt and
+command completion overhead in a heavily-loaded system. The host generates an
+interrupt to allow software to process completed commands when either of these
+conditions is true:
+A software-specified number of commands have completed
+A software-specified time-out has expired
+This feature applies to all ports selected to be in the CCC set by software via the
+CCC_PORTS register.
+CCC logic used specific register TIMERIMS to generate 1ms interval based on the
+application clock frequency. Software must load this register with the required value
+before enabling the CCC feature:
+Fappclk*1000, where Fappclk = aclk frequency, in MHz.
+Additional Command completion coalescing details and examples can be found in the
+AHCI specification.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2320
+
+RK3588 TRM-Part2
+

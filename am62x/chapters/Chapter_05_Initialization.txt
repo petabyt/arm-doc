@@ -1,0 +1,5280 @@
+=== Page 470 ===
+This chapter describes the steps for non-secure device initialization.
+5.1 Initialization Overview..............................................................................................................................................471
+5.2 Boot Process............................................................................................................................................................474
+5.3 Boot Mode Pins.........................................................................................................................................................479
+5.4 Boot Modes...............................................................................................................................................................481
+5.5 PLL Configuration....................................................................................................................................................507
+5.6 Boot Parameter Tables.............................................................................................................................................509
+5.7 Boot Image Format...................................................................................................................................................519
+5.8 Boot Memory Maps...................................................................................................................................................526
+Chapter 5
+Initialization
+
+=== Page 471 ===
+5.1 Initialization Overview
+Figure 5-1 is an overview of the initialization process and its steps:
+•
+Preinitialization: Power, clock, and control connections must be present, and the boot configuration pins
+must be held at the desired logical levels.
+•
+Power, clock, reset ramp sequence: Specific sequence that is applied by the power-management chip(s)
+•
+ROM code: Responsible for finding, for downloading, and for executing the initial software (SBL)
+•
+Initial software: Software that loads, prepares, and passes control to application software or to the high-level
+operating system (HLOS)
+•
+High-Level Operating System or bare-metal application which runs on main processor(s)
+init-003
+Preinitialization
+Power, clock, reset
+ramp sequence
+ROM code
+Initial software
+HLOS or APP
+Figure 5-1. Initialization Process
+The first two steps in the initialization process are hardware-oriented; however, they require an understanding of
+the process of configuring these system interface pins (balls on the device), which have software-configurable
+functionality. This configuration is an essential part of the chip configuration and is application-dependent. This
+chapter discusses these system-interface pins, the associated configuration registers, and memory structures
+that are vital to the correct initialization of the device.
+5.1.1 ROM Code Overview
+ROM bootloader (or ROM Code) is a software that resides in a on-chip read-only memory (ROM) to assist
+the customer in transferring and executing their application code. The device has two ROM codes operating in
+tandem ± the Public ROM code, and the M4 ROM code.
+In order to accommodate various system scenarios, the ROM Code supports several boot modes. These boot
+modes can be broadly classified as:
+•
+Host boot modes
+•
+Memory boot modes.
+During a host boot, the device is configured to receive code from a host via the selected interface. Either the
+host writes the application code directly into internal memory or the ROM Code receives the application code on
+the selected interface and stores it in internal memory.
+During a memory boot, the device transfers code from non-volatile memory to internal memory for execution.
+In all boot modes, the entire boot operation can be partitioned into two sections:
+1.
+Hardware initialization phase
+2.
+Boot process.
+During initialization, the ROM Code configures the device resources (PLLs, peripherals, pins) as needed to
+support the boot process. The resources used depend on the boot mode requirements.
+During the boot process the boot image can be loaded into device memory and executed, or executed in place,
+depending on the boot peripheral. M4 will perform code verification and allow, or forbid, the image execution.
+Main configuration source for boot after power-up are the BOOTMODE pins sampled automatically after reset
+release and stored in device status registers. At ROM Code startup, these pin values are read from the registers
+to create the boot peripheral list and the boot configuration tables used later to initialize and startup the PLLs and
+boot peripherals.
+5.1.2 Bootloader Modes
+Table 5-1 shows the boot modes supported by ROM code.
+
+=== Page 472 ===
+Table 5-1. ROM Code Boot Modes
+Boot Mode
+Boot Media/Host
+SoC Peripheral
+Can be a
+Backup
+Mode?(1)
+Notes
+No-boot/Dev-boot
+No media or host
+None
+N
+No boot or development boot ± debug
+modes
+OSPI
+OSPI flash
+FSS0_OSPI0
+N
+On OSPI port
+QSPI
+QSPI flash
+FSS0_OSPI0
+N
+On OSPI port
+SPI
+SPI flash
+FSS0_OSPI0
+Y
+On OSPI port
+Ethernet
+External host
+CPSW0
+Y
+In BOOTP mode. RGMII or RMII PHY
+I2C
+I2C EEPROM
+I2C0
+Y
+I2C target boot is not supported
+UART
+External host
+UART0
+Y
+XMODEM protocol
+MMCSD
+eMMC flash or SD card
+MMCSD0 (8bit) or
+MMCSD1 (4bit)
+Y
+Boot from User Data Area (UDA) in raw
+or file system mode
+eMMC
+eMMC flash
+MMCSD0 (8bit)
+N
+Boot from boot partition
+USB - target
+USB boot from external
+host
+USB0
+Y
+USB device mode boot using DFU
+(device firmware upgrade), Boot is
+running on USB2.0 speeds.
+USB - host
+USB mass storage
+USB0
+Y
+USB2.0 host mode, boot from FAT32
+filesystem
+Serial Flash
+Serial Flash
+FSS0_OSPI0
+N
+On OSPI port
+xSPI
+xSPI flash
+FSS0_OSPI0
+N
+On OSPI port
+GPMC
+NOR flash, NAND flash
+GPMC0
+N
+CSn0 connected, 8 bit NAND flash only,
+16-bit non-mux NOR flash only
+(1)
+The peripheral can be selected also as a backup boot mode. A backup mode is tried if primary boot mode fails.
+Note
+Because different devices support different sets of peripherals, see the device-specific Datasheet to
+obtain the list of peripherals supported in your device.
+5.1.3 Terminology
+•
+Boot Mode Pins: Boot mode pins provide vital information to ROM code for boot. These pins must be
+properly set up before power ramp.
+•
+Bootstrap: Initial software launched by the ROM code during the memory booting phase.
+•
+Boot Header: Optional structure that precedes the initial software and allows the redefinition of the ROM
+code default settings.
+•
+Downloaded software: Initial software downloaded into on-chip RAM by the ROM code during the
+peripheral booting phase.
+•
+eFuse: A one-time programmable memory location usually set at the factory.
+•
+Flash loader: Downloaded software launched by the ROM code during the preflashing stage. It also
+programs an image in external memories.
+•
+GP device: General-purpose device (SoC) or a non-secure device.
+•
+Initial software: Software executed by any of the ROM code mechanisms (memory booting or peripheral
+booting). Initial software is a generic term for bootstrap and downloaded software. This can be the SBL
+(secondary bootloader) responsible for loading an OS.
+•
+Memory booting: ROM code mechanism that consists of executing initial software from external memory.
+•
+Controller CPU: The Arm® Cortex® CPU for which CPU-ID is 0. It configures the multicore platform
+and starts the ROM code to ensure device booting from a mass storage memory (memory booting) or a
+peripheral interface (peripheral booting).
+•
+Peripheral booting: ROM code mechanism that consists of polling selected interfaces, downloading, and
+executing initial software (in this case, downloaded software) in the internal RAM.
+
+=== Page 473 ===
+•
+Preflashing: A specific case of peripheral booting where the ROM code mechanism is used to program the
+external flash memory.
+•
+ROM Code: or ROM bootloader (RBL), the on-chip software in device ROM that executes first and
+implements booting.
+•
+ROM Code-controlled Boot Phase: This phase covers the sequence operations from the time the platform
+releases the reset to the time first user- or customer-owned software starts execution. This phase is fully
+controlled by the device ROM code.
+•
+Booting Parameter Table: A logical structure stored in the on-chip RAM memory and contains information
+for the boot, such as the boot file name or an address to boot from.
+
+=== Page 474 ===
+5.2 Boot Process
+5.2.1 Public ROM Code Architecture
+The Public ROM code has the following components (see also Public ROM Code Architecture ):
+•
+Main
+•
+Buffer manager
+•
+X.509
+•
+Log and Trace
+•
+System
+•
+Protocol
+•
+Driver
+init_002
+Main Module
+X509
+Module
+Log and
+Trace
+Module
+System
+Startup
+System
+Services
+Interrupt
+Handler
+Peripheral Drivers
+System Module
+Figure 5-2. Public ROM Code Architecture
+5.2.1.1 Main Module
+The Main module contains the top level execution loop. This loop repeats until a boot image has been received
+or directed to sleep by the M4. The main loop has three different execution sub-paths based on the boot
+peripheral.
+•
+Image Path This path is used by the OSPI, QSPI, SPI, and xSPI boot modes. In these cases the image data
+can be directly read by both the R5 and the M4 in place.
+•
+Block Path This path is used by the I2C, USB-DFU, UART, eMMC, Ethernet, eMMC/SD cards in raw mode.
+In this mode data is received from the peripheral in blocks. Blocks are accumulated in the boot buffer until a
+full X.509 certificate header has been received, at which point this full certificate and any subsequent blocks
+are passed to the M4 as they arrive.
+•
+Filesystem Path This path is used by the USB host (MSC) mode and eMMC/SD cards in filesystem mode.
+This mode executes exactly like in the block path, except that the boot image location is defined by a
+filesystem.
+The main level is able to detect if a received boot image is in the correct format and reject non-conforming
+images. In some cases, detection of an invalid image is done after the initial data buffer has been sent to the M4.
+In that case the R5 must inform the M4 that the image was in fact invalid and it will be looking for the next image
+and try again.
+
+=== Page 475 ===
+5.2.1.2 X509 Module
+The X509 module parses the boot header. The boot header is an X.509 certificate as defined in RFC5280.
+Extensions specific to boot are described in Section 5.7.2, X.509 Certificate.
+This module also includes an OID decoder as well as defines OID values as C #define constants for any values
+that can be used during boot.
+5.2.1.3 Buffer Manager Module
+The buffer manager module is used to allocate buffers to hold boot data. The R5 code allocates a buffer when it
+is ready to read a block of data from the boot peripheral. Once the data is read the buffer ownership is passed
+to the M4. When the M4 has completed processing the data in the buffer ownership is returned to the R5, which
+then frees the buffer.
+5.2.1.4 Log and Trace Module
+The Log and Trace modules are not integral to the boot process. Instead, they provide ability to record operation
+of the ROM code and track unexpected occurrences.
+Log and trace function is currently TI internal.
+5.2.1.5 System Module
+The system module provides services to other modules. These services are not directly related to boot drivers.
+The system module is the only module that operates in the supervisor mode of the R5 (a few services will run in
+user). The system module supports the following functions:
+•
+Interrupt enable, disable, and service
+•
+IPC
+•
+Power
+•
+Pinmux
+•
+Clock
+•
+Task switch
+The main level is able to detect if a received boot image is in the correct format and reject non-conforming
+images.
+5.2.1.6 Protocol Module
+The protocol modules provide implementation of high-level data transfer protocols. The BOOTP/TFTP and
+XMODEM protocols reside in this layer. These modules provide services as defined in well-known standards.
+5.2.1.7 Driver Module
+The driver module implements the low level peripheral drivers.
+5.2.2 M4 ROM Description
+In a general-purpose (GP) device, M4 ROM performs the following functions:
+•
+Device management
+•
+Configures the boot vectors (in BOOT_CFG) and controls reset release of R5 core. That is, M4 is the boot
+controller of R5 core.
+•
+IPC configuration via Main DMSS rings and Secure Proxy
+•
+PLL configuration (R5 and SA2UL)
+•
+X509 certificate parsing
+•
+SA2UL configuration to SHA512 for image integrity checks
+•
+M4 firmware loading
+5.2.3 Boot Process Flow
+The R5 boot process flow is shown in Figure 5-3.
+
+=== Page 476 ===
+R5
+Power-Supply Ramp Up
+init-001
+R5
+and Hardware Config
+DMSC ROM Configures
+PLLCTRL
+M4 Configures Default
+Firewalls Based on Boot Mode
+M4 Configures
+Sec. Proxy/Ring Acc.
+M4 Sends Message to R5
+with Boot Mode Info
+M4 Releases Reset to
+R5 CPU0
+R5 Starts Primary Boot.
+Boot Device Info from
+BOOTMODE Pins
+R5 Requests M4 for
+Image Integrity Check
+R5 Configures MAIN
+Domain PLLs
+M4 Issues Clock Stop and
+Resets the R5
+R5 Reboots with
+Loaded Image
+R5 Image/SBL
+Starts
+M4 ROM Configures
+PLLCTRL and Locks MCU PLL
+M4 ROM Configures
+RTI WDT to 180 sec
+Yes
+Primary No
+Image
+Integrity OK?
+R5 Starts Backup Boot.
+Boot Info from
+BOOTMODE Pins
+Otherwise Use Hardcoded Info
+M4 Watchdog Timer
+Timeout? (3 min)
+Backup No
+No
+Public ROM Aborts.
+Waiting for R5 Reset
+Yes
+Retry
+Hardware
+M4
+R5
+Figure 5-3. Boot Process
+The values of BOOTMODE[15:0] pins are latched into the Device Status register
+CTRLMMR_MAIN_DEVSTAT[15:0] by hardware as the device comes out of global cold reset, sampled after
+MCU_PORz deassertion. For more information how to set BOOTMODE pins, see Section 5.3, Boot Mode Pins.
+The M4 is the boot controller for the Public ROM. M4 performs the necessary configurations and releases R5's
+reset for CPU0.
+
+=== Page 477 ===
+The R5 checks the boot mode pins and then configures the apropriate peripheral interface to get access to a
+boot image. A cursory check of the image is made, and the image is passed to M4. M4 ROM then will perform
+code verification and route the boot image to the on-chip RAM. Once the image has been received, R5 enters
+a clean state and idles. M4 ROM code will assert reset to the R5, redirect the boot vector to the newly loaded
+image, and release the reset. This restarts the R5 with the Public ROM code fully disconnected.
+The Public ROM code executes after a cold or warm reset.
+Note
+M4 ROM sets up a 3-minute watchdog timer (RTI0) timeout. During this time, the R5 boot needs to get
+completed, otherwise a WDT reset will occur. Once the R5 image is loaded (SBL/SPL), M4 ROM will
+restart the watchdog timer for additional 3 minutes upon entering the R5 SBL. The customer-provided
+R5 image needs to load and install the TI-provided SYSFW image into the M4, which will manage the
+watchdog timer during run time.
+Note
+The following system conditions must be met at POR to perform device boot:
+•
+USB cable plug must be inserted
+•
+Ethernet PHY is powered up and out of reset
+•
+The SD card cage must be powered before entering the SD card boot mode. A SD/MMC card with
+pre-loaded image must be inserted
+•
+Memory devices must be up and ready (power ramped up and reset completed) at device startup:
+•
+eMMC
+•
+xSPI/OSPI/QSPI/SPI and Serial flash
+•
+I2C EEPROM
+•
+NOR/NAND flash
+Failing to meet these requirements may result in boot fail and performing a backup boot (if available
+for that mode).
+Figure 5-4 describes the external bootloader (SBL) typical tasks.
+
+=== Page 478 ===
+Boot Image (SBL) Start
+init-004
+M4 ROM Checks
+Firmware Image
+SBL Loads M4
+Firmware
+M4 Firmware Starts
+and Provides Services
+SBL Loads Other Cores
+Images (A53,R5F)
+and Requests Reset Release
+Other Cores Start
+M4 ROM Restarts RTI WDT
+for Additional 180 sec
+Figure 5-4. External Bootloader Tasks
+Upon R5 reset and SBL execution start, M4 ROM restarts the RTI watchdog timer for additional 180 seconds of
+timeout. During that time, SBL must load the M4 firmware provided by TI otherwise an R5 reset will occur as a
+preventive measure against software misbehavior.
+One of the SBL's main tasks is to load the M4 firmware. Only after this task is performed, SBL can load the other
+processors' image and request a reset release from M4 firmware for those cores.
+
+=== Page 479 ===
+5.3 Boot Mode Pins
+Boot Mode pins provide means to select the boot mode and options before the device is powered up. After every
+POR, they are the main source to populate the Boot Parameter Tables. See Section 5.6, Boot Parameter Tables
+for table list and description.
+Boot mode pins can be divided into the following categories:
+•
+BOOTMODE[02:00] ± Denote system clock frequency (MCU_OSC0_XI/XO) to ROM code for PLL
+configuration.
+•
+BOOTMODE[06:03] ± Select the requested boot (primary) mode after POR, that is, the peripheral/memory to
+boot from.
+•
+BOOTMODE[09:07] ± These pins provide optional configurations for primary boot and are used in
+conjunction with the boot mode selected.
+•
+BOOTMODE[12:10] ± Select the backup boot mode, that is, the peripheral/memory to boot from, if primary
+boot device failed.
+•
+BOOTMODE[13] ± This pin provides optional configurations for the backup boot devices.
+•
+BOOTMODE[15:14] ± Reserved pins.
+Note
+It is user's responsibility to set the boot mode pins (via pullups or pulldowns, and jumpers/switches)
+depending on the desired boot scenario.
+
+=== Page 480 ===
+5.3.1 BOOTMODE Pin Mapping
+The ROM execution is directed through the main boot mode pins. This provides more flexibility and more booting
+peripherals to boot from. The Main domain must be powered and functional.
+Main boot mode pins are shown in Table 5-2.
+Any Bootmode pins marked as Reserved or not used must be tied high or low with pull resistors. They should
+not be left floating.
+Table 5-2. BOOTMODE Pin Mapping
+15
+14
+13
+12
+11
+10
+9
+8
+7
+6
+5
+4
+3
+2
+1
+0
+Reserv
+ed
+Reserv
+ed
+Backup
+Boot
+Mode
+Config
+Backup Boot Mode
+Primary Boot Mode
+Config
+Primary Boot Mode
+PLL Config
+Table 5-3 describes the BOOTMODE pins that need to be set according to the system clock provided to the
+device.
+The ROM Code will configure any PLLs required during the boot process.
+Note
+Reference clock selections may be limited by the device. Please consult the device specific datasheet
+to determine which system clock frequencies are valid.
+Table 5-3. PLL Reference Clock Selection
+PLL Config Pins
+Ref Clock (MHz)
+B2
+B1
+B0
+0
+0
+0
+19.2
+0
+0
+1
+20
+0
+1
+0
+24
+0
+1
+1
+25
+1
+0
+0
+26
+1
+0
+1
+27(1)
+1
+1
+0
+Reserved
+1
+1
+1
+Reserved
+(1)
+USB DFU boot mode is not supported with the reference clock of 27 MHz.
+5.3.1.1 Primary Boot Mode Selection and Configuration
+The primary boot mode is the first mode attempted after reset. Table 5-4 lists all possible primary boot modes.
+All pins marked as reserved can be either 0 or 1. All boot mode signals must be pulled low or high through a pull
+resistor on the board, they must not be left floating
+Note
+All BOOTMODE[15:00] signals must be pulled high through a resistor to VDDSHV3, or pulled low to
+ground, including Reserved signals. Reserved BOOTMODE signals must not be left floating.
+Table 5-4. Primary Boot Mode Selection
+Primary Boot Mode Config
+Primary Boot Mode
+B9
+B8
+B7
+B6
+B5
+B4
+B3
+Reserved
+Read Mode 2
+Read Mode 1
+0
+0
+0
+0
+Serial NAND
+Reserved
+Iclk
+Csel
+0
+0
+0
+1
+OSPI
+Reserved
+Iclk
+Csel
+0
+0
+1
+0
+QSPI
+
+=== Page 481 ===
+Table 5-4. Primary Boot Mode Selection (continued)
+Primary Boot Mode Config
+Primary Boot Mode
+B9
+B8
+B7
+B6
+B5
+B4
+B3
+Reserved
+Mode
+Csel
+0
+0
+1
+1
+SPI
+Clkout
+0
+Link Info
+0
+1
+0
+0
+Ethernet RGMII
+Clkout
+Clk src
+0
+0
+1
+0
+1
+Ethernet RMII
+Bus reset
+Reserved
+Addr
+0
+1
+1
+0
+I2C
+Reserved
+Reserved
+Reserved
+0
+1
+1
+1
+UART
+Port
+Reserved
+Fs/raw
+1
+0
+0
+0
+MMCSD Boot (SD Card Boot or
+eMMC Boot using UDA)
+Reserved
+Reserved
+Reserved
+1
+0
+0
+1
+eMMC Boot
+Core Volt
+Mode
+Lane Swap
+1
+0
+1
+0
+USB
+Reserved
+Reserved
+Reserved
+1
+0
+1
+1
+GPMC NAND
+Reserved
+Reserved
+Reserved
+1
+1
+0
+0
+GPMC NOR
+Reserved
+Reserved
+Reserved
+1
+1
+0
+1
+Reserved
+SFPD
+Read Cmd
+Mode
+1
+1
+1
+0
+xSPI
+Reserved
+ARM/Thumb
+No/Dev
+1
+1
+1
+1
+No-boot/Dev boot
+5.3.1.2 Backup Boot Mode Selection and Configuration
+The backup boot mode is selected via pins within the main BOOTMODE map. Table 5-5 lists all possible backup
+boot modes.
+Table 5-5. Backup Mode Selection
+Backup Boot
+Config
+Backup Boot Mode Selection
+Backup Boot Mode Selected
+B13
+B12
+B11
+B10
+Reserved
+0
+0
+0
+None
+Mode
+0
+0
+1
+USB
+Reserved
+0
+1
+0
+Reserved
+Reserved
+0
+1
+1
+UART
+IF
+1
+0
+0
+Ethernet
+Port
+1
+0
+1
+MMCSD Boot (SD Card Boot or eMMC Boot)
+Reserved
+1
+1
+0
+SPI
+Reserved
+1
+1
+1
+I2C
+5.4 Boot Modes
+
+=== Page 482 ===
+5.4.1 OSPI\xSPI\QSPI\SPI Boot
+The following apply to all or multiple boot modes that are SPI related.
+•
+Octal SPI flash memories support various protocols, however, the OSPI boot mode of the device will only
+support a specific protocol defined in OSPI Bootloader Operation. If the flash memory is complaint with
+JEDEC xSPI standards JESD251 and JESD216D, then xSPI boot mode is additionally supported. Please
+refer to xSPI boot mode description for further details.
+•
+Command protocols follow the JEDEC spec definition and indicate the number of active pins used for the
+instruction, address, and data, and also the data rate used for each (S = Single Data Rate, D= Double Data
+Rate). For example, 1S-1S-8S describes a protocol which uses 1 signal (D0) for command in SDR mode, 1
+signal (D0) for address in SDR mode, and 8 signals (D7:D0) for data in SDR mode
+•
+When using a OSPI\xSPI\QSPI\SPI flash device greater than 128Mb, a flash device package with a RESET
+signal (NOR type memories only) must be used. The reason is that the ROM only uses 3 byte addressing
+mode (address is 24bits). To address the full memory address range, software will typically switch to 4-byte
+addressing mode. If a reset to the processor occurs (eg, due to a warm reset), the ROM will execute
+expecting 3-byte addressing mode, but the flash will have been left in 4-byte addressing mode. In order for
+the flash device to return to 3-byte addressing mode, it must be reset using this signal. This typically can be
+achieved by using the RESET signal on the flash memory device. The ROM does not issue a software reset
+command.
+•
+When booting from any of the SPI boot modes, BOOTMODE pin settings will depend on operation during
+normal operation
+•
+To support high speed OSPI with the DQS signal during normal operation, set BOOTMODE8=1 to use
+internal iclk during boot and ensure signal LBCLKO is a no connect (ie, absolutely no trace can be
+connected to LBCLKO). The ROM boot will operate OSPI at low speed (50MHz), and during normal
+operation, the OSPI interface can use the DQS signal to operate the interface at high speeds.
+•
+To support high speed OSPI or QSPI without DQS signal (ie, using the LBCLKO signal to support
+loopback clock), then set BOOTMODE8=0 to use external clock during boot. In this case, ROM boot and
+normal operation will use the externally looped back clock signal LBCLKO. Board designers should refer
+to the device specific datasheet to undertstand board routing guidelines for the LBCLKO signal.
+•
+To support only low speed OSPI\xSPI\QSPI\SPI operation (ie, <=50MHz OSPI clock), set
+BOOTMODE8=1 to use internal iclk, and ensure signal LBCLKO is a no connect (ie, absolutely no trace
+can be connected to LBCLKO). Operation for both ROM boot and normal operating mode will clock the
+interface at low speed and use the internally pad looped back clock. The DQS and LBCLKO signals will
+not be used during boot or normal operation
+
+=== Page 483 ===
+5.4.1.1 OSPI Boot
+Table 5-6 shows configuration pins assignment to functions when boot mode is the Octal SPI using the OSPI
+module. The BOOTMODE pin corresponding to the Iclk field determines the setting for LOOPCLK_SEL bit field
+in CTRLMMR_OSPI0_CLKSEL register
+Table 5-6. OSPI Boot Configuration Fields
+BOOTMODE Pins
+Field
+Value
+Description
+8
+Iclk
+0
+Iclock source external
+1
+Iclock source internal (pad loopback)
+7
+Csel
+0
+Boot Flash is on CS 0
+1
+Boot Flash is on CS 1
+Table 5-7 summarizes the OSPI pin configuration done by ROM code for OSPI boot device.
+Table 5-7. OSPI Boot Pin Usage
+Device Pin
+Module Signal
+Pull Enable=Pull Direction=Driver
+Index
+Rx En/Dis
+Pinmux Sel
+Pad Configuration
+Register
+OSPI0_CLK
+OSPI0_CLK
+Disable
+NA
+0
+Disable
+0
+PADCONFIG0
+OSPI0_LBCLKO
+OSPI0_LBCLKO
+Disable
+NA
+0
+Enable
+0
+PADCONFIG1
+OSPI0_DQS
+OSPI0_DQS
+Disable
+NA
+0
+Enable
+0
+PADCONFIG2
+OSPI0_D0
+OSPI0_D0
+Disable
+NA
+0
+Enable
+0
+PADCONFIG3
+OSPI0_D1
+OSPI0_D1
+Disable
+NA
+0
+Enable
+0
+PADCONFIG4
+OSPI0_D2
+OSPI0_D2
+Disable
+NA
+0
+Enable
+0
+PADCONFIG5
+OSPI0_D3
+OSPI0_D3
+Disable
+NA
+0
+Enable
+0
+PADCONFIG6
+OSPI0_D4
+OSPI0_D4
+Disable
+NA
+0
+Enable
+0
+PADCONFIG7
+OSPI0_D5
+OSPI0_D5
+Disable
+NA
+0
+Enable
+0
+PADCONFIG8
+OSPI0_D6
+OSPI0_D6
+Disable
+NA
+0
+Enable
+0
+PADCONFIG9
+OSPI0_D7
+OSPI0_D7
+Disable
+NA
+0
+Enable
+0
+PADCONFIG10
+OSPI0_CSn0
+OSPI0_CSn0
+Disable
+NA
+0
+Disable
+0
+PADCONFIG11
+OSPI0_CSn1
+OSPI0_CSn1
+Disable
+NA
+0
+Disable
+0
+PADCONFIG12
+Note
+All signals in the table will be configured even though some may not be used by this particular boot
+mode.
+5.4.1.1.1 OSPI Bootloader Operation
+Please refer to Section 5.4.1 for more information that applies to OSPI boot mode
+The OSPI boot mode supports 1S-1S-8S mode only. The ROM will issue a Read Command (0x8B) followed by
+a 24 bit (3 byte) address (the starting address is all zeros), followed by 8 dummy cycles. The flash device should
+then respond with 8-bit data. The frequency of operation during the read portion is 50 MHz.
+5.4.1.1.1.1 OSPI Initialization Process
+In the OSPI boot mode, the ROM Code initializes the OSPI module and the image is read from the OSPI
+flash connected to the selected chip-select. If the image fails to be read correctly from offset 0x0 of the flash
+memory, the ROM will attempt to obtain the image at offset 0x400000. This is the only redundant image location
+supported by the ROM. See Section 5.4.1.1, OSPI Boot Device Configuration for OSPI port settings.
+A detailed summary of the OSPI boot parameter table and the boot configuration definitions are listed in Section
+5.6.3, OSPI Boot Parameter Table.
+
+=== Page 484 ===
+5.4.1.1.1.2 OSPI Loading Process
+OSPI boot mode is not eXecute-In-Place (XIP). ROM code first copies boot image into on-chip RAM and then
+executes it.
+
+=== Page 485 ===
+5.4.1.2 xSPI Boot
+Table 5-8 shows configuration pins assignment to functions when boot mode is xSPI using the OSPI module.
+Table 5-8. xSPI Boot Configuration Fields
+BOOTMODE Pins
+Field
+Value
+Description
+9
+SFDP
+0
+SFDP disabled
+1
+SFDP enabled
+8
+Read cmd
+0
+0x0B Read Command
+1
+0xEE Read Command
+7
+Mode
+0
+1S-1S-1S mode @ 50MHz
+1
+8D-8D-8D mode @ 25MHz
+Table 5-9 summarizes the OSPI pin configuration done by ROM code for xSPI boot device on port 0.
+Table 5-9. xSPI Boot Pin Usage
+Device Pin
+Module Signal
+Pull Enable=Pull Direction=Driver
+Index
+Rx En/Dis
+Pinmux Sel
+Pad Configuration
+Register
+OSPI0_CLK
+OSPI0_CLK
+Disable
+NA
+0
+Disable
+0
+PADCONFIG0
+OSPI0_LBCLKO
+OSPI0_LBCLKO
+Disable
+NA
+0
+Enable
+0
+PADCONFIG1
+OSPI0_DQS
+OSPI0_DQS
+Disable
+NA
+0
+Enable
+0
+PADCONFIG2
+OSPI0_D0
+OSPI0_D0
+Disable
+NA
+0
+Enable
+0
+PADCONFIG3
+OSPI0_D1
+OSPI0_D1
+Disable
+NA
+0
+Enable
+0
+PADCONFIG4
+OSPI0_D2
+OSPI0_D2
+Disable
+NA
+0
+Enable
+0
+PADCONFIG5
+OSPI0_D3
+OSPI0_D3
+Disable
+NA
+0
+Enable
+0
+PADCONFIG6
+OSPI0_D4
+OSPI0_D4
+Disable
+NA
+0
+Enable
+0
+PADCONFIG7
+OSPI0_D5
+OSPI0_D5
+Disable
+NA
+0
+Enable
+0
+PADCONFIG8
+OSPI0_D6
+OSPI0_D6
+Disable
+NA
+0
+Enable
+0
+PADCONFIG9
+OSPI0_D7
+OSPI0_D7
+Disable
+NA
+0
+Enable
+0
+PADCONFIG10
+OSPI0_CSn0
+OSPI0_CSn0
+Disable
+NA
+0
+Disable
+0
+PADCONFIG11
+OSPI0_CSn1
+OSPI0_CSn1
+Disable
+NA
+0
+Disable
+0
+PADCONFIG12
+Note
+All signals in the table will be configured even though some may not be used by this particular boot
+mode.
+5.4.1.2.1 xSPI Bootloader Operation
+Please refer to Section 5.4.1 for more information that applies to xSPI boot mode
+The xSPI protocol defines 1S-1S-1S mode for general backwards compatibility, and 8D-8D-8D for maximum
+throughput.
+For 1S-1S-1S mode of operation, the ROM will issue a Fast Read Output command (0x0B) followed by a 24 bit
+(3 byte) address (the starting address is all zeros), followed by 8 dummy cycles. The frequency of operation is 50
+MHz.
+For 8D-8D-8D mode of operation, the ROM will issue a Fast Read command (0x0B or 0xEE, depending on
+BOOTMODE signal), followed by a 32 bit (4 byte) address (the starting address is all zeros). The frequency of
+operation is 25 MHz.
+When SFDP is enabled using a BOOTMODE signal, the ROM starts operation in 1S-1S-1S mode reads SFDP
+header from flash memory to get 8D-8D-8D switching sequence, Read Command, CMD Extension and Byte
+Order. SFDP parsing of ROM is described below and on successful parsing ROM will issue 8D-8D-8D command
+
+=== Page 486 ===
+switching sequence and then will read the boot image in 8D-8D-8D mode with read command specified in SFDP
+header
+
+=== Page 487 ===
+5.4.1.3 QSPI Boot
+Table 5-10 shows configuration pins assignment to functions when boot mode is QSPI using the OSPI module.
+The BOOTMODE pin corresponding to the Iclk field determines the setting for LOOPCLK_SEL bit field in
+CTRLMMR_OSPI0_CLKSEL register
+Table 5-10. QSPI Boot Configuration Fields
+BOOTMODE Pins
+Field
+Value
+Description
+8
+Iclk
+0
+Iclock source external
+1
+Iclock source internal (pad loopback)
+7
+Csel
+0
+Boot Flash is on CS 0
+1
+Boot Flash is on CS 1
+Table 5-11 summarizes the OSPI pin configuration done by ROM code for QSPI boot device on port 0.
+Table 5-11. QSPI Boot Pin Usage
+Device Pin
+Module Signal
+Pull Enable=Pull Direction=Driver
+Strength
+Index
+Rx En/Dis
+Pinmux Sel
+Pad Configuration
+Register
+OSPI0_CLK
+OSPI0_CLK
+Disable
+NA
+0
+Disable
+0
+PADCONFIG0
+OSPI0_LBCLKO
+OSPI0_LBCLKO
+Disable
+NA
+0
+Enable
+0
+PADCONFIG1
+OSPI0_DQS
+OSPI0_DQS
+Disable
+NA
+0
+Enable
+0
+PADCONFIG2
+OSPI0_D0
+OSPI0_D0
+Disable
+NA
+0
+Enable
+0
+PADCONFIG3
+OSPI0_D1
+OSPI0_D1
+Disable
+NA
+0
+Enable
+0
+PADCONFIG4
+OSPI0_D2
+OSPI0_D2
+Disable
+NA
+0
+Enable
+0
+PADCONFIG5
+OSPI0_D3
+OSPI0_D3
+Disable
+NA
+0
+Enable
+0
+PADCONFIG6
+OSPI0_CSn0
+OSPI0_CSn0
+Disable
+NA
+0
+Disable
+0
+PADCONFIG11
+OSPI0_CSn1
+OSPI0_CSn1
+Disable
+NA
+0
+Disable
+0
+PADCONFIG12
+Note
+All signals in the table will be configured even though some may not be used by this particular boot
+mode.
+5.4.1.3.1 QSPI Bootloader Operation
+Please refer to Section 5.4.1 for more information that applies to QSPI boot mode
+The QSPI boot mode supports the 1S-1S-4S mode only. The ROM will issue a Fast Read Quad Output
+command (0x6B) followed by a 24 bit (3 byte) address (the starting address is all zeros), followed by 8 dummy
+cycles. The flash device should then respond with 4-bit data. The frequency of operation during the quad read
+portion is 50 MHz.
+5.4.1.3.1.1 QSPI Initialization Process
+In the QSPI boot mode, the ROM Code initializes the OSPI module and the image is read from the QSPI
+flash connected to the selected chip-select. If the image fails to be read correctly from offset 0x0 of the flash
+memory, the ROM will attempt to obtain the image at offset 0x400000. This is the only redundant image location
+supported by the ROM. See Section 5.4.1.3, QSPI Boot Device Configuration for OSPI port settings.
+A detailed summary of the QSPI boot parameter table and the boot configuration definitions are listed in Section
+5.6.3, QSPI Boot Parameter Table.
+5.4.1.3.1.2 QSPI Loading Process
+QSPI boot mode is not eXecute-In-Place (XIP). ROM code first copies boot image into on-chip RAM and then
+executes it.
+
+=== Page 488 ===
+5.4.1.4 SPI Boot
+Table 5-12 shows configuration pins assignment to functions when boot mode is SPI using the OSPI module.
+Table 5-12. SPI Boot Configuration Fields
+BOOTMODE Pins
+Field
+Value
+Description
+8
+Mode
+0
+SPI Mode 0
+1
+SPI Mode 3
+7
+Csel
+0
+Boot Flash is on CS 0
+1
+Boot Flash is on CS 1
+Table 5-13 summarizes the OSPI pin configuration done by ROM code for SPI boot device on port 0.
+Table 5-13. SPI Boot Pin Usage
+Device Pin
+Module Signal
+Pull Enable=Pull Direction=Driver
+Index
+Rx En/Dis
+Pinmux Sel
+Pad Configuration
+Register
+OSPI0_CLK
+OSPI0_CLK
+Disable
+NA
+0
+Disable
+0
+PADCONFIG0
+OSPI0_LBCLKO
+OSPI0_LBCLKO
+Disable
+NA
+0
+Enable
+0
+PADCONFIG1
+OSPI0_DQS
+OSPI0_DQS
+Disable
+NA
+0
+Enable
+0
+PADCONFIG2
+OSPI0_D0
+OSPI0_D0
+Disable
+NA
+0
+Enable
+0
+PADCONFIG3
+OSPI0_D1
+OSPI0_D1
+Disable
+NA
+0
+Enable
+0
+PADCONFIG4
+OSPI0_CSn0
+OSPI0_CSn0
+Disable
+NA
+0
+Disable
+0
+PADCONFIG11
+OSPI0_CSn1
+OSPI0_CSn1
+Disable
+NA
+0
+Disable
+0
+PADCONFIG12
+Note
+All signals in the table will be configured even though some may not be used by this particular boot
+mode.
+5.4.1.4.1 SPI Bootloader Operation
+Please refer to Section 5.4.1 for more information that applies to SPI boot mode
+The SPI boot mode supports the 1S-1S-1S mode only. The Read Command is 8-bits (0x03) followed by a 24
+bit (3 byte) address. There are no dummy cycles issued after the read command. The frequency of operation
+supported is 6.250 MHz. OSPI0_D0 will have data transfers FROM the processor TO the flash device, and
+OSPI0_D1 will have data transfers TO the processor FROM the flash device
+5.4.1.4.1.1 SPI Initialization Process
+In the SPI boot mode, the ROM Code initializes the OSPI peripheral to SPI mode and the image is read from
+the flash memory connected to the corresponding OSPI port and chip-select. A detailed summary of the SPI
+boot parameter table and the boot configuration definitions are listed in Section 5.6.3, OSPI/QSPI/SPI Boot
+Parameter Table. If the image fails to be read correctly from offset 0x0 of the flash memory, the ROM will attempt
+to obtain the image at offset 0x400000. This is the only redundant image location supported by the ROM.
+5.4.1.4.1.2 SPI Loading Process
+SPI boot mode is not eXecute-In-Place (XIP). ROM code first copies boot image into on-chip RAM and then
+executes it.
+
+=== Page 489 ===
+5.4.2 I2C Boot
+Table 5-14 shows configuration pins assignment to functions when boot mode is the I2C mode.
+Table 5-14. I2C Boot Configuration Fields
+BOOTMODE Pins
+Field
+Value
+Description
+9
+Bus reset
+0
+Hung bus reset attempt after 1 ms
+1
+No hung bus reset attempted
+7
+Address
+0
+EEPROM's address is 0x50
+1
+EEPROM's address is 0x51
+The I2C bus is considered inactive if the data line is low and clock remains high for the specified timeout time.
+Recovery consists of driving the clock a stop condition is detected. A stop condition is a transition on the data
+line from 0 to 1 while the clock line is high. If the clock line is stuck low there is no way to take control of the bus.
+Table 5-15 summarizes the I2C pin configuration done by ROM code for I2C boot device.
+Table 5-15. I2C Pin Usage
+Device Pin
+Module Signal
+Pull Enable=Pull Direction=Driver
+Index
+Rx En/Dis
+Pinmux Sel
+Pad Configuration
+Register
+I2C0_SCL
+I2C0_SCL
+Disable
+NA
+0
+Enable
+0
+PADCONFIG120
+I2C0_SDA
+I2C0_SDA
+Disable
+NA
+0
+Enable
+0
+PADCONFIG121
+5.4.2.1 I2C Bootloader Operation
+5.4.2.1.1 I2C Initialization Process
+In the I2C boot mode, the ROM Code configures the Main Domain I2C0 in controller mode.
+The boot controller drives the I2C target device where the image is stored. The image is copied to internal RAM,
+and is executed from there. If the image is not recognized, the ROM will attempt to read the image at offset
+0x8000. This is the only redundant image supported by the ROM.
+A detailed summary of the I2C boot parameter table and the BOOTMODE pins definitions are listed in Section
+5.6.5, I2C Boot Parameter Table and Section 5.4.2, I2C Boot Device Configuration.
+5.4.2.1.1.1 Block Size
+ROM code will read 0x800 bytes before processing the data. The last block must be padded to the next 0x800
+byte boundary and it must be padded with zeros.
+5.4.2.1.1.2 Addressing
+The boot code does not support byte address to bus address wrapping. So the maximum image size that can be
+access is 64 kbytes. For example, if the read address is 0xFF00, the read size is 0x200 and the I2C bus address
+is 0x50, then 0x100 bytes will be read from 0xFF00 at bus address 0x50, followed by 0x100 bytes from 0x0000
+at bus address 0x50. The bus address does not increment when the address rolls over.
+5.4.2.1.2 I2C Loading Process
+5.4.2.1.2.1 Loading a Boot Image From EEPROM
+In this mode, the Main Domain I2C0 peripheral is configured as I2C controller.
+ROM Code will start reading from the I2C EEPROM at the specified I2C bus address. This read will be done
+beginning at the specified base address offset. Data will be read in 2-KB chunks. The data will be stored at the
+address specified in the boot header. It will continue reading image data until a complete image has been read.
+When the complete image has been read, the ROM Code will branch to the start address of the image.
+
+=== Page 490 ===
+5.4.3 SD Card Boot
+Table 5-16 shows configuration pins assignment to functions when boot mode is the SD card boot mode.
+Table 5-16. SD Card Boot Configuration Fields
+SD Card Boot Configuration Fields
+BOOTMODE Pins
+Field
+Value
+Description
+9 (13
+(1))
+Port
+0
+Reserved
+1
+MMC Port 1 (4 bit width). This bit must be set to 1
+7
+FS/Raw
+0
+Filesystem mode
+1
+Raw Mode
+(1)
+When MMCSD is the backup mode.
+Table 5-17 summarizes the MMCSD pin configuration done by ROM code for SD Card boot on port1 (MMCSD1).
+SD Card boot on Port 0 (MMCSD0) is not supported.
+Table 5-17. SD Card (MMCSD1) Pin Usage
+Device Pin
+Module Signal
+Pull Enable=Pull Direction=Driver
+Index
+Rx En/Dis
+Pinmux Sel
+Pad Configuration
+Register
+MMC1_DAT3
+MMC1_DAT3
+Disable
+NA
+0
+Enable
+0
+PADCONFIG137
+MMC1_DAT2
+MMC1_DAT2
+Disable
+NA
+0
+Enable
+0
+PADCONFIG138
+MMC1_DAT1
+MMC1_DAT1
+Disable
+NA
+0
+Enable
+0
+PADCONFIG139
+MMC1_DAT0
+MMC1_DAT0
+Disable
+NA
+0
+Enable
+0
+PADCONFIG140
+MMC1_CLK
+MMC1_CLK
+Disable
+NA
+0
+Enable
+0
+PADCONFIG141
+MMC1_CLKLB
+MMC1_CLKLB
+Disable
+NA
+0
+Enable
+0
+PADCONFIG142
+MMC1_CMD
+MMC1_CMD
+Disable
+NA
+0
+Enable
+0
+PADCONFIG143
+MMC1_SDCD
+MMC1_SDCD
+Disable
+NA
+0
+Enable
+0
+PADCONFIG144
+Note
+MMC1_CLKLB signal is not pinned out on the device. The pinmux configuration enables the input
+buffer of the internal loopback clock.
+Note
+MMC1_SDWP is not configured by ROM since the ROM never writes to the SD card.
+5.4.3.1 SD Card Bootloader Operation
+SD Card boot is only available on Port 1 of the MMCSD controller (MMCSD1). The IOs on this port support both
+1.8V and 3.3V operation, as well as dynamic voltage change. Thus, this port can support initial operation at 3.3V
+and remain at this voltage for legacy SD Cards, or support initial operation at 3.3V and change to 1.8V after
+ROM boot for UHS-I SD Cards.
+The ROM will boot from SD cards using one of these methods:
+•
+User Data Area (UDA) in raw mode
+•
+User Data Area (UDA) in filesystem mode
+The ROM is capable of booting from any size SD card because the MMCSD controller is responsible for
+addressing. Only single data rate with backward compatible interface timing is supported.
+The MMCSD module depends on proper voltage level on the SD card detect signal (SDCD). If SDCD=1, the
+ROM will assume the card is not present and will fail the boot mode.The SDCD must be 0 for the ROM to
+
+=== Page 491 ===
+continue to attempt to boot. Card detect using DAT3 is not supported. If the card is detected, the initial discovery
+phase is performed:
+1.
+Send CMD 0. (GO IDLE, both for MMC and SD)
+2.
+Send CMD 55. If the card responds then the card type is assumed to be SD. On timeout the code sends
+CMD 1. If there is a response then the card type is MMC.
+The ROM Code will start reading from the MMCSD memory boot sector, or filesystem, as specified by the
+BOOTMODE pins. Only FAT32 and FAT16 formats are supported in filesystem mode. It will continue reading
+data from the memory and storing it in internal RAM until a complete image has been read. In RAW mode only,
+the ROM supports a redundant image at offset 0x400000 in case the initial image fails to be recognized. When
+the complete image has been read and found in good integrity, the ROM Code will branch to the address defined
+in the Boot Info field of the boot header.
+When SD Card boot is used as a backup boot option, only User Data Area (UDA) in filesystem mode is
+supported. Raw mode is not supported. Additionally, boot will only occur in 1-bit mode during backup booting.
+
+=== Page 492 ===
+5.4.4 eMMC Boot
+Table 5-18 shows configuration pins assignment to functions when boot mode is the eMMC Boot
+using a UDA boot mode (BOOTMODE[6:3]=1000b). Note that eMMC Boot using alternate eMMC Boot
+(BOOTMODE[6:3]=1001b) does not have any extra bootmode configuration fields. See Section 5.4.4.1 for more
+information.
+Table 5-18. eMMC Boot Configuration Fields (UDA mode)
+eMMC Boot Configuration Fields
+BOOTMODE Pins
+Field
+Value
+Description
+9 (13
+(1))
+Port
+0
+MMCSD Port 0 (8 bit width). This bit must be set to 0
+1
+Reserved
+7
+FS/Raw
+0
+Filesystem mode
+1
+Raw Mode
+(1)
+When MMCSD Boot is the backup mode.
+Table 5-19 summarizes the MMCSD pin configuration done by ROM code for eMMC boot on port0 (MMCSD0).
+eMMC boot on Port 1 (MMCSD1) is not supported.
+Table 5-19. eMMC (MMCSD Port 0) Pin Usage
+Device Pin
+Module Signal
+Pull Enable=Pull Direction=Driver
+Index
+Rx En/Dis
+Pinmux Sel
+Pad Configuration
+Register
+MMC0_DAT7
+MMC0_DAT7
+Enable
+Up
+0
+Enable
+0
+PADCONFIG126
+MMC0_DAT6
+MMC0_DAT6
+Enable
+Up
+0
+Enable
+0
+PADCONFIG127
+MMC0_DAT5
+MMC0_DAT5
+Enable
+Up
+0
+Enable
+0
+PADCONFIG128
+MMC0_DAT4
+MMC0_DAT4
+Enable
+Up
+0
+Enable
+0
+PADCONFIG129
+MMC0_DAT3
+MMC0_DAT3
+Enable
+Up
+0
+Enable
+0
+PADCONFIG130
+MMC0_DAT2
+MMC0_DAT2
+Enable
+Up
+0
+Enable
+0
+PADCONFIG131
+MMC0_DAT1
+MMC0_DAT1
+Enable
+Up
+0
+Enable
+0
+PADCONFIG132
+MMC0_DAT0
+MMC0_DAT0
+Disable
+NA
+0
+Enable
+0
+PADCONFIG133
+MMC0_CLK
+MMC0_CLK
+Disable
+NA
+0
+Enable
+0
+PADCONFIG134
+MMC0_CLKLB
+MMC0_CLKLB
+Disable
+NA
+0
+Enable
+0
+PADCONFIG135
+MMC0_CMD
+MMC0_CMD
+Disable
+NA
+0
+Enable
+0
+PADCONFIG136
+Note
+MMC0_CLKLB signal is not pinned out on the device. The pinmux configuration enables the input
+buffer of the internal loopback clock.
+5.4.4.1 eMMC Bootloader Operation
+Booting from an eMMC device is only available on Port 0 of the MMCSD controller (MMCSD0). Booting from an
+eMMC device is not available on Port1 (MMCSD1) or MMCSD2. The IOs associated with MMCSD0 port support
+both 1.8V and 3.3V eMMC operation
+The ROM will boot from eMMC devices using one of these methods:
+•
+User Data Area (UDA) in raw mode
+•
+User Data Area (UDA) in filesystem mode
+•
+eMMC bootmode (alternate)
+To boot from UDA in either raw or filesystem mode, choose bootmode "MMCSD Boot" (see Table 5-4).
+A special alternate boot mode is available with eMMC devices which allows the ROM to boot from an image that
+is in a separate boot partition in the eMMC. To boot from this mode, choose "eMMC Boot" (see Table 5-4).
+
+=== Page 493 ===
+The ROM Code will start reading from the memory boot sector, filesystem, or boot partition as specified by the
+BOOTMODE pins. Only FAT32 and FAT16 formats are supported in filesystem mode. It will continue reading
+data from the memory and storing it in internal RAM until a complete image has been read. In RAW mode only,
+the ROM supports a redundant image at offset 0x400000 in case the initial image fails to be recognized. When
+the complete image has been read and found in good integrity, the ROM Code will branch to the address defined
+in the Boot Info field of the boot header.
+When eMMC boot is used as a backup boot option, only User Data Area (UDA) in filesystem mode is supported.
+Raw mode is not supported. Additionally, boot will only occur in 1-bit mode during backup booting.
+
+=== Page 494 ===
+5.4.5 Ethernet Boot
+Table 5-20 shows configuration pins assignment to functions when boot mode is the Ethernet RGMII mode.
+Table 5-20. Ethernet RGMII Boot Configuration Fields
+BOOTMODE Pins
+Field
+Value
+Description
+9
+Clkout
+0
+25 MHz clock not generated on CLKOUT0
+1
+25 MHz clock generated on CLKOUT0
+8
+Delay
+0
+Must be set to 0 for RGMII with internal Tx delay
+1
+Reserved
+7
+Link info
+0
+MDIO PHY scan used for link parameters.
+1
+Link parameters programmed by the ROM
+Table 5-21 shows configuration pins assignment to functions when boot mode is the Ethernet RMII mode.
+Table 5-21. Ethernet RMII Boot Configuration Fields
+BOOTMODE Pins
+Field
+Value
+Description
+9
+Clkout
+0
+50 MHz clock not generated on CLKOUT0
+1
+50 MHz clock generated on CLKOUT0
+8
+Clk src
+0
+External clock source for RMII1_REF_CLK
+1
+Internal clock source for RMII1_REF_CLK
+7
+RMII
+0
+This bit must be set to 0
+1
+Reserved
+Table 5-22. Ethernet RMII Clocking
+BOOTMODE Pin 9 (Clk out)
+BOOTMODE Pin 8 (Clk src)
+Description
+0
+0
+50MHz external source to RMII_REF_CLK and to external Ethernet
+PHY input clock (CLKOUT0 is unused) These are the recommended
+settings
+0
+1
+Not a valid configuration
+1
+0
+CLKOUT0 is configured to 50MHz and connect to both
+RMII1_REF_CLK and to external Ethernet PHY input clock
+1
+1
+Not a valid configuration
+Table 5-23 shows configuration pins assignment to functions when the backup boot mode Ethernet. The
+Interface configuration field chooses which interface will be used (RGMII or RMII)
+Table 5-23. Ethernet Backup Boot Configuration Field
+BOOTMODE Pins
+Field
+Value
+Description
+13
+Interface
+0
+RGMII with internal TX delay
+1
+RMII with external clock source
+Table 5-24 summarizes the RGMII pin configuration done by ROM code for Ethernet boot device on RGMII port.
+Table 5-24. RGMII Pin Usage
+Device Pin
+Module Signal
+Pull Enable=Pull Direction=Driver
+Index
+Rx En/Dis
+Pinmux Sel
+Pad Configuration
+Register
+RGMII1_TX_CTL
+RGMII1_TX_CTL
+Disable
+NA
+0
+Disable
+0
+PADCONFIG75
+RGMII1_TXC
+RGMII1_TXC
+Disable
+NA
+0
+Disable
+0
+PADCONFIG76
+RGMII1_TD0
+RGMII1_TD0
+Disable
+NA
+0
+Disable
+0
+PADCONFIG77
+RGMII1_TD1
+RGMII1_TD1
+Disable
+NA
+0
+Disable
+0
+PADCONFIG78
+RGMII1_TD2
+RGMII1_TD2
+Disable
+NA
+0
+Disable
+0
+PADCONFIG79
+RGMII1_TD3
+RGMII1_TD3
+Disable
+NA
+0
+Disable
+0
+PADCONFIG80
+
+=== Page 495 ===
+Table 5-24. RGMII Pin Usage (continued)
+Device Pin
+Module Signal
+Pull Enable=Pull Direction=Driver
+Index
+Rx En/Dis
+Pinmux Sel
+Pad Configuration
+Register
+RGMII1_RX_CTL
+RGMII1_RX_CTL
+Disable
+NA
+0
+Enable
+0
+PADCONFIG81
+RGMII1_RXC
+RGMII1_RXC
+Disable
+NA
+0
+Enable
+0
+PADCONFIG82
+RGMII1_RD0
+RGMII1_RD0
+Disable
+NA
+0
+Enable
+0
+PADCONFIG83
+RGMII1_RD1
+RGMII1_RD1
+Disable
+NA
+0
+Enable
+0
+PADCONFIG84
+RGMII1_RD2
+RGMII1_RD2
+Disable
+NA
+0
+Enable
+0
+PADCONFIG85
+RGMII1_RD3
+RGMII1_RD3
+Disable
+NA
+0
+Enable
+0
+PADCONFIG86
+MDIO0_MDIO
+MDIO0_MDIO
+Disable
+NA
+0
+Enable
+0
+PADCONFIG87
+MDIO0_MDC
+MDIO0_MDC
+Disable
+NA
+0
+Disable
+0
+PADCONFIG88
+Table 5-25 summarizes the RMII pin configuration done by ROM code for Ethernet boot device on RMII port.
+Table 5-25. RMII Pin Usage
+Device Pin
+Module Signal
+Pull Enable=Pull Direction=Driver
+Index
+Rx En/Dis
+Pinmux Sel
+Pad Configuration
+Register
+RGMII1_RX_CTL
+RMII1_RX_ER
+Disable
+NA
+0
+Enable
+1
+PADCONFIG81
+RGMII1_RXC
+RMII1_REF_CLK
+Disable
+NA
+0
+Enable
+1
+PADCONFIG82
+RGMII1_RD0
+RMII1_RXD0
+Disable
+NA
+0
+Enable
+1
+PADCONFIG83
+RGMII1_RD1
+RMII1_RXD1
+Disable
+NA
+0
+Enable
+1
+PADCONFIG84
+RGMII1_TD0
+RMII1_TXD0
+Disable
+NA
+0
+Disable
+1
+PADCONFIG77
+RGMII1_TD1
+RMII1_TXD1
+Disable
+NA
+0
+Disable
+1
+PADCONFIG78
+RGMII1_TX_CTL
+RMII1_TX_EN
+Disable
+NA
+0
+Disable
+1
+PADCONFIG75
+RGMII1_TXC
+RMII1_CRS_DV
+Disable
+NA
+0
+Enable
+1
+PADCONFIG76
+EXT_REFCLK1(1)
+CLKOUT0
+Disable
+NA
+0
+Disable
+5
+PADCONFIG124
+MDIO0_MDIO
+MDIO0_MDIO
+Disable
+NA
+0
+Enable
+0
+PADCONFIG87
+MDIO0_MDC
+MDIO0_MDC
+Disable
+NA
+0
+Disable
+0
+PADCONFIG88
+(1)
+Enabled when CLKOUT0 option is selected from boot pin selection.
+5.4.5.1 Ethernet Bootloader Operation
+5.4.5.1.1 Ethernet Initialization Process
+When the device is set to boot through the Ethernet mode, the ROM Code configures the Ethernet module and
+the interface mode (RMII, RGMII) according the the BOOTMODE pin settings, see Section 5.4.5, Ethernet Boot
+Device Configuration. Also consult the boot parameter table for the Ethernet boot, see Section 5.6.7, Ethernet
+Boot Parameter Table.
+When Link Info = 0, the link parameters are read using MDIO scan. This is the typical setting when using an
+external PHY. With these parameters, the ROM identifies the PHY and establishes link with the supported speed
+and duplex mode.
+When Link Info = 1, no MDIO scan is performed, and the link parameters are programmed by the ROM based on
+the RGMII status register. This is the typical setting when configured as a MAC to MAC RGMII interface whereby
+RGMII pins of two devices can be connected diretly and establish link in force mode. The chosen configuration
+will be Gigabit, full duplex mode.
+Note that booting from RGMII requires that an attached PHY be configured for RGMII-ID Mode immediately
+upon exiting reset. The ROM will not make this configuration change to the PHY.
+The ROM will setup RGMII mode enabling internal delay mode.
+
+=== Page 496 ===
+5.4.5.1.2 Ethernet Loading Process
+After device configuration, the bootloader performs a standard BOOTP/TFTP boot. The device sends a BOOTP
+request with its MAC address to a host TFTP server to be assigned an IP from a pool of addresses. The timeout
+for each BOOTP packet is 4 seconds, and the ROM will attempt 10 BOOTP retries, after which the boot mode
+will fail. If the connection is established, the device initiates a TFTP download and is able to receive image data
+encapsulated in Ethernet packets, see Section 5.4.5.1.2.1. There is a timeout of 1 second to receive a response
+for the READ request, and the ROM will retry the READ request 10 times, after which the boot mode will fail.
+If TFTP download is successful, data received is stripped of its network headers and the boot data is stored in
+internal RAM. When the transfer completes and the image is found in good integrity, the ROM Code will branch
+to the address defined in the Boot Info field of the boot header.
+5.4.5.1.2.1 Ethernet Boot Data Formats
+Ethernet boot uses the BOOTP/TFTP protocol for downloads. Only IPv4 is supported.
+5.4.5.1.2.1.1 Limitations
+•
+Received packets cannot be IP fragmented (should not be a problem in most systems since the BOOTP/
+TFTP packets have fixed lengths of small size)
+•
+Only DIX Ethernet headers are supported.
+•
+802.3 with SNAP/LLC not supported
+•
+DIX Ethernet with VLAN not supported
+•
+802.3 with VLAN and SNAP/LLC not supported
+5.4.5.1.2.1.2 BOOTP Request
+5.4.5.1.2.1.2.1 MAC Header (DIX)
+•
+Destination MAC = value from parameter table (default is broadcast)
+•
+Source MAC = value from parameter table (default is e-fuse value)
+•
+Type = IPv4 (0x0800)
+5.4.5.1.2.1.2.2 IPv4 Header
+•
+Version = 4
+•
+Header length = 0
+•
+TOS = 0
+•
+Len = computed during operation
+•
+ID = 0x0001
+•
+Flags + Fragment offset = 0
+•
+TTL = 0x10
+•
+Protocol = UDP (17)
+•
+Header checksum = Computed during operation
+•
+SRC IP = 0.0.0.0
+•
+Dest IP = 255.255.255.255
+5.4.5.1.2.1.2.3 UDP Header
+•
+Source port = BOOTP client (68 decimal)
+•
+Destination Port = BOOTP server (67 decimal)
+•
+Length = computed during operation
+•
+Checksum = computed during operation
+5.4.5.1.2.1.2.4 BOOTP Payload
+•
+Opcode = Request (1)
+•
+HW Type = Ethernet (1)
+•
+HW Addr Len = 6
+•
+Hop Count = 0
+•
+Transaction ID = 1
+•
+Number of seconds = 0
+
+=== Page 497 ===
+•
+Client IP = 0.0.0.0
+•
+Your IP = 0.0.0.0
+•
+Server IP = 0.0.0.0
+•
+Gateway IP = 0.0.0.0
+•
+Client HW Address = Device MAC address (from parameter table)
+•
+Server hostname = NULL
+•
+Filename = NULL
+•
+Option 60, Vendor ID string, from parameter table
+•
+Option 61, Client ID string, from parameter table
+5.4.5.1.2.1.2.5 TFTP
+There are no ROM code specific TFTP configurations.
+5.4.5.1.3 Ethernet Hand Over Process
+Once the ROM Code receives the valid packet, it decodes it to get the image sections and loads them in the
+appropriate memory location. After the image is loaded and validated, the ROM Code starts the boot image
+execution.
+
+=== Page 498 ===
+5.4.6 USB Boot
+Table 5-26 shows configuration pins assignment to functions when boot mode is the USB mode.
+Table 5-26. USB Boot Configuration Fields
+USB Configuration Fields for Primary Boot Mode
+BOOTMODE Pins
+Field
+Value
+Description
+9
+CoreVoltage
+0
+0.85V core voltage
+1
+0.75V core voltage
+8 (13(1))
+Mode
+0
+DFU (USB device firmware upgrade)
+1
+Host (MSC boot)
+7
+Lane Swap
+0
+D+/D- lines are not swapped
+1
+D+/D- lines are swapped
+(1)
+When USB is the backup mode.
+Table 5-27 summarizes the USB pin configuration done by ROM code for USB boot device on port 0.
+Table 5-27. USB Port 0 Pin Usage
+Device Pin
+Module Signal
+Pull Enable=Pull Direction=Driver
+Index
+Rx En/Dis
+Pinmux Sel
+Pad Configuration
+Register
+USB0_DRVVBUS
+USB0_DRVVBUS
+Disable
+NA
+0
+Disable
+0
+PADCONFIG149
+Note
+Note that other USB pins do not have pin mux options. USB_DRVVBUS is configured in DFU mode
+even though it is not used.
+Note on USB backup boot:
+•
+Lane Swap (D+/D- lines) are not allowed
+Configurability (pins) of these options do not exist in the USB backup boot mode.
+CAUTION
+A USB Type-AB connector should not be connected to another host when the device is booting as a
+USB Host. This will prevent two USB power sources from being connected together.
+5.4.6.1 USB Bootloader Operation
+The USB boot mode is used to read the boot image from external USB host.
+See Section 5.4.6, USB Boot Device Configuration and Section 5.6.10, USB Boot Parameter Table for the
+available configuration options.
+More information about USB DFU protocol can be found at http://www.usb.org/sites/default/files/DFU_1.1.pdf.
+In DFU mode, the ROM will attempt an enumeration for 60 seconds, after which the boot mode will fail. If a
+successful enumeration is achieved, the ROM Code will start reading from the external host as specified by the
+BOOTMODE pins. It will continue reading data from the memory and storing it in internal RAM until a complete
+image has been read. When the complete image has been read and found in good integrity, the ROM Code will
+branch to the address defined in the Boot Info field of the boot header.
+5.4.6.1.1 USB-Specific Attributes
+5.4.6.1.1.1 DFU Device Mode
+•
+Vendor ID = 0x451
+•
+Product ID = 0x6165
+•
+Device ID = 0
+
+=== Page 499 ===
+5.4.7 UART Boot
+ROM Code always configures the UART port to 115200 kbaud, 8-n-1 mode, and the XMODEM protocol is used
+to transfer the boot data.
+Table 5-28 summarizes the UART pin configuration done by ROM code for UART host on port 0.
+Table 5-28. UART Port 0 Pin Usage
+Device Pin
+Module Signal
+Pull Enable=Pull Direction=Driver
+Index
+Rx En/Dis
+Pinmux Sel
+Pad Configuration
+Register
+UART0_TXD
+UART0_TXD
+Disable
+NA
+0
+Disable
+0
+PADCONFIG115
+UART0_RXD
+UART0_RXD
+Disable
+NA
+0
+Enable
+0
+PADCONFIG114
+5.4.7.1 UART Bootloader Operation
+5.4.7.1.1 Initialization Process
+In the UART boot mode, the selected UART module (port) is the only peripheral configured. The baud rate,
+data, parity, and stop bits are configured based on the information in the UART boot parameter table. The boot
+parameter table definitions and the boot configuration values that can be set are in Section 5.4.7, UART Boot
+Device Configuration and Section 5.6.4, UART Boot Parameter Table.
+Once the ROM Code configures the UART, it sends the UART pings for few seconds, which can be seen in the
+host. The pings consist of an ASCII capital C character. The UART boot mode supports only the CRC mode of
+XMODEM and does not support CHECKSUM mode. Both 128 and 1024 byte block sizes are supported.
+5.4.7.1.2 UART Loading Process
+Before the ping from the device stops, load the boot image from the host using the XMODEM protocol.
+5.4.7.1.2.1 UART XMODEM
+The XMODEM protocol is used to transfer boot data. Only CRC mode is supported (not checksum), with both
+128- and 1024-byte block sizes. The general, format of received frames is shown in Table 5-29 and Table 5-30.
+Table 5-29. XMODEM 1024- and 128-byte Data Frames
+STX
+Block Num
+Inv Block
+Num
+1024 data bytes
+CRC
+CRC
+SOH
+Block Num
+Inv Block
+Num
+128 data bytes
+CRC
+CRC
+Table 5-30. XMODEM Data Frame Fields
+Field
+Value
+Description
+STX
+0x02
+The start character for 1024-byte CRC data blocks
+SOH
+0x01
+The start character for 128-byte CRC data block
+Block Num
+0x01-0xFF ± 0x00
+The block number. The first block has value 1, and the block number wraps around 0xFF to 0
+Inv Block Num
+0xFE-0x00
+The inverse block number (bit inverse of the block number)
+CRC
+Calculated
+The 16-bit CRC generated from the polynomial 0x1021
+The XMODEM protocol is implemented as a half-duplex protocol as shown in Table 5-31.
+Table 5-31. Example of XMODEM Transfer protocol
+Transmitter Sends
+Receiver Sends
+ĸ
+Ping (µC’)
+Frame 1
+ĺ
+ĸ
+ACK (or NACK)
+Frame 2
+ĺ
+ĸ
+ACK (or NACK)
+EOT
+ĺ
+
+=== Page 500 ===
+Table 5-31. Example of XMODEM Transfer protocol
+(continued)
+Transmitter Sends
+Receiver Sends
+ĸ
+ACK (or NACK)
+5.4.7.1.3 UART Hand-Over Process
+Once the complete image has been read and found in good integrity, the ROM Code will branch to the address
+defined in the Boot Info field of the boot header.
+
+=== Page 501 ===
+5.4.8 GPMC NOR Boot
+There are no configuration fields for this boot mode. GPMC NOR boot only supports 16-bit non-mux memory.
+Table 5-32 summarizes the GPMC pin configuration done by ROM code for GPMC NOR boot.
+Table 5-32. GPMC NOR Boot Pin Usage
+Device Pin
+Module Signal
+Pull Enable=Pull Direction=Driver
+Index
+Rx En/Dis
+Pinmux Sel
+Pad Configuration
+Register
+GPMC0_AD0
+GPMC0_AD0
+Disable
+NA
+0
+Enable
+0
+PADCONFIG15
+GPMC0_AD1
+GPMC0_AD1
+Disable
+NA
+0
+Enable
+0
+PADCONFIG16
+GPMC0_AD2
+GPMC0_AD2
+Disable
+NA
+0
+Enable
+0
+PADCONFIG17
+GPMC0_AD3
+GPMC0_AD3
+Disable
+NA
+0
+Enable
+0
+PADCONFIG18
+GPMC0_AD4
+GPMC0_AD4
+Disable
+NA
+0
+Enable
+0
+PADCONFIG19
+GPMC0_AD5
+GPMC0_AD5
+Disable
+NA
+0
+Enable
+0
+PADCONFIG20
+GPMC0_AD6
+GPMC0_AD6
+Disable
+NA
+0
+Enable
+0
+PADCONFIG21
+GPMC0_AD7
+GPMC0_AD7
+Disable
+NA
+0
+Enable
+0
+PADCONFIG22
+GPMC0_AD8
+GPMC0_AD8
+Disable
+NA
+0
+Enable
+0
+PADCONFIG23
+GPMC0_AD9
+GPMC0_AD9
+Disable
+NA
+0
+Enable
+0
+PADCONFIG24
+GPMC0_AD10
+GPMC0_AD10
+Disable
+NA
+0
+Enable
+0
+PADCONFIG25
+GPMC0_AD11
+GPMC0_AD11
+Disable
+NA
+0
+Enable
+0
+PADCONFIG26
+GPMC0_AD12
+GPMC0_AD12
+Disable
+NA
+0
+Enable
+0
+PADCONFIG27
+GPMC0_AD13
+GPMC0_AD13
+Disable
+NA
+0
+Enable
+0
+PADCONFIG28
+GPMC0_AD14
+GPMC0_AD14
+Disable
+NA
+0
+Enable
+0
+PADCONFIG29
+GPMC0_AD15
+GPMC0_AD15
+Disable
+NA
+0
+Enable
+0
+PADCONFIG30
+VOUT0_DATA0
+GPMC_A0
+Disable
+NA
+0
+Disable
+1
+PADCONFIG46
+VOUT0_DATA1
+GPMC_A1
+Disable
+NA
+0
+Disable
+1
+PADCONFIG47
+VOUT0_DATA2
+GPMC_A2
+Disable
+NA
+0
+Disable
+1
+PADCONFIG48
+VOUT0_DATA3
+GPMC_A3
+Disable
+NA
+0
+Disable
+1
+PADCONFIG49
+VOUT0_DATA4
+GPMC_A4
+Disable
+NA
+0
+Disable
+1
+PADCONFIG50
+VOUT0_DATA5
+GPMC_A5
+Disable
+NA
+0
+Disable
+1
+PADCONFIG51
+VOUT0_DATA6
+GPMC_A6
+Disable
+NA
+0
+Disable
+1
+PADCONFIG52
+VOUT0_DATA7
+GPMC_A7
+Disable
+NA
+0
+Disable
+1
+PADCONFIG53
+VOUT0_DATA8
+GPMC_A8
+Disable
+NA
+0
+Disable
+1
+PADCONFIG54
+VOUT0_DATA9
+GPMC_A9
+Disable
+NA
+0
+Disable
+1
+PADCONFIG55
+VOUT0_DATA10
+GPMC_A10
+Disable
+NA
+0
+Disable
+1
+PADCONFIG56
+VOUT0_DATA11
+GPMC_A11
+Disable
+NA
+0
+Disable
+1
+PADCONFIG57
+VOUT0_DATA12
+GPMC_A12
+Disable
+NA
+0
+Disable
+1
+PADCONFIG58
+VOUT0_DATA13
+GPMC_A13
+Disable
+NA
+0
+Disable
+1
+PADCONFIG59
+VOUT0_DATA14
+GPMC_A14
+Disable
+NA
+0
+Disable
+1
+PADCONFIG60
+VOUT0_DATA15
+GPMC_A15
+Disable
+NA
+0
+Disable
+1
+PADCONFIG61
+VOUT0_HSYNC
+GPMC_A16
+Disable
+NA
+0
+Disable
+1
+PADCONFIG62
+VOUT0_DE
+GPMC_A17
+Disable
+NA
+0
+Disable
+1
+PADCONFIG63
+VOUT0_VSYNC
+GPMC_A18
+Disable
+NA
+0
+Disable
+1
+PADCONFIG64
+VOUT0_PCLK
+GPMC_A19
+Disable
+NA
+0
+Disable
+1
+PADCONFIG65
+GPMC0_CSn3
+GPMC_A20
+Disable
+NA
+0
+Disable
+2
+PADCONFIG45
+GPMC0_ADVn_ALE
+GPMC0_ADVn_ALE
+Disable
+NA
+0
+Disable
+0
+PADCONFIG33
+GPMC0_OEn_REN
+GPMC0_OEn_Ren
+Disable
+NA
+0
+Disable
+0
+PADCONFIG34
+GPMC0_WEN
+GPMC0_WEN
+Disable
+NA
+0
+Disable
+0
+PADCONFIG35
+
+=== Page 502 ===
+Table 5-32. GPMC NOR Boot Pin Usage (continued)
+Device Pin
+Module Signal
+Pull Enable=Pull Direction=Driver
+Index
+Rx En/Dis
+Pinmux Sel
+Pad Configuration
+Register
+GPMC0_BE0n_CLE
+GPMC0_BEOn_CLE
+Disable
+NA
+0
+Disable
+0
+PADCONFIG36
+GPMC0_BE1n
+GPMC0_BE1n
+Disable
+NA
+0
+Disable
+0
+PADCONFIG37
+GPMC0_CSn0
+GPMC0_CSn0
+Disable
+NA
+0
+Disable
+0
+PADCONFIG42
+Note
+Only 21 address lines (GPMC0_A0 ± GPMC0_A20) are used because the GPMC0_A21 and
+GPMC0_A22 lines are muxed with GPMC0_WAIT1 and GPMC0_WPn respectively.
+GPMC0_A20 is muxed with GPMC0_CSn3, and ROM uses GPMC0_A20 for this address line. Thus,
+no CSn3 support when using GPMC NOR boot.
+All signals in the table will be configured even though some may not be used by this particular boot
+mode.
+5.4.8.1 GPMC NOR Bootloader Operation
+In this mode, the ROM Code configures the GPMC interface based on the configuration parameters specified in
+the boot parameter table for the GPMC NOR boot mode Section 5.6.11, seeGPMC NOR Boot Parameter Table.
+Timing registers are programmed as follows for NOR flash boot:
+Table 5-33. GPMC NOR Timing Configuration
+GPMC register
+Value
+GPMC_CONFIG1
+0x00001010
+GPMC_CONFIG2
+0x00101c01
+GPMC_CONFIG3
+0x23060917
+GPMC_CONFIG4
+0x1005bc1a
+GPMC_CONFIG5
+0x011b111e
+GPMC_CONFIG6
+0x8f070000
+GPMC_CONFIG7
+0x00000c50
+GPMC NOR boot mode is not executable-in-place (XIP). ROM code first copies boot image into on-chip RAM
+and then executes it. Only non-muxed memory is supported. If the initial image at offset 0x0 is not recognized,
+the ROM will attempt to read a redundant image from offset 0x100000. This is the only redundant image
+supported by the ROM.
+
+=== Page 503 ===
+5.4.9 GPMC NAND Boot
+Table 5-34 summarizes the GPMC pin configuration done by ROM code for NAND boot.
+Table 5-34. GPMC NAND Boot Pin Usage
+Device Pin
+Module Signal
+Pull Enable=Pull Direction=Driver
+Index
+Rx En/Dis
+Pinmux Sel
+Pad Configuration
+Register
+GPMC0_AD0
+GPMC0_AD0
+Disable
+NA
+0
+Enable
+0
+PADCONFIG15
+GPMC0_AD1
+GPMC0_AD1
+Disable
+NA
+0
+Enable
+0
+PADCONFIG16
+GPMC0_AD2
+GPMC0_AD2
+Disable
+NA
+0
+Enable
+0
+PADCONFIG17
+GPMC0_AD3
+GPMC0_AD3
+Disable
+NA
+0
+Enable
+0
+PADCONFIG18
+GPMC0_AD4
+GPMC0_AD4
+Disable
+NA
+0
+Enable
+0
+PADCONFIG19
+GPMC0_AD5
+GPMC0_AD5
+Disable
+NA
+0
+Enable
+0
+PADCONFIG20
+GPMC0_AD6
+GPMC0_AD6
+Disable
+NA
+0
+Enable
+0
+PADCONFIG21
+GPMC0_AD7
+GPMC0_AD7
+Disable
+NA
+0
+Enable
+0
+PADCONFIG22
+GPMC0_ADVn_ALE
+GPMC0_ADVn_ALE
+Disable
+NA
+0
+Disable
+0
+PADCONFIG33
+GPMC0_OEn_Ren
+GPMC0_OEn_Ren
+Disable
+NA
+0
+Disable
+0
+PADCONFIG34
+GPMC0_Wen
+GPMC0_Wen
+Disable
+NA
+0
+Disable
+0
+PADCONFIG35
+GPMC0_BEOn_CLE
+GPMC0_BEOn_CLE
+Disable
+NA
+0
+Disable
+0
+PADCONFIG36
+GPMC0_WAIT0
+GPMC0_WAIT0
+Disable
+NA
+0
+Enable
+0
+PADCONFIG38
+GPMC0_CSn0
+GPMC0_CSn0
+Disable
+NA
+0
+Disable
+0
+PADCONFIG42
+5.4.9.1 GPMC NAND Bootloader Operation
+Timing registers are programmed as follows for NAND flash boot:
+Table 5-35. GPMC NAND Timing Configuration
+GPMC register
+Value
+GPMC_CONFIG1
+0x00000813
+GPMC_CONFIG2
+0x00080b00
+GPMC_CONFIG3
+0x22080810
+GPMC_CONFIG4
+0x05006890
+GPMC_CONFIG5
+0x0107080b
+GPMC_CONFIG6
+0x80000180
+GPMC_CONFIG7
+0x00000f50
+GPMC NAND boot only supports boot from ONFI 1.0 compatible 8 bit parallel NAND memory up to 2Gbytes in
+size connected to GPMC CS0 with the following geometries:
+•
+2Kbyte page and spare area of at least 64 bytes or
+•
+4Kbyte page size and spare area of at least 128 bytes.
+•
+Non-ECC part only:
+•
+ROM uses ELM to handle ECC
+•
+ECC is BCH8 using D[7:0] for data
+•
+The param page CRC is checked and in case of failure the redundant page is used
+GPMC is setup to comply with mode 0 timing for NAND flash.
+
+=== Page 504 ===
+5.4.10 Serial NAND Boot
+Serial NAND Configuration Fields table shows configuration pins assignment to functions when boot mode is
+Serial NAND.
+Table 5-36. Serial NAND Configuration Fields
+BOOTMODE Pins
+Field
+Value
+Description
+8
+Read Mode 2
+0
+Reserved (Read mode is taken from Read Mode 1
+1
+SPI/ 1-1-1 mode (Read mode is taken from Read
+Mode 2 and Read Mode 1 is ignored)
+7
+Read Mode 1
+0
+OSPI/ 1-1-8 Mode (valid only when Read Mode 2 is
+0)
+1
+OSPI/ 1-1-4 Mode (valid only when Read Mode 2 is
+0)
+Serial NAND Pin Usage table summarizes the pin configuration done by ROM code for the Serial NAND device.
+Table 5-37. Serial NAND Pin Usage
+Device Pin
+Module Signal
+Pull Enable=Pull Direction=Driver
+Index
+Rx En/Dis
+Pinmux Sel
+Pad Configuration
+Register
+OSPI0_CLK
+OSPI0_CLK
+Disable
+NA
+0
+Disable
+0
+PADCONFIG0
+OSPI0_LBCLKO
+OSPI0_LBCLKO
+Disable
+NA
+0
+Enable
+0
+PADCONFIG1
+OSPI0_DQS
+OSPI0_DQS
+Disable
+NA
+0
+Enable
+0
+PADCONFIG2
+OSPI0_D0
+OSPI0_D0
+Disable
+NA
+0
+Enable
+0
+PADCONFIG3
+OSPI0_D1
+OSPI0_D1
+Disable
+NA
+0
+Enable
+0
+PADCONFIG4
+OSPI0_D2
+OSPI0_D2
+Disable
+NA
+0
+Enable
+0
+PADCONFIG5
+OSPI0_D3
+OSPI0_D3
+Disable
+NA
+0
+Enable
+0
+PADCONFIG6
+OSPI0_D4
+OSPI0_D4
+Disable
+NA
+0
+Enable
+0
+PADCONFIG7
+OSPI0_D5
+OSPI0_D5
+Disable
+NA
+0
+Enable
+0
+PADCONFIG8
+OSPI0_D6
+OSPI0_D6
+Disable
+NA
+0
+Enable
+0
+PADCONFIG9
+OSPI0_D7
+OSPI0_D7
+Disable
+NA
+0
+Enable
+0
+PADCONFIG10
+OSPI0_CSn0
+OSPI0_CSn0
+Disable
+NA
+0
+Disable
+0
+PADCONFIG11
+OSPI0_CSn1
+OSPI0_CSn1
+Disable
+NA
+0
+Disable
+0
+PADCONFIG12
+Note
+All signals in the table will be configured even though some may not be used by this particular boot
+mode.
+5.4.10.1 Serial NAND Bootloader Operation
+Serial NAND defines 1S-1S-1S mode for general backwards compatibility, and 1S-1S-8S for maximum
+throughput (S here means *S*ingle Data rate). Serial NAND memory array is organized into pages of size
+2KB/4KB. Read is a two-step process where a complete page is first read into flash’s internal buffer/cache using
+Page read command and then the host controller reads from internal buffer in 1- or 4- or 8-bit mode using the
+read commands. Page read command that is issued is 0x13, followed by 24 address bits. The frequency of
+operation supported is 50 MHz.
+For 1S-1S-1S mode of operation (Bit-width =1, Single Data Rate). The Command and Address issued are 8 bits
+and 16 bits respectively. The Read Command that is issued is 0x0B, followed by address bits and 8 dummy
+cycles.
+For 1S-1S-8S mode of operation (Bit-width =8, Single Data Rate). The Command and Address issued are 8 bits
+and 16 bits respectively. The Read Command that is issued is 0x8B, followed by address bits and 8 dummy
+
+=== Page 505 ===
+cycles. Additionally, flash is configured in 8-bit mode after POR through volatile configuration register if the
+manufacturer is Winbond.
+For 1S-1S-4S mode of operation (Bit-width =4, Single Data Rate). The Command and Address issued are 8 bits
+and 16 bits respectively. The Read Command that is issued is 0x6B, followed by address bits and 8 dummy
+cycles. Note that in 8-bit mode pin mux is done for all 8 OSPI data lines and in 4-bit/1-bit mode pin mux is done
+for 4 OSPI data lines. This is done to disable the HOLD functionality feature in 1-bit mode.
+Serial NAND boot expects ECC to be auto-managed by the flash. Most of the flashes have the ECC enabled by
+default and can do 1-bit correction and 2-bit detection for ECC errors. ROM checks for 2-bit ECC error via status
+register 3 (address 0xC0) bit 5 after every page load. In case of 2-bit ECC error the boot will fail and ROM will
+take the fallback option.
+Serial NAND boot also manages bad blocks that can be present in the flash at time of shipment or develop
+during the lifetime. Bad block marker is a non-FFh data byte stored at Byte 0 of spare area of Page 0 for each
+bad block and ROM checks for the same while reading the first page of a memory block. ROM will skip the
+particular block if it is marked as bad and move to the next one.
+The Serial NAND driver in ROM does not support devices that have multiple planes as they require special
+handling to read even numbered blocks
+5.4.10.2 Serial NAND Initialization Process
+In the OSPI boot mode, the ROM Code initializes the OSPI module and the image is read from the OSPI
+flash connected to the selected chip-select. If the image fails to be read correctly from offset 0x0 of the flash
+memory, the ROM will attempt to obtain the image at offset 0x400000. This is the only redundant image location
+supported by the ROM. See Section 5.4.1.1, OSPI Boot Device Configuration for OSPI port settings.
+A detailed summary of the OSPI boot parameter table and the boot configuration definitions are listed in Section
+5.6.3, OSPI Boot Parameter Table.
+5.4.10.3 Serial NAND Loading Process
+OSPI boot mode is not eXecute-In-Place (XIP). ROM code first copies boot image into on-chip RAM and then
+executes it.
+
+=== Page 506 ===
+5.4.11 No boot/Development boot
+Table 5-38 shows configuration pins assignment to functions when boot mode is the No-boot mode.
+Table 5-38. No-boot/Dev-boot Configuration Fields
+Field
+Value
+Description
+No/Dev
+0
+Development Boot
+1
+No boot
+ARM/Thumb
+0
+ARM mode
+1
+Thumb mode
+These boot modes are useful for debugging purposes to preclude the execution of the ROM.
+During the Development boot (BOOTMODE[7] = 0), the SMS M4F ROM code will act as if boot of the primary
+image has completed, and the SMS M4F ROM then will be waiting for a firmware load message from DM R5.
+Thus the user can load a standard u-boot/SPL image to the DM R5 RAM. U-boot/SPL will then load the SMS
+firmware and complete the full boot.
+In No-boot (BOOTMODE[7] = 1), both the SMS M4F and DM R5 ROMs are bypassed and both CPUs are held
+in a dummy branch-to-self loop. No-boot is the most minimal device touch state by the ROM - only minimal
+hardware configurations are done and none of the PLLs is locked/configured. No-boot is suitable if user wants to
+load his own PLL, Pad config, and other basic settings.
+
+=== Page 507 ===
+5.5 PLL Configuration
+ROM code must be aware of the reference clock provided to PLLs. That is, the speed of the quartz crystal, or the
+clock supplied by an external clock oscillator. On how to indicate the PLL reference clock, see PLL Reference
+Clock Selection
+ROM code configures only PLLs which are required during boot. Therefore, if a PLL is required for the backup
+boot mode but not the primary boot mode, and if the backup boot mode never executes, then the PLLs required
+for backup boot are not enabled.
+The following tables show the HSDIV values that are programmed by the R5 ROM if a boot mode uses it. A
+value of NA means that the ROM does not program that HSDIV
+Table 5-39. MAIN_PLL0 (MAIN PLL) (2000MHz)
+PLL POSTDIV
+HSDIV
+Value
+Frequency(MH
+z)
+Boot Peripheral/IP
+0
+HSDIV0
+4
+500
+MAIN SYSCLK0
+0
+HSDIV1
+10
+200
+OSPI
+0
+HSDIV2
+0
+NA
+WKUP_CLKOUT
+0
+HSDIV3
+15
+133
+GPMC NOR/GPMC NAND
+0
+HSDIV4
+0
+NA
+MCAN
+1
+HSDIV5
+5
+200
+eMMC0
+1
+HSDIV6
+0
+NA
+CPTS
+1
+HSDIV7
+4
+250
+TIMER
+1
+HSDIV8
+0
+NA
+USB0
+1
+HSDIV9
+0
+NA
+PRUSS
+Table 5-40. MAIN_PLL1 (PER0 PLL) (1920MHz)
+PLL POSTDIV
+HSDIV
+Value
+Frequency(MH
+z)
+Boot Peripheral/IP
+0
+HSDIV0
+10
+192
+UART
+0
+HSDIV1
+12
+160
+UART
+0
+HSDIV2
+0
+NA
+WKUP_CLKOUT
+0
+HSDIV3
+0
+NA
+TIMER
+0
+HSDIV4
+0
+NA
+Reserved
+1
+HSDIV5
+0
+NA
+OSPI
+1
+HSDIV6
+0
+NA
+McASP
+Table 5-41. MAIN_PLL2 (PER1 PLL) (2000MHz)
+PLL POSTDIV
+HSDIV
+Value
+Frequency(MH
+z)
+Boot Peripheral/IP
+0
+HSDIV0
+0
+NA
+PRUSS core
+0
+HSDIV1
+8
+250
+CP_GEMAC
+0
+HSDIV2
+10
+200
+eMMC1
+0
+HSDIV3
+0
+NA
+DebugSS
+0
+HSDIV4
+0
+NA
+GPU
+1
+HSDIV5
+0
+NA
+PRUSS IEP
+1
+HSDIV6
+0
+NA
+TIMER
+1
+HSDIV7
+0
+NA
+GPMC
+1
+HSDIV8
+0
+NA
+McASP
+1
+HSDIV9
+0
+NA
+WKUP_CLKOUT
+
+=== Page 508 ===
+Table 5-42. MAIN_PLL15 (2000MHz)
+HSDIV
+Value
+Frequency(MHz)
+Boot Peripheral/IP
+HSDIV0
+5
+400
+HSM/SMS/DM
+HSDIV1
+5
+400
+SA3_UL PKA
+Note
+All other PLLs are not used or programmed by the ROM
+Note
+The bringup and configuration of bootmode-specific PLLs by ROM code will result in a bootmode-
+specific device clocking setup which for example has an impact on which peripheral modules can
+readily be clocked and used by SBL/SPL prior to loading and bringing up System Firmware (SYSFW)
+
+=== Page 509 ===
+5.6 Boot Parameter Tables
+The boot parameter tables direct the main module boot process. On cold boot the tables are created based on
+pin strapped values (see Section 5.3, Boot Mode Pins) and built-in data. The ROM Code supports two parameter
+tables stored as an array in a fixed memory address in the internal RAM, each of size 512 bytes. The ROM will
+attempt to boot using the primary table. On boot failure, ROM Code will retry using the second table.
+Using two tables handles two cases.
+•
+The first is in initial board manufacture where the primary boot table specifies boot from a flash device, and
+the flash is blank. ROM Code would then switch to the secondary boot mode which would receive the image
+externally (Ethernet, USB, UART) and this image would flash the boot image.
+•
+The second case is failure due to total flash corruption. In flash parameter tables, there exists backup
+addresses within the primary boot mode. This covers the problem of a flash update failure with a backup
+image present on the same flash device. Note for SD Card/eMMC boot, the backup addresses are only
+applicable in raw boot mode
+The boot tables reside at a fixed location in memory which is described in Section 5.8.1, Global Memory
+Addresses Used by ROM Code.
+5.6.1 Common Header
+These boot parameter tables have certain parameters common across all the boot modes, while the rest of the
+parameters are unique to the boot modes. The common entries in the boot parameter table are shown in Table
+5-43.
+Table 5-43. Boot Parameter Table Common Header
+Byte Offset
+Size (bytes)
+Name
+Description
+0
+2
+Length
+The length of the table
+2
+2
+Checksum
+Ones complement checksum over length bytes in the table. If 0 the
+checksum is not validated.
+4
+2
+Peripheral
+Identifies the boot peripheral and format of the table after the common
+header. See Table 5-44
+6
+2
+Reserved
+Reserved
+8
+4
+Timeout
+Timeout for this boot mode, in milliseconds
+12
+4
+Magic
+Magic value 0x01AD0911
+16
+40
+PLL Config 0
+PLL Configuration 0. See Table 5-45
+56
+40
+PLL Config 1
+PLL Configuration 1
+96
+40
+PLL Config 2
+PLL Configuraiton 2
+136
+40
+PLL Config 3
+PLL Configuration 3
+176
+40
+PLL Config 4
+PLL Configuration 4
+216
+40
+PLL Config 5
+PLL Configuration 5
+Table 5-44 lists the possible boot modes used in the boot parameter tables.
+Table 5-44. Boot Peripheral Selection
+Peripheral Field Value
+Description
+0
+Sleep (No boot)
+10
+Ethernet Reserved
+20
+Ethernet BOOTP/TFTP (general)
+21
+Ethernet RGMII specific
+22
+Ethernet RMII specific
+30
+Reserved
+31
+Reserved
+32
+Reserved
+
+=== Page 510 ===
+Table 5-44. Boot Peripheral Selection (continued)
+Peripheral Field Value
+Description
+40
+I2C
+50
+SPI
+60
+UART
+70
+USB DFU
+71
+USB Reserved
+72
+USB Host MSC
+80
+QSPI
+85
+OSPI
+90
+Reserved
+100
+MMCSD Card (general)
+101
+eMMC (general)
+102
+MMC 1-bit
+103
+MMC 4-bit
+104
+MMC 8-bit
+110
+GPMC NOR
+120
+Reserved
+130
+xSPI
+140
+GPMC NAND
+5.6.2 PLL Setup
+Table 5-45 through Table 5-49 describe the PLL configuration fields.
+Table 5-45. Boot Parameter Table PLL Configuration
+Byte Offset
+Size (bytes)
+Name
+Description
+0
+1
+Domain/cfg
+See Table 5-46
+1
+1
+Pll number
+PLL number indexed from 0.
+2
+1
+Input source
+See Table 5-48
+3
+1
+Pll Type
+This field must be 1 to indicate an SCPLL
+4
+4
+Input Ref Clock
+The PLL input clock, in Q16.16 format
+8
+4
+Feed back divider, integer part=Integer value of feedback divider
+12
+4
+Feed back divider, fractional
+part
+Fractional portion of feedback divider. Total divider is the Integer part +
+(Fractional part / 224)
+16
+1
+Ref divider
+Input clock pre-divider
+17
+1
+Post divider 1
+Output post divider 1
+18
+1
+Post divider 2
+Output post divider 2
+19
+1
+Reserved
+Reserved
+20
+2
+Hsdiv Enable
+Bit map. A set bit indicates that the corresponding hsdiv is enabled.
+22
+2
+Reserved
+Reserved
+24
+16
+Hsdiv[16]
+Array of hs divider values.
+Table 5-46. PLL Domain and Enable Configuration
+7
+6
+5
+4
+3
+2
+1
+0
+Reserved
+Enable
+Reserved
+Domain
+Table 5-47. PLL Domain and Enable Field Description
+Field
+Value
+Description
+Enable
+0
+PLL not configured
+
+=== Page 511 ===
+Table 5-47. PLL Domain and Enable Field Description (continued)
+Field
+Value
+Description
+1
+PLL enabled only if currently disabled or in bypass
+2
+PLL is unconditionally enabled. If currently enabled with a different configuration the PLL
+is first disabled
+3
+PLL is unconditionally disabled
+Domain
+0
+PLL is in the MCU domain
+1
+PLL is in the MAIN domain
+Table 5-48. PLL Reference Source Bit Fields
+7
+6
+5
+4
+3
+2
+1
+0
+Source Type
+Source Index
+Table 5-49. PLL Reference Source Field Description
+Field
+Value
+Description
+Source Type
+0
+Source is HFOSC
+1
+Source is external pin
+2
+Reserved
+3-7
+Reserved
+Source Index
+0-31
+Source index (HFOSC[0-31] or pin[0-31], depending on Source Type)
+HFOSC[0] ± WKUP_HFOSC0
+PIN[1] ± EXT_REFCLK1 pin (not all PLLs, see Section 6.4, Clocking
+5.6.3 OSPI/QSPI/SPI Boot Parameter Table
+Table 5-50 shows the boot parameter table for OSPI, QSPI, or SPI boot. Must be preceded with the common
+boot parameters described in Table 5-43.
+Table 5-50. OSPI/QSPI/SPI Boot Parameter Table
+Byte
+Offset
+Size
+(bytes)
+Name
+Default Value
+Description
+256
+1
+Port
+0
+Physical port number
+257
+1
+Mode on
+From Pins
+If non-zero, the mode byte will be sent
+258
+1
+Instruct Width
+From Pins
+Number of pins used to send instructions (1, 2, 4, 8)
+259
+1
+Address Width
+From Pins
+Number of pins used to send address (1, 2, 4, 8)
+260
+1
+Data Width
+From Pins
+Number of pins used to received data (1, 2, 4, 8)
+261
+1
+Address Size
+24
+24, and 32 bits are the valid address sizes
+262
+1
+Mode
+0
+OSPI clock polarity and phase mode
+263
+1
+CSEL
+From Pins
+Chip select number (0±3)
+264
+1
+Read Cmd
+From Pins
+Command used to read read data
+265
+1
+Mode byte
+0
+Value used for the mode byte (when active)
+266
+1
+Dummy Cycles
+From pins
+Number of dummy cycles sent after the read command
+267
+1
+clkRecovery
+From pins
+Clock recovery
+268
+1
+dqsEnable
+0
+Enable DQS
+269
+1
+Reserved
+0
+Reserved
+270
+2
+Module Freq
+0
+The OSPI module frequency after PLL enable, in kHz. If 0,
+ROM code uses the value from the module clock tables.
+272
+4
+Bus Frequency
+From pins
+The OSPI bus frequency, in kHz
+276
+4
+Delay
+0x08080808 or
+0x01010101
+The chip select read delays. Default value is based on the
+read command
+
+=== Page 512 ===
+Table 5-50. OSPI/QSPI/SPI Boot Parameter Table (continued)
+Byte
+Offset
+Size
+(bytes)
+Name
+Default Value
+Description
+280
+4
+Tap Delay
+0xFFFFFFFF
+The read tap selection. If 0xFFFFFFFF, the ROM code will
+scan the taps to find the best delay. The result will then
+overwrite the value in this table.
+284
+4
+Internal Clk
+From pins
+0 = external (dqs) 1 = internal
+288
+4
+notDAC
+From pins
+When 0, DAC mode is used
+292
+4
+Read Index
+0
+Index to the active read address (0-1)
+296
+4
+Read Addr 0
+0x000000
+The initial flash read address
+300
+4
+Read Addr 1
+0x400000
+(0x4000 SPI)
+Backup read address
+304
+4
+Reserved
+0
+Reserved
+308
+4
+Reserved
+0
+Reserved
+5.6.4 UART Boot Parameter Table
+Table 5-51 shows the boot parameter table for UART boot. Must be preceded with the common boot parameters
+described in Table 5-43.
+Table 5-51. UART Boot Parameter Table
+Byte
+Offset
+Size
+(bytes)
+Name
+Default Value
+Description
+256
+1
+Magic
+0x49
+Required Magic value
+257
+1
+Protocol
+63 (0x3F)
+Specifies the transfer protocol = XMODEM
+258
+2
+Reserved
+0
+Reserved
+260
+1
+Max error Count
+10
+Error count resulting in boot abort
+261
+1
+Ack timeout
+3
+Timeout in seconds on ack
+262
+1
+Char timeout
+20
+Inter-character timeout in milliseconds
+263
+1
+Reserved
+0
+Reserved
+264
+4
+Port
+From Pins
+Physical port number
+268
+4
+Mod Ref Clk
+48000
+Module reference clock, in kHz
+272
+4
+Data Rate
+115200
+Baud rate (bps)
+276
+1
+Parity
+0
+0=none, 1=odd, 2=even
+277
+1
+Data bits
+8
+Only 8 data bit width is supported
+278
+1
+Stop bits
+2
+Stop bits in Q7.1 format (2 = 1 stop bit)
+279
+1
+Flow Control
+0
+0=none, 1= RTS/CTS
+280
+1
+Over sample
+16
+Only 16× and 13× oversample are supported
+281
+1
+Magic 2
+0xB7
+Required magic value
+5.6.5 I2C Boot Parameter Table
+Table 5-52 shows the boot parameter table for I2C boot. Must be preceded with the common boot parameters
+described in Table 5-43.
+Table 5-52. I2C Boot Parameter Table
+Byte
+Offset
+Size
+(bytes)
+Name
+Default Value
+Description
+256
+1
+Port
+0
+Physical port number
+257
+1
+Mode
+From Pins
+0x4E = I2C Controller, 0x72 = I2C target
+258
+1
+Dev Addr
+From Pins
+I2C address when target mode (0x10 or 0x11)
+259
+1
+Reserved
+0
+Reserved
+
+=== Page 513 ===
+Table 5-52. I2C Boot Parameter Table (continued)
+Byte
+Offset
+Size
+(bytes)
+Name
+Default Value
+Description
+260
+4
+Mod Clock
+0
+I2C Module input clock. If 0, it is computed by ROM code.
+264
+2
+Bus Freq
+400
+I2C Controller mode bus frequency, in kHz
+266
+2
+Bus Addr
+From Pins
+I2C Controller mode storage device's address (0x50 or 0x51)
+268
+2
+Read Index
+0
+Index to the active read offset (0 or 1)
+270
+2
+Read Offset 0
+0x0000
+I2C Controller mode read offset
+272
+2
+Read Offset 1
+0x8000
+I2C Controller mode backup read offset
+274
+2
+Reserved
+0
+Reserved
+276
+2
+Reserved
+0
+Reserved
+280
+2
+Busy Timeout
+From pins
+Number of µs before a bus recovery is attempted. In units of
+microseconds in Q3 number format. Value of 0 disables bus
+recovery attempts.
+5.6.6 MMCSD/eMMC Boot Parameter Table
+MMCSD/eMMC Boot Parameter Table shows the boot parameter table for eMMC, MMC or SD card boot. Must
+be preceded with the common boot parameters described in Table 5-43.
+Table 5-53. MMCSD/eMMC Boot Parameter Table
+Byte
+Offset
+Size
+(bytes)
+Name
+Default Value
+Description
+256
+1
+Port
+From Pins
+Physical port number
+257
+1
+eMMC
+From Pins
+0 = SD/MMC, else eMMC
+258
+1
+bootAck
+1 for eMMC
+0 for SD/MMC
+If 1 and in eMMC mode the controller expects a boot ack from
+the eMMC
+259
+1
+Media
+1 for eMMC
+0 for SD/MMC
+0 = auto detect card type
+1 = MMC
+2 = SD
+260
+1
+busWidth
+8 for eMMC
+From Pins for SD/MMC
+Number of data pins (1, 4, or 8). If 0, max supported pins of
+the port are used.
+261
+1
+bootAlt
+1 for eMMC
+0 for SD/MMC
+If 1 and in eMMC mode, the controller uses the alt boot
+method (CMD1 with arg 0xFFFF_FFFA) to initiate data
+transfer
+262
+1
+sigVolt
+0x18 for port0
+0x33 for port1
+Sets the signal voltage for the controller.
+0x18 = 1.8V
+0x33 = 3.3V
+263
+1
+Reserved
+0
+Reserved
+264
+4
+Max Bus Freq
+0
+Max bus frequency in kHz. If 0, the value is determined by
+reading the CSD register from the card (still maxes out at 25
+MHz)
+268
+4
+refClkkHz
+0
+Module reference clock frequency, in kHz. If 0, the ROM code
+computes the value.
+272
+4
+respTimeout
+40000
+The timeout period on initial card read, in milli-seconds, Q3
+number format
+276
+128
+Filename
+"\tiboot3.bin"
+For SD/MMC, boot filename in 16-bit Unicode characters (max
+64)
+404
+4
+Mode
+0x1144D091
+0x1144D091 = file system boot
+0x1144C180 = raw image boot
+408
+4
+CardIsInit
+0
+0 = card not yet initialized
+1 = card has been initialized
+412
+4
+Rsvd
+0
+Reserved
+416
+4
+RawIndex
+0
+Current active read offset (0 or 1)
+
+=== Page 514 ===
+Table 5-53. MMCSD/eMMC Boot Parameter Table (continued)
+Byte
+Offset
+Size
+(bytes)
+Name
+Default Value
+Description
+420
+4
+Rsvd
+0
+Reserved
+424
+4
+Raw Offset 0
+0x000000
+Raw read offset
+428
+4
+Raw Offset 1
+0x400000
+Backup raw read offset
+432
+4
+Rsvd
+0
+Reserved
+436
+4
+Rsvd
+0
+Reserved
+5.6.7 Ethernet Boot Parameter Table
+Table 5-54 is shown segmented into four sections:
+1.
+The first section contains information required to configure the device hardware
+2.
+The second section contains information used by the top level Ethernet module to execute the boot
+3.
+The third section contains information for the Ethernet stack code.
+4.
+The fourth section contains information for creating the BOOTP packet (vendor string, ID string and debug
+string), and holds information returned in the BOOTP response (Default route and file name)
+Table 5-54 shows the boot parameter table for Ethernet boot. Must be preceded with the common boot
+parameters described in Table 5-43.
+Table 5-54. Ethernet Boot Parameter Table
+Byte Offset
+Size (bytes)
+Name
+Default Value
+Description
+Hardware Configuration Options
+256
+2
+Mod Freq
+0
+Module clock frequency, kHz. If 0, ROM code computes the value.
+258
+1
+Port Num
+0
+Physical port number
+259
+1
+Interface
+From Pins
+0 = RGMII with internal delay
+1 = RGMII with external delay
+2 = RMII
+260
+1
+Init Level
+0
+0 = Initialize only not enabled modules
+1 = Full ethernet sub-system initialization
+261
+1
+Clock out enable
+From pins
+0x10 = CLKOUT0 enable
+0x11 = CLKOUT0 disable
+262
+1
+Clk out freq
+From pins
+0x20 = CLKOUT0 25 MHz (RGMII)
+0x21 = CLKOUT0 50 MHz (RMII)
+263
+1
+RMII Clk In
+From pins
+0x60 = RMII internal (SoC) clock
+0x61 = RMII external clock
+264
+1
+Port Enable
+0x01
+Bit map. A set bit indicates that the corresponding physical port will be
+enabled
+265
+1
+Phy Query
+From pins
+0x30 = speed/duplex determined from RGMII status register
+0x31 = MDIO used to query PHY
+0x32 = Use fixed speed/duplex values from offset 266/267.
+266
+1
+Speed
+0x40 = full speed (1Gbit for RGMII, 100Mbit for RMII)
+0x41 = slow speed (100Mbit for RGMII, 10Mbit for RMII)
+267
+1
+Duplex
+0x50 = full duplex
+0x51 = half duplex
+Main Level Boot Control
+268
+1
+Bootp enable
+1
+0 = Image information already in this structure
+1 = Use BOOTP to get boot image information
+269
+1
+Reserved
+0
+Reserved
+270
+2
+Bootp Timeout
+4000
+BOOTP timeout in milli-seconds
+272
+2
+TFTP timeout
+1000
+TFTP timeout in milli-seconds
+274
+2
+Bootp retries
+10
+Number of BOOTP retries before fail
+
+=== Page 515 ===
+Table 5-54. Ethernet Boot Parameter Table (continued)
+Byte Offset
+Size (bytes)
+Name
+Default Value
+Description
+276
+2
+TFTP retries
+10
+Number of TFTP retries before fail
+278
+2
+Reserved
+0
+Reserved
+Network Stack Configuration (plus TFTP server ID)
+280
+6
+MAC Address
+From E-fuse
+MAC address of the device
+286
+2
+Reserved
+0
+Reserved
+288
+4
+Device IP
+0
+IP address of the device. Valid only if BOOTP not enabled
+292
+4
+Net Mask
+0
+Net mask. Valid only if BOOTP not enabled
+296
+4
+Tftp server IP
+0
+TFTP server IP. Valid only if BOOTP not enabled
+BOOTP send and receive Information
+300
+20
+Vendor String
+"TI K3 Bootp
+Boot"
+BOOTP request vendor string. Valid only if BOOTP not enabled
+320
+9
+Client ID
+1-mac-address-0=Client ID. See RFC1700
+329
+1
+ID len
+7
+Client ID length
+330
+45
+Debug array
+SOC ID up to
+size available
+Debug array output
+375
+1
+Debug len
+Varies
+The number of valid bytes in debug array
+376
+4
+Next hop
+0
+Next hop IP address. Valid only if bootp not enabled
+380
+4
+Default Route
+0
+IP default route IP address. Valid only if bootp not enabled
+384
+128
+Boot filename
+0
+Boot filename. Valid only if bootp not enabled
+5.6.8 xSPI Boot Parameter Table
+xSPI Boot Parameter Table shows the boot parameter table for xSPI boot. Must be preceded with the common
+boot parameters described in Table 5-43.
+Table 5-55. xSPI Boot Parameter Table
+Byte
+Offset
+Size
+(bytes)
+Name
+Default Value
+Description
+256
+1
+Port
+0
+Physical port number
+257
+1
+Mode on
+From Pins
+If non-zero, the mode byte will be sent
+258
+1
+Instruct Width
+From Pins
+Number of pins used to send instructions (1, 8)
+259
+1
+Address Width
+From Pins
+Number of pins used to send address (1, 8)
+260
+1
+Data Width
+From Pins
+Number of pins used to received data (1, 8)
+261
+1
+Address Size
+24
+24 and 32 bits are the valid address sizes
+262
+1
+Mode
+0
+QSPI clock polarity and phase mode
+263
+1
+CSEL
+From Pins
+Chip select number (0±3)
+264
+1
+Read Cmd
+From Pins
+Command used to read read data
+265
+1
+Mode byte
+0
+Value used for the mode byte (when active)
+266
+1
+Dummy Cycles
+From pins
+Number of dummy cycles sent after the read command
+267
+1
+clkRecovery
+From pins
+Clock recovery
+268
+1
+dqsEnable
+0
+Enable DQS
+269
+1
+ddrEnable
+From pins
+OSPI DDR mode operation
+270
+2
+Module Freq
+0
+The QSPI module frequency after PLL enable, in kHz. If 0,
+ROM code uses the value from the module clock tables.
+272
+4
+Bus Frequency
+From pins
+The QSPI bus frequency, in kHz
+276
+4
+Delay
+0x08080808 or
+0x01010101
+The chip select read delays. Default value is based on the
+read command
+280
+1
+SFDP
+From Pins
+Enables SFDP parser for 1S-1S-1S to 8D-8D-8D switching
+
+=== Page 516 ===
+Table 5-55. xSPI Boot Parameter Table (continued)
+Byte
+Offset
+Size
+(bytes)
+Name
+Default Value
+Description
+282
+4
+Tap Delay
+0xFFFFFFFF
+The read tap selection. If 0xFFFFFFFF, the ROM code will
+scan the taps to find the best delay. The result will then
+overwrite the value in this table.
+286
+4
+Internal Clk
+From pins
+0 = external (dqs) 1 = internal
+290
+4
+inDAC
+From pins
+When 0, XIP mode is used
+294
+4
+Read Index
+0
+Index to the active read address
+298
+4
+Read Addr 0
+0x000000
+The initial flash read address
+302
+4
+Read Addr 1
+0x400000
+Backup read address
+5.6.9 USB DFU Boot Parameter Table
+USB DFU Boot Parameter Table shows the boot parameter table for USB DFU boot. Must be preceded with the
+common boot parameters described in Table 5-43.
+Table 5-56. USB DFU Boot Parameter Table
+Byte
+Offset
+Size
+(bytes)
+Name
+Default Value
+Description
+256
+4
+Port
+From pins
+Physical port number. Always set to 0.
+260
+4
+Base address 0
+From pins (port)
+Base address of USB subsystem (CMN)
+264
+4
+Base address 1
+From pins (port)
+Base address of controller
+268
+4
+phyBaseAddress
+From pins (port)
+Base address of USB PHY module
+272
+4
+modRefClkkHz
+varies
+Module reference clock, in kHz
+276
+2
+Vendor ID
+0x0451
+USB vendor ID. Read from control registers.
+278
+2
+Product ID
+0x6165
+USB product ID. Read from control registers.
+280
+2
+BCD Device
+0x200
+Binary Coded Decimal device release number
+284
+4
+String Table addr
+0x4182A76C
+Pointer to the string table in RAM
+288
+2
+Vendor String offset
+0
+Offset to vendor string in string table
+290
+2
+Prod string offset
+32
+Offset to product string in string table
+292
+2
+Serial num string offset
+64
+Offset to serial number string in string table
+294
+2
+Timeout
+5000
+USB timeout in milliseconds
+296
+2
+Mode
+1
+1 = DFU
+×1 = MSC Mode 1 = backup DFU, 2 = backup MSC
+298
+1
+Lane reverse
+From pins
+Set to non-zero for lane reverse
+299
+1
+CoreVoltage
+From pins
+USB Core Voltage
+0 = 0.85V, 1 = 0.75V
+300
+4
+Block Size
+4096
+DFU Block Size
+5.6.10 USB MSC Boot Parameter Table
+USB MSC Boot Parameter Table shows the boot parameter table for USB boot. Must be preceded with the
+common boot parameters described in Table 5-43.
+Table 5-57. USB MSC Boot Parameter Table
+Byte
+Offset
+Size
+(bytes)
+Name
+Default Value
+Description
+256
+4
+Port
+From pins
+Physical port number. Always set to 0.
+260
+4
+Base address 0
+From pins (port)
+Base address of USB subsystem (CMN)
+264
+4
+Base address 1
+From pins (port)
+Base address of controller
+268
+4
+phyBaseAddress
+From pins (port)
+Base address of USB PHY module
+272
+4
+modRefClkkHz
+varies
+Module reference clock, in kHz
+
+=== Page 517 ===
+Table 5-57. USB MSC Boot Parameter Table (continued)
+Byte
+Offset
+Size
+(bytes)
+Name
+Default Value
+Description
+276
+2
+Vendor ID
+0x0451
+USB vendor ID. Read from control registers.
+278
+2
+Product ID
+0x6164
+USB product ID. Read from control registers.
+280
+2
+BCD Device
+0
+Binary Coded Decimal device release number
+284
+4
+String Table addr
+0x4182BCA8
+Pointer to the string table in RAM
+288
+2
+Vendor String offset
+0
+Offset to vendor string in string table
+290
+2
+Prod string offset
+0
+Offset to product string in string table
+292
+2
+Serial num string offset
+0
+Offset to serial number string in string table
+294
+2
+Timeout
+5000
+USB timeout in milliseconds
+296
+2
+Mode
+1
+1 = DFU
+×1 = MSC Mode 1 = backup DFU, 2 = backup MSC
+298
+1
+Lane reverse
+From pins
+Set to non-zero for lane reverse
+299
+1
+CoreVoltage
+From pins
+USB Core Voltage
+0 = 0.85V, 1 = 0.75V
+300
+64
+FileName
+tiboot3.bin
+Boot file name
+5.6.11 GPMC NOR Boot Parameter Table
+Table 5-58 shows the boot parameter table for GPMC NOR boot. Must be preceded with the common boot
+parameters described in Table 5-43.
+Table 5-58. GPMC NOR Boot Parameter Table
+Byte Offset
+Size (bytes)=Name
+Default Value
+Description
+256
+4
+refClkkHz
+0
+The module functional clock frequency, in kHz. 0 = ROM code
+computes the value.
+260
+4
+csSizeMb
+64
+The size of each chip-select, in MB
+264
+1
+Csel
+From pins
+The chip-select to use (0-3)
+265
+1
+adMux
+From pins
+The address/data multiplexing used.
+0 = A/D parallel,
+1 = A/A/D mux,
+2 = A/D mux
+266
+1
+Width
+16
+Data bus width
+267
+1
+Reserved
+0
+Reserved
+268
+4
+Read index
+0
+The currently active read offset (0-1)
+272
+4
+Read offset 0
+0x000000
+Read address offset 0
+276
+4
+Read offset 1
+0x400000
+Backup read address offset 1
+280
+4
+Reserved
+0
+Reserved
+284
+4
+Reserved
+0
+Reserved
+5.6.12 GPMC NAND Boot Parameter Table
+GPMC NAND Boot Parameter Table shows the boot parameter table for GPMC NAND boot. Must be preceded
+with the common boot parameters described in Table 5-43.
+Table 5-59. GPMC NAND Boot Parameter Table
+Byte
+Offset
+Size
+(bytes)
+Name
+Default Value
+Description
+256
+4
+Ref Clk kHz
+From pins
+Specifies the module ref clock.
+260
+4
+Page Size
+0
+Page size in bytes 2048 or 4096
+264
+1
+Chip Select
+0
+Chip Select
+265
+1
+Ad Mux
+0
+Address/data multiplexing
+
+=== Page 518 ===
+Table 5-59. GPMC NAND Boot Parameter Table (continued)
+Byte
+Offset
+Size
+(bytes)
+Name
+Default Value
+Description
+266
+1
+Data Bus Width
+8
+Data bus width. Valid values are 8 and 16
+267
+1
+AD rows
+0
+Number of Row address
+268
+1
+AD columns
+0
+Number of Column address cycles
+269
+1
+ECC Nibbles
+0
+Size of BCH remainder in nibbles. 0 if no ECC, 26 for BCH8
+270
+2
+Current Valid Block
+0xFFFF
+Block number of last known good block
+272
+2
+Pages per Block
+0
+Number of pages in a block
+274
+2
+Reserved
+0
+Reserved
+276
+4
+Current Read Index
+0
+Active read index
+280
+4
+Read Offset[0]
+0
+Offsets from base of GPMC NAND memory
+284
+4
+Read Offset[1]
+0x400000
+Offsets from base of GPMC NAND memory
+
+=== Page 519 ===
+5.7 Boot Image Format
+5.7.1 Overall Structure
+The boot image consists of an X.509 Certificate, which is optional for GP devices, followed immediately by a
+boot image blob.
+X.509 Certificate
+(Variable Size)
+(Optional)
+Boot Image Blob
+(Variable Size)
+5.7.2 X.509 Certificate
+The X.509 certificate is described in RFC5280. Section 4.1 of the specification describes the format.
+The X.509 fields relevant to the public boot (taken from RFC5280) are shown below.
+Certificate  ::=  SEQUENCE  {
+tbsCertificate       TBSCertificate,
+signatureAlgorithm   AlgorithmIdentifier,
+signatureValue       BIT STRING  }
+TBSCertificate  ::=  SEQUENCE  {
+version         [0]  EXPLICIT Version DEFAULT v1,
+serialNumber         CertificateSerialNumber,
+signature            AlgorithmIdentifier,
+issuer               Name,
+validity             Validity,
+subject              Name,
+subjectPublicKeyInfo SubjectPublicKeyInfo,
+issuerUniqueID  [1]  IMPLICIT UniqueIdentifier OPTIONAL,
+-- If present, version MUST be v2 or v3
+subjectUniqueID [2]  IMPLICIT UniqueIdentifier OPTIONAL,
+-- If present, version MUST be v2 or v3
+extensions      [3]  EXPLICIT Extensions OPTIONAL
+-- If present, version MUST be v3
+}
+Extensions  ::=  SEQUENCE SIZE (1..MAX) OF Extension
+Extension  ::=  SEQUENCE  {
+extnID      OBJECT IDENTIFIER,
+critical    BOOLEAN DEFAULT FALSE,
+extnValue   OCTET STRING
+-- contains the DER encoding of an ASN.1 value
+-- corresponding to the extension type identified
+-- by extnID
+}
+In general, an X.509 certificate contains a public key which has been signed by a private key. The public ROM
+code does not directly use the keys. In non-secure devices, the public key value is in general a don’t care
+condition. The exception is certificates containing a degenerate RSA public key. GP devices with a degenerate
+RSA key allow for integrity checking of most (but not all) of the certificate.
+The public ROM only needs to extract some of information from the X.509 formatted structure:
+•
+The total size of the X.509 Certificate
+•
+The total size of the boot image
+The total size of the X.509 Certificate is determined by reading the length of the sequence containing the
+certificate. The length of the image is determined by parsing the certificate to find the extension field which holds
+the image length.
+The ROM defines several extensions that are used only by TI for boot. These are placed in the extensions field
+of the TBS certificate.
+5.7.3 Organizational Identifier (OID)
+OID (organizational identifier) values are represented as a tree structure. TI has the following node registered:
+
+=== Page 520 ===
+1.3.6.1.4.1.294: iso(1), identified-organization(3), dod(6), internet(1), private(4), enterprise(1), Texas
+Instruments(294)
+ROM code adds the following branch after Texas Instruments: device-boot(1). The OID values shown in this
+section are leaves off the device boot branch.
+5.7.4 X.509 Extensions Specific to Boot
+These values are not defined in any standard, but created by TI for boot.
+5.7.4.1 Boot Info (OID 1.3.6.1.4.1.294.1.1)
+This extension must be present on all boot images. It is from this extension that the image length is extracted.
+bootInfo ::=  SEQUENCE {
+cert_type: INTEGER,-- identifies the certificate type
+boot_core:INTEGER,-- identifies the boot core
+core_opts:INTEGER,-- 32 or 64 bit boot core target
+load_addr:OCTET STRING,-- Global address image destination
+image_size:INTEGER,-- Image size in bytes
+}
+Table 5-60. Certificate Type Values
+Value
+Description
+0x0000_0001
+Primary boot image
+0x0000_0002
+Firmware image
+Table 5-61. Boot Core Values
+Value
+Description
+0x00
+Firmware (M4) image
+0x08
+M4 certificate
+0x10
+R5 image
+0x20
+Reserved
+Table 5-62. Core Options Bit Fields
+31
+2
+1
+0
+Reserved
+Split
+Mode
+Table 5-63. Core Options Field Description
+Bits
+Field
+Value
+Description
+1
+Split
+0
+Dual MCU set to lockstep (two cores in lockstep)
+1
+Dual MCU set to split mode (two independent
+cores)
+0
+Mode
+0
+MCU starts execution in Arm® mode
+1
+MCU starts execution in Thumb® mode
+5.7.4.2 Image Integrity (OID 1.3.6.1.4.1.294.1.2)
+imageIntegrity ::= SEQUENCE {
+sha_type:OID,-- Identifies the SHA type
+hash:OCTET STRING-- The SHA of the boot image
+}
+5.7.5 Extended Boot Info Extension
+The ROM supports a combined boot image boot flow. In this flow, a boot binary blob has both Secondary
+bootloader (SBL) and System Firmware (SYS-FW) embedded in the boot image with a single X509 certificate.
+This method helps with the following situations:
+
+=== Page 521 ===
+•
+Allows ROM to load and run both the bootloader and SYS-FW in parallel without any dependency.
+•
+Optimizes ROM boot time by minimizing different x509 certificate parsing and authentication.
+To support this combined boot format, ROM employs a new X509 extension called: ext_boot_info. It supports
+multiple boot components with a single certificate. It allows up to 5 components as part of this extension:
+•
+Component1: Mandatory and should point to info about SBL binary
+•
+Component2: Optional and if present should point to SYS-FW binary in all device types
+•
+Component3: Optional (Load section to SBL, new certType)
+•
+Component4: Optional (Load section to SYS-FW, new certType)
+•
+Component5:
+•
+HS-FS and HS-SE non Prime devices. Mandatory and should point to SYS-FW Inner certificate
+•
+GP and HS-SE Prime devices. Optional (Load Section to SBL or SYS-FW)
+This extended boot info extension replaces boot_seq (boot_info) and image_integrity extensions from the
+previous sections, and these should be exclusive in any given certificate.
+ROM supports other extensions, such as sw_rev and debug_info, in both formats.
+ROM selects the combined image flow based on the presence of ext_boot_info extension in the certificate and
+skips boot_seq (boot_info) and image_integrity extensions boot flow.
+Having one component in ext_boot_info is same as legacy flow (that is, flow using boot_seq and
+image_integrity); for two or more components, ROM starts both SBL and SYS-SW, the third and fourth
+components are loaded by ROM to the allowed loading memory range of SBL and SYS-FW if there is no
+overlap in load address with executable binary info.
+Each of the components can independently specify hash value of the binary, and ROM validates the hash on HS
+and GP if RSA degenerate key is used for signing.
+Additionally, ROM rejects the full image if hash of any single component mismatches.
+5.7.5.1 Impact on HS Device
+For HS devices, ROM supports encryption of images optionally when specified with the Encryption extenstion.
+Encryption - Encryption of the components must be specified with a new extension called ext_boot_enc. This
+is an optional extension that must be specified only if any of the components are encrypted with a customer
+key set. Specify a component number followed by encryption extension details for ROM to decrypt the given
+components. This extension is used only with combined boot image format (that is, using Extended Boot Info
+Extension).
+Prime vs Non-Prime - The main difference between HS prime and non-prime devices is the presence of the
+SYS-FW Inner certificate. Extended boot info extension supports both prime and non-prime devices. ROM
+supports SYS-FW binary as Comp#2 in all device types; for HS-SE non-prime and HS-FS devices, the SYS-FW
+inner certificate is expected as another optional component in #3, 4, or 5.
+5.7.5.2 Extended Boot Info Details
+1.3.6.1.4.1.294.1.9=ASN1:SEQUENCE:ext_boot_info
+[ ext_boot_info ]
+extImgSize = INTEGER:470656
+numComp = INTEGER:4
+sbl=SEQUENCE:comp1
+fw=SEQUENCE:comp2
+bd1=SEQUENCE:comp3
+bd2=SEQUENCE:comp4
+[ comp1 ]
+compType = INTEGER:1
+bootCore = INTEGER:16
+compOpts = INTEGER:0
+destAddr = FORMAT:HEX,OCT:41c00000
+compSize = INTEGER:237376
+shaType = OID:2.16.840.1.101.3.4.2.3
+
+=== Page 522 ===
+shaValue =
+FORMAT:HEX,OCT:6779fdb2b2c27169737c184085b97938bd77bdf698245840f166ca30c7125c29a6675139a25a0a2a3f00a
+76d43d082df238c12cb6b293ec0eeb5990bcd603a23
+[ comp2 ]
+compType = INTEGER:2
+bootCore = INTEGER:0
+compOpts = INTEGER:0
+destAddr = FORMAT:HEX,OCT:00040000
+compSize = INTEGER:196608
+shaType = OID:2.16.840.1.101.3.4.2.3
+shaValue =
+FORMAT:HEX,OCT:47f27fb24b81927a928845a4c2b993e6a3d5bdfe5ed01c0ec4f96a7ead991c69bf4ed4b9b958fd36a75f3
+3aba04d2c28602a85ca737ee75617d6a9a41f4353a3
+[ comp3 ]
+compType = INTEGER:18
+bootCore = INTEGER:0
+compOpts = INTEGER:0
+destAddr = FORMAT:HEX,OCT:00072000
+compSize = INTEGER:16384
+shaType = OID:2.16.840.1.101.3.4.2.3
+shaValue =
+FORMAT:HEX,OCT:2d165ec1d8a38acb977d9298e8a6a27491c62d6daa31f921db9135f9a68779b30b384573c6e4e8203de5f
+0a47191c3ff9a35b52a911874e07615f10b4b2f5829
+[ comp4 ]
+compType = INTEGER:17
+bootCore = INTEGER:16
+compOpts = INTEGER:0
+destAddr = FORMAT:HEX,OCT:41c40000
+compSize = INTEGER:20288
+shaType = OID:2.16.840.1.101.3.4.2.3
+shaValue =
+FORMAT:HEX,OCT:12d5be5b2b9774d1b0cad21cbf1dbcdbd7c310657f4334902e3cc6228cf2d8fc844139dae4db6041c38cd
+a502d6a900d57039322d360032268a13445021b04a7
+5.7.5.3 Certificate / Component Types
+ROM supports only the following component types; all other component types will be rejected.
+•
+CompType 0x1 for SBL binary - compType = INTEGER:1
+•
+CompType 0x2 for SYS_FW binary - compType = INTEGER:2
+•
+CompType 0x3 for SYS_FW Inner Certificate - compType = INTEGER:3
+•
+CompType 0x11 for SBL Memory load section - compType = INTEGER:17
+Primary Image load section, that can be loaded in to SBL allowed memory range:
+•
+CompType 0x12 for SYS_FW Memory load section - compType = INTEGER:18
+SYS-FW load section, that can be loaded in to SYS-FW allowed memory range
+5.7.5.4 Extended Boot Encryption Info
+Extended Boot Encryption Info specifies the imageEncryption extension per component basis. This extension is
+not applicable for GP or HS-FS devices, and is optional for HS-SE devices if any components in the image are
+encrypted. In HS-FS and HS-SE non-prime devices, the SYS-FW binary encryption details are part of SYS-FW
+Inner certificate. This extension is applicable if either SBL, SYS-FW binary in HS-SE prime, or any binary blobs
+are encrypted in HS-SE devices.
+1.3.6.1.4.1.294.1.10=ASN1:SEQUENCE:ext_enc_info
+[ ext_enc_info ]
+numComp = INTEGER:2
+esbl=SEQUENCE:enc1
+efw=SEQUENCE:enc2
+[ enc1 ]
+compNum = INTEGER:1
+iv = FORMAT:HEX,OCT:474bfd801866beecc7ab6d4c61490e1a
+randString = FORMAT:HEX,OCT:772fc5810fa36f516e595ad8adf19260f47a8461f193892746692fbb932727a1
+iterationCnt = INTEGER:0
+
+=== Page 523 ===
+salt = FORMAT:HEX,OCT:42ea40851298339c8baa84f29d6b68d0
+[ enc2 ]
+compNum = INTEGER:2
+iv = FORMAT:HEX,OCT:aaaaaaaaaaaabeecc7ab6d4c61490e1a
+randString = FORMAT:HEX,OCT:bbbbbbbbbbbbbbbbbe595ad8adf19260f47a8461f193892746692fbb932727a1
+iterationCnt = INTEGER:2
+salt = FORMAT:HEX,OCT:ccccccccccccccccccaa84f29d6b68d0
+5.7.5.5 Component Ordering
+ROM supports fixed Component ordering for SBL- Binary and SYS-FW Cert and Binary.
+For GP and HS-SE Prime devices, Comp#1 should be SBL binary, and Comp#2 should be SYS-FW binary.
+For HS-FS and HS-SE non-Prime devices, Comp#1 should be SBL binary, Comp#2 should be SYS-FW Inner
+Certificate, and Comp#3 should be SYS-FW binary.
+5.7.5.6 Memory Load Sections Overlap with Executable Components
+Memory load sections for SBL and SYS-FW (CompType 0x11 and 0x12) the destination address and size should
+not overlap with the corresponding load and execute sections, and should also fall in the allowed memory range
+by ROM.
+5.7.5.7 Device Type and Extended Boot Extension
+X509 Extension
+Component
+GP Device
+HS-FS
+HS-SE non-prime
+HS-SE Prime Device
+ext_boot_info
+Comp#1
+SBL Binary
+SBL Binary
+SBL Binary
+SBL Binary
+Comp#2
+SYS-FW binary
+SYS-FW binary
+SYS-FW binary
+SYS-FW binary
+Comp#3
+SBL mem load
+section
+SBL mem load
+section
+SBL mem load
+section
+SBL mem load
+section
+Comp#4
+SysFW mem load
+section
+SysFW mem load
+section
+SysFW mem load
+section
+SysFW mem load
+section
+Comp#5
+N/A
+SysFW inner
+certificate
+SysFW inner
+certificate
+N/A
+ext_enc_info
+Comp#1
+N/A
+N/A1
+SBL encryption
+SBL encryption
+Comp#2
+N/A
+SYS FW encryption
+Comp#3
+SBL memory load
+Encryption
+SBL memory load
+encryption
+Comp#4
+Sys-FW memory load
+encryption
+Sys-FW memory load
+encryption
+Comp#5
+N/A1
+NA
+1.
+SYS-FW encryption in HS-FS and HS-SE (non Prime) are handled in SYS-FW Inner certificate and they are
+not part of the extended boot info extensions.
+5.7.6 Generating X.509 Certificates
+X.509 Certificates are generated using OpenSSL and a configuration script to supply values in the extension
+fields.
+5.7.6.1 Key Generation
+The SBL must always be signed with a given OpenSSL key - Secure and GP devices. Secure must have
+encryption and authentication, GP device must only have authentication. The key used for authentication can be
+random or specific. If a random key is generated and SBL is signed with this,the ROM will copy the SBL image
+for authentication using memcopy. With this key, ROM code will be directed to use DMA to load the SBL for
+authentication which saves boot time.
+
+=== Page 524 ===
+5.7.6.1.1 Degenerate RSA Keys
+Degenerate RSA keys are valid RSA keys with the private exponent set to 1. This results in the signature field
+being equal to the digest, since in RSA:
+Signature = digestprivExp mod nprivExp mod nprivExp
+(1)
+Where n is the key size. Since the hash used is SHA-512 and the signature is an ASN.1 sequence containing
+the OID defining which has was used as well as the hash value, the degenerate RSA must have a value of n
+greater than the maximum digest size. Typically 1024-bit is chosen.
+The following sequence is used to generate degenerate RSA keys:
+1.
+Create a random RSA key:
+openssl genrsa —out key.pm 1024
+2.
+Convert to text:
+openssl rsa —in key.pem —text —noout > key.txt
+3.
+Create an asn1 template for the degenerate key called degenerateKey.txt. Simply copy the values for
+modulus, prime (listed as p in key.txt), prime 2 (listed as q), and coefficient (listed as coeff). Set the public
+and private key exponents to 1, as well as the values for e1 and e2. See the example below.
+4.
+Convert the template to DER:
+openssl asn1parse -genconf degenerateKey.txt -out degenerateKey.der
+5.
+Sanity check the key:
+openssl rsa —in degenerateKey.der —inform der -text -check
+6.
+If there are no errors create the degenerate key pem file:
+openssl rsa —in degenerateKey.der —inform der —outform pem -out degenerateKey.pem
+An example degenerateKey.txt file is shown.
+asn1=SEQUENCE:rsa_key
+[rsa_key]
+version=INTEGER:0
+modulus=INTEGER<copied from key.txt>
+pubExp=INTEGER:1
+privExp=INTEGER:1
+p=INTEGER:<copied from key.txt>
+q=INTEGER<copied from key.txt>
+e1=INTEGER:1
+e2=INTEGER:1
+coeff=INTEGER<copied from key.txt>
+Note that when copying the multi-byte fields from key.txt it is necessary to remove the colons, catenate the lines
+and add a preceding 0x.
+5.7.6.2 Configuration Script
+An example openssl configuration script is shown below. Not all extensions are required, but all possible are
+shown.
+[ req ]
+distinguished_name = req_distinguished_name
+X509_extensions = v3_ca
+prompt = no
+dirstring_type = nobmp
+[ req_distinguished_name ]
+C = GB
+ST = HI
+
+=== Page 525 ===
+L = Boston
+O = Texas Instruments., Inc.
+OU = DSP
+CN = Bob
+emailAddress = Bob@hou.ti.com
+[ v3_ca ]
+basicConstraints = CA:true
+1.3.6.1.4.1.294.1.1 = ASN1:SEQUENCE:boot_seq
+1.3.6.1.4.1.294.1.2 = ASN1:SEQUENCE:image_integrity
+1.3.6.1.4.1.294.1.3 = ASN1:SEQUENCE:swrv
+1.3.6.1.4.1.294.1.4 = ASN1:SEQUENCE:encryption
+1.3.6.1.4.1.294.1.5 = ASN1:SEQUENCE:key_derivation
+1.3.6.1.4.1.294.1.7 = ANSI:SEQUENCE:pllControl
+1.3.6.1.4.1.294.1.8 = ANSI:SEQUENCE:debug
+[ boot_seq ]
+certType =INTEGER:1
+bootCore = INTEGER:16
+bootArchWidth = INTEGER:32
+destAddr = FORMAT:HEX,OCT:bc934b00
+imageSize = INTEGER:0x00004860
+[ image_integrity ]
+shaType = OID:1.3.14.3.2.26
+shaValue = FORMAT:HEX,OCT:4cf4d59ef77b5d9ab28d2ceb3c9fe83cb52ae6d2
+[ swrv ]
+rollback = INTEGER:0x00010001
+[ encryption ]
+Iv =FORMAT:HEX,OCT:00112233445566778899aabbccddeeff
+Rstring = FORMAT:HEX,OCT:00112233445566778899aabbccddeeff101112131415161718191a1b1c1d1e1f
+Icount = INTEGER:1
+Salt = FORMAT:HEX,OCT:00112233445566778899aabbccddeeff
+[ pllControl ]
+pll0_num = INTEGER:0
+pll0_cfg = FORMAT:HEX,OCT:00345678900
+pll1_num = INTEGER:1
+pll0_cfg = FORMAT:HEX,OCT:00345678900
+[ debug ]
+uid = FORMAT:HEX,OCT:00345678900
+type = INTEGER:1
+dbgE = INTEGER:0
+secDbgEn = INTEGER:0
+The certificate is then generated using the following openssl command:
+openssl req -new -x509 -key <private_key_pem_file> -nodes -out <output_X.509_pem_file> -config
+<config_file> -sha512
+If a delegate key is being signed, then add the option -signkey <sign_key_pem_file> to the command above.
+5.7.6.3 Image Data
+The image data (blob) is considered simply as a byte stream. On devices that are multiple bytes wide the image
+must be formatted so that all multi-byte fields match the endianness of the device. The R5 will always run in little
+endian mode.
+
+=== Page 526 ===
+5.8 Boot Memory Maps
+5.8.1 Global Memory Addresses Used by ROM Code
+The ROM code uses several global memory addresses that are useful for debugging. They are shown in Table
+5-64.
+Table 5-64. Global Memory Addresses
+Group
+Address
+Size (bytes)
+Content
+SMS0_HSM_SRAM0_0
+0x43c00000
+0x3e000
+Loadable memory space for SBL
+Warning/Error logs
+0x43c3e480
+0x200
+Warning Entries
+Warning/Error logs
+0x43c3e680
+0x200
+Severe Entries
+Warning/Error logs
+0x43c3e880
+0x100
+Critical Entries
+Warning/Error logs
+0x43c3eb80
+0x14
+Circular message buffer
+Warning/Error logs
+0x43c3eb98
+0x50
+Boot log context
+Trace
+0x43c3ebe8
+0x18
+Boot trace context
+Trace
+0x43c3ec00
+0x400
+Boot trace entry buffers
+Parameter tables
+0x43c3f290
+0x4
+Parameter tables index for R5
+bootloader
+Parameter tables
+0x43c3f298
+0x400
+Boot Parameter table for R5
+bootloader
+Parameter tables
+0x43c3f1e0
+0xb0
+Extended boot data for R5
+bootloader
+The ROM code version information is a structure shown in Table 5-65
+Table 5-65. ROM Code Version
+Field
+Address
+Size (bytes)
+Value for PG1
+Version Number
+0x4182_FF80
+0x4
+0x00010001 (1.0.1)
+Version Date
+0x4182_FF84
+0x8
+"10/26/21"
+Device Name
+0x4182_FF8C
+0xC
+"am62x"
+Commit ID
+0x4182_FF98
+0x28
+"5a76b265a1e718df54ea4ce06878f67e9815d58
+9"
+

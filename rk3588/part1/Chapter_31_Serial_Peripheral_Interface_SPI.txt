@@ -1,0 +1,2204 @@
+Chapter 31 Serial Peripheral Interface (SPI)
+31
+
+31.1 Overview
+The serial peripheral interface is an APB slave device. There are four possible combinations
+for the serial clock phase and polarity. The clock phase (SCPH) determines whether the
+serial transfer begins with the falling edge of slave select signals or the first edge of the
+serial clock. The slave select line is held high when the SPI is idle or disabled. This SPI
+controller can work as either master or slave mode.
+SPI Controller supports the following features:
+⚫ Support Motorola SPI, TI Synchronous Serial Protocol and National Semiconductor Micro
+wire interface
+⚫ Support 32-bit APB bus
+⚫ Support two internal 16-bit wide and 64-location deep FIFOs, one for transmitting and
+the other for receiving serial data
+⚫ Support two chip select signals in master mode
+⚫ Support 4,8,16 bit serial data transfer
+⚫ Support configurable interrupt polarity
+⚫ Support asynchronous APB bus and SPI clock
+⚫ Support master and slave mode
+⚫ Support DMA handshake interface and configurable DMA water level
+⚫ Support transmit FIFO empty, underflow, receive FIFO full, overflow, interrupt and all
+interrupts can be masked
+⚫ Support configurable water level of transmit FIFO empty and receive FIFO full interrupt
+⚫ Support combine interrupt output
+⚫ Support up to half of SPI clock frequency transfer in master mode and one quarter of
+SPI clock frequency transfer in slave mode
+⚫ Support full and half duplex mode transfer
+⚫ Stop transmitting SCLK if transmit FIFO is empty or receive FIFO is full in master mode
+⚫ Support configurable delay from chip select active to SCLK active in master mode
+⚫ Support configurable period of chip select inactive between two parallel data in master
+mode
+⚫ Support big and little endian, MSB and LSB first transfer
+⚫ Support two 8-bit audio data store together in one 16-bit wide location
+⚫ Support sample RXD 0~3 SPI clock cycles later
+⚫ Support configurable SCLK polarity and phase
+⚫ Support fix and incremental address access to transmit and receive FIFO
+⚫ Support timeout mechanism in slave mode
+⚫ Support BYPASS slave mode, in which RX and TX logic is drive by SCLK_IN directly
+instead of spi_clk
+
+31.2 Block Diagram
+The SPI Controller comprises with:
+⚫ AMBA APB interface and DMA Controller Interface
+⚫ Transmit and receive FIFO controllers and an FSM controller
+⚫ Register block
+⚫ Shift control and interrupt
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1928
+
+RKRK3588 TRM-Part1
+
+APB
+BUS
+
+APB
+INTERFACE
+
+TRANSMIT
+FIFO
+
+txd
+
+SHIFT
+CONTROL
+LOGIC
+
+rxd
+
+ss_1_n
+ss_0_n
+ss_in_n
+
+REGISTER
+BLOCK
+
+RECEIVE
+FIFO
+
+DMA
+INTERFACE
+
+FSM
+CONTROL
+
+INTERRUPT
+LOGIC
+
+spi_intr
+
+mst_oe_n
+
+dma_tx_ack
+dma_tx_req
+
+spi_clk
+
+dma_rx_req
+
+CLOCK
+PRE-SCALE
+
+sclk_out
+sclk_in
+
+dma_rx_ack
+
+Fig. 31-1 SPI Controller Block Diagram
+APB INTERFACE
+The host processor accesses data, control, and status information on the SPI through the
+APB interface. The SPI supports APB data bus widths of 32 bits and 8 or 16 bits when
+reading or writing internal FIFO if data frame size(SPI_CTRL0[1:0]) is set to 8 bits.
+DMA INTERFACE
+This block has a handshaking interface to a DMA Controller to request and control transfers.
+The APB bus is used to perform the data transfer to or from the DMA Controller.
+FIFO LOGIC
+For transmit and receive transfers, data transmitted from the SPI to the external serial
+device is written into the transmit FIFO. Data received from the external serial device into
+the SPI is pushed into the receive FIFO. Both FIFOs are 64x16bits.
+FSM CONTROL
+Control the state’s transformation of the design.
+REGISTER BLOCK
+All registers in the SPI are addressed at 32-bit boundaries to remain consistent with the APB
+bus. Where the physical size of any register is less than 32-bits wide, the upper unused bits
+of the 32-bit boundary are reserved. Writing to these bits has no effect; reading from these
+bits returns 0.
+SHIFT CONTROL
+Shift control logic shift the data from the transmit FIFO or to the receive FIFO. This logic
+automatically right-justifies receive data in the receive FIFO buffer.
+INTERRUPT CONTROL
+The SPI supports combined and individual interrupt requests, each of which can be masked.
+The combined interrupt request is the OR relationship between all other SPI interrupts after
+masking.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1929
+
+RKRK3588 TRM-Part1
+
+31.3 Function Description
+clk
+cs
+
+clk
+cs
+
+txd
+rxd
+
+rxd
+txd
+
+SPI Master
+
+SPI Slave
+
+Fig. 31-2 SPI Master and Slave Interconnection
+The SPI controller support dynamic switching between master and slave in a system. The
+diagram show how the SPI controller connects with other SPI devices.
+Operation Modes
+The SPI can be configured in the following two fundamental modes of operation: Master
+Mode when SPI_CTRLR0 [20] is 1’b0, Slave Mode when SPI_CTRLR0 [20] is 1’b1.
+Transfer Modes
+The SPI operates in the following three modes when transferring data on the serial bus.
+1). Transmit and Receive
+When SPI_CTRLR0 [19:18] == 2‘b00, both transmit and receive logic are valid.
+2). Transmit Only
+When SPI_CTRLR0 [19:18] == 2‘b01, the receive data are invalid and should not be stored
+in the receive FIFO.
+3). Receive Only
+When SPI_CTRLR0 [19:18] == 2‘b10, the transmit data are invalid.
+Clock Ratios
+A summary of the frequency ratio restrictions between the bit-rate clock (sclk_out/sclk_in)
+and the SPI peripheral clock (spi_clk) are described as:
+When SPI Controller works as master, the Fspi_clk>= 2 × (maximum Fsclk_out)
+When SPI Controller works as slave, the Fspi_clk>= 6 × (maximum Fsclk_in)
+With the SPI, the clock polarity (SCPOL) configuration parameter determines whether the
+inactive state of the serial clock is high or low. To transmit data, both SPI peripherals must
+have identical serial clock phase (SCPH) and clock polarity (SCPOL) values. The data frame
+can be 4/8/16 bits in length.
+When the configuration parameter SCPH = 0, data transmission begins on the falling edge of
+the slave select signal. The first data bit is captured by the master and slave peripherals on
+the first edge of the serial clock; therefore, valid data must be present on the txd and rxd
+lines prior to the first serial clock edge. The following two figures show a timing diagram for
+a single SPI data transfer with SCPH = 0. The serial clock is shown for configuration
+parameters SCPOL = 0 and SCPOL = 1.
+spi0_clk/spi1_clk
+spi0_txd/spi0_rxd/
+spi1_txd/spi1_rxd
+spi0_csn0/spi0_csn1/
+spi1_csn0/spi1_csn1
+
+MSB
+(LSB)
+
+LSB
+(MSB)
+
+MSB
+(LSB)
+
+LSB
+(MSB)
+
+4/8/16bits
+
+0/0.5/1 spi0_clk/spi1_clk cycle(s)
+
+Fig. 31-3 SPI Format (SCPH=0 SCPOL=0)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1930
+
+RKRK3588 TRM-Part1
+spi0_clk/spi1_clk
+spi0_txd/spi0_rxd/
+spi1_txd/spi1_rxd
+
+MSB
+(LSB)
+
+LSB
+(MSB)
+
+MSB
+(LSB)
+
+LSB
+(MSB)
+
+4/8/16bits
+spi0_csn0/spi0_csn1/
+spi1_csn0/spi1_csn1
+0/0.5/1 spi0_clk/spi1_clk cycle(s)
+
+Fig. 31-4 SPI Format (SCPH=0 SCPOL=1)
+When the configuration parameter SCPH = 1, both master and slave peripherals begin
+transmitting data on the first serial clock edge after the slave select line is activated. The
+first data bit is captured on the second (trailing) serial clock edge. Data are propagated by
+the master and slave peripherals on the leading edge of the serial clock. During continuous
+data frame transfers, the slave select line may be held active-low until the last bit of the last
+frame has been captured. The following two figures show the timing diagram for the SPI
+format when the configuration parameter SCPH = 1.
+spi0_clk/spi1_clk
+spi0_txd/spi0_rxd/
+spi1_txd/spi1_rxd
+
+MSB
+(LSB)
+
+LSB
+(MSB)
+
+MSB
+(LSB)
+
+LSB
+(MSB)
+
+4/8/16bits
+spi0_csn0/spi0_csn1/
+spi1_csn0/spi1_csn1
+0/0.5/1 spi0_clk/spi1_clk cycle(s)
+
+Fig. 31-5 SPI Format (SCPH=1 SCPOL=0)
+spi0_clk/spi1_clk
+spi0_txd/spi0_rxd/
+spi1_txd/spi1_rxd
+
+MSB
+(LSB)
+
+LSB
+(MSB)
+
+MSB
+(LSB)
+
+LSB
+(MSB)
+
+4/8/16bits
+spi0_csn0/spi0_csn1/
+spi1_csn0/spi1_csn1
+0/0.5/1 spi0_clk/spi1_clk cycle(s)
+
+Fig. 31-6 SPI Format (SCPH=1 SCPOL=1)
+
+31.4 Register Description
+31.4.1 Registers Summary
+Name
+SPI_CTRLR0
+SPI_CTRLR1
+SPI_ENR
+SPI_SER
+SPI_BAUDR
+SPI_TXFTLR
+SPI_RXFTLR
+SPI_TXFLR
+SPI_RXFLR
+SPI_SR
+SPI_IPR
+SPI_IMR
+SPI_ISR
+SPI_RISR
+SPI_ICR
+SPI_DMACR
+
+Offset
+0x0000
+0x0004
+0x0008
+0x000C
+0x0010
+0x0014
+0x0018
+0x001C
+0x0020
+0x0024
+0x0028
+0x002C
+0x0030
+0x0034
+0x0038
+0x003C
+
+Size
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Reset
+Description
+Value
+0x00000002 Control Register 0
+0x00000000 Control Register 1
+0x00000000 SPI Enable Register
+0x00000000 Slave Enable Register
+0x00000000 Baud Rate Select
+0x00000000 Transmit FIFO Threshold Level
+0x00000000 Receive FIFO Threshold Level
+0x00000000 Transmit FIFO Level
+0x00000000 Receive FIFO Level
+0x0000004C SPI Status
+0x00000000 Interrupt Polarity
+0x00000000 Interrupt Mask
+0x00000000 Interrupt Status
+0x00000001 Raw Interrupt Status
+0x00000000 Interrupt Clear
+0x00000000 DMA Control
+
+1931
+
+RKRK3588 TRM-Part1
+Name
+SPI_DMATDLR
+SPI_DMARDLR
+SPI_VERSION
+SPI_TIMEOUT
+SPI_BYPASS
+SPI_TXDR
+SPI_RXDR
+
+Offset
+0x0040
+0x0044
+0x0048
+0x004C
+0x0050
+0x0400
+0x0800
+
+Size
+W
+W
+W
+W
+W
+W
+W
+
+Reset
+Description
+Value
+0x00000000 DMA Transmit Data Level
+0x00000000 DMA Receive Data Level
+0x00110002 IP version
+0x00000000 Timeout control register
+0x00000000 BYPASS control register
+0x00000000 Transmit FIFO Data
+0x00000000 Receive FIFO Data
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+31.4.2 Detail Registers Description
+SPI_CTRLR0
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+31:26 RO 0x00
+reserved
+lbk
+Loop back mode select.
+25
+RW 0x0
+1'b0: Normal mode.
+1'b1: Loop back mode, rxd is connected to txd.
+soi
+SS_N output inverted.
+24:23 RW 0x0
+1'b0: Corresponding bit of ss_in is not inverted.
+1'b1: Corresponding bit of ss_in is inverted.
+sm
+SCLK_IN is masked by SS_N or not.
+22
+RW 0x0
+1'b0: SCLK_IN is masked
+1'b1: SCLK_IN is not masked
+mtm
+Valid when frame format is set to National Semiconductors
+21
+RW 0x0
+Microwire.
+1'b0: Non-sequential transfer
+1'b1: Sequential transfer
+opm
+Master and slave mode select.
+20
+RW 0x0
+1'b0: Master Mode
+1'b1: Slave Mode
+xfm
+Transmit and receive mode select.
+2'b00 : Transmit & Receive
+19:18 RW 0x0
+2'b01 : Transmit Only
+2'b10 : Receive Only
+2'b11 : Reserved
+frf
+2'b00: Motorola SPI
+17:16 RW 0x0
+2'b01: Texas Instruments SSP
+2'b10: National Semiconductors Microwire
+2'b11: Reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1932
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+15:14 RW 0x0
+
+13
+
+RW 0x0
+
+12
+
+RW 0x0
+
+11
+
+RW 0x0
+
+10
+
+RW 0x0
+
+9:8
+
+RW 0x0
+
+7
+
+RW 0x0
+
+6
+
+RW 0x0
+
+Description
+rsd
+When SPI is configured as a master, if the rxd data cannot be
+sampled by the sclk_out edge at the right time, this register
+should be configured to define the number of the spi_clk cycles
+after the active sclk_out edge to sample rxd data later when SPI
+works at high frequency.
+2'b00: Do not delay
+2'b01: 1 cycle delay
+2'b10: 2 cycles delay
+2'b11: 3 cycles delay
+bht
+Valid when data frame size is 8bit.
+1'b0: APB 16bit write/read, spi 8bit write/read.
+1'b1: APB 8bit write/read, spi 8bit write/read.
+fbm
+1'b0: First bit is MSB.
+1'b1: First bit is LSB.
+em
+Serial endian mode can be configured by this bit. APB endian
+mode is always little endian.
+1'b0: Little endian
+1'b1: Big endian
+ssd
+Valid when the frame format is set to Motorola SPI and SPI used
+as a master.
+1'b0: The period between ss_n active and sclk_out active is half
+sclk_out cycles.
+1'b1: The period between ss_n active and sclk_out active is one
+sclk_out cycle.
+csm
+Valid when the frame format is set to Motorola SPI and SPI used
+as a master.
+2'b00: ss_n keep low after every frame data is transferred.
+2'b01: ss_n be high for half sclk_out cycles after every frame
+data is transferred.
+2'b10: ss_n be high for one sclk_out cycle after every frame data
+is transferred.
+2'b11: Reserved
+scpol
+Valid when the frame format is set to Motorola SPI.
+1'b0: Inactive state of serial clock is low.
+1'b1: Inactive state of serial clock is high.
+scph
+Valid when the frame format is set to Motorola SPI.
+1'b0: Serial clock toggles in middle of first data bit.
+1'b1: Serial clock toggles at start of first data bit.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1933
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+5:2
+
+RW 0x0
+
+1:0
+
+RW 0x2
+
+Description
+cfs
+Selects the length of the control word for the Microwire frame
+format.
+4'b0000~4’b0010: Reserved
+4'b0011: 4-bit serial data transfer
+4'b0100: 5-bit serial data transfer
+4'b0101: 6-bit serial data transfer
+4'b0110: 7-bit serial data transfer
+4'b0111: 8-bit serial data transfer
+4'b1000: 9-bit serial data transfer
+4'b1001: 10-bit serial data transfer
+4'b1010: 11-bit serial data transfer
+4'b1011: 12-bit serial data transfer
+4'b1100: 13-bit serial data transfer
+4'b1101: 14-bit serial data transfer
+4'b1110: 15-bit serial data transfer
+4'b1111: 16-bit serial data transfer
+dfs
+Selects the data frame length.
+2'b00: 4bit data
+2'b01: 8bit data
+2'b10: 16bit data
+2'b11: Reserved
+
+SPI_CTRLR1
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+ndm
+When Transfer Mode is receive only, this register field sets the
+number of data frames to be continuously received by the SPI.
+31:0 RW 0x00000000
+The SPI continues to receive serial data until the number of data
+frames received is equal to this register value plus 1, which
+enables you to receive up to 4GB of data in a continuous transfer.
+SPI_ENR
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+enr
+0
+RW 0x0
+Enables and disables all SPI operations. Transmit and receive
+FIFO buffers are cleared when the device is disabled.
+SPI_SER
+Address: Operational Base + offset (0x000C)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+ser
+Slave enable register. The register enable the individual slave
+1:0
+RW 0x0
+select output lines, 2 slave-select output pins are available. This
+register is valid only when SPI is configured as a master device.
+SPI_BAUDR
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+31:16 RO 0x0000
+reserved
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1934
+
+RKRK3588 TRM-Part1
+Bit
+
+15:0
+
+Attr Reset Value
+
+RW 0x0000
+
+Description
+baudr
+SPI Clock Divider. This register is valid only when the SPI is
+configured as a master device. The LSB for this field is always set
+to 0 and is unaffected by a write operation, which ensures an
+even value is held in this register. If the value is 0, the serial
+output clock (sclk_out) is disabled. The frequency of the sclk_out
+is derived from the following equation:
+Fsclk_out = Fspi_clk/ SCKDV
+Where SCKDV is any even value between 2 and 65534.
+For example:
+for Fspi_clk = 3.6864MHz and SCKDV =2
+Fsclk_out = 3.6864/2= 1.8432MHz
+
+SPI_TXFTLR
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+xftlr
+5:0
+RW 0x00
+When the number of transmit FIFO entries is less than or equal to
+this value, the transmit FIFO empty interrupt is triggered.
+SPI_RXFTLR
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+rxftlr
+5:0
+RW 0x00
+When the number of receive FIFO entries is greater than or equal
+to this value + 1, the receive FIFO full interrupt is triggered.
+SPI_TXFLR
+Address: Operational Base + offset (0x001C)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+txflr
+6:0
+RO 0x00
+Contains the number of valid data entries in the transmit FIFO.
+SPI_RXFLR
+Address: Operational Base + offset (0x0020)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+rxflr
+6:0
+RO 0x00
+Contains the number of valid data entries in the receive FIFO.
+SPI_SR
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+31:7 RO 0x0000000
+reserved
+ssi
+6
+RO 0x1
+1'b0: ss_in_n is low.
+1'b1: ss_in_n is high.
+stb
+5
+RO 0x0
+1'b0: Slave tx not busy.
+1'b1: Slave tx busy.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1935
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+4
+
+RO
+
+0x0
+
+3
+
+RO
+
+0x1
+
+2
+
+RO
+
+0x1
+
+1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+rff
+1'b0: Receive FIFO is not full.
+1'b1: Receive FIFO is full.
+rfe
+1'b0: Receive FIFO is not empty.
+1'b1: Receive FIFO is empty.
+tfe
+1'b0: Transmit FIFO is not empty.
+1'b1: Transmit FIFO is empty.
+tff
+1'b0: Transmit FIFO is not full.
+1'b1: Transmit FIFO is full.
+bsf
+When set, indicates that a serial transfer is in progress; when
+cleared, indicates that the SPI is idle or disabled.
+1'b0: SPI is idle or disabled.
+1'b1: SPI is actively transferring data.
+
+SPI_IPR
+Address: Operational Base + offset (0x0028)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+ipr
+Interrupt Polarity Register.
+0
+RW 0x0
+1'b0: Active Interrupt Polarity Level is HIGH.
+1'b1: Active Interrupt Polarity Level is LOW.
+SPI_IMR
+Address: Operational Base + offset (0x002C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+txfim
+7
+RW 0x0
+1'b0: TX finish interrupt is masked.
+1'b1: TX finish interrupt is not masked.
+sspim
+6
+RW 0x0
+1'b0: ss_in_n posedege interrupt is masked.
+1'b1: ss_in_n posedege interrupt is not masked.
+toim
+5
+RW 0x0
+1'b0: spi timeout interrupt is masked.
+1'b1: spi timeout interrupt is not masked.
+rffim
+4
+RW 0x0
+1'b0: spi_rxf_intr interrupt is masked.
+1'b1: spi_rxf_intr interrupt is not masked.
+rfoim
+3
+RW 0x0
+1'b0: spi_rxo_intr interrupt is masked.
+1'b1: spi_rxo_intr interrupt is not masked.
+rfuim
+2
+RW 0x0
+1'b0: spi_rxu_intr interrupt is masked.
+1'b1: spi_rxu_intr interrupt is not masked.
+tfoim
+1
+RW 0x0
+1'b0: spi_txo_intr interrupt is masked.
+1'b1: spi_txo_intr interrupt is not masked.
+tfeim
+0
+RW 0x0
+1'b0: spi_txe_intr interrupt is masked.
+1'b1: spi_txe_intr interrupt is not masked.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1936
+
+RKRK3588 TRM-Part1
+
+SPI_ISR
+Address: Operational Base + offset (0x0030)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+txfis
+7
+RW 0x0
+1'b0: TX finish interrupt is not active after masking.
+1'b1: TX finish interrupt is active after masking.
+sspis
+6
+RW 0x0
+1'b0: ss_in_n posedege interrupt is not active after masking.
+1'b1: ss_in_n posedege interrupt is active after masking.
+tois
+5
+RW 0x0
+1'b0: spi timeout interrupt is not active after masking.
+1'b1: spi timeout interrupt is active after masking.
+rffis
+4
+RO 0x0
+1'b0: spi_rxf_intr interrupt is not active after masking.
+1'b1: spi_rxf_intr interrupt is full after masking.
+rfois
+3
+RO 0x0
+1'b0: spi_rxo_intr interrupt is not active after masking.
+1'b1: spi_rxo_intr interrupt is active after masking.
+rfuis
+2
+RO 0x0
+1'b0: spi_rxu_intr interrupt is not active after masking.
+1'b1: spi_rxu_intr interrupt is active after masking.
+tfois
+1
+RO 0x0
+1'b0: spi_txo_intr interrupt is not active after masking.
+1'b1: spi_txo_intr interrupt is active after masking.
+tfeis
+0
+RO 0x0
+1'b0: spi_txe_intr interrupt is not active after masking.
+1'b1: spi_txe_intr interrupt is active after masking.
+SPI_RISR
+Address: Operational Base + offset (0x0034)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+txfris
+7
+RW 0x0
+1'b0: TX finish interrupt is not active prior to masking.
+1'b1: TX finish interrupt is active prior to masking.
+sspris
+6
+RW 0x0
+1'b0: ss_in_n posedege interrupt is not active prior to masking.
+1'b1: ss_in_n posedege interrupt is active prior to masking.
+toris
+5
+RW 0x0
+1'b0: spi_timeout interrupt is not active prior to masking.
+1'b1: spi_timeout interrupt is active prior to masking.
+rffris
+4
+RO 0x0
+1'b0: spi_rxf_intr interrupt is not active prior to masking.
+1'b1: spi_rxf_intr interrupt is full prior to masking.
+rforis
+3
+RO 0x0
+1'b0: spi_rxo_intr interrupt is not active prior to masking.
+1'b1: spi_rxo_intr interrupt is active prior to masking.
+rfuris
+2
+RO 0x0
+1'b0: spi_rxu_intr interrupt is not active prior to masking.
+1'b1: spi_rxu_intr interrupt is active prior to masking.
+tforis
+1
+RO 0x0
+1'b0: spi_txo_intr interrupt is not active prior to masking.
+1'b1: spi_txo_intr interrupt is active prior to masking.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1937
+
+RKRK3588 TRM-Part1
+Bit
+0
+
+Attr Reset Value
+RO
+
+0x1
+
+Description
+tferis
+1'b0: spi_txe_intr interrupt is not active prior to masking.
+1'b1: spi_txe_intr interrupt is active prior to masking.
+
+SPI_ICR
+Address: Operational Base + offset (0x0038)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+ctxfi
+6
+WO 0x0
+Write 1 to Clear tx finish Interrupt.
+csspi
+5
+WO 0x0
+Write 1 to Clear ss_in_n posedge Interrupt.
+ctoi
+4
+WO 0x0
+Write 1 to Clear Timeout Interrupt.
+ctfoi
+3
+WO 0x0
+Write 1 to Clear Transmit FIFO Overflow Interrupt.
+crfoi
+2
+WO 0x0
+Write 1 to Clear Receive FIFO Overflow Interrupt.
+crfui
+1
+WO 0x0
+Write 1 to Clear Receive FIFO Underflow Interrupt.
+cci
+0
+WO 0x0
+Write 1 to Clear Combined Interrupt.
+SPI_DMACR
+Address: Operational Base + offset (0x003C)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+tde
+1
+RW 0x0
+1'b0: Transmit DMA disabled.
+1'b1: Transmit DMA enabled.
+rde
+0
+RW 0x0
+1'b0: Receive DMA disabled.
+1'b1: Receive DMA enabled.
+SPI_DMATDLR
+Address: Operational Base + offset (0x0040)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+tdl
+This bit field controls the level at which a DMA request is made by
+the transmit logic. It is equal to the watermark level; that is, the
+5:0
+RW 0x00
+dma_tx_req signal is generated when the number of valid data
+entries in the transmit FIFO is equal to or below this field value,
+and transmit DMA is enabled (DMACR[1] = 1).
+SPI_DMARDLR
+Address: Operational Base + offset (0x0044)
+Bit Attr Reset Value
+31:6 RO 0x0000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1938
+
+RKRK3588 TRM-Part1
+Bit
+
+5:0
+
+Attr Reset Value
+
+RW 0x00
+
+Description
+rdl
+This bit field controls the level at which a DMA request is made by
+the receive logic. The watermark level = DMARDL+1; that is,
+dma_rx_req is generated when the number of valid data entries
+in the receive FIFO is equal to or above this field value + 1, and
+receive DMA is enabled(DMACR[0]=1).
+
+SPI_VERSION
+Address: Operational Base + offset (0x0048)
+Bit Attr Reset Value
+version
+31:0 RO 0x00110002
+IP version
+
+Description
+
+SPI_TIMEOUT
+Address: Operational Base + offset (0x004C)
+Bit Attr Reset Value
+Description
+31:17 RO 0x0000
+reserved
+toe
+Timeout enable.
+16
+RW 0x0
+1'b0: Timeout counter is inactive.
+1'b1: Timeout counter will be active after the first rising edge of
+sclk_in.
+tov
+Timeout threshold value. If sclk_in keep inactive for a threshold
+15:0 RW 0x0000
+time, timeout interrupt will be triggered. The timeout threshold
+time is TOV*pclk_perid*16.
+SPI_BYPASS
+Address: Operational Base + offset (0x0050)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+txcp
+TX clock polarity.This bit is only valid in bypass mode.
+4
+RW 0x0
+1'b0: TX logic use raw SCLK.
+1'b1: TX logic use inverted SCLK.
+rxcp
+RX clock polarity.This bit is only valid in bypass mode.
+3
+RW 0x0
+1'b0: RX logic use raw SCLK.
+1'b1: RX logic use inverted SCLK.
+end
+Endian mode.This bit is only valid in bypass mode.
+2
+RW 0x0
+1'b0: Work in little endian mode.
+1'b1: Work in big endian mode.
+fbm
+First bit mode.This bit is only valid in bypass mode.
+1
+RW 0x0
+1'b0: First bit is LSB.
+1'b1: First bit is MSB.
+byen
+Bypass enable.
+0
+RW 0x0
+1'b0: Normal mode.
+1'b1: Bypass mode, SPI serial/parallel convert logic is drive by
+SCLK.
+SPI_TXDR
+Address: Operational Base + offset (0x0400)
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1939
+
+RKRK3588 TRM-Part1
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+txdr
+15:0 WO 0x0000
+When it is written to, data are moved into the transmit FIFO.
+SPI_RXDR
+Address: Operational Base + offset (0x0800)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+rxdr
+15:0 RO 0x0000
+When the register is read, data in the receive FIFO is accessed.
+
+31.5 Interface Description
+Table 31-1 SPI0 interface description
+Module
+Pin
+
+Direction
+
+Pin Name
+
+IOMUX Setting
+
+IOMUX0
+
+spi_sclk
+
+I/O
+
+spi_mosi
+
+I
+
+spi_miso
+
+O
+
+spi_csn0
+
+I/O
+
+spi_csn1
+
+O
+
+I2S1_SDI1_M1/NPU_AVS/UART0_RT
+SN/PWM5_M1/SPI0_CLK_M0/PCIE30
+X4_CLKREQN_M0/SATA_CP_POD/GP
+IO0_C6_u
+PDM0_CLK0_M1/PWM1_M0/I2C2_SD
+A_M0/CAN0_RX_M0/SPI0_MOSI_M0
+/PCIE30X1_0_CLKREQN_M0/GPIO0_
+C0_d
+I2S1_SDI2_M1/PDM0_SDI0_M1/I2C
+6_SDA_M0/UART1_RTSN_M2/PWM6
+_M0/SPI0_MISO_M0/PCIE30X4_WAK
+EN_M0/GPIO0_C7_d
+I2S1_SDO0_M1/CPU_BIG0_AVS/I2C
+0_SCL_M2/UART0_CTSN/UART1_TX
+_M2/HDMI_RX_SDA_M0/SPI0_CS0_
+M0/PCIE30X2_CLKREQN_M0/HDMI_
+TX0_CEC_M1/GPIO0_D1_u
+I2S1_LRCK_M1/PWM0_M0/I2C2_SCL
+_M0/CAN0_TX_M0/SPI0_CS1_M0/PC
+IE30X1_1_PERSTN_M0/GPIO0_B7_d
+
+BUS_IOC_GPIO0C_IOMU
+X_SEL_H[11:8] = 4’h8
+PMU2_IOC_GPIO0C_IOM
+UX_SEL_H[11:8] = 4’h8
+BUS_IOC_GPIO0C_IOMU
+X_SEL_L[3:0] = 4’h8
+PMU2_IOC_GPIO0C_IOM
+UX_SEL_L[3:0] = 4’h8
+BUS_IOC_GPIO0C_IOMU
+X_SEL_H[15:12] = 4’h8
+PMU2_IOC_GPIO0C_IOM
+UX_SEL_H[15:12] = 4’h8
+BUS_IOC_GPIO0D_IOMU
+X_SEL_L[7:4] = 4’h8
+PMU2_IOC_GPIO0D_IOM
+UX_SEL_L[7:4] = 4’h8
+BUS_IOC_GPIO0B_IOMU
+X_SEL_H[15:12] = 4’h8
+PMU2_IOC_GPIO0B_IOM
+UX_SEL_H[15:12] = 4’h8
+
+IOMUX1
+
+spi_sclk
+
+I/O
+
+spi_mosi
+
+I
+
+spi_miso
+
+O
+
+spi_csn0
+
+I/O
+
+CIF_D2/BT1120_D2/I2S1_LRCK_M0/
+PCIE30X1_1_PERSTN_M1/SPI0_CLK
+_M1/GPIO4_A2_d
+CIF_D1/BT1120_D1/I2S1_SCLK_M0/
+PCIE30X1_1_WAKEN_M1/UART9_CT
+SN_M1/SPI0_MOSI_M1/GPIO4_A1_d
+CIF_D0/BT1120_D0/I2S1_MCLK_M0
+/PCIE30X1_1_CLKREQN_M1/UART9_
+RTSN_M1/SPI0_MISO_M1/GPIO4_A0
+_d
+CIF_HREF/BT1120_D8/I2S1_SDO1_
+M0/PCIE30X1_1_BUTTON_RSTN/I2C
+7_SCL_M3/UART8_RTSN_M0/PWM14
+_M1/SPI0_CS0_M1/CAN1_RX_M1/G
+PIO4_B2_u
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+BUS_IOC_GPIO4A_IOMU
+X_SEL_L[11:8] = 4’h8
+BUS_IOC_GPIO4A_IOMU
+X_SEL_L[7:4] = 4’h8
+BUS_IOC_GPIO4A_IOMU
+X_SEL_L[3:0] = 4’h8
+
+BUS_IOC_GPIO4B_IOMU
+X_SEL_L[11:8] = 4’h8
+
+1940
+
+RKRK3588 TRM-Part1
+spi_csn1
+
+O
+
+MIPI_CAMERA0_CLK_M0/SPDIF1_TX
+_M1/I2S1_SDO0_M0/PCIE30X1_0_B
+UTTON_RSTN/SATA2_ACT_LED_M0/I
+2C6_SCL_M3/UART8_RX_M0/SPI0_C
+S1_M1/GPIO4_B1_u
+
+BUS_IOC_GPIO4B_IOMU
+X_SEL_L[7:4] = 4’h8
+
+IOMUX2
+
+spi_sclk
+
+I/O
+
+spi_mosi
+
+I
+
+spi_miso
+
+O
+
+spi_csn0
+
+I/O
+
+spi_csn1
+
+O
+
+spi_sclk
+
+I/O
+
+spi_mosi
+
+I
+
+PDM1_CLK1_M1/PCIE30X1_0_WAKE
+N_M2/SATA0_ACT_LED_M1/UART4_
+TX_M2/SPI0_CLK_M2/GPIO1_B3_d
+PDM1_SDI3_M1/PCIE30X4_PERSTN_
+M3/UART4_RX_M2/SPI0_MOSI_M2/
+GPIO1_B2_d
+PDM1_SDI2_M1/PCIE30X4_WAKEN_
+M3/SPI0_MISO_M2/GPIO1_B1_d
+PDM1_CLK0_M1/PCIE30X1_0_PERST
+N_M2/UART7_RX_M2/SPI0_CS0_M2/
+GPIO1_B4_u
+PCIE30X1_0_CLKREQN_M2/UART7_T
+X_M2/SPI0_CS1_M2/GPIO1_B5_u
+
+BUS_IOC_GPIO1B_IOMU
+X_SEL_L[15:12] = 4’h8
+BUS_IOC_GPIO1B_IOMU
+X_SEL_L[11:8] = 4’h8
+BUS_IOC_GPIO1B_IOMU
+X_SEL_L[7:4] = 4’h8
+BUS_IOC_GPIO1B_IOMU
+X_SEL_H[3:0] = 4’h8
+BUS_IOC_GPIO1B_IOMU
+X_SEL_H[7:4] = 4’h8
+
+IOMUX3
+
+spi_miso
+
+O
+
+spi_csn0
+
+I/O
+
+spi_csn1
+
+O
+
+CIF_D15/PCIE30X2_WAKEN_M2/HD
+MI_RX_SDA_M1/I2C7_SDA_M2/UAR
+T9_CTSN_M2/PWM10_M2/SPI0_CLK
+_M3/GPIO3_D3_d
+CIF_D14/PCIE30X2_CLKREQN_M2/H
+DMI_RX_SCL_M1/I2C7_SCL_M2/UA
+RT9_RTSN_M2/SPI0_MOSI_M3/GPIO
+3_D2_d
+CIF_D13/PCIE20X1_2_PERSTN_M0/
+HDMI_RX_CEC_M1/UART4_TX_M1/P
+WM9_M2/SPI0_MISO_M3/GPIO3_D1
+_d
+HDMI_TX0_HPD_M1/PCIE30X2_PER
+STN_M2/HDMI_RX_HPDOUT_M1/MC
+U_JTAG_TCK_M1/UART9_RX_M2/SPI
+0_CS0_M3/GPIO3_D4_d
+PCIE30X4_BUTTON_RSTN/DP1_HPDI
+N_M0/MCU_JTAG_TMS_M1/UART9_T
+X_M2/PWM11_IR_M3/SPI0_CS1_M3
+/GPIO3_D5_d
+
+BUS_IOC_GPIO3D_IOMU
+X_SEL_L[15:12] = 4’h8
+BUS_IOC_GPIO3D_IOMU
+X_SEL_L[11:8] = 4’h8
+BUS_IOC_GPIO3D_IOMU
+X_SEL_L[7:4] = 4’h8
+BUS_IOC_GPIO3D_IOMU
+X_SEL_H[3:0] = 4’h8
+BUS_IOC_GPIO3D_IOMU
+X_SEL_H[7:4] = 4’h8
+
+Notes: I=input, O=output, I/O=input/output, bidirectional.
+
+Table 31-2 SPI1 interface description
+Module Pin
+
+Directio
+n
+
+spi_sclk
+
+I/O
+
+spi_mosi
+
+I
+
+spi_miso
+
+O
+
+spi_csn0
+
+I/O
+
+Pin Name
+IOMUX0
+GMAC0_TXEN/I2S2_LRCK_M0/I2C2_
+SDA_M1/UART1_RTSN_M0/SPI1_CL
+K_M0/GPIO2_C0_d
+GMAC0_RXD1/I2C6_SDA_M2/UART9
+_TX_M0/SPI1_MOSI_M0/GPIO2_C2_
+d
+GMAC0_RXD0/I2C2_SCL_M1/UART1
+_CTSN_M0/SPI1_MISO_M0/GPIO2_
+C1_d
+ETH0_REFCLKO_25M/I2S2_SDI_M0/
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+IOMUX Setting
+
+BUS_IOC_GPIO2C_IOMU
+X_SEL_L[3:0] = 4’h8
+BUS_IOC_GPIO2C_IOMU
+X_SEL_L[11:8] = 4’h8
+BUS_IOC_GPIO2C_IOMU
+X_SEL_L[7:4] = 4’h8
+BUS_IOC_GPIO2C_IOMU
+
+1941
+
+RKRK3588 TRM-Part1
+
+spi_csn1
+
+O
+
+spi_sclk
+
+I/O
+
+spi_mosi
+
+I
+
+spi_miso
+
+O
+
+spi_csn0
+
+I/O
+
+spi_csn1
+
+O
+
+spi_sclk
+
+I/O
+
+spi_mosi
+
+I
+
+spi_miso
+
+O
+
+spi_csn0
+
+I/O
+
+spi_csn1
+
+O
+
+Module Pin
+
+Directon
+
+spi_sclk
+
+I/O
+
+spi_mosi
+
+I
+
+spi_miso
+
+O
+
+spi_csn0
+
+I/O
+
+spi_csn1
+
+O
+
+I2C6_SCL_M2/SPI1_CS0_M0/GPIO2
+_C3_d
+GMAC0_PPSCLK/TEST_CLKOUT_M1/
+HDMI_TX1_CEC_M0/UART9_RX_M0/
+SPI1_CS1_M0/GPIO2_C4_d
+
+X_SEL_L[15:12] = 4’h8
+BUS_IOC_GPIO2C_IOMU
+X_SEL_H[3:0] = 4’h8
+
+IOMUX1
+
+GMAC1_PPSCLK/PCIE30X2_BUTTON
+_RSTN/UART7_RX_M1/SPI1_CLK_M
+1/GPIO3_C1_d
+GMAC1_PTP_REF_CLK/HDMI_TX1_H
+PD_M1/I2C3_SCL_M1/SPI1_MOSI_M
+1/GPIO3_B7_d
+GMAC1_PPSTRIG/I2C3_SDA_M1/UA
+RT7_TX_M1/SPI1_MISO_M1/GPIO3_
+C0_d
+GMAC1_MDC/MIPI_TE0/I2C8_SCL_M
+4/UART7_RTSN_M1/PWM14_M0/SPI
+1_CS0_M1/GPIO3_C2_d
+GMAC1_MDIO/MIPI_TE1/I2C8_SDA_
+M4/UART7_CTSN_M1/PWM15_IR_M0
+/SPI1_CS1_M1/GPIO3_C3_d
+
+BUS_IOC_GPIO3C_IOMU
+X_SEL_L[7:4] = 4’h8
+BUS_IOC_GPIO3B_IOMU
+X_SEL_H[15:12] = 4’h8
+BUS_IOC_GPIO3C_IOMU
+X_SEL_L[3:0] = 4’h8
+BUS_IOC_GPIO3C_IOMU
+X_SEL_L[11:8] = 4’h8
+BUS_IOC_GPIO3C_IOMU
+X_SEL_L[15:12] = 4’h8
+
+IOMUX2
+
+I2S0_SDO3/I2S0_SDI2/PDM0_SDI2
+_M0/I2C1_SCL_M4/UART4_TX_M0/P
+WM0_M1/SPI1_CLK_M2/GPIO1_D2_
+d
+I2S0_SDO2/I2S0_SDI3/PDM0_SDI1
+_M0/I2C7_SDA_M0/UART6_RX_M2/
+SPI1_MOSI_M2/GPIO1_D1_d
+I2S0_SDO1/I2C7_SCL_M0/UART6_T
+X_M2/SPI1_MISO_M2/GPIO1_D0_d
+I2S0_SDI1/PDM0_SDI3_M0/I2C1_S
+DA_M4/UART4_RX_M0/PWM1_M1/S
+PI1_CS0_M2/GPIO1_D3_d
+PDM0_SDI0_M0/SPI1_CS1_M2/GPIO
+1_D5_d
+Table 31-3 SPI2 interface description
+Pin Name
+IOMUX0
+HDMI_TX1_HPD_M0/SPI2_CLK_M0/
+GPIO1_A6_d
+HDMI_TX0_HPD_M0/SPI2_MOSI_M0
+/GPIO1_A5_d
+HDMI_TX1_SCL_M2/SPI2_MISO_M0
+/GPIO1_A4_d
+PDM1_SDI0_M1/PCIE30X1_1_PERST
+N_M2/PWM3_IR_M3/SPI2_CS0_M0/
+GPIO1_A7_u
+PDM1_SDI1_M1/PCIE30X4_CLKREQ
+N_M3/SPI2_CS1_M0/GPIO1_B0_u
+
+BUS_IOC_GPIO1D_IOMU
+X_SEL_L[11:8] = 4’h8
+BUS_IOC_GPIO1D_IOMU
+X_SEL_L[7:4] = 4’h8
+BUS_IOC_GPIO1D_IOMU
+X_SEL_L[3:0] = 4’h8
+BUS_IOC_GPIO1D_IOMU
+X_SEL_L[15:12] = 4’h8
+BUS_IOC_GPIO1D_IOMU
+X_SEL_H[7:4] = 4’h8
+IOMUX Setting
+BUS_IOC_GPIO1A_IOMU
+X_SEL_H[11:8] = 4’h8
+BUS_IOC_GPIO1A_IOMU
+X_SEL_H[7:4] = 4’h8
+BUS_IOC_GPIO1A_IOMU
+X_SEL_H[3:0] = 4’h8
+BUS_IOC_GPIO1A_IOMU
+X_SEL_H[15:12] = 4’h8
+BUS_IOC_GPIO1B_IOMU
+X_SEL_L[3:0] = 4’h8
+
+IOMUX1
+
+spi_sclk
+
+I/O
+
+CIF_D6/BT1120_D6/I2S1_SDI1_M0/
+PCIE30X2_CLKREQN_M1/I2C5_SCL_
+M2/UART3_RX_M2/SPI2_CLK_M1/GP
+IO4_A6_d
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+BUS_IOC_GPIO4A_IOMU
+X_SEL_H[11:8] = 4’h8
+
+1942
+
+RKRK3588 TRM-Part1
+spi_mosi
+
+I
+
+spi_miso
+
+O
+
+spi_csn0
+
+I/O
+
+spi_csn1
+
+O
+
+CIF_D5/BT1120_D5/I2S1_SDI0_M0/
+PCIE30X1_0_PERSTN_M1/I2C3_SDA
+_M2/UART3_TX_M2/SPI2_MOSI_M1/
+GPIO4_A5_d
+CIF_D4/BT1120_D4/PCIE30X1_0_W
+AKEN_M1/I2C3_SCL_M2/UART0_RX
+_M2/SPI2_MISO_M1/GPIO4_A4_d
+CIF_D7/BT1120_D7/I2S1_SDI2_M0/
+PCIE30X2_WAKEN_M1/I2C5_SDA_M
+2/SPI2_CS0_M1/GPIO4_A7_d
+CIF_CLKIN/BT1120_CLKOUT/I2S1_S
+DI3_M0/PCIE30X2_PERSTN_M1/I2C
+6_SDA_M3/UART8_TX_M0/SPI2_CS
+1_M1/GPIO4_B0_d
+
+BUS_IOC_GPIO4A_IOMU
+X_SEL_H[7:4] = 4’h8
+BUS_IOC_GPIO4A_IOMU
+X_SEL_H[3:0] = 4’h8
+BUS_IOC_GPIO4A_IOMU
+X_SEL_H[15:12] = 4’h8
+BUS_IOC_GPIO4B_IOMU
+X_SEL_L[3:0] = 4’h8
+
+IOMUX2
+
+spi_sclk
+
+I/O
+
+spi_mosi
+
+I
+
+spi_miso
+
+O
+
+spi_csn0
+
+I/O
+
+spi_csn1
+
+O
+
+Module Pin
+
+Direction
+
+spi_sclk
+
+I/O
+
+spi_mosi
+
+I
+
+spi_miso
+
+O
+
+spi_csn0
+
+I/O
+
+spi_csn1
+
+O
+
+spi_sclk
+
+I/O
+
+spi_mosi
+
+I
+
+spi_miso
+
+O
+
+SPI2_CLK_M2/SDMMC_PWREN/PMU
+_DEBUG/GPIO0_A5_d
+SPI2_MOSI_M2/I2C0_SDA_M0/GPIO
+0_A6_z
+SPI2_MISO_M2/I2C0_SCL_M0/GPIO
+0_B3_z
+SPI2_CS0_M2/I2C1_SDA_M1/PWM5
+_M0/UART0_TX_M1/GPIO0_B1_z
+SPI2_CS1_M2/I2C1_SCL_M1/UART0
+_RX_M1/GPIO0_B0_z
+
+PMU0_IOC_GPIO0A_IOM
+UX_SEL_H[7:4] = 4’h1
+PMU0_IOC_GPIO0A_IOM
+UX_SEL_H[11:8] = 4’h1
+PMU0_IOC_GPIO0B_IOM
+UX_SEL_L[15:12] = 4’h1
+PMU0_IOC_GPIO0B_IOM
+UX_SEL_L[7:4] = 4’h1
+PMU0_IOC_GPIO0B_IOM
+UX_SEL_L[3:0] = 4’h1
+
+Table 31-4 SPI3 interface description
+Pin Name
+IOMUX0
+
+GMAC0_TXER/I2C0_SDA_M1/UART7
+_CTSN_M0/PWM7_IR_M3/SPI3_CLK
+_M0/GPIO4_C6_d
+GMAC0_MDIO/I2C0_SCL_M1/UART9
+_CTSN_M0/PWM6_M2/SPI3_MOSI_M
+0/GPIO4_C5_d
+GMAC0_MDC/I2C7_SDA_M1/UART9_
+RTSN_M0/PWM5_M2/SPI3_MISO_M0
+/GPIO4_C4_d
+GMAC0_RXDV_CRS/UART7_RTSN_M
+0/PWM2_M2/SPI3_CS0_M0/GPIO4_
+C2_d
+GMAC0_MCLKINOUT/I2S2_SDO_M0/
+I2C7_SCL_M1/PWM4_M1/SPI3_CS1_
+M0/GPIO4_C3_d
+
+IOMUX Setting
+
+BUS_IOC_GPIO4C_IOMU
+X_SEL_H[11:8] = 4’h8
+BUS_IOC_GPIO4C_IOMU
+X_SEL_H[7:4] = 4’h8
+BUS_IOC_GPIO4C_IOMU
+X_SEL_H[3:0] = 4’h8
+BUS_IOC_GPIO4C_IOMU
+X_SEL_L[11:8] = 4’h8
+BUS_IOC_GPIO4C_IOMU
+X_SEL_L[15:12] = 4’h8
+
+IOMUX1
+
+spi_csn0
+
+I/O
+
+BT1120_D13/PCIE20X1_2_CLKREQN
+_M1/HDMI_TX0_SCL_M0/I2C5_SDA
+_M1/SPI3_CLK_M1/GPIO4_B7_u
+BT1120_D12/PCIE30X4_PERSTN_M1
+/HDMI_RX_HPDOUT_M0/SATA0_ACT
+_LED_M0/I2C5_SCL_M1/PWM13_M1
+/SPI3_MOSI_M1/GPIO4_B6_d
+BT1120_D11/PCIE30X4_WAKEN_M1/
+HDMI_RX_CEC_M0/SATA1_ACT_LED
+_M0/UART9_RX_M1/PWM12_M1/SPI
+3_MISO_M1/GPIO4_B5_d
+BT1120_D14/PCIE20X1_2_WAKEN_
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+BUS_IOC_GPIO4B_IOMU
+X_SEL_H[15:12] = 4’h8
+BUS_IOC_GPIO4B_IOMU
+X_SEL_H[11:8] = 4’h8
+BUS_IOC_GPIO4B_IOMU
+X_SEL_H[7:4] = 4’h8
+BUS_IOC_GPIO4C_IOMU
+1943
+
+RKRK3588 TRM-Part1
+M1/HDMI_TX0_SDA_M0/I2C8_SCL_
+M3/SPI3_CS0_M1/GPIO4_C0_u
+BT1120_D15/SPDIF1_TX_M2/PCIE20
+X1_2_PERSTN_M1/HDMI_TX0_CEC_
+M0/I2C8_SDA_M3/PWM6_M1/SPI3_
+CS1_M1/GPIO4_C1_d
+
+spi_csn1
+
+O
+
+spi_sclk
+
+I/O
+
+spi_mosi
+
+I
+
+spi_miso
+
+O
+
+spi_csn0
+
+I/O
+
+spi_csn1
+
+O
+
+spi_sclk
+
+I/O
+
+spi_mosi
+
+I
+
+spi_miso
+
+O
+
+spi_csn0
+
+I/O
+
+spi_csn1
+
+O
+
+X_SEL_L[3:0] = 4’h8
+BUS_IOC_GPIO4C_IOMU
+X_SEL_L[7:4] = 4’h8
+
+IOMUX2
+
+LITCPU_AVS/SPI3_CLK_M2/GPIO0_
+D3_u
+I2S1_SDO1_M1/I2C0_SDA_M2/UAR
+T1_RX_M2/HDMI_RX_SCL_M0/SPI3_
+MOSI_M2/PCIE30X2_WAKEN_M0/HD
+MI_TX1_CEC_M1/GPIO0_D2_u
+I2S1_SDI3_M1/PDM0_SDI1_M1/I2C
+6_SCL_M0/UART1_CTSN_M2/PWM7_
+IR_M0/SPI3_MISO_M2/PCIE30X4_PE
+RSTN_M0/GPIO0_D0_d
+I2S1_SDO2_M1/PDM0_SDI2_M1/PW
+M3_IR_M0/I2C1_SCL_M2/CAN2_RX_
+M1/HDMI_TX0_SDA_M1/SPI3_CS0_
+M2/PCIE30X2_PERSTN_M0/SATA_CP
+DET/GPIO0_D4_u
+I2S1_SDO3_M1/CPU_BIG1_AVS/I2C
+1_SDA_M2/CAN2_TX_M1/HDMI_TX0
+_SCL_M1/SPI3_CS1_M2/SATA_MP_S
+WITCH/GPIO0_D5_u
+
+BUS_IOC_GPIO0D_IOMU
+X_SEL_L[15:12] = 4’h8
+PMU2_IOC_GPIO0D_IOM
+UX_SEL_L[15:12] = 4’h8
+BUS_IOC_GPIO0D_IOMU
+X_SEL_L[11:8] = 4’h8
+PMU2_IOC_GPIO0D_IOM
+UX_SEL_L[11:8] = 4’h8
+BUS_IOC_GPIO0D_IOMU
+X_SEL_L[3:0] = 4’h8
+BUS_IOC_GPIO0D_IOMU
+X_SEL_H[3:0] = 4’h8
+PMU2_IOC_GPIO0D_IOM
+UX_SEL_H[3:0] = 4’h8
+BUS_IOC_GPIO0D_IOMU
+X_SEL_H[7:4] = 4’h8
+PMU2_IOC_GPIO0D_IOM
+UX_SEL_H[7:4] = 4’h8
+
+IOMUX3
+
+CIF_D12/PCIE20X1_2_WAKEN_M0/H
+DMI_TX0_SDA_M2/I2C5_SDA_M0/U
+ART4_RX_M1/PWM8_M2/SPI3_CLK_
+M3/GPIO3_D0_u
+CIF_D11/PCIE20X1_2_CLKREQN_M0
+/HDMI_TX0_SCL_M2/I2C5_SCL_M0/
+SPI3_MOSI_M3/GPIO3_C7_u
+CIF_D10/PCIE30X4_PERSTN_M2/HD
+MI_TX1_SCL_M1/SPI3_MISO_M3/GP
+IO3_C6_u
+CIF_D8/FSPI_CS0N_M2/PCIE30X4_C
+LKREQN_M2/HDMI_TX1_CEC_M2/CA
+N2_RX_M0/UART5_TX_M1/SPI3_CS0
+_M3/GPIO3_C4_u
+CIF_D9/FSPI_CS1N_M2/PCIE30X4_
+WAKEN_M2/HDMI_TX1_SDA_M1/CA
+N2_TX_M0/UART5_RX_M1/SPI3_CS1
+_M3/GPIO3_C5_u
+
+BUS_IOC_GPIO3D_IOMU
+X_SEL_L[3:0] = 4’h8
+BUS_IOC_GPIO3C_IOMU
+X_SEL_H[15:12] = 4’h8
+BUS_IOC_GPIO3C_IOMU
+X_SEL_H[11:8] = 4’h8
+BUS_IOC_GPIO3C_IOMU
+X_SEL_H[3:0] = 4’h8
+BUS_IOC_GPIO3C_IOMU
+X_SEL_H[7:4] = 4’h8
+
+Table 31-5 SPI4 interface description
+Module Pin
+
+Dir
+
+Pin Name
+
+IOMUX Setting
+
+IOMUX0
+
+spi_sclk
+
+I/O
+
+spi_mosi
+
+I
+
+spi_miso
+
+O
+
+I2S0_MCLK/I2C6_SDA_M1/UART3_R
+TSN/PWM3_IR_M2/SPI4_CLK_M0/GPI
+O1_C2__d
+I2C3_SCL_M0/UART3_TX_M0/SPI4_M
+OSI_M0/GPIO1_C1_z
+I2C3_SDA_M0/UART3_RX_M0/SPI4_
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+BUS_IOC_GPIO1C_IOMU
+X_SEL_L[11:8] = 4’h8
+BUS_IOC_GPIO1C_IOMU
+X_SEL_L[7:4] = 4’h8
+BUS_IOC_GPIO1C_IOMU
+1944
+
+RKRK3588 TRM-Part1
+
+spi_csn0
+
+I/O
+
+spi_csn1
+
+O
+
+spi_sclk
+
+I/O
+
+spi_mosi
+
+I
+
+spi_miso
+
+O
+
+spi_csn0
+
+I/O
+
+spi_csn1
+
+O
+
+spi_sclk
+
+I/O
+
+spi_mosi
+
+I
+
+spi_miso
+
+O
+
+spi_csn0
+
+I/O
+
+MISO_M0/GPIO1_C0_z
+I2S0_SCLK/I2C6_SCL_M1/UART3_CT
+SN/PWM7_IR_M2/SPI4_CS0_M0/GPI
+O1_C3_d
+PDM0_CLK1_M0/PCIE30PHY_DTB0/I2
+C2_SDA_M3/PWM11_IR_M2/SPI4_CS
+1_M0/GPIO1_C4_d
+
+X_SEL_L[3:0] = 4’h8
+BUS_IOC_GPIO1C_IOMU
+X_SEL_L[15:12] = 4’h8
+BUS_IOC_GPIO1C_IOMU
+X_SEL_H[3:0] = 4’h8
+
+IOMUX1
+
+GMAC1_RXD2/SDIO_D2_M1/I2S3_LR
+CK/AUDDSM_LP/FSPI_D2_M2/UART8
+_TX_M1/SPI4_CLK_M1/GPIO3_A2_u
+GMAC1_TXD3/SDIO_D1_M1/I2S3_SC
+LK/AUDDSM_LN/FSPI_D1_M2/I2C6_S
+CL_M4/PWM11_IR_M0/SPI4_MOSI_M
+1/GPIO3_A1_u
+GMAC1_TXD2/SDIO_D0_M1/I2S3_M
+CLK/FSPI_D0_M2/I2C6_SDA_M4/PW
+M10_M0/SPI4_MISO_M1/GPIO3_A0_
+u
+GMAC1_RXD3/SDIO_D3_M1/I2S3_S
+DO/AUDDSM_RN/FSPI_D3_M2/UART
+8_RX_M1/SPI4_CS0_M1/GPIO3_A3_
+u
+GMAC1_TXCLK/SDIO_CMD_M1/I2S3_
+SDI/AUDDSM_RP/UART8_RTSN_M1/S
+PI4_CS1_M1/GPIO3_A4_d
+
+BUS_IOC_GPIO3A_IOMU
+X_SEL_L[11:8] = 4’h8
+BUS_IOC_GPIO3A_IOMU
+X_SEL_L[7:4] = 4’h8
+BUS_IOC_GPIO3A_IOMU
+X_SEL_L[3:0] = 4’h8
+BUS_IOC_GPIO3A_IOMU
+X_SEL_L[15:12] = 4’h8
+BUS_IOC_GPIO3A_IOMU
+X_SEL_H[3:0] = 4’h8
+
+IOMUX2
+
+VOP_POST_EMPTY/I2C4_SDA_M3/UA
+RT6_RTSN_M1/PWM0_M2/SPI4_CLK_
+M2/GPIO1_A2_d
+PCIE30X1_1_WAKEN_M2/DP1_HPDIN
+_M2/SATA1_ACT_LED_M1/I2C2_SCL_
+M4/UART6_TX_M1/SPI4_MOSI_M2/G
+PIO1_A1_d
+PCIE30X1_1_CLKREQN_M2/DP0_HPD
+IN_M2/HDMI_RX_DEBUG6/I2C2_SDA
+_M4/UART6_RX_M1/SPI4_MISO_M2/
+GPIO1_A0_d
+HDMI_TX1_SDA_M2/I2C4_SCL_M3/U
+ART6_CTSN_M1/PWM1_M2/SPI4_CS0
+_M2/GPIO1_A3_d
+
+BUS_IOC_GPIO1A_IOMU
+X_SEL_L[11:8] = 4’h8
+BUS_IOC_GPIO1A_IOMU
+X_SEL_L[7:4] = 4’h8
+BUS_IOC_GPIO1A_IOMU
+X_SEL_L[3:0] = 4’h8
+BUS_IOC_GPIO1A_IOMU
+X_SEL_L[15:12] = 4’h8
+
+31.6 Application Notes
+Clock Ratios
+A summary of the frequency ratio restrictions between the bit-rate clock (sclk_out/sclk_in)
+and the SPI peripheral clock (spi_clk) are described as:
+When SPI Controller works as master, the Fspi_clk>= 2 × (maximum Fsclk_out)
+When SPI Controller works as slave, the Fspi_clk>= 4 × (maximum Fsclk_in)
+Master Transfer Flow
+When configured as a serial-master device, the SPI initiates and controls all serial transfers.
+The serial bit-rate clock, generated and controlled by the SPI, is driven out on the sclk_out
+line. When the SPI is disabled (SPI_ENR = 0), no serial transfers can occur and sclk_out is
+held in “inactive” state, as defined by the serial protocol under which it operates.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1945
+
+RKRK3588 TRM-Part1
+Slave Transfer Flow
+When the SPI is configured as a slave device, all serial transfers are initiated and controlled
+by the serial bus master.
+When the SPI serial slave is selected during configuration, it enables its txd data onto the
+serial bus. All data transfers to and from the serial slave are regulated on the serial clock
+line (sclk_in), driven from the serial-master device. Data are propagated from the serial
+slave on one edge of the serial clock line and sampled on the opposite edge.
+IDLE
+
+Disable
+SPI
+
+Transmit Only
+
+Configure Master by writing
+CTRLR0.CTRLR1, BAUDR,
+TXFTLR, RXFTLR,IMR, SER
+Read Rx
+FIFO
+
+NO
+
+Enable
+SPI
+
+You may fill FIFO here:
+Transfer begins when first
+data word is present in the
+transmit FIFO and a slave
+is enabled.
+
+Write data to
+Tx FIFO
+
+If the transmit FIFO is
+requesting and all data
+have not been sent, then
+write data into transmit
+FIFO.
+If the receive FIFO is
+requesting, then read data
+from receive FIFO.
+YES
+Interrupt Service
+Routine
+
+Transfer in
+progress
+
+BUSY?
+
+NO
+
+Interrupt?
+
+YES
+
+Fig. 31-7 SPI Master transfer flow diagram
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1946
+
+RKRK3588 TRM-Part1
+
+IDLE
+
+Disable
+SPI
+
+Transmit Only
+
+Configure Master by writing
+CTRLR0.CTRLR1,
+TXFTLR, RXFTLR,IMR
+Read Rx
+FIFO
+
+NO
+
+Enable
+SPI
+
+Receive Only
+
+Wait for master
+to select slave
+
+Write data to
+Tx FIFO
+
+If the transmit FIFO is
+requesting and all data
+have not been sent, then
+write data into transmit
+FIFO.
+If the receive FIFO is
+requesting, then read data
+from receive FIFO.
+YES
+Interrupt Service
+Routine
+
+Transfer in
+progress
+
+BUSY?
+
+NO
+
+Interrupt?
+
+YES
+
+Fig. 31-8 SPI Slave transfer flow diagram
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1947
+
+RKRK3588 TRM-Part1
+

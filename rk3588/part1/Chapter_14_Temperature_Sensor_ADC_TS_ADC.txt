@@ -1,0 +1,2217 @@
+Chapter 14 Temperature-Sensor ADC (TS-ADC)
+14
+
+14.1 Overview
+TS-ADC Controller is used to control and get the temperature information. TS-ADC will
+convert for each enable channel in loop after initial setting and can be stopped by software.
+If you find that the temperature High in a period of time, an interrupt is generated to the
+processor down-measures taken; if the temperature over a period of time High, the resulting
+TSHUT gave CRU module, let it reset the entire chip, or via GPIO give PMIC. Also, if you find
+that the temperature Low in a period of time, an interrupt can be generated.
+TS-ADC Controller supports the following features:
+⚫
+Support to 7 channel TS-ADC (near chip center, A76_0/1, A76_2/3, DSU and
+A55_0/1/2/3, PD_CENTER, NPU, GPU)
+⚫
+The temperature for High and Low interrupt can be configurable
+⚫
+The temperature of system reset can be configurable
+⚫
+The time interval of temperature detection can be configurable
+⚫
+When detecting a high temperature, the time interval of temperature detection can be
+configurable
+⚫
+High temperature debounce can be configurable
+⚫
+An interrupt can be generated after TS-ADC converts all setting channel
+⚫
+-40~125°C temperature range and 1°C temperature resolution
+
+14.2 Block Diagram
+TS-ADC controller comprises with:
+⚫
+APB Interface
+⚫
+TS-ADC control logic
+
+Fig. 14-1 TS-ADC Controller Block Diagram
+
+14.3 Function Description
+14.3.1 APB Interface
+
+There is an APB Slave interface in TS-ADC Controller, which is used to configure the TS-ADC
+Controller registers and look up the temperature from the temperature sensor.
+
+14.3.2 TS-ADC Controller
+
+This block is used to control the TS-ADC PHY to meet the conversion timing and receive the
+temperature information from TS-ADC PHY.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1372
+
+RK3588 TRM-Part1
+
+14.4 Register Description
+14.4.1 Registers Summary
+Name
+
+Offset
+
+Size
+
+TSADC_USER_CON
+TSADC_AUTO_CON
+TSADC_AUTO_STATUS
+
+0x0000
+0x0004
+0x0008
+
+W
+W
+W
+
+TSADC_AUTO_SRC
+
+0x000C
+
+W
+
+TSADC_LT_EN
+
+0x0010
+
+W
+
+TSADC_HT_INT_EN
+
+0x0014
+
+W
+
+TSADC_GPIO_EN
+
+0x0018
+
+W
+
+TSADC_CRU_EN
+
+0x001C
+
+W
+
+TSADC_LT_INT_EN
+
+0x0020
+
+W
+
+TSADC_HLT_INT_PD
+
+0x0024
+
+W
+
+TSADC_EOC_HSHUT_PD
+
+0x0028
+
+W
+
+TSADC_DATA0
+TSADC_DATA1
+TSADC_DATA2
+TSADC_DATA3
+TSADC_DATA4
+TSADC_DATA5
+TSADC_DATA6
+TSADC_DATA7
+TSADC_DATA8
+TSADC_DATA9
+TSADC_DATA10
+TSADC_DATA11
+TSADC_DATA12
+TSADC_DATA13
+TSADC_DATA14
+TSADC_DATA15
+
+0x002C
+0x0030
+0x0034
+0x0038
+0x003C
+0x0040
+0x0044
+0x0048
+0x004C
+0x0050
+0x0054
+0x0058
+0x005C
+0x0060
+0x0064
+0x0068
+
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+
+TSADC_COMP0_INT
+
+0x006C
+
+W
+
+TSADC_COMP1_INT
+
+0x0070
+
+W
+
+TSADC_COMP2_INT
+
+0x0074
+
+W
+
+TSADC_COMP3_INT
+
+0x0078
+
+W
+
+TSADC_COMP4_INT
+
+0x007C
+
+W
+
+TSADC_COMP5_INT
+
+0x0080
+
+W
+
+TSADC_COMP6_INT
+
+0x0084
+
+W
+
+TSADC_COMP7_INT
+
+0x0088
+
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Reset
+Description
+Value
+0x00000000 User control
+0x00000000 Auto control
+0x00000000 Status used in auto mode
+Channel select for TSADC in auto
+0x00000000
+mode
+Low temperature check logic
+0x00000000
+enable
+0x00000000 High temperature interrupt enable
+Temperature violation to gpio
+0x00000000
+enable
+Temperature violation to cru
+0x00000000
+enable
+0x00000000 Low temperature interrupt enable
+High and low temperature
+0x00000000
+interrupt status
+High temperature shut and round
+0x00000000
+int status
+0x00000000 Channel0 data
+0x00000000 Channel1 data
+0x00000000 Channel2 data
+0x00000000 Channel3 data
+0x00000000 Channel4 data
+0x00000000 Channel5 data
+0x00000000 Channel6 data
+0x00000000 Channel7 data
+0x00000000 Channel8 data
+0x00000000 Channel9 data
+0x00000000 Channel10 data
+0x00000000 Channel11 data
+0x00000000 Channel12 data
+0x00000000 Channel13 data
+0x00000000 Channel14 data
+0x00000000 Channel15 data
+High temperature interrupt
+0x00000000
+threshold for channel0
+High temperature interrupt
+0x00000000
+threshold for channel1
+High temperature interrupt
+0x00000000
+threshold for channel2
+High temperature interrupt
+0x00000000
+threshold for channel3
+High temperature interrupt
+0x00000000
+threshold for channel4
+High temperature interrupt
+0x00000000
+threshold for channel5
+High temperature interrupt
+0x00000000
+threshold for channel6
+High temperature interrupt
+0x00000000
+threshold for channel7
+
+1373
+
+RK3588 TRM-Part1
+Name
+
+Offset
+
+Size
+
+Reset
+Value
+0x00000000
+
+TSADC_COMP8_INT
+
+0x008C
+
+W
+
+TSADC_COMP9_INT
+
+0x0090
+
+W
+
+TSADC_COMP10_INT
+
+0x0094
+
+W
+
+TSADC_COMP11_INT
+
+0x0098
+
+W
+
+TSADC_COMP12_INT
+
+0x009C
+
+W
+
+TSADC_COMP13_INT
+
+0x0100
+
+W
+
+TSADC_COMP14_INT
+
+0x0104
+
+W
+
+TSADC_COMP15_INT
+
+0x0108
+
+W
+
+TSADC_COMP0_SHUT
+
+0x010C
+
+W
+
+TSADC_COMP1_SHUT
+
+0x0110
+
+W
+
+TSADC_COMP2_SHUT
+
+0x0114
+
+W
+
+TSADC_COMP3_SHUT
+
+0x0118
+
+W
+
+TSADC_COMP4_SHUT
+
+0x011C
+
+W
+
+TSADC_COMP5_SHUT
+
+0x0120
+
+W
+
+TSADC_COMP6_SHUT
+
+0x0124
+
+W
+
+TSADC_COMP7_SHUT
+
+0x0128
+
+W
+
+TSADC_COMP8_SHUT
+
+0x012C
+
+W
+
+TSADC_COMP9_SHUT
+
+0x0130
+
+W
+
+TSADC_COMP10_SHUT
+
+0x0134
+
+W
+
+TSADC_COMP11_SHUT
+
+0x0138
+
+W
+
+TSADC_COMP12_SHUT
+
+0x013C
+
+W
+
+TSADC_COMP13_SHUT
+
+0x0140
+
+W
+
+TSADC_COMP14_SHUT
+
+0x0144
+
+W
+
+TSADC_COMP15_SHUT
+
+0x0148
+
+W
+
+TSADC_HIGH_INT_DEBO
+0x014C
+UNCE
+TSADC_HIGHT_TSHUT_D
+0x0150
+EBOUNCE
+TSADC_AUTO_PERIOD
+0x0154
+
+Description
+
+High temperature interrupt
+threshold for channel8
+High temperature interrupt
+0x00000000
+threshold for channel9
+High temperature interrupt
+0x00000000
+threshold for channel10
+High temperature interrupt
+0x00000000
+threshold for channel11
+High temperature interrupt
+0x00000000
+threshold for channel12
+High temperature interrupt
+0x00000000
+threshold for channel13
+High temperature interrupt
+0x00000000
+threshold for channel14
+High temperature interrupt
+0x00000000
+threshold for channel15
+High temperature shut threshold
+0x00000000
+for channel0
+High temperature shut threshold
+0x00000000
+for channel1
+High temperature shut threshold
+0x00000000
+for channel2
+High temperature shut threshold
+0x00000000
+for channel3
+High temperature shut threshold
+0x00000000
+for channel4
+High temperature shut threshold
+0x00000000
+for channel5
+High temperature shut threshold
+0x00000000
+for channel6
+High temperature shut threshold
+0x00000000
+for channel7
+High temperature shut threshold
+0x00000000
+for channel8
+High temperature shut threshold
+0x00000000
+for channel9
+High temperature shut threshold
+0x00000000
+for channel10
+High temperature shut threshold
+0x00000000
+for channel11
+High temperature shut threshold
+0x00000000
+for channel12
+High temperature shut threshold
+0x00000000
+for channel13
+High temperature shut threshold
+0x00000000
+for channel14
+High temperature shut threshold
+0x00000000
+for channel15
+
+W
+
+0x00000003 High interrupt debounce
+
+W
+
+0x00000003 High shut debounce
+
+W
+
+0x00010000 Auto conversion period
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1374
+
+RK3588 TRM-Part1
+Size
+
+Reset
+Value
+
+TSADC_AUTO_PERIOD_H
+0x0158
+T
+
+W
+
+0x00010000
+
+TSADC_COMP0_LOW_INT 0x015C
+
+W
+
+TSADC_COMP1_LOW_INT 0x0160
+
+W
+
+TSADC_COMP2_LOW_INT 0x0164
+
+W
+
+TSADC_COMP3_LOW_INT 0x0168
+
+W
+
+TSADC_COMP4_LOW_INT 0x016C
+
+W
+
+TSADC_COMP5_LOW_INT 0x0170
+
+W
+
+TSADC_COMP6_LOW_INT 0x0174
+
+W
+
+TSADC_COMP7_LOW_INT 0x0178
+
+W
+
+TSADC_COMP8_LOW_INT 0x017C
+
+W
+
+TSADC_COMP9_LOW_INT 0x0180
+
+W
+
+Name
+
+TSADC_COMP10_LOW_IN
+T
+TSADC_COMP11_LOW_IN
+T
+TSADC_COMP12_LOW_IN
+T
+TSADC_COMP13_LOW_IN
+T
+TSADC_COMP14_LOW_IN
+T
+TSADC_COMP15_LOW_IN
+T
+TSADC_T_SETUP
+TSADC_T_PW_EN
+TSADC_T_EN_CLK
+TSADC_T_NON_OV
+TSADC_T_HOLD
+TSADC_Q_MAX
+TSADC_STATIC_CON
+TSADC_FLOW_CON
+TSADC_CLK_CH_PERIOD
+TSADC_T_PW_CLK
+
+Offset
+
+0x0184
+
+W
+
+0x0188
+
+W
+
+0x018C
+
+W
+
+0x0190
+
+W
+
+0x0194
+
+W
+
+0x0198
+
+W
+
+0x019C
+0x0200
+0x0204
+0x0208
+0x020C
+0x0210
+0x0214
+0x0218
+0x021C
+0x0220
+
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+
+Description
+
+Auto conversion period for high
+temperature
+Low temperature threshold for
+0x00000000
+channel0
+Low temperature threshold for
+0x00000000
+channel1
+Low temperature threshold for
+0x00000000
+channel2
+Low temperature threshold for
+0x00000000
+channel3
+Low temperature threshold for
+0x00000000
+channel4
+Low temperature threshold for
+0x00000000
+channel5
+Low temperature threshold for
+0x00000000
+channel6
+Low temperature threshold for
+0x00000000
+channel7
+Low temperature threshold for
+0x00000000
+channel8
+Low temperature threshold for
+0x00000000
+channel9
+Low temperature threshold for
+0x00000000
+channel10
+Low temperature threshold for
+0x00000000
+channel11
+Low temperature threshold for
+0x00000000
+channel12
+Low temperature threshold for
+0x00000000
+channel13
+Low temperature threshold for
+0x00000000
+channel14
+Low temperature threshold for
+0x00000000
+channel15
+0x0000002F Timing for setup
+0x00000027 Timing for pw_en
+0x00000001 Timing for en_clk
+0x00000002 Timing for non_ov
+0x00000013 Timing for hold
+0x00000200 Max data used for data inversion
+0x0280001B Static control signal
+0x00000000 Flow control
+0x0000012B CLK_CH_TS period control
+0x00000030 Timing for pw_clk
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+14.4.2 Detail Register Description
+
+TSADC_USER_CON
+Address: Operational Base + offset (0x0000)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1375
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:16 WO 0x0000
+15:9
+
+RO
+
+0x00
+
+8
+
+RO
+
+0x0
+
+7
+
+R/W
+0x0
+SC
+
+6
+
+RW 0x0
+
+5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+3:0
+
+RW 0x0
+
+Description
+write_enable
+Write enable for lower 16bits, each bit is individual.
+1'b1: Write access enable
+1'b0: Write access disable
+reserved
+adc_status
+1'b0: ADC stop
+1'b1: Conversion in progress
+start
+When software writes 1 to this bit, start-of-conversion will be
+asserted.
+This bit will be cleared after TSADC access finishing.
+Only when TSADC_USER_CON[5] = 1'b1, this bit takes effect.
+eoc_inten
+Enable eoc interrupt for each conversion.
+1'b1: Enable
+1'b0: Disable
+start_mode
+Start mode.
+1'b0: TSADC controller will assert start_of_conversion after
+power up.
+1'b1: The start_of_conversion will be controlled by
+TSADC_USER_CON[7].
+power_control
+ADC power control
+1'b0: power down
+1'b1: power up
+This bit is not enable when TSADC_AUTO_CON[0] is set to 1.
+input_src_sel
+ADC input source select in user mode.
+Can be changed from 0 - 6.
+
+TSADC_AUTO_CON
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+write_enable
+Write enable for lower 16bits, each bit is individual.
+31:16 WO 0x0000
+1'b1: Write access enable
+1'b0: Write access disable
+15:9 RO 0x00
+reserved
+tshut_polarity
+This bit is used to control the output signal polarity to GPIO when
+8
+RW 0x0
+the temperature is higher than threshold.
+1'b0: Low active
+1'b1: High active
+7:3
+RO 0x00
+reserved
+round_int_en
+Int enable for round mode. Used for auto mode all channel set is
+2
+RW 0x0
+sampled.
+1'b1: Enable
+1'b0: Disable
+q_sel
+1'b0: Use tsadc_q as output (positive temperature coefficient)
+1
+RW 0x0
+1'b1: Use (q_max - tsadc_q) as output (negative temperature
+coefficient)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1376
+
+RK3588 TRM-Part1
+Bit
+0
+
+Attr Reset Value
+RW 0x0
+
+Description
+auto_en
+Auto conversion enable
+1'b0: TSADC controller works at user-define mode
+1'b1: TSADC controller works at auto mode
+
+TSADC_AUTO_STATUS
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+ht_wram
+High temperature status
+3
+RW 0x0
+1'b0: TSADC data is not higher than ht shut temperature
+1'b1: TSADC data is higher than ht shut temperature
+auto_status
+TSADC auto mode status
+2
+RW 0x0
+1'b0: Auto mode stop
+1'b1: Auto mode in progress
+W0
+last_tshut_cru
+1
+0x0
+C
+Status for cru reset latest tshut, write 1 to clear.
+W1
+last_tshut_gpio
+0
+0x0
+C
+Status for gpio latest tshut, write 1 to clear.
+TSADC_AUTO_SRC
+Address: Operational Base + offset (0x000C)
+Bit Attr Reset Value
+Description
+write_enable
+Write enable for lower 16bits, each bit is individual.
+31:16 WO 0x0000
+1'b1: Write access enable
+1'b0: Write access disable
+auto_src
+15:0 RW 0x0000
+Enable channel for TSADC in auto mode. Each bit can enable for
+one channel from 0 - 6.
+TSADC_LT_EN
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+Description
+write_enable
+Write enable for lower 16bits, each bit is individual.
+31:16 WO 0x0000
+1'b1: Write access enable
+1'b0: Write access disable
+low_temperature_vio_en
+Low temperature violation logic enable, each bit enables one
+15:0 RW 0x0000
+channel.
+1'b1: Enable
+1'b0: Disable
+TSADC_HT_INT_EN
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+Description
+write_enable
+Write enable for lower 16bits, each bit is individual.
+31:16 WO 0x0000
+1'b1: Write access enable
+1'b0: Write access disable
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1377
+
+RK3588 TRM-Part1
+Bit
+15:0
+
+Attr Reset Value
+RW 0x0000
+
+Description
+high_temperature_int_en
+High temperature interrupt enable, each bit enables one channel.
+1'b1: Enable
+1'b0: Disable
+
+TSADC_GPIO_EN
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+Description
+write_enable
+Write enable for lower 16bits, each bit is individual.
+31:16 WO 0x0000
+1'b1: Write access enable
+1'b0: Write access disable
+gpio_en
+Temperature violation to gpio enable, each bit enables one
+15:0 RW 0x0000
+channel.
+1'b1: Enable
+1'b0: Disable
+TSADC_CRU_EN
+Address: Operational Base + offset (0x001C)
+Bit Attr Reset Value
+Description
+write_enable
+Write enable for lower 16bits, each bit is individual.
+31:16 WO 0x0000
+1'b1: Write access enable
+1'b0: Write access disable
+cru_en
+Temperature violation to cru reset enable, each bit enables one
+15:0 RW 0x0000
+channel.
+1'b1: Enable
+1'b0: Disable
+TSADC_LT_INT_EN
+Address: Operational Base + offset (0x0020)
+Bit Attr Reset Value
+Description
+write_enable
+Write enable for lower 16bits, each bit is individual.
+31:16 WO 0x0000
+1'b1: Write access enable
+1'b0: Write access disable
+low_Temperature_int_en
+Low temperature interrupt enable, each bit enables one channel.
+15:0 RW 0x0000
+1'b1: Enable
+1'b0: Disable
+TSADC_HLT_INT_PD
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+Description
+W1
+lt_int_status
+31:16
+0x0000
+C
+Low temperature interrupt status for each channel.
+W1
+ht_int_status
+15:0
+0x0000
+C
+High temperature interrupt status for each channel.
+TSADC_EOC_HSHUT_PD
+Address: Operational Base + offset (0x0028)
+Bit Attr Reset Value
+31:18 RO 0x0000
+reserved
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1378
+
+RK3588 TRM-Part1
+Bit
+17
+16
+15:0
+
+Attr Reset Value
+Description
+W1
+round_int_pd
+0x0
+C
+Auto mode interrupt for each round of all set channel.
+W1
+usr_eoc_irq_pd
+0x0
+C
+User mode end interrupt status.
+W1
+ht_shut_pd
+0x0000
+C
+High temperature shut down status for each channel.
+
+TSADC_DATA0
+Address: Operational Base + offset (0x002C)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+adc_data
+11:0 RO 0x000
+A/D value of the channel 0 last conversion.
+TSADC_DATA1
+Address: Operational Base + offset (0x0030)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+adc_data
+11:0 RO 0x000
+A/D value of the channel 1 last conversion.
+TSADC_DATA2
+Address: Operational Base + offset (0x0034)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+adc_data
+11:0 RO 0x000
+A/D value of the channel 2 last conversion.
+TSADC_DATA3
+Address: Operational Base + offset (0x0038)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+adc_data
+11:0 RO 0x000
+A/D value of the channel 3 last conversion.
+TSADC_DATA4
+Address: Operational Base + offset (0x003C)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+adc_data
+11:0 RO 0x000
+A/D value of the channel 4 last conversion.
+TSADC_DATA5
+Address: Operational Base + offset (0x0040)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+adc_data
+11:0 RO 0x000
+A/D value of the channel 5 last conversion.
+TSADC_DATA6
+Address: Operational Base + offset (0x0044)
+Bit Attr Reset Value
+31:12 RO 0x00000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1379
+
+RK3588 TRM-Part1
+Bit
+11:0
+
+Attr Reset Value
+RO
+
+0x000
+
+Description
+adc_data
+A/D value of the channel 6 last conversion.
+
+TSADC_DATA7
+Address: Operational Base + offset (0x0048)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+adc_data
+11:0 RO 0x000
+A/D value of the channel 7 last conversion.
+TSADC_DATA8
+Address: Operational Base + offset (0x004C)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+adc_data
+11:0 RO 0x000
+A/D value of the channel 8 last conversion.
+TSADC_DATA9
+Address: Operational Base + offset (0x0050)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+adc_data
+11:0 RO 0x000
+A/D value of the channel 9 last conversion.
+TSADC_DATA10
+Address: Operational Base + offset (0x0054)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+adc_data
+11:0 RO 0x000
+A/D value of the channel 10 last conversion.
+TSADC_DATA11
+Address: Operational Base + offset (0x0058)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+adc_data
+11:0 RO 0x000
+A/D value of the channel 11 last conversion.
+TSADC_DATA12
+Address: Operational Base + offset (0x005C)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+adc_data
+11:0 RO 0x000
+A/D value of the channel 12 last conversion.
+TSADC_DATA13
+Address: Operational Base + offset (0x0060)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+adc_data
+11:0 RO 0x000
+A/D value of the channel 13 last conversion.
+TSADC_DATA14
+Address: Operational Base + offset (0x0064)
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1380
+
+RK3588 TRM-Part1
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+adc_data
+11:0 RO 0x000
+A/D value of the channel 14 last conversion.
+TSADC_DATA15
+Address: Operational Base + offset (0x0068)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+adc_data
+11:0 RO 0x000
+A/D value of the channel 15 last conversion.
+TSADC_COMP0_INT
+Address: Operational Base + offset (0x006C)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src0
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is high.
+TSADC_INT will be valid.
+TSADC_COMP1_INT
+Address: Operational Base + offset (0x0070)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src1
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is high.
+TSADC_INT will be valid.
+TSADC_COMP2_INT
+Address: Operational Base + offset (0x0074)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src2
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is high.
+TSADC_INT will be valid.
+TSADC_COMP3_INT
+Address: Operational Base + offset (0x0078)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src3
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is high.
+TSADC_INT will be valid.
+TSADC_COMP4_INT
+Address: Operational Base + offset (0x007C)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1381
+
+RK3588 TRM-Part1
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src4
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is high.
+TSADC_INT will be valid.
+TSADC_COMP5_INT
+Address: Operational Base + offset (0x0080)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src5
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is high.
+TSADC_INT will be valid.
+TSADC_COMP6_INT
+Address: Operational Base + offset (0x0084)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src6
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is high.
+TSADC_INT will be valid.
+TSADC_COMP7_INT
+Address: Operational Base + offset (0x0088)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src7
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is high.
+TSADC_INT will be valid.
+TSADC_COMP8_INT
+Address: Operational Base + offset (0x008C)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src8
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is high.
+TSADC_INT will be valid.
+TSADC_COMP9_INT
+Address: Operational Base + offset (0x0090)
+Bit Attr Reset Value
+31:12 RO 0x00000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1382
+
+RK3588 TRM-Part1
+Bit
+11:0
+
+Attr Reset Value
+RW 0x000
+
+Description
+tsadc_comp_src9
+TSADC high temperature level.
+TSADC output is bigger than tsadc_comp, means the temperature
+is high.
+TSADC_INT will be valid.
+
+TSADC_COMP10_INT
+Address: Operational Base + offset (0x0094)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src10
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is high.
+TSADC_INT will be valid.
+TSADC_COMP11_INT
+Address: Operational Base + offset (0x0098)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src11
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is high.
+TSADC_INT will be valid.
+TSADC_COMP12_INT
+Address: Operational Base + offset (0x009C)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src12
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is high.
+TSADC_INT will be valid.
+TSADC_COMP13_INT
+Address: Operational Base + offset (0x0100)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src13
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is high.
+TSADC_INT will be valid.
+TSADC_COMP14_INT
+Address: Operational Base + offset (0x0104)
+Bit Attr Reset Value
+31:12 RO 0x00000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1383
+
+RK3588 TRM-Part1
+Bit
+11:0
+
+Attr Reset Value
+RW 0x000
+
+Description
+tsadc_comp_src14
+TSADC high temperature level.
+TSADC output is bigger than tsadc_comp, means the temperature
+is high.
+TSADC_INT will be valid.
+
+TSADC_COMP15_INT
+Address: Operational Base + offset (0x0108)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src15
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is high.
+TSADC_INT will be valid.
+TSADC_COMP0_SHUT
+Address: Operational Base + offset (0x010C)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src0
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is too high.
+TSHUT will be valid.
+TSADC_COMP1_SHUT
+Address: Operational Base + offset (0x0110)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src1
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is too high.
+TSHUT will be valid.
+TSADC_COMP2_SHUT
+Address: Operational Base + offset (0x0114)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src2
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is too high.
+TSHUT will be valid.
+TSADC_COMP3_SHUT
+Address: Operational Base + offset (0x0118)
+Bit Attr Reset Value
+31:12 RO 0x00000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1384
+
+RK3588 TRM-Part1
+Bit
+11:0
+
+Attr Reset Value
+RW 0x000
+
+Description
+tsadc_comp_src3
+TSADC high temperature level.
+TSADC output is bigger than tsadc_comp, means the temperature
+is too high.
+TSHUT will be valid.
+
+TSADC_COMP4_SHUT
+Address: Operational Base + offset (0x011C)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src4
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is too high.
+TSHUT will be valid.
+TSADC_COMP5_SHUT
+Address: Operational Base + offset (0x0120)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src5
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is too high.
+TSHUT will be valid.
+TSADC_COMP6_SHUT
+Address: Operational Base + offset (0x0124)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src6
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is too high.
+TSHUT will be valid.
+TSADC_COMP7_SHUT
+Address: Operational Base + offset (0x0128)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src7
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is too high.
+TSHUT will be valid.
+TSADC_COMP8_SHUT
+Address: Operational Base + offset (0x012C)
+Bit Attr Reset Value
+31:12 RO 0x00000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1385
+
+RK3588 TRM-Part1
+Bit
+11:0
+
+Attr Reset Value
+RW 0x000
+
+Description
+tsadc_comp_src8
+TSADC high temperature level.
+TSADC output is bigger than tsadc_comp, means the temperature
+is too high.
+TSHUT will be valid.
+
+TSADC_COMP9_SHUT
+Address: Operational Base + offset (0x0130)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src9
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is too high.
+TSHUT will be valid.
+TSADC_COMP10_SHUT
+Address: Operational Base + offset (0x0134)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src10
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is too high.
+TSHUT will be valid.
+TSADC_COMP11_SHUT
+Address: Operational Base + offset (0x0138)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src11
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is too high.
+TSHUT will be valid.
+TSADC_COMP12_SHUT
+Address: Operational Base + offset (0x013C)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src12
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is too high.
+TSHUT will be valid.
+TSADC_COMP13_SHUT
+Address: Operational Base + offset (0x0140)
+Bit Attr Reset Value
+31:12 RO 0x00000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1386
+
+RK3588 TRM-Part1
+Bit
+11:0
+
+Attr Reset Value
+RW 0x000
+
+Description
+tsadc_comp_src13
+TSADC high temperature level.
+TSADC output is bigger than tsadc_comp, means the temperature
+is too high.
+TSHUT will be valid.
+
+TSADC_COMP14_SHUT
+Address: Operational Base + offset (0x0144)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src14
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is too high.
+TSHUT will be valid.
+TSADC_COMP15_SHUT
+Address: Operational Base + offset (0x0148)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src15
+TSADC high temperature level.
+11:0 RW 0x000
+TSADC output is bigger than tsadc_comp, means the temperature
+is too high.
+TSHUT will be valid.
+TSADC_HIGH_INT_DEBOUNCE
+Address: Operational Base + offset (0x014C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+debounce
+7:0
+RW 0x03
+TSADC controller will only generate interrupt or TSHUT when
+temperature is higher than COMP_INT for "debounce" times.
+TSADC_HIGHT_TSHUT_DEBOUNCE
+Address: Operational Base + offset (0x0150)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+debounce
+7:0
+RW 0x03
+TSADC controller will only generate interrupt or TSHUT when
+temperature is higher than COMP_SHUT for "debounce" times.
+TSADC_AUTO_PERIOD
+Address: Operational Base + offset (0x0154)
+Bit Attr Reset Value
+Description
+auto_period
+31:0 RW 0x00010000 When auto mode is enabled, this register controls the interleave
+between every conversion for all channel enabled of TSADC.
+TSADC_AUTO_PERIOD_HT
+Address: Operational Base + offset (0x0158)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1387
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00010000
+
+Description
+auto_period
+This register controls the interleave between every conversion for
+all channel enabled of TSADC after the temperature is higher
+than COMP_SHUT or COMP_INT.
+
+TSADC_COMP0_LOW_INT
+Address: Operational Base + offset (0x015C)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src0
+TSADC low temperature level.
+11:0 RW 0x000
+TSADC output is lower than tsadc_comp, means the temperature
+is low.
+TSADC_LOW_INT will be valid.
+TSADC_COMP1_LOW_INT
+Address: Operational Base + offset (0x0160)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src1
+TSADC low temperature level.
+11:0 RW 0x000
+TSADC output is lower than tsadc_comp, means the temperature
+is low.
+TSADC_LOW_INT will be valid.
+TSADC_COMP2_LOW_INT
+Address: Operational Base + offset (0x0164)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src2
+TSADC low temperature level.
+11:0 RW 0x000
+TSADC output is lower than tsadc_comp, means the temperature
+is low.
+TSADC_LOW_INT will be valid.
+TSADC_COMP3_LOW_INT
+Address: Operational Base + offset (0x0168)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src3
+TSADC low temperature level.
+11:0 RW 0x000
+TSADC output is lower than tsadc_comp, means the temperature
+is low.
+TSADC_LOW_INT will be valid.
+TSADC_COMP4_LOW_INT
+Address: Operational Base + offset (0x016C)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src4
+TSADC low temperature level.
+11:0 RW 0x000
+TSADC output is lower than tsadc_comp, means the temperature
+is low.
+TSADC_LOW_INT will be valid.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1388
+
+RK3588 TRM-Part1
+TSADC_COMP5_LOW_INT
+Address: Operational Base + offset (0x0170)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src5
+TSADC low temperature level.
+11:0 RW 0x000
+TSADC output is lower than tsadc_comp, means the temperature
+is low.
+TSADC_LOW_INT will be valid.
+TSADC_COMP6_LOW_INT
+Address: Operational Base + offset (0x0174)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src6
+TSADC low temperature level.
+11:0 RW 0x000
+TSADC output is lower than tsadc_comp, means the temperature
+is low.
+TSADC_LOW_INT will be valid.
+TSADC_COMP7_LOW_INT
+Address: Operational Base + offset (0x0178)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src7
+TSADC low temperature level.
+11:0 RW 0x000
+TSADC output is lower than tsadc_comp, means the temperature
+is low.
+TSADC_LOW_INT will be valid.
+TSADC_COMP8_LOW_INT
+Address: Operational Base + offset (0x017C)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src8
+TSADC low temperature level.
+11:0 RW 0x000
+TSADC output is lower than tsadc_comp, means the temperature
+is low.
+TSADC_LOW_INT will be valid.
+TSADC_COMP9_LOW_INT
+Address: Operational Base + offset (0x0180)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src9
+TSADC low temperature level.
+11:0 RW 0x000
+TSADC output is lower than tsadc_comp, means the temperature
+is low.
+TSADC_LOW_INT will be valid.
+TSADC_COMP10_LOW_INT
+Address: Operational Base + offset (0x0184)
+Bit Attr Reset Value
+31:12 RO 0x00000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1389
+
+RK3588 TRM-Part1
+Bit
+11:0
+
+Attr Reset Value
+RW 0x000
+
+Description
+tsadc_comp_src10
+TSADC low temperature level.
+TSADC output is lower than tsadc_comp, means the temperature
+is low.
+TSADC_LOW_INT will be valid.
+
+TSADC_COMP11_LOW_INT
+Address: Operational Base + offset (0x0188)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src11
+TSADC low temperature level.
+11:0 RW 0x000
+TSADC output is lower than tsadc_comp, means the temperature
+is low.
+TSADC_LOW_INT will be valid.
+TSADC_COMP12_LOW_INT
+Address: Operational Base + offset (0x018C)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src12
+TSADC low temperature level.
+11:0 RW 0x000
+TSADC output is lower than tsadc_comp, means the temperature
+is low.
+TSADC_LOW_INT will be valid.
+TSADC_COMP13_LOW_INT
+Address: Operational Base + offset (0x0190)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src13
+TSADC low temperature level.
+11:0 RW 0x000
+TSADC output is lower than tsadc_comp, means the temperature
+is low.
+TSADC_LOW_INT will be valid.
+TSADC_COMP14_LOW_INT
+Address: Operational Base + offset (0x0194)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+tsadc_comp_src14
+TSADC low temperature level.
+11:0 RW 0x000
+TSADC output is lower than tsadc_comp, means the temperature
+is low.
+TSADC_LOW_INT will be valid.
+TSADC_COMP15_LOW_INT
+Address: Operational Base + offset (0x0198)
+Bit Attr Reset Value
+31:12 RO 0x00000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1390
+
+RK3588 TRM-Part1
+Bit
+11:0
+
+Attr Reset Value
+RW 0x000
+
+Description
+tsadc_comp_src15
+TSADC low temperature level.
+TSADC output is lower than tsadc_comp, means the temperature
+is low.
+TSADC_LOW_INT will be valid.
+
+TSADC_T_SETUP
+Address: Operational Base + offset (0x019C)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+t_setup
+15:0 RW 0x002f
+The timing between TSADC power up and start conversion.
+TSADC_T_PW_EN
+Address: Operational Base + offset (0x0200)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+t_pw_en
+15:0 RW 0x0027
+The timing assert start conversion signal (EN_TEMP_SEN_TS).
+TSADC_T_EN_CLK
+Address: Operational Base + offset (0x0204)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+t_en_clk
+7:0
+RW 0x01
+The timing between dis-assert start conversion signal
+(EN_TEMP_SEN_TS) and assert CLK_SEN_TS[8].
+TSADC_T_NON_OV
+Address: Operational Base + offset (0x0208)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+t_non_ov
+7:0
+RW 0x02
+The timing between each bit assertion of CLK_SENSE_TS.
+TSADC_T_HOLD
+Address: Operational Base + offset (0x020C)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+t_hold
+15:0 RW 0x0013
+The timing between dis-assert CLK_SENSE_TS and TSADC data
+valid.
+TSADC_Q_MAX
+Address: Operational Base + offset (0x0210)
+Bit Attr Reset Value
+Description
+31:13 RO 0x00000
+reserved
+q_max
+12:0 RW 0x0200
+This register used for TSADC_AUTO_CON[1] for inversion output
+data.
+TSADC_STATIC_CON
+Address: Operational Base + offset (0x0214)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1391
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:27 RW 0x00
+26:23 RW 0x5
+22:21 RW 0x0
+20:17 RW 0x0
+16:13 RW 0x0
+12:9
+
+RW 0x0
+
+8:5
+
+RW 0x0
+
+4:2
+
+RW 0x6
+
+1
+
+RW 0x1
+
+0
+
+RW 0x1
+
+Description
+buf_vref_sel
+Offset control for temperature output code.
+buf_slope_sel
+Slope control for temperature output code.
+comp_i_trim
+Comparator current timing ports.
+vbe_i_trm
+Current timing ports for VBE in PTAT generator.
+verf_trim
+Reference voltage trimming ports for reference generator.
+bgr_r_trim
+BGR control ports in reference generator.
+bgr_i_trim
+BJT emitter current control ports in reference generator.
+avg_mode
+Average mode control ports for digital filter.
+en_dem
+Dynamic element matching enable port.
+en_ch
+Digital offset cancellation enable port.
+
+TSADC_FLOW_CON
+Address: Operational Base + offset (0x0218)
+Bit Attr Reset Value
+Description
+write_enable
+Write enable for lower 16bits, each bit is individual.
+31:16 WO 0x0000
+1'b1: Write access enable
+1'b0: Write access disable
+15:6 RO 0x000
+reserved
+usr_clk_ch_start
+5
+W1T 0x0
+User to toggle clk_ch in user mode, write 1'b1 to toggle the it will
+be clear by internal logic.
+as_pd_mode
+4
+RW 0x0
+If this bit set to one, at the end of each round in auto mode, PD
+pin for temperature will be asserted for saving power.
+3
+RO 0x0
+reserved
+single_d_mode
+2
+RW 0x0
+If this bit set to 1, average data output is not used.
+pd_soc_mode
+1
+RW 0x0
+If this bit set to 1, CLK_SENSE_TS is not used.
+eoc_mode
+0
+RW 0x0
+Use eoc to end conversion.
+TSADC_CLK_CH_PERIOD
+Address: Operational Base + offset (0x021C)
+Bit Attr Reset Value
+Description
+clk_ch_period
+31:0 RW 0x0000012b
+Control the period of CLK_CH_TS.
+TSADC_T_PW_CLK
+Address: Operational Base + offset (0x0220)
+Bit Attr Reset Value
+31:16 RO 0x0000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1392
+
+RK3588 TRM-Part1
+Bit
+15:0
+
+Attr Reset Value
+RW 0x0030
+
+Description
+t_pw_clk
+The timing for assertion of each bit of CLK_SENSE_TS.
+
+14.5 Application Notes
+14.5.1 Conversion Flow
+
+The system works as following
+1) Set the conversion channel in register TSADC_AUTO_SRC, jump channel is not suggested.
+2) Temperature violation and other configuration may be set.
+3) Set the bit[0] in register TSADC_AUTO_CON, then TS-ADC will work.
+4) Then temperature information can be read from APB interface.
+5) If TS-ADC needs to be closed, set bit[0] in register TSADC_AUTO_CON to 1’b0.
+
+14.5.2 Timing Diagram
+
+When TS-ADC start to work, the timing will follow the Fig.1-2
+
+Fig. 14-2 Timing diagram for TS-ADC
+When TS-ADC start to work, EN_TS comes to high. Every two CLK_CH_TS cycle, the
+conversion of one channel is done and channel will change to next one showing as
+BJT_SEL_TS. Output data from TS-ADC PHY will be kept until next time this channel
+conversion is done.
+CLK_DEM_TS is the main clock for TS-ADC, this clock frequency should be set to 2MHz
+which can be divided from 24MHz OSC clock. About this please refer to CRU section.
+
+14.5.3 Temperature-to-Code Mapping
+Table 14-1 Temperature Code Mapping
+ADC Output Data
+
+Temperature (℃)
+
+Min
+
+Typ(Dec)
+
+Max
+
+-40
+
+-
+
+220
+
+-
+
+25
+
+-
+
+285
+
+-
+
+85
+
+-
+
+345
+
+-
+
+125
+
+-
+
+385
+
+-
+
+Note:
+Code to Temperature mapping of the Temperature sensor is a linear curve. Any temperature,
+code falling between to 2 given temperatures can be linearly interpolated.
+Code to Temperature mapping should be updated based on silicon results.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1393
+
+RK3588 TRM-Part1
+

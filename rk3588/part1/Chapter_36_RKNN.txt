@@ -1,0 +1,9172 @@
+Chapter 36 RKNN
+36
+
+36.1 Overview
+RKNN is the process unit which is dedicated to neural network. It is designed to accelerate
+the neural network arithmetic in field of AI (artificial intelligence) such as machine vision and
+natural language processing. The variety of applications for AI is expanding, and currently
+provides functionality in a variety of areas, including face tracking as well as gesture and
+body tracking, image classification, video surveillance, automatic speech recognition (ASR)
+and advanced driver assistance systems (ADAS).
+RKNN supports the following features:
+⚫ Include triple NPU CORE
+⚫ Support triple core co-work, dual core co-work, and work independently
+⚫ AHB interface used for configuration only support single
+⚫ AXI interface used to fetch data from memory
+⚫ Support integer 4, integer 8, integer 16, float 16, Bfloat 16 and tf32 operation
+⚫ 1024x3 integer 8 MAC operations per cycle
+⚫ 512x3 integer 16 MAC operations per cycle
+⚫ 512x3 float 16 MAC operations per cycle
+⚫ 512x3 bfloat 16 MAC operations per cycle
+⚫ 256x3 tf32 MAC operation per cycle
+⚫ 2048x3 integer 4 MAC operation per cycle
+⚫ 384KBx3 internal buffer
+⚫ Inference Engine: TensorFlow, Caffe, Tflite, Pytorch, Onnx NN, Android NN, etc.
+
+36.2 Block Diagram
+
+NPU CORE 1
+
+NPU CORE 0
+
+NPU CORE 2
+
+Fig. 36-1 RKNN Triple Core Architecture
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1984
+
+RKRK3588 TRM-Part1
+
+NPU CORE
+Register File
+Fetch
+
+Memory Interface
+AXI
+
+Register
+File/
+Interrupt
+Control
+
+CNA
+
+Weight
+Decompress
+
+Zero-Skipping
+DPU
+(Data
+Process Unit)
+
+Weight Data
+Load
+
+PPU
+(Planar
+Process
+Unit)
+
+Feature Data
+Load
+
+Config
+Interface
+(AHB)
+
+Accumulator
+384KB
+Buffer
+
+Sequence
+Controller
+MAC Array
+
+Fig. 36-2 RKNN Single Core Architecture
+
+36.3 Function Description
+36.3.1 1.3.1 AHB/AXI Interface
+The AXI master interface is used to fetch data from memory that is attached to the Soc AXI
+interconnect. The AHB slave interface is used to access the registers for configuration, debug
+and test.
+
+36.3.2 1.3.2 Neural Network Accelerating Engine
+As the unit name, this engine is the main process unit for Neural Network arithmetic. This
+unit include convolution pre-process controller, internal buffer, mac array, accumulator. It
+provides parallel convolution MAC for recognition functions and int4, int8, int16, fp16,
+bfloat16 and tf16 are supported.
+
+36.3.3 1.3.3 Data Processing Unit
+Data Processing Unit mainly process the single data calculate, such as leaky_relu, relu,
+relux, sigmoid, tanh…etc. It also provides function: softmax, transpose, data format
+conversion, …etc.
+
+36.3.4 1.3.4 Planar Processing Unit
+Planar Processing Unit mainly provide planar function followed by output data from Data
+Processing Unit, such as average pooling, max pooling, min pooling… are supported.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1985
+
+RKRK3588 TRM-Part1
+
+36.3.5 1.3.5 Register File Fetch Unit
+Register File Fetch Unit fetch register configuration from external system memory through
+AXI
+interface.
+
+36.4 Register Description
+36.4.1 Internal Address Mapping
+Slave address can be divided into different length for different usage, which is shown as
+follows.
+Table 1- 1 RKNN Address Mapping
+Address
+Base Address[15:12]
+Device
+Offset Address Range
+Length
+4’h0
+PC
+4K BYTE
+0x0000 ~ 0x0fff
+4’h1
+CNA
+4K BYTE
+0x1000 ~ 0x1fff
+4’h3
+CORE
+4K BYTE
+0x3000 ~ 0x3fff
+4’h4
+DPU
+4K BYTE
+0x4000 ~ 0x4fff
+4’h5
+DPU_RDMA 4K BYTE
+0x5000 ~ 0x5fff
+4’h6
+PPU
+4K BYTE
+0x6000 ~ 0x6fff
+4’h7
+PPU_RDMA 4K BYTE
+0x7000 ~ 0x7fff
+4’h8
+DDMA
+4K BYTE
+0x8000 ~ 0x8fff
+4’h9
+SDMA
+4K BYTE
+0x9000 ~ 0x9fff
+4’hf
+GLOBAL
+4 BYTE
+0xf000 ~ 0xf004
+
+36.4.2 Registers Summary
+Name
+
+Offset
+
+Size
+
+Reset
+Value
+
+Description
+
+RKNN_pc_operation_enab
+0x0008
+le
+
+W
+
+0x00000000 Operation Enable
+
+RKNN_pc_base_address
+
+0x0010
+
+W
+
+0x00000000 PC address register
+
+RKNN_pc_register_amoun
+0x0014
+ts
+
+W
+
+0x00000000 Register amount for each task
+
+RKNN_pc_interrupt_mask 0x0020
+
+W
+
+0x0001FFFF Interrupt Mask
+
+RKNN_pc_interrupt_clear
+
+0x0024
+
+W
+
+0x00000000 Interrupt clear
+
+RKNN_pc_interrupt_statu
+0x0028
+s
+
+W
+
+0x00000000 Interrupt status
+
+RKNN_pc_interrupt_raw_s
+0x002C
+tatus
+
+W
+
+0x00000000 Interrupt raw status
+
+RKNN_pc_task_con
+
+0x0030
+
+W
+
+0x00000000 Task control register
+
+RKNN_pc_task_dma_base
+0x0034
+_addr
+
+W
+
+0x00000000 Task Base address
+
+RKNN_pc_task_status
+
+0x003C
+
+W
+
+0x00000000 Task status register
+
+RKNN_cna_s_status
+
+0x1000
+
+W
+
+0x00000000 Single register group status
+
+RKNN_cna_s_pointer
+
+0x1004
+
+W
+
+0x00000000 Single register group pointer
+
+RKNN_cna_operation_ena
+0x1008
+ble
+
+W
+
+0x00000000 Operation Enable
+
+RKNN_cna_conv_con1
+
+W
+
+0x00000000 Convolution control register1
+
+0x100C
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1986
+
+RKRK3588 TRM-Part1
+
+Name
+
+Offset
+
+Size
+
+Reset
+Value
+
+Description
+
+RKNN_cna_conv_con2
+
+0x1010
+
+W
+
+0x00000000 Convolution control register2
+
+RKNN_cna_conv_con3
+
+0x1014
+
+W
+
+0x00000000 Convolution control register3
+
+RKNN_cna_data_size0
+
+0x1020
+
+W
+
+0x00000000 Feature data size control register0
+
+RKNN_cna_data_size1
+
+0x1024
+
+W
+
+0x00000000 Feature data size control register1
+
+RKNN_cna_data_size2
+
+0x1028
+
+W
+
+0x00000000 Feature data size control register2
+
+RKNN_cna_data_size3
+
+0x102C
+
+W
+
+0x00000000 Feature data size control register3
+
+RKNN_cna_weight_size0
+
+0x1030
+
+W
+
+0x00000000 Weight size control 0
+
+RKNN_cna_weight_size1
+
+0x1034
+
+W
+
+0x00000000 Weight size control 1
+
+RKNN_cna_weight_size2
+
+0x1038
+
+W
+
+0x00000000 Weight size control 2
+
+RKNN_cna_cbuf_con0
+
+0x1040
+
+W
+
+0x00000000 CBUF control register 0
+
+RKNN_cna_cbuf_con1
+
+0x1044
+
+W
+
+0x00000000 CBUF control register 1
+
+RKNN_cna_cvt_con0
+
+0x104C
+
+W
+
+0x00000000 Input convert control register0
+
+RKNN_cna_cvt_con1
+
+0x1050
+
+W
+
+0x00000000 Input convert control register1
+
+RKNN_cna_cvt_con2
+
+0x1054
+
+W
+
+0x00000000 Input convert control register2
+
+RKNN_cna_cvt_con3
+
+0x1058
+
+W
+
+0x00000000 Input convert control register3
+
+RKNN_cna_cvt_con4
+
+0x105C
+
+W
+
+0x00000000 Input convert control register4
+
+RKNN_cna_fc_con0
+
+0x1060
+
+W
+
+0x00000000 Full connected control register0
+
+RKNN_cna_fc_con1
+
+0x1064
+
+W
+
+0x00000000 Full connected control register1
+
+RKNN_cna_pad_con0
+
+0x1068
+
+W
+
+0x00000000 Pad control register0
+
+RKNN_cna_feature_data_
+0x1070
+addr
+
+W
+
+0x00000000
+
+RKNN_cna_fc_con2
+
+0x1074
+
+W
+
+0x00000000 Full connected control register2
+
+RKNN_cna_dma_con0
+
+0x1078
+
+W
+
+0x00000000 AXI control register 0
+
+RKNN_cna_dma_con1
+
+0x107C
+
+W
+
+0x00000000 AXI control register 1
+
+RKNN_cna_dma_con2
+
+0x1080
+
+W
+
+0x00000000 AXI control register 2
+
+RKNN_cna_fc_data_size0 0x1084
+
+W
+
+0x00000000
+
+Full connected data size control
+register0
+
+RKNN_cna_fc_data_size1 0x1088
+
+W
+
+0x00000000
+
+Full connected data size control
+register1
+
+RKNN_cna_clk_gate
+
+0x1090
+
+W
+
+0x00000000 Clock gating control register
+
+RKNN_cna_dcomp_ctrl
+
+0x1100
+
+W
+
+0x00000000
+
+Weight decompress control
+register
+
+RKNN_cna_dcomp_regnu
+0x1104
+m
+
+W
+
+0x00000000
+
+Weight decompress register
+number
+
+RKNN_cna_dcomp_addr0 0x1110
+
+W
+
+0x00000000 Base address of the weight
+
+RKNN_cna_dcomp_amoun
+0x1140
+t0
+
+W
+
+0x00000000
+
+Amount of the weight decompress
+for the 0 decompress
+
+RKNN_cna_dcomp_amoun
+0x1144
+t1
+
+W
+
+0x00000000
+
+Amount of the weight decompress
+for the 1 decompress
+
+RKNN_cna_dcomp_amoun
+0x1148
+t2
+
+W
+
+0x00000000
+
+Amount of the weight decompress
+for the 2 decompress
+
+RKNN_cna_dcomp_amoun
+0x114C
+t3
+
+W
+
+0x00000000
+
+Amount of the weight decompress
+for the 3 decompress
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Base address for input feature
+data
+
+1987
+
+RKRK3588 TRM-Part1
+
+Size
+
+Reset
+Value
+
+Description
+
+RKNN_cna_dcomp_amoun
+0x1150
+t4
+
+W
+
+0x00000000
+
+Amount of the weight decompress
+for the 4 decompress
+
+RKNN_cna_dcomp_amoun
+0x1154
+t5
+
+W
+
+0x00000000
+
+Amount of the weight decompress
+for the 5 decompress
+
+RKNN_cna_dcomp_amoun
+0x1158
+t6
+
+W
+
+0x00000000
+
+Amount of the weight decompress
+for the 6 decompress
+
+RKNN_cna_dcomp_amoun
+0x115C
+t7
+
+W
+
+0x00000000
+
+Amount of the weight decompress
+for the 7 decompress
+
+RKNN_cna_dcomp_amoun
+0x1160
+t8
+
+W
+
+0x00000000
+
+Amount of the weight decompress
+for the 8 decompress
+
+RKNN_cna_dcomp_amoun
+0x1164
+t9
+
+W
+
+0x00000000
+
+Amount of the weight decompress
+for the 9 decompress
+
+RKNN_cna_dcomp_amoun
+0x1168
+t10
+
+W
+
+0x00000000
+
+Amount of the weight decompress
+for the 10 decompress
+
+RKNN_cna_dcomp_amoun
+0x116C
+t11
+
+W
+
+0x00000000
+
+Amount of the weight decompress
+for the 11 decompress
+
+RKNN_cna_dcomp_amoun
+0x1170
+t12
+
+W
+
+0x00000000
+
+Amount of the weight decompress
+for the 12 decompress
+
+RKNN_cna_dcomp_amoun
+0x1174
+t13
+
+W
+
+0x00000000
+
+Amount of the weight decompress
+for the 13 decompress
+
+RKNN_cna_dcomp_amoun
+0x1178
+t14
+
+W
+
+0x00000000
+
+Amount of the weight decompress
+for the 14 decompress
+
+RKNN_cna_dcomp_amoun
+0x117C
+t15
+
+W
+
+0x00000000
+
+Amount of the weight decompress
+for the 15 decompress
+
+RKNN_cna_cvt_con5
+
+0x1180
+
+W
+
+0x00000000 Input convert control register5
+
+RKNN_cna_pad_con1
+
+0x1184
+
+W
+
+0x00000000 Pad controller register1
+
+RKNN_core_s_status
+
+0x3000
+
+W
+
+0x00000000 Single register group status
+
+RKNN_core_s_pointer
+
+0x3004
+
+W
+
+0x00000000 Single register group pointer
+
+RKNN_core_operation_en
+0x3008
+able
+
+W
+
+0x00000000 Operation Enable
+
+RKNN_core_mac_gating
+
+0x300C
+
+W
+
+0x07800800 MAC gating register
+
+RKNN_core_misc_cfg
+
+0x3010
+
+W
+
+0x00000000 Misc configuration register
+
+RKNN_core_dataout_size_
+0x3014
+0
+
+W
+
+0x00000000 Feature size register 0 of output
+
+RKNN_core_dataout_size_
+0x3018
+1
+
+W
+
+0x00000000 Feature size register 1 of output
+
+RKNN_core_clip_truncate 0x301C
+
+W
+
+0x00000000 Shift value register
+
+RKNN_dpu_s_status
+
+0x4000
+
+W
+
+0x00000000 Single register group status
+
+RKNN_dpu_s_pointer
+
+0x4004
+
+W
+
+0x00000000 Single register group pointer
+
+RKNN_dpu_operation_ena
+0x4008
+ble
+
+W
+
+0x00000000 Operation Enable
+
+RKNN_dpu_feature_mode
+0x400C
+_cfg
+
+W
+
+0x00000000 Configuration of the feature mode
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1988
+
+Name
+
+Offset
+
+RKRK3588 TRM-Part1
+
+Name
+
+Offset
+
+Size
+
+Reset
+Value
+
+Description
+
+RKNN_dpu_data_format
+
+0x4010
+
+W
+
+0x00000000 Configuration of the data format
+
+RKNN_dpu_offset_pend
+
+0x4014
+
+W
+
+0x00000000 Value of the offset pend
+
+RKNN_dpu_dst_base_add
+0x4020
+r
+
+W
+
+0x00000000 Destination base address
+
+RKNN_dpu_dst_surf_strid
+0x4024
+e
+
+W
+
+0x00000000 Destination surface size
+
+RKNN_dpu_data_cube_wi
+0x4030
+dth
+
+W
+
+0x00000000 Width of the input cube
+
+RKNN_dpu_data_cube_he
+0x4034
+ight
+
+W
+
+0x00000000 Height of the input cube
+
+RKNN_dpu_data_cube_no
+0x4038
+tch_addr
+
+W
+
+0x00000000 Notch signal of the input cube
+
+RKNN_dpu_data_cube_ch
+0x403C
+annel
+
+W
+
+0x00000000 Channel of the input cube
+
+RKNN_dpu_bs_cfg
+
+0x4040
+
+W
+
+0x00000000 Configuration of the BS
+
+RKNN_dpu_bs_alu_cfg
+
+0x4044
+
+W
+
+0x00000000 Configuration of the BS ALU
+
+RKNN_dpu_bs_mul_cfg
+
+0x4048
+
+W
+
+0x00000000 Configuration of the BS MUL
+
+RKNN_dpu_bs_relux_cmp
+0x404C
+_value
+
+W
+
+0x00000000 Value of the RELUX compare with
+
+RKNN_dpu_bs_ow_cfg
+
+0x4050
+
+W
+
+0x00000000 Configuration of the BS OW
+
+RKNN_dpu_bs_ow_op
+
+0x4054
+
+W
+
+0x00000000 Ow op of the BS OW
+
+RKNN_dpu_wdma_size_0 0x4058
+
+W
+
+0x00000000 Size 0 of the WDMA
+
+RKNN_dpu_wdma_size_1 0x405C
+
+W
+
+0x00000000 Size 1 of the WDMA
+
+RKNN_dpu_bn_cfg
+
+0x4060
+
+W
+
+0x00000000 Configuration of BN
+
+RKNN_dpu_bn_alu_cfg
+
+0x4064
+
+W
+
+0x00000000 Configuration of the BN ALU
+
+RKNN_dpu_bn_mul_cfg
+
+0x4068
+
+W
+
+0x00000000 Configuration of the BN MUL
+
+RKNN_dpu_bn_relux_cmp
+0x406C
+_value
+
+W
+
+0x00000000 Value of the RELUX compare with
+
+RKNN_dpu_ew_cfg
+
+0x4070
+
+W
+
+0x00000000 Configuration of EW
+
+RKNN_dpu_ew_cvt_offset
+0x4074
+_value
+
+W
+
+0x00000000 Offset of the EW input convert
+
+RKNN_dpu_ew_cvt_scale_
+0x4078
+value
+
+W
+
+0x00000000 Scale of the EW input convert
+
+RKNN_dpu_ew_relux_cmp
+0x407C
+_value
+
+W
+
+0x00000000 Value of the RELUX compare with
+
+RKNN_dpu_out_cvt_offset 0x4080
+
+W
+
+0x00000000 Offset of the output converter
+
+RKNN_dpu_out_cvt_scale 0x4084
+
+W
+
+0x00000000 Scale of the output converter
+
+RKNN_dpu_out_cvt_shift
+
+0x4088
+
+W
+
+0x00000000 Shift of the output converter
+
+RKNN_dpu_ew_op_value_
+0x4090
+0
+
+W
+
+0x00000000 Configure operand0 of the EW
+
+RKNN_dpu_ew_op_value_
+0x4094
+1
+
+W
+
+0x00000000 Configure operand1 of the EW
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1989
+
+RKRK3588 TRM-Part1
+
+Name
+
+Offset
+
+Size
+
+Reset
+Value
+
+Description
+
+RKNN_dpu_ew_op_value_
+0x4098
+2
+
+W
+
+0x00000000 Configure operand2 of the EW
+
+RKNN_dpu_ew_op_value_
+0x409C
+3
+
+W
+
+0x00000000 Configure operand3 of the EW
+
+RKNN_dpu_ew_op_value_
+0x40A0
+4
+
+W
+
+0x00000000 Configure operand4 of the EW
+
+RKNN_dpu_ew_op_value_
+0x40A4
+5
+
+W
+
+0x00000000 Configure operand5 of the EW
+
+RKNN_dpu_ew_op_value_
+0x40A8
+6
+
+W
+
+0x00000000 Configure operand6 of the EW
+
+RKNN_dpu_ew_op_value_
+0x40AC
+7
+
+W
+
+0x00000000 Configure operand7 of the EW
+
+RKNN_dpu_surface_add
+
+0x40C0
+
+W
+
+0x00000000 Value of the surface adder
+
+RKNN_dpu_lut_access_cfg 0x4100
+
+W
+
+0x00000000 LUT access address and type
+
+RKNN_dpu_lut_access_da
+0x4104
+ta
+
+W
+
+0x00000000 Configuration of LUT access data
+
+RKNN_dpu_lut_cfg
+
+0x4108
+
+W
+
+0x00000000 Configuration of the LUT
+
+RKNN_dpu_lut_info
+
+0x410C
+
+W
+
+0x00000000 LUT information register
+
+RKNN_dpu_lut_le_start
+
+0x4110
+
+W
+
+0x00000000 LE LUT start point
+
+RKNN_dpu_lut_le_end
+
+0x4114
+
+W
+
+0x00000000 LE LUT end point
+
+RKNN_dpu_lut_lo_start
+
+0x4118
+
+W
+
+0x00000000 LO LUT start point
+
+RKNN_dpu_lut_lo_end
+
+0x411C
+
+W
+
+0x00000000 LO LUT end point
+
+RKNN_dpu_lut_le_slope_s
+0x4120
+cale
+
+W
+
+0x00000000 LE LUT slope scale
+
+RKNN_dpu_lut_le_slope_s
+0x4124
+hift
+
+W
+
+0x00000000 LE LUT slope shift
+
+RKNN_dpu_lut_lo_slope_s
+0x4128
+cale
+
+W
+
+0x00000000 LO LUT slope scale
+
+RKNN_dpu_lut_lo_slope_s
+0x412C
+hift
+
+W
+
+0x00000000 LO LUT slope shift
+
+RKNN_dpu_rdma_s_statu
+0x5000
+s
+
+W
+
+0x00000000 Single register group status
+
+RKNN_dpu_rdma_s_point
+0x5004
+er
+
+W
+
+0x00000000 Single register group pointer
+
+RKNN_dpu_rdma_operati
+0x5008
+on_enable
+
+W
+
+0x00000000 Operation Enable
+
+RKNN_dpu_rdma_data_cu
+0x500C
+be_width
+
+W
+
+0x00000000 Input cube width
+
+RKNN_dpu_rdma_data_cu
+0x5010
+be_height
+
+W
+
+0x00000000 Input cube height
+
+RKNN_dpu_rdma_data_cu
+0x5014
+be_channel
+
+W
+
+0x00000000 Input cube channel
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1990
+
+RKRK3588 TRM-Part1
+
+Name
+
+Offset
+
+Size
+
+Reset
+Value
+
+Description
+
+RKNN_dpu_rdma_src_bas
+0x5018
+e_addr
+
+W
+
+0x00000000 Base address of the input cube
+
+RKNN_dpu_rdma_brdma_
+0x501C
+cfg
+
+W
+
+0x00000000 Configurations of BRDMA
+
+RKNN_dpu_rdma_bs_bas
+0x5020
+e_addr
+
+W
+
+0x00000000 Source base address of BRDMA
+
+RKNN_dpu_rdma_nrdma_
+0x5028
+cfg
+
+W
+
+0x00000000 Configurations of NRDMA
+
+RKNN_dpu_rdma_bn_bas
+0x502C
+e_addr
+
+W
+
+0x00000000 Source base address of NRDMA
+
+RKNN_dpu_rdma_erdma_
+0x5034
+cfg
+
+W
+
+0x00000000 Configurations of ERDMA
+
+RKNN_dpu_rdma_ew_bas
+0x5038
+e_addr
+
+W
+
+0x00000000 Source base address of ERDMA
+
+RKNN_dpu_rdma_ew_surf
+0x5040
+_stride
+
+W
+
+0x00000000
+
+RKNN_dpu_rdma_feature
+0x5044
+_mode_cfg
+
+W
+
+0x00000000 Configuration of the feature mode
+
+RKNN_dpu_rdma_src_dm
+0x5048
+a_cfg
+
+W
+
+0x00000000
+
+RKNN_dpu_rdma_surf_no
+0x504C
+tch
+
+W
+
+0x00000000 Surface notch
+
+RKNN_dpu_rdma_pad_cfg 0x5064
+
+W
+
+0x00000000 Configuration of the pad
+
+RKNN_dpu_rdma_weight
+
+0x5068
+
+W
+
+0x00000000 Weight of the arbiter
+
+RKNN_dpu_rdma_ew_surf
+0x506C
+_notch
+
+W
+
+0x00000000 Surface notch
+
+RKNN_ppu_s_status
+
+0x6000
+
+W
+
+0x00000000 Single register group status
+
+RKNN_ppu_s_pointer
+
+0x6004
+
+W
+
+0x00000000 Single register group pointer
+
+RKNN_ppu_operation_ena
+0x6008
+ble
+
+W
+
+0x00000000 Operation Enable
+
+RKNN_ppu_data_cube_in
+0x600C
+_width
+
+W
+
+0x00000000 Width of the input cube
+
+RKNN_ppu_data_cube_in
+0x6010
+_height
+
+W
+
+0x00000000 Height of the input cube
+
+RKNN_ppu_data_cube_in
+0x6014
+_channel
+
+W
+
+0x00000000 Channel of the input cube
+
+RKNN_ppu_data_cube_ou
+0x6018
+t_width
+
+W
+
+0x00000000 Width of the output cube
+
+RKNN_ppu_data_cube_ou
+0x601C
+t_height
+
+W
+
+0x00000000 Height of the output cube
+
+RKNN_ppu_data_cube_ou
+0x6020
+t_channel
+
+W
+
+0x00000000 Channel of the output cube
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Surface size of the cube that the
+ERDMA read
+
+Configuration of the source read
+DMA
+
+1991
+
+RKRK3588 TRM-Part1
+
+Size
+
+Reset
+Value
+
+RKNN_ppu_operation_mo
+0x6024
+de_cfg
+
+W
+
+0x00000000
+
+Configuration of the operation
+mode
+
+RKNN_ppu_pooling_kerne
+0x6034
+l_cfg
+
+W
+
+0x00000000
+
+Configuration of the pooling
+kernel size
+
+RKNN_ppu_recip_kernel_
+0x6038
+width
+
+W
+
+0x00000000 The reciprocal of the kernel width
+
+RKNN_ppu_recip_kernel_
+0x603C
+height
+
+W
+
+0x00000000 The reciprocal of the kernel height
+
+RKNN_ppu_pooling_paddi
+0x6040
+ng_cfg
+
+W
+
+0x00000000 Configuration of the pooling pad
+
+RKNN_ppu_padding_value
+0x6044
+_1_cfg
+
+W
+
+0x00000000 Pad Value register0
+
+RKNN_ppu_padding_value
+0x6048
+_2_cfg
+
+W
+
+0x00000000 Pad Value register1
+
+RKNN_ppu_dst_base_add
+0x6070
+r
+
+W
+
+0x00000000
+
+RKNN_ppu_dst_surf_strid
+0x607C
+e
+
+W
+
+0x00000000 Destination surface size
+
+RKNN_ppu_data_format
+
+0x6084
+
+W
+
+0x00000000 Configuration of the data format
+
+RKNN_ppu_misc_ctrl
+
+0x60DC
+
+W
+
+0x00000000 Misc configuration
+
+RKNN_ppu_rdma_s_statu
+0x7000
+s
+
+W
+
+0x00000000 Single register group status
+
+RKNN_ppu_rdma_s_point
+0x7004
+er
+
+W
+
+0x00000000 Single register group pointer
+
+RKNN_ppu_rdma_operati
+0x7008
+on_enable
+
+W
+
+0x00000000 Operation Enable
+
+RKNN_ppu_rdma_cube_in
+0x700C
+_width
+
+W
+
+0x00000000 Input cube width
+
+RKNN_ppu_rdma_cube_in
+0x7010
+_height
+
+W
+
+0x00000000 Input cube height
+
+RKNN_ppu_rdma_cube_in
+0x7014
+_channel
+
+W
+
+0x00000000 Input cube channel
+
+RKNN_ppu_rdma_src_bas
+0x701C
+e_addr
+
+W
+
+0x00000000
+
+Source base address for input
+feature
+
+RKNN_ppu_rdma_src_line
+0x7024
+_stride
+
+W
+
+0x00000000
+
+Source line number including
+Virtual box
+
+RKNN_ppu_rdma_src_surf
+0x7028
+_stride
+
+W
+
+0x00000000
+
+Source surface size including
+Virtual box
+
+RKNN_ppu_rdma_data_fo
+0x7030
+rmat
+
+W
+
+0x00000000 Data format for the input feature
+
+RKNN_ddma_cfg_outstan
+0x8000
+ding
+
+W
+
+0x00000000 Outstanding config register
+
+RKNN_ddma_rd_weight_0 0x8004
+
+W
+
+0x00000000 Weight of read arbiter
+
+Name
+
+Offset
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+Destination address of the output
+cube
+
+1992
+
+RKRK3588 TRM-Part1
+
+Name
+
+Offset
+
+Reset
+Value
+
+Size
+
+Description
+
+RKNN_ddma_wr_weight_
+0x8008
+0
+
+W
+
+0x00000000 Weight of write arbiter
+
+RKNN_ddma_cfg_id_error 0x800C
+
+W
+
+0x00000000 Id where error happened
+
+RKNN_ddma_rd_weight_1 0x8010
+
+W
+
+0x00000000 Weight of read arbiter register1
+
+RKNN_ddma_cfg_dma_fif
+0x8014
+o_clr
+
+W
+
+0x00000000 Clear DMA FIFO
+
+RKNN_ddma_cfg_dma_ar
+0x8018
+b
+
+W
+
+0x00000000 DMA arbiter configuration register
+
+RKNN_ddma_cfg_dma_rd
+0x8020
+_qos
+
+W
+
+0x00000000 Read Qos for DMA
+
+RKNN_ddma_cfg_dma_rd
+0x8024
+_cfg
+
+W
+
+0x00000000 Read configuration for AXI signals
+
+RKNN_ddma_cfg_dma_wr
+0x8028
+_cfg
+
+W
+
+0x00000000 Write configuration for AXI signals
+
+RKNN_ddma_cfg_dma_ws
+0x802C
+trb
+
+W
+
+0x00000000 Write strobe signal for AXI
+
+RKNN_ddma_cfg_status
+
+0x8030
+
+W
+
+0x00000000 AXI status signal
+
+RKNN_sdma_cfg_outstan
+0x9000
+ding
+
+W
+
+0x00000000 Outstanding configuration register
+
+RKNN_sdma_rd_weight_0 0x9004
+
+W
+
+0x00000000 Weight of read arbiter
+
+RKNN_sdma_wr_weight_0 0x9008
+
+W
+
+0x00000000 Weight of write arbiter
+
+RKNN_sdma_cfg_id_error 0x900C
+
+W
+
+0x00000000 Id where error happened
+
+RKNN_sdma_rd_weight_1 0x9010
+
+W
+
+0x00000000 Weight of read arbiter register1
+
+RKNN_sdma_cfg_dma_fif
+0x9014
+o_clr
+
+W
+
+0x00000000 Clear DMA FIFO
+
+RKNN_sdma_cfg_dma_ar
+0x9018
+b
+
+W
+
+0x00000000 DMA arbiter configuration register
+
+RKNN_sdma_cfg_dma_rd
+0x9020
+_qos
+
+W
+
+0x00000000 Read Qos for DMA
+
+RKNN_sdma_cfg_dma_rd
+0x9024
+_cfg
+
+W
+
+0x00000000 Read configuration for AXI signals
+
+RKNN_sdma_cfg_dma_wr
+0x9028
+_cfg
+
+W
+
+0x00000000 Write configuration for AXI signals
+
+RKNN_sdma_cfg_dma_ws
+0x902C
+trb
+
+W
+
+0x00000000 Write strobe signal for AXI
+
+RKNN_sdma_cfg_status
+
+0x9030
+
+W
+
+0x00000000 AXI status signal
+
+RKNN_global_operation_e
+0xF008
+nable
+
+W
+
+0x00000000 Combine Operation Enable
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+36.4.3 Detail Registers Description
+RKNN_pc_operation_enable
+Address: Operational Base + offset (0x0008)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1993
+
+RKRK3588 TRM-Part1
+Bit
+31:1
+
+0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+RW 0x0
+
+Description
+reserved
+op_en
+PC operation enable.
+1'd0: Disable PC module;
+1'd1: Enable PC module to fetch register for each task.
+
+RKNN_pc_base_address
+Address: Operational Base + offset (0x0010)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:4
+
+RW 0x0000000
+
+pc_source_addr
+PC base address.
+This is the address of DMA instruction where it located.
+
+3:1
+
+RO
+
+reserved
+
+0
+
+0x0
+
+RW 0x0
+
+pc_sel
+PC mode enable.
+1'd0: PC mode, use AXI DMA to fetch register config;
+1'd1: Slave mode, use AHB to set register.
+
+RKNN_pc_register_amounts
+Address: Operational Base + offset (0x0014)
+Bit
+
+Attr Reset Value
+
+31:16 RO
+
+15:0
+
+0x0000
+
+RW 0x0000
+
+Description
+reserved
+pc_data_amount
+Data amount.
+The register number need to be fetched of one task. Each register
+takes 64 bits, it is combined as following:
+bit[63:48] indicates which block the register forward to.
+bit[47:16] the register's value
+bit[15: 0] the register's offset address in each block.
+bit[56]= 1 means this register is for pc block.
+bit[57]= 1 CNA
+bit[59]= 1 CORE
+bit[60]= 1 DPU
+bit[61]= 1 DPU_RDMA
+bit[62]= 1 PPU
+bit[63]= 1 PPU_RDMA
+bit[55]= 1 to set each block's op_en
+eg. 64'h0081_0000_007f_0008 will set each block's op_en(CNA,
+CORE, ..., PPU_RDMA).
+note: op_en is strongly recommended set at the end of register
+list.
+before op_en, 64'h0041_xxxx_xxxx_xxxx must be set.
+
+RKNN_pc_interrupt_mask
+Address: Operational Base + offset (0x0020)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1994
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:17 RO
+
+16:0
+
+0x0000
+
+RW 0x1ffff
+
+Description
+reserved
+int_mask
+Interrupt mask.
+mask[0 ]: CNA feature group 0 interrupt mask. set 1 to enable
+interrupt;
+mask[1 ]: CNA feature group 1;
+mask[2 ]: CNA weight group 0;
+mask[3 ]: CNA weight group 1;
+mask[4 ]: CNA csc group 0;
+mask[5 ]: CNA csc group 1;
+mask[6 ]: CORE group 0;
+mask[7 ]: CORE group 1;
+mask[8 ]: DPU group 0;
+mask[9 ]: DPU group 1;
+mask[10]: PPU group 0;
+mask[11]: PPU group 1;
+mask[12]: DMA read error;
+mask[13]: DMA write error;
+Note: In pc mode, int mask set the last one task's interrupt
+masking.
+
+RKNN_pc_interrupt_clear
+Address: Operational Base + offset (0x0024)
+Bit
+
+Attr Reset Value
+
+31:17 RO
+
+16:0
+
+W1
+C
+
+Description
+
+0x0000
+
+reserved
+
+0x00000
+
+int_clr
+Interrupt clear.
+done_clr[0 ]: CNA feature group 0 interrupt clear;
+done_clr[1 ]: CNA feature group 1;
+done_clr[2 ]: CNA weight group 0;
+done_clr[3 ]: CNA weight group 1;
+done_clr[4 ]: CNA csc group 0;
+done_clr[5 ]: CNA csc group 1;
+done_clr[6 ]: CORE group 0;
+done_clr[7 ]: CORE group 1;
+done_clr[8 ]: DPU group 0;
+done_clr[9 ]: DPU group 1;
+done_clr[10]: PPU group 0;
+done_clr[11]: PPU group 1;
+done_clr[12]: DMA read error;
+done_clr[13]: DMA write error.
+
+RKNN_pc_interrupt_status
+Address: Operational Base + offset (0x0028)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1995
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:17 RO
+
+16:0
+
+W1
+C
+
+Description
+
+0x0000
+
+reserved
+
+0x00000
+
+int_st
+Interrupt status.
+int_st[0 ]: CNA feature group 0 interrupt status, which and with
+mask bit;
+int_st[1 ]: CNA feature group 1;
+int_st[2 ]: CNA weight group 0;
+int_st[3 ]: CNA weight group 1;
+int_st[4 ]: CNA csc group 0;
+int_st[5 ]: CNA csc group 1;
+int_st[6 ]: CORE group 0;
+int_st[7 ]: CORE group 1;
+int_st[8 ]: DPU group 0;
+int_st[9 ]: DPU group 1;
+int_st[10]: PPU group 0;
+int_st[11]: PPU group 1;
+int_st[12]: DMA read error;
+int_st[13]: DMA write error.
+
+RKNN_pc_interrupt_raw_status
+Address: Operational Base + offset (0x002C)
+Bit
+
+Attr Reset Value
+
+31:17 RO
+
+16:0
+
+W1
+C
+
+Description
+
+0x0000
+
+reserved
+
+0x00000
+
+int_raw_st
+Interrupt raw status.
+int_st[0 ]: CNA feature group 0 interrupt raw status;
+int_st[1 ]: CNA feature group 1;
+int_st[2 ]: CNA weight group 0;
+int_st[3 ]: CNA weight group 1;
+int_st[4 ]: CNA csc group 0;
+int_st[5 ]: CNA csc group 1;
+int_st[6 ]: CORE group 0;
+int_st[7 ]: CORE group 1;
+int_st[8 ]: DPU group 0;
+int_st[9 ]: DPU group 1;
+int_st[10]: PPU group 0;
+int_st[11]: PPU group 1;
+int_st[12]: DMA read error;
+int_st[13]: DMA write error.
+
+RKNN_pc_task_con
+Address: Operational Base + offset (0x0030)
+Bit
+
+Attr Reset Value
+
+31:14 RO
+
+0x00000
+
+Description
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1996
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+0x0
+
+task_count_clear
+Task counter clear register.
+Clear the counter that counting current task. Before task started,
+it is suggested to clear.
+
+12
+
+RW 0x0
+
+task_pp_en
+PC task ping-pong mode enable.
+1'd0: Ping-pong mode off. The second group register setting is
+fetched after first group task operation is finished;
+1'd1: Tasks' registers are fetched in ping-pong mode. The second
+group register setting is fetched immediately after first group's
+register fetching is finished.
+
+11:0
+
+RW 0x000
+
+task_number
+PC task number.
+Set the total task number to be executed.
+
+13
+
+W1
+C
+
+RKNN_pc_task_dma_base_addr
+Address: Operational Base + offset (0x0034)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:4
+
+RW 0x0000000
+
+dma_base_addr
+Task base address.
+This is for each DMA's base address.
+For feature DMA, weight DMA, DPU DMA, PPU DMA, the address
+is set as offset address. Final address appear on AXI bus is base
+address + offset address.
+
+3:0
+
+RO
+
+reserved
+
+0x0
+
+RKNN_pc_task_status
+Address: Operational Base + offset (0x003C)
+Bit
+
+Attr Reset Value
+
+31:28 RO
+
+27:0
+
+0x0
+
+RW 0x0000000
+
+Description
+reserved
+task_status
+Task status.
+[11:0]: Current task counter value;
+[12]: Indicate the first task is operating;
+[13]: Indicate the last task is operating;
+[12]: Indicate the first task's register is fetching;
+[13]: Indicate the last task's register is fetching.
+
+RKNN_cna_s_status
+Address: Operational Base + offset (0x1000)
+Bit
+
+Attr Reset Value
+
+31:18 RO
+
+0x0000
+
+Description
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1997
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+17:16 RO
+
+0x0
+
+status_1
+Executer 1 status.
+2'd0: Executer 1 is in idle state;
+2'd1: Executer 1 is operating;
+2'd2: Executer 1 is operating, executer 1 is waiting to operate;
+2'd3: Reserved.
+
+15:2
+
+0x0000
+
+reserved
+
+0x0
+
+status_0
+Executer 0 status.
+2'd0: Executer 0 is in idle state;
+2'd1: Executer 0 is operating;
+2'd2: Executer 0 is operating, executer 1 is waiting to operate;
+2'd3: Reserved.
+
+1:0
+
+RO
+
+RO
+
+RKNN_cna_s_pointer
+Address: Operational Base + offset (0x1004)
+Bit
+
+Attr Reset Value
+
+31:17 RO
+
+Description
+
+0x0000
+
+reserved
+
+16
+
+RO
+
+0x0
+
+executer
+Which register group to be used.
+1'd0: Executer group 0;
+1'd1: Executer group 1.
+
+15:6
+
+RO
+
+0x000
+
+reserved
+
+5
+
+W1
+C
+
+0x0
+
+executer_pp_clear
+Clear executer group pointer.
+Set this bit to 1 to clear pointer to 0.
+
+4
+
+W1
+C
+
+0x0
+
+pointer_pp_clear
+Clear register group pointer.
+Set this bit to 1 to clear pointer to 0.
+
+3
+
+2
+
+1
+
+RW 0x0
+
+pointer_pp_mode
+Register group ping-pong mode.
+1'd0: Pointer ping-pong by executer;
+eg. if current executer is 0, next pointer will toggle to 1;
+1'd1: Pointer ping-pong by pointer;
+eg. if current pointer is 0, next pointer will toggle to 1.
+
+RW 0x0
+
+executer_pp_en
+Executer group ping-pong enable.
+1'd0: Disable;
+1'd1: Enable.
+
+RW 0x0
+
+pointer_pp_en
+Register group ping-pong enable.
+1'd0: Disable;
+1'd1: Enable.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1998
+
+RKRK3588 TRM-Part1
+Bit
+
+0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+pointer
+Which register group ready to be set.
+1'd0: Register group 0;
+1'd1: Register group 1.
+
+RKNN_cna_operation_enable
+Address: Operational Base + offset (0x1008)
+Bit
+31:1
+
+0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+RW 0x0
+
+Description
+reserved
+op_en
+Set this register will trigger CNA block operate.
+This register and after this are all shadowed for ping-pong
+operation.
+1'd0: Disable;
+1'd1: Enable.
+
+RKNN_cna_conv_con1
+Address: Operational Base + offset (0x100C)
+Bit
+31
+
+30
+
+29
+
+Attr Reset Value
+RO
+
+reserved
+
+RW 0x0
+
+nonalign_dma
+CNA DMA non-align mode.
+1'd0: Disable;
+1'd1: Enable, please enable this bit under ARGB mode.
+Enable this bit will enable DMA fetching feature data
+continuously.
+
+RW 0x0
+
+group_line_off
+Group line fetch off.
+1'd0: Enable group line fetch;
+1'd1: Disable.
+This setting only influence line fetch efficiency.
+
+28:17 RO
+
+16
+
+0x0
+
+Description
+
+0x000
+
+RW 0x0
+
+reserved
+deconv
+Enable deconvolution function.
+1'd0: Disable;
+1'd1: Enable.
+
+15:12 RW 0x0
+
+argb_in
+Non-align channel layer control register.
+4'd8: 1 channel input mode;
+4'd9: 2 channel input mode;
+4'd10: 3 channel input mode;
+4'd11: 4 channel input mode.
+
+11:10 RO
+
+reserved
+
+0x0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1999
+
+RKRK3588 TRM-Part1
+Bit
+
+9:7
+
+6:4
+
+3:0
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+proc_precision
+Process precision.
+3'd0: Input precision is int 8;
+3'd1: Input data precision is int 16;
+3'd2: Input data precision is float 16;
+3'd3: Input data precision is bfloat 16;
+3'd4: Reserved;
+3'd5: Reserved;
+3'd6: Input data precision is int4;
+3'd7: Input data precision is tf32.
+
+RW 0x0
+
+in_precision
+Input precision.
+3'd0: Input precision is int 8;
+3'd1: Input data precision is int 16;
+3'd2: Input data precision is float 16;
+3'd3: Input data precision is bfloat 16;
+3'd4: Reserved;
+3'd5: Reserved;
+3'd6: Input data precision is int4;
+3'd7: Input data precision is tf32.
+
+RW 0x0
+
+conv_mode
+Convolution mode.
+2'd0: Direct convolution;
+2'd1: Reserved;
+2'd2: Reserved;
+2'd3: Depthwise convolution.
+
+RKNN_cna_conv_con2
+Address: Operational Base + offset (0x1010)
+Bit
+
+Attr Reset Value
+
+31:24 RO
+
+0x00
+
+Description
+reserved
+
+23:16 RW 0x00
+
+kernel_group
+Kernels group.
+In int8, 32 kernels form 1 group, in int16 or fp16, 16 kernels
+form 1 group.
+eg, weight kernel is 256, in int8, you can set this register to be
+256/32 -1 = 15.
+
+15:14 RO
+
+reserved
+
+0x0
+
+13:4
+
+RW 0x000
+
+feature_grains
+Feature data rows needs to be buffered before convolution start.
+It's suggested to set this field as y_stride+weight_height+1.
+
+3
+
+RO
+
+reserved
+
+0x0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2000
+
+RKRK3588 TRM-Part1
+Bit
+
+2
+
+1
+
+0
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+csc_wo_en
+Do weight scan.
+1'd0: Enable csc output weight data to core;
+1'd1: Disable.
+
+RW 0x0
+
+csc_do_en
+Do data scan.
+1'd0: Enable csc output feature data to core;
+1'd1: Disable.
+
+RW 0x0
+
+cmd_fifo_srst
+Command FIFO soft reset.
+Reserved for debug purpose.
+
+RKNN_cna_conv_con3
+Address: Operational Base + offset (0x1014)
+Bit
+31
+
+Attr Reset Value
+RO
+
+0x0
+
+Description
+reserved
+
+30:28 RW 0x0
+
+nn_mode
+co-work mode.
+3'd0: Int8 mac array 32x32 mode;
+3'd1: 64x32 mode;
+3'd2: 96x32 mode;
+3'd3: Reserved;
+3'd4: 32x64 mode;
+3'd5: 32x96 mode;
+3'd6: Reserved;
+3'd7: Reserved.
+This register is target for multicore mode. By single core mode
+keep it at 3'd0.
+
+27:26 RO
+
+reserved
+
+0x0
+
+25:21 RW 0x00
+
+atrous_y_dilation
+Atrous x dilation.
+Pad numbers inserted in feature map column between 2 pixels.
+
+20:16 RW 0x00
+
+atrous_x_dilation
+Atrous x dilation.
+Pad numbers inserted in feature map row between 2 pixels.
+Set this register value >0 will enable atrous convolution.
+
+15:14 RO
+
+reserved
+
+0x0
+
+13:11 RW 0x0
+
+deconv_y_stride
+Deconvolution y stride.
+Pad numbers inserted in feature map column between 2 pixels.
+
+10:8
+
+RW 0x0
+
+deconv_x_stride
+Deconvolution x stride.
+Pad numbers inserted in feature map row between 2 pixels.
+
+7:6
+
+RO
+
+reserved
+
+0x0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2001
+
+RKRK3588 TRM-Part1
+Bit
+5:3
+
+2:0
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+conv_y_stride
+Convolution y stride.
+Stride value in y direction.
+
+RW 0x0
+
+conv_x_stride
+Convolution x stride.
+Stride value in x direction.
+
+RKNN_cna_data_size0
+Address: Operational Base + offset (0x1020)
+Bit
+
+Attr Reset Value
+
+31:27 RO
+
+0x00
+
+Description
+reserved
+
+26:16 RW 0x000
+
+datain_width
+Input feature data width.
+
+15:11 RO
+
+reserved
+
+10:0
+
+0x00
+
+RW 0x000
+
+datain_height
+Input feature data height.
+
+RKNN_cna_data_size1
+Address: Operational Base + offset (0x1024)
+Bit
+
+Attr Reset Value
+
+31:30 RO
+
+0x0
+
+Description
+reserved
+
+29:16 RW 0x0000
+
+datain_channel_real
+Real channel number.
+If the input channel is not integer times of 8(int8) or 4(int
+16/float 16), set the real channel number in this field.
+
+15:0
+
+datain_channel
+Input feature data channel number;
+Int 8 mode, this number should be integer times of 8;
+Int 16/float 16 mode, should be integer times of 4.
+
+RW 0x0000
+
+RKNN_cna_data_size2
+Address: Operational Base + offset (0x1028)
+Bit
+
+Attr Reset Value
+
+31:11 RO
+10:0
+
+0x000000
+
+RW 0x000
+
+Description
+reserved
+dataout_width
+Data width after convolution.
+
+RKNN_cna_data_size3
+Address: Operational Base + offset (0x102C)
+Bit
+
+Attr Reset Value
+
+31:24 RO
+
+0x00
+
+Description
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2002
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+23:22 RW 0x0
+
+surf_mode
+Surface serial mode.
+2'd0: 1surf series;
+2'd1: 1surf series;
+2'd2: 2 surf series;
+2'd3: 4 surf series.
+
+21:0
+
+dataout_atomics
+Data atomics after convolution which is data out total pixels
+number.
+
+RW 0x000000
+
+RKNN_cna_weight_size0
+Address: Operational Base + offset (0x1030)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+weight_bytes
+Weight bytes in total for this convolution.
+
+RKNN_cna_weight_size1
+Address: Operational Base + offset (0x1034)
+Bit
+
+Attr Reset Value
+
+31:19 RO
+18:0
+
+0x0000
+
+RW 0x00000
+
+Description
+reserved
+weight_bytes_per_kernel
+Weight bytes for one kernel.
+
+RKNN_cna_weight_size2
+Address: Operational Base + offset (0x1038)
+Bit
+
+Attr Reset Value
+
+31:29 RO
+
+0x0
+
+Description
+reserved
+
+28:24 RW 0x00
+
+weight_width
+Kernel width.
+
+23:21 RO
+
+reserved
+
+0x0
+
+20:16 RW 0x00
+
+weight_height
+Kernel height.
+
+15:14 RO
+
+reserved
+
+13:0
+
+0x0
+
+RW 0x0000
+
+weight_kernels
+Weight kernels.
+
+RKNN_cna_cbuf_con0
+Address: Operational Base + offset (0x1040)
+Bit
+
+Attr Reset Value
+
+31:14 RO
+
+0x00000
+
+Description
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2003
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+weight_reuse
+Weight data reuse enable.
+1'd0: Disable;
+1'd1: Enable data reuse. fetching weight directly from internal
+buffer.
+
+12
+
+RW 0x0
+
+data_reuse
+Feature data reuse enable.
+1'd0: Disable;
+1'd1: Enable data reuse. fetching data directly from internal
+buffer.
+
+11
+
+RO
+
+reserved
+
+13
+
+10:8
+
+7:4
+
+3:0
+
+0x0
+
+RW 0x0
+
+fc_data_bank
+Bank numbers for fc zero-skipping feature data. In FC zeroskipping mode, set to be 1, Otherwise, must set to be 0.
+
+RW 0x0
+
+weight_bank
+Bank numbers for weight data.
+4'd1: Bank 7 occupied by weight data;
+4'd2: Bank 6/7 occupied by weight data;
+...
+4'd7: Bank 1-7 occupied by weight data.
+
+RW 0x0
+
+data_bank
+Bank numbers for feature data.
+4'd0: Bank 0 occupied by feature data;
+4'd1: Bank 0 and bank 1 occupied by feature data;
+4'd2: Bank 0/1/2 occupied by feature data;
+...
+4'd6: Bank 0-6 occupied by feature data.
+
+RKNN_cna_cbuf_con1
+Address: Operational Base + offset (0x1044)
+Bit
+
+Attr Reset Value
+
+31:13 RO
+12:0
+
+0x00000
+
+RW 0x0000
+
+Description
+reserved
+data_entries
+How many banks space needed to store one feature map row.
+
+RKNN_cna_cvt_con0
+Address: Operational Base + offset (0x104C)
+Bit
+
+Attr Reset Value
+
+31:28 RO
+
+0x0
+
+Description
+reserved
+
+27:22 RW 0x00
+
+cvt_truncate_3
+CVT truncate value 3.
+
+21:16 RW 0x00
+
+cvt_truncate_2
+CVT truncate value 2.
+
+15:10 RW 0x00
+
+cvt_truncate_1
+CVT truncate value 1.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2004
+
+RKRK3588 TRM-Part1
+Bit
+9:4
+
+3
+
+2
+
+1
+
+0
+
+Attr Reset Value
+
+Description
+
+RW 0x00
+
+cvt_truncate_0
+CVT truncate value 0.
+
+RW 0x0
+
+data_sign
+Feature data is signed or unsigned.
+1'd0: Unsigned;
+1'd1: Signed.
+
+RW 0x0
+
+round_type
+Rounding type of the input convert.
+1'd0: Odd in, even not;
+1'd1: Round-up 0.5 to 1.
+
+RW 0x0
+
+cvt_type
+Cal type of the input convert.
+1'd0: Multiply first, then add;
+1'd1: CVT function will do add first, then multiply.
+
+RW 0x0
+
+cvt_bypass
+Bypass input convert.
+1'd0: Enable CVT function;
+1'd1: Disable CVT function.
+
+RKNN_cna_cvt_con1
+Address: Operational Base + offset (0x1050)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RW 0x0000
+
+cvt_scale0
+CVT scale 0.
+Multiplier operand for 1st channel.
+
+15:0
+
+cvt_offset0
+CVT offset 0.
+Adder operand for 1st channel.
+
+RW 0x0000
+
+RKNN_cna_cvt_con2
+Address: Operational Base + offset (0x1054)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RW 0x0000
+
+cvt_scale1
+CVT scale 1
+Multiplier operand for 2nd channel.
+
+15:0
+
+cvt_offset1
+CVT offset 1.
+Adder operand for 2nd channel.
+
+RW 0x0000
+
+RKNN_cna_cvt_con3
+Address: Operational Base + offset (0x1058)
+Bit
+
+Attr Reset Value
+
+31:16 RW 0x0000
+
+Description
+cvt_scale2
+CVT scale 2.
+Multiplier operand for 3rd channel.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2005
+
+RKRK3588 TRM-Part1
+Bit
+15:0
+
+Attr Reset Value
+RW 0x0000
+
+Description
+cvt_offset2
+CVT offset 2.
+Adder operand for 3rd channel.
+
+RKNN_cna_cvt_con4
+Address: Operational Base + offset (0x105C)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RW 0x0000
+
+cvt_scale3
+CVT scale 3.
+Multiplier operand for 4th channel.
+
+15:0
+
+cvt_offset3
+CVT offset 3.
+Adder operand for 4th channel.
+
+RW 0x0000
+
+RKNN_cna_fc_con0
+Address: Operational Base + offset (0x1060)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RW 0x0000
+
+fc_skip_data
+FC zero skipping data
+Skipped feature data value, normally set to 0.
+
+15:1
+
+reserved
+
+0
+
+RO
+
+0x0000
+
+RW 0x0
+
+fc_skip_en
+FC zero skipping enable
+1'd0: Disable;
+1'd1: Enable skip some feature data value, normally skip zero.
+When one pixel feature data is 0, the corresponding weight data
+is not fetched from system memory.
+
+RKNN_cna_fc_con1
+Address: Operational Base + offset (0x1064)
+Bit
+
+Attr Reset Value
+
+31:17 RO
+16:0
+
+0x0000
+
+RW 0x00000
+
+Description
+reserved
+data_offset
+FC zero skipping data offset.
+Feature data offset in fc skip mode.
+
+RKNN_cna_pad_con0
+Address: Operational Base + offset (0x1068)
+Bit
+31:8
+7:4
+
+Attr Reset Value
+RO
+
+0x000000
+
+RW 0x0
+
+Description
+reserved
+pad_left
+Pad left
+Pad numbers in left of the feature map.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2006
+
+RKRK3588 TRM-Part1
+Bit
+3:0
+
+Attr Reset Value
+RW 0x0
+
+Description
+pad_top
+PAD top
+Pad numbers in top of the feature map.
+
+RKNN_cna_feature_data_addr
+Address: Operational Base + offset (0x1070)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+feature_base_addr
+Feature data address.
+
+RKNN_cna_fc_con2
+Address: Operational Base + offset (0x1074)
+Bit
+
+Attr Reset Value
+
+31:17 RO
+16:0
+
+0x0000
+
+RW 0x00000
+
+Description
+reserved
+weight_offset
+Weight data address.
+
+RKNN_cna_dma_con0
+Address: Operational Base + offset (0x1078)
+Bit
+
+31
+
+Attr Reset Value
+
+RW 0x0
+
+30:20 RO
+
+0x000
+
+Description
+ov4k_bypass
+Separate the burst command of over 4k to 2 independent burst
+commands.
+1'd0: Enable this feature;
+1'd1: Bypass this feature.
+reserved
+
+19:16 RW 0x0
+
+weight_burst_len
+AXI burst length for weight data DMA.
+4'd3: Burst length is 4;
+4'd7: Burst length is 8;
+4'd15: Burst length is 16.
+
+15:4
+
+reserved
+
+3:0
+
+RO
+
+0x000
+
+RW 0x0
+
+data_burst_len
+AXI burst length for feature data DMA.
+4'd3: Burst length is 4;
+4'd7: Burst length is 8;
+4'd15: Burst length is 16.
+
+RKNN_cna_dma_con1
+Address: Operational Base + offset (0x107C)
+Bit
+
+Attr Reset Value
+
+31:28 RO
+27:0
+
+0x0
+
+RW 0x0000000
+
+Description
+reserved
+line_stride
+Line stride
+Feature width with Virtual box.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2007
+
+RKRK3588 TRM-Part1
+
+RKNN_cna_dma_con2
+Address: Operational Base + offset (0x1080)
+Bit
+
+Attr Reset Value
+
+31:28 RO
+27:0
+
+0x0
+
+RW 0x0000000
+
+Description
+reserved
+surf_stride
+Surface stride
+Feature map actual surface area.
+
+RKNN_cna_fc_data_size0
+Address: Operational Base + offset (0x1084)
+Bit
+
+Attr Reset Value
+
+31:30 RO
+
+0x0
+
+Description
+reserved
+
+29:16 RW 0x0000
+
+dma_width
+Feature input width for AXI DMA.
+
+15:11 RO
+
+reserved
+
+10:0
+
+0x00
+
+RW 0x000
+
+dma_height
+Feature input height for AXI DMA.
+
+RKNN_cna_fc_data_size1
+Address: Operational Base + offset (0x1088)
+Bit
+
+Attr Reset Value
+
+31:16 RO
+15:0
+
+0x0000
+
+RW 0x0000
+
+Description
+reserved
+dma_channel
+Feature input channel for AXI DMA.
+
+RKNN_cna_clk_gate
+Address: Operational Base + offset (0x1090)
+Bit
+31:5
+
+Attr Reset Value
+RO
+
+0x0000000
+
+Description
+reserved
+
+4
+
+RW 0x0
+
+cbuf_cs_disable_clkgate
+Cache auto gating.
+1'd0: Auto clock gate is enabled;
+1'd1: Disable CBUF clock auto gate.
+
+3
+
+RO
+
+reserved
+
+2
+
+1
+
+0x0
+
+RW 0x0
+
+csc_disable_clkgate
+Sequence scan auto gating.
+1'd0: Auto clock gate is enabled;
+1'd1: Disable csc block clock gate.
+
+RW 0x0
+
+cna_weight_disable_clkgate
+Weight fetch auto gating.
+1'd0: Auto clock gate is enabled;
+1'd1: Disable weight block clock gate.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2008
+
+RKRK3588 TRM-Part1
+Bit
+
+0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+cna_feature_disable_clkgate
+Feature fetch auto gating.
+1'd0: Auto clock gate is enabled;
+1'd1: Disable feature block clock gate.
+
+RKNN_cna_dcomp_ctrl
+Address: Operational Base + offset (0x1100)
+Bit
+
+Attr Reset Value
+0x0000000
+
+Description
+
+31:4
+
+RO
+
+reserved
+
+3
+
+RW 0x0
+
+wt_dec_bypass
+Bypass weight decompress.
+
+2:0
+
+RW 0x0
+
+decomp_control
+Control register for weight decompress.
+
+RKNN_cna_dcomp_regnum
+Address: Operational Base + offset (0x1104)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+dcomp_regnum
+Weight decompress register number.
+
+RKNN_cna_dcomp_addr0
+Address: Operational Base + offset (0x1110)
+Bit
+
+Attr Reset Value
+
+31:4
+
+RW 0x0000000
+
+decompress_addr0
+Base address of the weight.
+
+3:0
+
+RO
+
+reserved
+
+0x0
+
+Description
+
+RKNN_cna_dcomp_amount0
+Address: Operational Base + offset (0x1140)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+dcomp_amount0
+Amount of the weight decompress for the 0 decompress.
+
+RKNN_cna_dcomp_amount1
+Address: Operational Base + offset (0x1144)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+dcomp_amount1
+Amount of the weight decompress for the 1 decompress.
+
+RKNN_cna_dcomp_amount2
+Address: Operational Base + offset (0x1148)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+dcomp_amount2
+Amount of the weight decompress for the 2 decompress.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2009
+
+RKRK3588 TRM-Part1
+RKNN_cna_dcomp_amount3
+Address: Operational Base + offset (0x114C)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+dcomp_amount3
+Amount of the weight decompress for the 3 decompress.
+
+RKNN_cna_dcomp_amount4
+Address: Operational Base + offset (0x1150)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+dcomp_amount4
+Amount of the weight decompress for the 4 decompress.
+
+RKNN_cna_dcomp_amount5
+Address: Operational Base + offset (0x1154)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+dcomp_amount5
+Amount of the weight decompress for the 5 decompress.
+
+RKNN_cna_dcomp_amount6
+Address: Operational Base + offset (0x1158)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+dcomp_amount6
+Amount of the weight decompress for the 6 decompress.
+
+RKNN_cna_dcomp_amount7
+Address: Operational Base + offset (0x115C)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+dcomp_amount7
+Amount of the weight decompress for the 7 decompress.
+
+RKNN_cna_dcomp_amount8
+Address: Operational Base + offset (0x1160)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+dcomp_amount8
+Amount of the weight decompress for the 8 decompress.
+
+RKNN_cna_dcomp_amount9
+Address: Operational Base + offset (0x1164)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+dcomp_amount9
+Amount of the weight decompress for the 9 decompress.
+
+RKNN_cna_dcomp_amount10
+Address: Operational Base + offset (0x1168)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2010
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+dcomp_amount10
+Amount of the weight decompress for the 10 decompress.
+
+RKNN_cna_dcomp_amount11
+Address: Operational Base + offset (0x116C)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+dcomp_amount11
+Amount of the weight decompress for the 11 decompress.
+
+RKNN_cna_dcomp_amount12
+Address: Operational Base + offset (0x1170)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+dcomp_amount12
+Amount of the weight decompress for the 12 decompress.
+
+RKNN_cna_dcomp_amount13
+Address: Operational Base + offset (0x1174)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+dcomp_amount13
+Amount of the weight decompress for the 13 decompress.
+
+RKNN_cna_dcomp_amount14
+Address: Operational Base + offset (0x1178)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+dcomp_amount14
+Amount of the weight decompress for the 14 decompress.
+
+RKNN_cna_dcomp_amount15
+Address: Operational Base + offset (0x117C)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+dcomp_amount15
+Amount of the weight decompress for the 15 decompress.
+
+RKNN_cna_cvt_con5
+Address: Operational Base + offset (0x1180)
+Bit
+
+31:0
+
+Attr Reset Value
+
+RW 0x00000000
+
+Description
+per_channel_cvt_en
+convert enable.
+Per channel enable CVT function.
+Int 4 has 32 channels in total for 128 bits.
+Int 8 16 channel...
+
+RKNN_cna_pad_con1
+Address: Operational Base + offset (0x1184)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2011
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+pad_value
+Pad value.
+
+RKNN_core_s_status
+Address: Operational Base + offset (0x3000)
+Bit
+
+Attr Reset Value
+
+31:18 RO
+
+Description
+
+0x0000
+
+reserved
+
+17:16 RO
+
+0x0
+
+status_1
+Executer 1 status.
+2'd0: Executer 1 is in idle state;
+2'd1: Executer 1 is operating;
+2'd2: Executer 1 is operating, executer 1 is waiting to operate;
+2'd3: Reserved.
+
+15:2
+
+0x0000
+
+reserved
+
+0x0
+
+status_0
+Executer 0 status.
+2'd0: Executer 0 is in idle state;
+2'd1: Executer 0 is operating;
+2'd2: Executer 0 is operating, executer 1 is waiting to operate;
+2'd3: Reserved.
+
+1:0
+
+RO
+
+RO
+
+RKNN_core_s_pointer
+Address: Operational Base + offset (0x3004)
+Bit
+
+Attr Reset Value
+
+31:17 RO
+
+Description
+
+0x0000
+
+reserved
+
+16
+
+RO
+
+0x0
+
+executer
+Which register group to be used.
+1'd0: Executer group 0;
+1'd1: Executer group 1.
+
+15:6
+
+RO
+
+0x000
+
+reserved
+
+5
+
+W1
+C
+
+0x0
+
+executer_pp_clear
+Clear executer group pointer.
+Set this bit to 1 to clear pointer to 0.
+
+4
+
+W1
+C
+
+0x0
+
+pointer_pp_clear
+Clear register group pointer.
+Set this bit to 1 to clear pointer to 0.
+
+3
+
+RW 0x0
+
+pointer_pp_mode
+Register group ping-pong mode.
+1'd0: Pointer ping-pong by executer;
+eg. if current executer is 0, next pointer will toggle to 1;
+1'd1: Pointer ping-pong by pointer;
+eg. if current pointer is 0, next pointer will toggle to 1.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2012
+
+RKRK3588 TRM-Part1
+Bit
+
+2
+
+1
+
+0
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+executer_pp_en
+Executer group ping-pong enable.
+1'd0: Disable;
+1'd1: Enable.
+
+RW 0x0
+
+pointer_pp_en
+Register group ping-pong enable.
+1'd0: Disable;
+1'd1: Enable.
+
+RW 0x0
+
+pointer
+Which register group ready to be set.
+1'd0: Register group 0;
+1'd1: Register group 1.
+
+RKNN_core_operation_enable
+Address: Operational Base + offset (0x3008)
+Bit
+31:1
+
+0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+RW 0x0
+
+Description
+reserved
+op_en
+Set this register will trigger core block operate.
+This register and after this are all shadowed for ping-pong
+operation.
+1'd0: Disable;
+1'd1: Enable.
+
+RKNN_core_mac_gating
+Address: Operational Base + offset (0x300C)
+Bit
+
+Attr Reset Value
+
+31:27 RO
+26:0
+
+0x00
+
+RW 0x7800800
+
+Description
+reserved
+slcg_op_en
+Soft clock gating signals.
+
+RKNN_core_misc_cfg
+Address: Operational Base + offset (0x3010)
+Bit
+
+Attr Reset Value
+
+31:20 RO
+
+0x000
+
+Description
+reserved
+
+19:14 RW 0x00
+
+soft_gating
+Accumulate soft gating signal.
+
+13:11 RO
+
+reserved
+
+0x0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2013
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+10:8
+
+RW 0x0
+
+proc_precision
+Process precision
+3'd0: Input precision is int 8;
+3'd1: Input data precision is int 16;
+3'd2: Input data precision is float 16;
+3'd3: Input data precision is bfloat 16;
+3'd4: Reserved;
+3'd5: Reserved;
+3'd6: Input data precision is int4;
+3'd7: Input data precision is tf32.
+
+7:2
+
+RO
+
+reserved
+
+1
+
+0
+
+0x00
+
+RW 0x0
+
+dw_en
+Depthwise enable
+1'd0: Disable;
+1'd1: Depthwise mode enable.
+
+RW 0x0
+
+qd_en
+Quantify feature data calculate enable
+1'd0: Disable;
+1'd1: Enable.
+
+RKNN_core_dataout_size_0
+Address: Operational Base + offset (0x3014)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RW 0x0000
+
+dataout_height
+Data out height
+Data height after activation.
+
+15:0
+
+dataout_width
+Data out width.
+Data width after activation.
+
+RW 0x0000
+
+RKNN_core_dataout_size_1
+Address: Operational Base + offset (0x3018)
+Bit
+
+Attr Reset Value
+
+31:16 RO
+15:0
+
+0x0000
+
+RW 0x0000
+
+Description
+reserved
+dataout_channel
+Data out channel number
+Data channel number after activation.
+
+RKNN_core_clip_truncate
+Address: Operational Base + offset (0x301C)
+Bit
+31:7
+
+Attr Reset Value
+RO
+
+0x0000000
+
+Description
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2014
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+6
+
+RW 0x0
+
+round_type
+Rounding type
+1'b0: Odd in, even not;
+1'b1: Round-up 0.5 to 1.
+
+5
+
+RO
+
+reserved
+
+4:0
+
+RW 0x00
+
+0x0
+
+clip_truncate
+Truncate bits number.
+
+RKNN_dpu_s_status
+Address: Operational Base + offset (0x4000)
+Bit
+
+Attr Reset Value
+
+31:18 RO
+
+Description
+
+0x0000
+
+reserved
+
+17:16 RO
+
+0x0
+
+status_1
+Executer 1 status.
+2'd0: Executer 1 is in idle state;
+2'd1: Executer 1 is operating;
+2'd2: Executer 1 is operating, executer 1 is waiting to operate;
+2'd3: Reserved.
+
+15:2
+
+0x0000
+
+reserved
+
+0x0
+
+status_0
+Executer 0 status.
+2'd0: Executer 0 is in idle state;
+2'd1: Executer 0 is operating;
+2'd2: Executer 0 is operating, executer 1 is waiting to operate;
+2'd3: Reserved.
+
+1:0
+
+RO
+
+RO
+
+RKNN_dpu_s_pointer
+Address: Operational Base + offset (0x4004)
+Bit
+
+Attr Reset Value
+
+31:17 RO
+
+Description
+
+0x0000
+
+reserved
+
+16
+
+RO
+
+0x0
+
+executer
+Which register group to be used.
+1'd0: Executer group 0;
+1'd1: Executer group 1.
+
+15:6
+
+RO
+
+0x000
+
+reserved
+
+5
+
+W1
+C
+
+0x0
+
+executer_pp_clear
+Clear executer group pointer.
+Set this bit to 1 to clear pointer to 0.
+
+4
+
+W1
+C
+
+0x0
+
+pointer_pp_clear
+Clear register group pointer.
+Set this bit to 1 to clear pointer to 0.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2015
+
+RKRK3588 TRM-Part1
+Bit
+
+3
+
+2
+
+1
+
+0
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+pointer_pp_mode
+Register group ping-pong mode.
+1'd0: Pointer ping-pong by executer;
+eg. if current executer is 0, next pointer will toggle to 1;
+1'd1: Pointer ping-pong by pointer;
+eg. if current pointer is 0, next pointer will toggle to 1.
+
+RW 0x0
+
+executer_pp_en
+Executer group ping-pong enable.
+1'd0: Disable;
+1'd1: Enable.
+
+RW 0x0
+
+pointer_pp_en
+Register group ping-pong enable.
+1'd0: Disable;
+1'd1: Enable.
+
+RW 0x0
+
+pointer
+Which register group ready to be set.
+1'd0: Register group 0;
+1'd1: Register group 1.
+
+RKNN_dpu_operation_enable
+Address: Operational Base + offset (0x4008)
+Bit
+31:1
+
+0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+RW 0x0
+
+Description
+reserved
+op_en
+Set this register will trigger DPU block operate.
+This register and after this are all shadowed for ping-pong
+operation.
+1'd0: Disable;
+1'd1: Enable.
+
+RKNN_dpu_feature_mode_cfg
+Address: Operational Base + offset (0x400C)
+Bit
+
+Attr Reset Value
+
+Description
+
+31
+
+RW 0x0
+
+comb_use
+Combine use, same as DPU_RDMA comb_use[0].
+
+30
+
+RW 0x0
+
+tp_en
+If enable transpose.
+
+29:26 RW 0x0
+
+rgp_type
+Regroup type.
+4'd0: Cut all input (128bit);
+4'd1: Cut 4bit;
+4'd2: Cut 8bit;
+4'd3: Cut 16bit;
+4'd4: Cut 32bit;
+4'd5: Cut 64bit.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2016
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+25
+
+RW 0x0
+
+nonalign
+If non-align mode is enabled.
+If the output data flow is the same as the input data flow, this
+mode can be used.
+
+24:9
+
+RW 0x0000
+
+surf_len
+In non-align mode, how many 8bytes to be stored.
+
+RW 0x0
+
+burst_len
+Burst length.
+4'd3: Burst4;
+4'd7: Burst8;
+4'd15: Burst16.
+
+RW 0x0
+
+conv_mode
+Convolution mode.
+2'd0: Normal convolution mode;
+2'd1: Reserved;
+2'd2: Reserved;
+2'd3: Depthwise convolution mode.
+
+RW 0x0
+
+output_mode
+Where the DPU core output goes.
+[0]: If the output goes to PPU, high is active;
+[1]: If the output goes to outside, high is active.
+
+RW 0x0
+
+flying_mode
+Flying mode enable.
+1'd0: DPU core main data is from convolution output;
+1'd1: DPU core main data is from MRDMA;
+
+8:5
+
+4:3
+
+2:1
+
+0
+
+RKNN_dpu_data_format
+Address: Operational Base + offset (0x4010)
+Bit
+
+Attr Reset Value
+
+31:29 RW 0x0
+
+Description
+out_precision
+Output precision.
+3'd0: Integer 8bit;
+3'd1: Integer 16bit;
+3'd2: Float point 16bit;
+3'd3: Bfloat 16bit;
+3'd4: Integer 32bit;
+3'd5: Float point 32bit;
+3'd6: Integer 4bit.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2017
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+28:26 RW 0x0
+
+in_precision
+Input precision same with DPU_RDMA.
+3'd0: Integer 8bit;
+3'd1: Integer 16bit;
+3'd2: Float point 16bit;
+3'd3: Bfloat 16bit;
+3'd4: Integer 32bit;
+3'd5: Float point 32bit;
+3'd6: Integer 4bit.
+
+25:16 RW 0x000
+
+ew_truncate_neg
+Shift value in EW core for negative data.
+
+15:10 RW 0x00
+
+bn_mul_shift_value_neg
+Shift value in BN core for negative data.
+
+9:4
+
+RW 0x00
+
+bs_mul_shift_value_neg
+Shift value in BS core for negative data.
+
+RW 0x0
+
+mc_surf_out
+How many surfaces serial the DPU output.
+1'd0: Output feature obey the rule of 16byte align for one pixel;
+1'd1: Output feature can output 2 surface serial or 4 surf serials.
+
+RW 0x0
+
+proc_precision
+Proc precision.
+3'd0: Integer 8bit;
+3'd1: Integer 16bit;
+3'd2: Float point 16bit;
+3'd3: Bfloat 16bit;
+3'd4: Integer 32bit;
+3'd5: Float point 32bit;
+3'd6: Integer 4bit.
+
+3
+
+2:0
+
+RKNN_dpu_offset_pend
+Address: Operational Base + offset (0x4014)
+Bit
+
+Attr Reset Value
+
+31:16 RO
+15:0
+
+0x0000
+
+RW 0x0000
+
+Description
+reserved
+offset_pend
+What value the extra channel be set.
+
+RKNN_dpu_dst_base_addr
+Address: Operational Base + offset (0x4020)
+Bit
+
+Attr Reset Value
+
+31:4
+
+RW 0x0000000
+
+dst_base_addr
+Destination base address.
+
+3:0
+
+RO
+
+reserved
+
+0x0
+
+Description
+
+RKNN_dpu_dst_surf_stride
+Address: Operational Base + offset (0x4024)
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2018
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:4
+
+RW 0x0000000
+
+dst_surf_stride
+Output shape surface stride.
+
+3:0
+
+RO
+
+reserved
+
+0x0
+
+Description
+
+RKNN_dpu_data_cube_width
+Address: Operational Base + offset (0x4030)
+Bit
+
+Attr Reset Value
+
+31:13 RO
+12:0
+
+0x00000
+
+RW 0x0000
+
+Description
+reserved
+width
+Width of the input cube.
+
+RKNN_dpu_data_cube_height
+Address: Operational Base + offset (0x4034)
+Bit
+
+Attr Reset Value
+
+31:25 RO
+
+0x00
+
+Description
+reserved
+
+24:22 RW 0x0
+
+minmax_ctl
+Configuration of the minmax op.
+[0]: Enable minmax op;
+[1]: Minmax type;
+[2]: Probability only.
+
+21:13 RO
+
+reserved
+
+12:0
+
+0x000
+
+RW 0x0000
+
+height
+Height of the input cube.
+
+RKNN_dpu_data_cube_notch_addr
+Address: Operational Base + offset (0x4038)
+Bit
+
+Attr Reset Value
+
+31:29 RO
+
+0x0
+
+Description
+reserved
+
+28:16 RW 0x0000
+
+notch_addr_1
+How many pixels from the end of width to the end of the shape
+line end.
+
+15:13 RO
+
+reserved
+
+12:0
+
+0x0
+
+RW 0x0000
+
+notch_addr_0
+How many pixels from the end of width to the end of the shape
+line end.
+
+RKNN_dpu_data_cube_channel
+Address: Operational Base + offset (0x403C)
+Bit
+
+Attr Reset Value
+
+31:29 RO
+
+0x0
+
+Description
+reserved
+
+28:16 RW 0x0000
+
+orig_channel
+Original output channel.
+
+15:13 RO
+
+reserved
+
+0x0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2019
+
+RKRK3588 TRM-Part1
+Bit
+12:0
+
+Attr Reset Value
+RW 0x0000
+
+Description
+channel
+Cube channel.
+
+RKNN_dpu_bs_cfg
+Address: Operational Base + offset (0x4040)
+Bit
+
+Attr Reset Value
+
+31:20 RO
+
+0x000
+
+Description
+reserved
+
+19:16 RW 0x0
+
+bs_alu_algo
+BS core ALU op type.
+4'd0: Reserved;
+4'd1: Reserved;
+4'd2: Add
+4'd3: Reserved;
+4'd4: Minus;
+4'd5: Reserved;
+4'd6: Reserved;
+4'd7: Reserved;
+4'd8: Reserved.
+
+15:9
+
+reserved
+
+RO
+
+0x00
+
+RW 0x0
+
+bs_alu_src
+Where the ALU operand from.
+1'd0: From configure register;
+1'd1: From outside.
+
+RW 0x0
+
+bs_relux_en
+If enable RELUX.
+1'd0: Disable;
+1'd1: Enable.
+
+RW 0x0
+
+bs_relu_bypass
+If bypass BS core RELU op.
+1'd0: Do not bypass;
+1'd1: Bypass.
+
+RW 0x0
+
+bs_mul_prelu
+If enable MUL PRELU.
+1'd0: Disable;
+1'd1: Enable.
+
+4
+
+RW 0x0
+
+bs_mul_bypass
+If bypass BS core MUL op.
+1'd0: Do not bypass;
+1'd1: Bypass.
+
+3:2
+
+RO
+
+reserved
+
+8
+
+7
+
+6
+
+5
+
+1
+
+0x0
+
+RW 0x0
+
+bs_alu_bypass
+If bypass BS core ALU op.
+1'd0: Do not bypass;
+1'd1: Bypass.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2020
+
+RKRK3588 TRM-Part1
+Bit
+
+0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+bs_bypass
+If bypass BS core.
+1'd0: Do not bypass bs core;
+1'd1: Bypass bs core.
+
+RKNN_dpu_bs_alu_cfg
+Address: Operational Base + offset (0x4044)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+bs_alu_operand
+Bs core ALU operand.
+
+RKNN_dpu_bs_mul_cfg
+Address: Operational Base + offset (0x4048)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RW 0x0000
+
+bs_mul_operand
+BS core MUL operand.
+
+15:14 RO
+
+reserved
+
+0x0
+
+13:8
+
+RW 0x00
+
+bs_mul_shift_value
+Shift value in BS core for positive data.
+
+7:2
+
+RO
+
+reserved
+
+1
+
+0
+
+0x00
+
+RW 0x0
+
+bs_truncate_src
+Where the shift value from.
+1'd0: From configure register;
+1'd1: From outside.
+
+RW 0x0
+
+bs_mul_src
+Where the MUL operand from.
+1'd0: From configure register;
+1'd1: From outside.
+
+RKNN_dpu_bs_relux_cmp_value
+Address: Operational Base + offset (0x404C)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+bs_relux_cmp_dat
+Value of the RELUX compare with.
+
+RKNN_dpu_bs_ow_cfg
+Address: Operational Base + offset (0x4050)
+Bit
+
+Attr Reset Value
+
+31:28 RW 0x0
+
+Description
+rgp_cnter
+Regroup counter.
+4'd0: Select all data;
+4'd1: Select 1 from every 2;
+4'd2: Select 1 from every 4;
+4'd3: Select 1 from every 8;
+Else: Reserved.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2021
+
+RKRK3588 TRM-Part1
+Bit
+
+27
+
+Attr Reset Value
+
+RW 0x0
+
+26:11 RO
+
+0x0000
+
+Description
+tp_org_en
+If enable original transpose.
+1'd0: Disable;
+1'd1: Enable.
+reserved
+
+10:8
+
+RW 0x0
+
+size_e_2
+How many 8 channels in a row the last output line (minus 1).
+
+7:5
+
+RW 0x0
+
+size_e_1
+How many 8 channels in a row the middle output line (minus 1).
+
+4:2
+
+RW 0x0
+
+size_e_0
+How many 8 channels in a row the first output line (minus 1).
+
+RW 0x0
+
+od_bypass
+If bypass CPEND.
+1'd0: Do not bypass;
+1'd1: Bypass.
+
+RW 0x0
+
+ow_src
+Where the CPEND operand from.
+1'd0: From configure register;
+1'd1: From outside.
+
+1
+
+0
+
+RKNN_dpu_bs_ow_op
+Address: Operational Base + offset (0x4054)
+Bit
+
+Attr Reset Value
+
+31:16 RO
+15:0
+
+0x0000
+
+RW 0x0000
+
+Description
+reserved
+ow_op
+CPEND operand.
+
+RKNN_dpu_wdma_size_0
+Address: Operational Base + offset (0x4058)
+Bit
+
+Attr Reset Value
+
+31:28 RO
+
+27
+
+0x0
+
+RW 0x0
+
+Description
+reserved
+tp_precision
+Transpose precision.
+1'd0: 8bit;
+1'd1: 16bit.
+
+26:16 RW 0x000
+
+size_c_wdma
+Size_c for DPU_WDMA.
+
+15:13 RO
+
+reserved
+
+12:0
+
+0x0
+
+RW 0x0000
+
+channel_wdma
+Channel for DPU_WDMA.
+
+RKNN_dpu_wdma_size_1
+Address: Operational Base + offset (0x405C)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2022
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:29 RO
+
+0x0
+
+Description
+reserved
+
+28:16 RW 0x0000
+
+height_wdma
+Height for DPU_WDMA.
+
+15:13 RO
+
+reserved
+
+12:0
+
+0x0
+
+RW 0x0000
+
+width_wdma
+Width for DPU_WDMA.
+
+RKNN_dpu_bn_cfg
+Address: Operational Base + offset (0x4060)
+Bit
+
+Attr Reset Value
+
+31:20 RO
+
+0x000
+
+Description
+reserved
+
+19:16 RW 0x0
+
+bn_alu_algo
+BS core ALU op type.
+4'd0: Reserved;
+4'd1: Reserved;
+4'd2: Add
+4'd3: Reserved;
+4'd4: Minus;
+4'd5: Reserved;
+4'd6: Reserved;
+4'd7: Reserved;
+4'd8: Reserved.
+
+15:9
+
+reserved
+
+RO
+
+0x00
+
+RW 0x0
+
+bn_alu_src
+Where the ALU operand from
+1'd0: From configure register;
+1'd1: From outside.
+
+RW 0x0
+
+bn_relux_en
+If enable RELUX.
+1'd0: Disable;
+1'd1: Enable.
+
+RW 0x0
+
+bn_relu_bypass
+If bypass BN core RELU op.
+1'd0: Do not bypass;
+1'd1: Bypass.
+
+RW 0x0
+
+bn_mul_prelu
+If enable MUL PRELU.
+1'd0: Disable;
+1'd1: Enable.
+
+4
+
+RW 0x0
+
+bn_mul_bypass
+If bypass BN core MUL op.
+1'd0: Do not bypass;
+1'd1: Bypass.
+
+3:2
+
+RO
+
+reserved
+
+8
+
+7
+
+6
+
+5
+
+0x0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2023
+
+RKRK3588 TRM-Part1
+Bit
+
+1
+
+0
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+bn_alu_bypass
+If bypass BN core ALU op.
+1'd0: Do not bypass;
+1'd1: Bypass.
+
+RW 0x0
+
+bn_bypass
+If bypass BN core.
+1'd0: Do not bypass BN core;
+1'd1: Bypass BN core.
+
+RKNN_dpu_bn_alu_cfg
+Address: Operational Base + offset (0x4064)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+bn_alu_operand
+BN core ALU operand.
+
+RKNN_dpu_bn_mul_cfg
+Address: Operational Base + offset (0x4068)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RW 0x0000
+
+bn_mul_operand
+BN core MUL operand.
+
+15:14 RO
+
+reserved
+
+0x0
+
+13:8
+
+RW 0x00
+
+bn_mul_shift_value
+Shift value in BN core for positive data.
+
+7:2
+
+RO
+
+reserved
+
+1
+
+0
+
+0x00
+
+RW 0x0
+
+bn_truncate_src
+Where the shift value from
+1'd0: From configure register;
+1'd1: From outside.
+
+RW 0x0
+
+bn_mul_src
+Where the MUL operand from.
+1'd0: From configure register;
+1'd1: From outside.
+
+RKNN_dpu_bn_relux_cmp_value
+Address: Operational Base + offset (0x406C)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+bn_relux_cmp_dat
+RELUX compare data in BN core.
+
+RKNN_dpu_ew_cfg
+Address: Operational Base + offset (0x4070)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2024
+
+RKRK3588 TRM-Part1
+Bit
+
+31
+
+30
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+ew_cvt_type
+Convert type of EW input convert when if 0.5
+1'd0: Mul first;
+1'd1: Add first.
+
+RW 0x0
+
+ew_cvt_round
+Rounding type of EW input convert when if 0.5
+1'd0: If the integer is odd, carry 1;
+1'd1: Carry 1 no matter what the integer is.
+
+29:28 RW 0x0
+
+ew_data_mode
+Data mode of the data from ERDMA.
+
+27:24 RO
+
+reserved
+
+0x0
+
+23:22 RW 0x0
+
+edata_size
+Data size of the cube from ERDMA.
+2'd0: 4bit;
+2'd1: 8bit;
+2'd2: 16bit;
+2'd3: 32bit.
+
+21
+
+RW 0x0
+
+ew_equal_en
+Min max equal enable.
+1'd0: Disable;
+1'd1: Enable.
+
+RW 0x0
+
+ew_binary_en
+Min max binary enable.
+1'd0: Disable;
+1'd1: Enable.
+
+20
+
+19:16 RW 0x0
+
+ew_alu_algo
+EW core ALU op type.
+4'd0: Max;
+4'd1: Min;
+4'd2: Add;
+4'd3: Div;
+4'd4: Minus;
+4'd5: Abs;
+4'd6: Neg;
+4'd7: Floor;
+4'd8: Ceil.
+
+15:11 RO
+
+reserved
+
+10
+
+9
+
+0x00
+
+RW 0x0
+
+ew_relux_en
+If enable RELUX.
+1'd0: Disable;
+1'd1: Enable.
+
+RW 0x0
+
+ew_relu_bypass
+If bypass EW core RELU op.
+1'd0: Do not bypass;
+1'd1: Bypass.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2025
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+ew_op_cvt_bypass
+If bypass EW input converter.
+1'd0: Do not bypass;
+1'd1: Bypass.
+
+RW 0x0
+
+ew_lut_bypass
+If bypass LUT.
+1'd0: Do not bypass;
+1'd1: Bypass.
+
+RW 0x0
+
+ew_op_src
+Where the operand from
+1'd0: From configure register;
+1'd1: From outside.
+
+5
+
+RW 0x0
+
+ew_mul_prelu
+If enable MUL PRELU.
+1'd0: Disable;
+1'd1: Enable.
+
+4:3
+
+RO
+
+reserved
+
+8
+
+7
+
+6
+
+2
+
+1
+
+0
+
+0x0
+
+RW 0x0
+
+ew_op_type
+Operator type.
+1'd0: ALU;
+1'd1: MUL.
+
+RW 0x0
+
+ew_op_bypass
+If bypass EW core ALU and MUL op.
+1'd0: Do not bypass;
+1'd1: Bypass.
+
+RW 0x0
+
+ew_bypass
+If bypass EW core.
+1'd0: Do not bypass EW core;
+1'd1: Bypass EW core.
+
+RKNN_dpu_ew_cvt_offset_value
+Address: Operational Base + offset (0x4074)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+ew_op_cvt_offset
+EW convert offset.
+
+RKNN_dpu_ew_cvt_scale_value
+Address: Operational Base + offset (0x4078)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:22 RW 0x000
+
+ew_truncate
+EW core shift value.
+
+21:16 RW 0x00
+
+ew_op_cvt_shift
+EW convert shift value.
+
+15:0
+
+ew_op_cvt_scale
+EW convert scale.
+
+RW 0x0000
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2026
+
+RKRK3588 TRM-Part1
+
+RKNN_dpu_ew_relux_cmp_value
+Address: Operational Base + offset (0x407C)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+ew_relux_cmp_dat
+EW RELUX compare data.
+
+RKNN_dpu_out_cvt_offset
+Address: Operational Base + offset (0x4080)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+out_cvt_offset
+Offset of the output converter.
+
+RKNN_dpu_out_cvt_scale
+Address: Operational Base + offset (0x4084)
+Bit
+
+Attr Reset Value
+
+31:17 RO
+
+0x0000
+
+Description
+reserved
+
+16
+
+RW 0x0
+
+fp32tofp16_en
+If enable output from fp32 to fp16.
+1'd0: Disable;
+1'd1: Enable.
+
+15:0
+
+RW 0x0000
+
+out_cvt_scale
+Scale of the output converter.
+
+RKNN_dpu_out_cvt_shift
+Address: Operational Base + offset (0x4088)
+Bit
+
+31
+
+30
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+cvt_type
+Convert type of out convert when if 0.5.
+1'd0: MUL first;
+1'd1: ALU first.
+
+RW 0x0
+
+cvt_round
+Rounding type of out convert when if 0.5.
+1'd0: If the integer is odd, carry 1;
+1'd1: Carry 1 no matter what the integer is.
+
+29:20 RO
+
+0x000
+
+reserved
+
+19:12 RW 0x00
+
+minus_exp
+Minus exp of out CVT.
+
+11:0
+
+out_cvt_shift
+Shift of the output converter.
+
+RW 0x000
+
+RKNN_dpu_ew_op_value_0
+Address: Operational Base + offset (0x4090)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+ew_operand_0
+The 1st EW operand for EW core op.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2027
+
+RKRK3588 TRM-Part1
+
+RKNN_dpu_ew_op_value_1
+Address: Operational Base + offset (0x4094)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+ew_operand_1
+The 2nd EW operand for EW core op.
+
+RKNN_dpu_ew_op_value_2
+Address: Operational Base + offset (0x4098)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+ew_operand_2
+the 3thd EW operand for EW core op.
+
+RKNN_dpu_ew_op_value_3
+Address: Operational Base + offset (0x409C)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+ew_operand_3
+the 4th EW operand for EW core op.
+
+RKNN_dpu_ew_op_value_4
+Address: Operational Base + offset (0x40A0)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+ew_operand_4
+the 5th EW operand for EW core op.
+
+RKNN_dpu_ew_op_value_5
+Address: Operational Base + offset (0x40A4)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+ew_operand_5
+The 6th EW operand for EW core op.
+
+RKNN_dpu_ew_op_value_6
+Address: Operational Base + offset (0x40A8)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+ew_operand_6
+The 7th EW operand for EW core op.
+
+RKNN_dpu_ew_op_value_7
+Address: Operational Base + offset (0x40AC)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+ew_operand_7
+The 8th EW operand for EW core op.
+
+RKNN_dpu_surface_add
+Address: Operational Base + offset (0x40C0)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2028
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:4
+
+RW 0x0000000
+
+surf_add
+How many surfaces in a row.
+
+3:0
+
+RO
+
+reserved
+
+0x0
+
+Description
+
+RKNN_dpu_lut_access_cfg
+Address: Operational Base + offset (0x4100)
+Bit
+
+Attr Reset Value
+
+31:18 RO
+
+17
+
+16
+
+reserved
+
+RW 0x0
+
+lut_access_type
+Access type.
+1'd0: Read;
+1'd1: Write.
+
+RW 0x0
+
+lut_table_id
+Access Id.
+1'd0: LE LUT;
+1'd1: LO LUT.
+
+15:10 RO
+9:0
+
+0x0000
+
+Description
+
+0x00
+
+RW 0x000
+
+reserved
+lut_addr
+Access address.
+
+RKNN_dpu_lut_access_data
+Address: Operational Base + offset (0x4104)
+Bit
+
+Attr Reset Value
+
+31:16 RO
+15:0
+
+0x0000
+
+RW 0x0000
+
+Description
+reserved
+lut_access_data
+Configuration of LUT access data.
+
+RKNN_dpu_lut_cfg
+Address: Operational Base + offset (0x4108)
+Bit
+31:8
+7
+
+6
+
+5
+
+Attr Reset Value
+RO
+
+0x000000
+
+Description
+reserved
+
+RW 0x0
+
+lut_cal_sel
+LUT calculate sel.
+Only useful when lut_expand_en is 1.
+
+RW 0x0
+
+lut_hybrid_priority
+LUT hybrid flow priority.
+1'd0: LE LUT;
+1'd1: LO LUT.
+
+RW 0x0
+
+lut_oflow_priority
+Priority when over flow happened.
+1'd0: LE LUT;
+1'd1: LO LUT.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2029
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+4
+
+RW 0x0
+
+lut_uflow_priority
+Priority when under flow happened.
+1'd0: LE LUT;
+1'd1: LO LUT.
+
+3:2
+
+RW 0x0
+
+lut_lo_le_mux
+LO LUT and LE LUT mux.
+
+RW 0x0
+
+lut_expand_en
+If expand two small LUT to a larger LUT.
+1'd0: Disable;
+1'd1: Enable.
+
+RW 0x0
+
+lut_road_sel
+LUT road sel.
+1'd0: 1st;
+1'd1: 2nd.
+
+1
+
+0
+
+RKNN_dpu_lut_info
+Address: Operational Base + offset (0x410C)
+Bit
+
+Attr Reset Value
+
+31:24 RO
+
+0x00
+
+Description
+reserved
+
+23:16 RW 0x00
+
+lut_lo_index_select
+LUT LO index selected.
+Used in index generator, choose some bits to be the index.
+
+15:8
+
+RW 0x00
+
+lut_le_index_select
+LUT LE index selected.
+Used in index generator, choose some bits to be the index.
+
+7:0
+
+RO
+
+reserved
+
+0x00
+
+RKNN_dpu_lut_le_start
+Address: Operational Base + offset (0x4110)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+lut_le_start
+LE LUT start point.
+
+RKNN_dpu_lut_le_end
+Address: Operational Base + offset (0x4114)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+lut_le_end
+LE LUT end point.
+
+RKNN_dpu_lut_lo_start
+Address: Operational Base + offset (0x4118)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+lut_lo_start
+LO LUT start point.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2030
+
+RKRK3588 TRM-Part1
+RKNN_dpu_lut_lo_end
+Address: Operational Base + offset (0x411C)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+lut_lo_end
+LO LUT end point.
+
+RKNN_dpu_lut_le_slope_scale
+Address: Operational Base + offset (0x4120)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RW 0x0000
+
+lut_le_slope_oflow_scale
+LE LUT slope scale if over flow.
+
+15:0
+
+lut_le_slope_uflow_scale
+LE LUT slope scale if under flow.
+
+RW 0x0000
+
+RKNN_dpu_lut_le_slope_shift
+Address: Operational Base + offset (0x4124)
+Bit
+
+Attr Reset Value
+
+31:10 RO
+
+0x000000
+
+Description
+reserved
+
+9:5
+
+RW 0x00
+
+lut_le_slope_oflow_shift
+LE LUT slope shift if over flow.
+
+4:0
+
+RW 0x00
+
+lut_le_slope_uflow_shift
+LE LUT slope shift if under flow.
+
+RKNN_dpu_lut_lo_slope_scale
+Address: Operational Base + offset (0x4128)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RW 0x0000
+
+lut_lo_slope_oflow_scale
+LO LUT slope scale if over flow.
+
+15:0
+
+lut_lo_slope_uflow_scale
+LO LUT slope scale if under flow.
+
+RW 0x0000
+
+RKNN_dpu_lut_lo_slope_shift
+Address: Operational Base + offset (0x412C)
+Bit
+
+Attr Reset Value
+
+31:10 RO
+
+0x000000
+
+Description
+reserved
+
+9:5
+
+RW 0x00
+
+lut_lo_slope_oflow_shift
+LO LUT slope shift if over flow.
+
+4:0
+
+RW 0x00
+
+lut_lo_slope_uflow_shift
+LO LUT slope shift if under flow.
+
+RKNN_dpu_rdma_s_status
+Address: Operational Base + offset (0x5000)
+Bit
+
+Attr Reset Value
+
+31:18 RO
+
+0x0000
+
+Description
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2031
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+17:16 RO
+
+0x0
+
+status_1
+Executer 1 status.
+2'd0: Executer 1 is in idle state;
+2'd1: Executer 1 is operating;
+2'd2: Executer 1 is operating, executer 1 is waiting to operate;
+2'd3: Reserved.
+
+15:2
+
+0x0000
+
+reserved
+
+0x0
+
+status_0
+Executer 0 status.
+2'd0: Executer 0 is in idle state;
+2'd1: Executer 0 is operating;
+2'd2: Executer 0 is operating, executer 1 is waiting to operate;
+2'd3: Reserved.
+
+1:0
+
+RO
+
+RO
+
+RKNN_dpu_rdma_s_pointer
+Address: Operational Base + offset (0x5004)
+Bit
+
+Attr Reset Value
+
+31:17 RO
+
+Description
+
+0x0000
+
+reserved
+
+16
+
+RO
+
+0x0
+
+executer
+Which register group to be used.
+1'd0: Executer group 0;
+1'd1: Executer group 1.
+
+15:6
+
+RO
+
+0x000
+
+reserved
+
+5
+
+W1
+C
+
+0x0
+
+executer_pp_clear
+Clear executer group pointer.
+Set this bit to 1 to clear pointer to 0.
+
+4
+
+W1
+C
+
+0x0
+
+pointer_pp_clear
+Clear register group pointer.
+Set this bit to 1 to clear pointer to 0.
+
+3
+
+2
+
+1
+
+RW 0x0
+
+pointer_pp_mode
+Register group ping-pong mode.
+1'd0: Pointer ping-pong by executer;
+eg. if current executer is 0, next pointer will toggle to 1;
+1'd1: Pointer ping-pong by pointer;
+eg. if current pointer is 0, next pointer will toggle to 1.
+
+RW 0x0
+
+executer_pp_en
+Executer group ping-pong enable.
+1'd0: Disable;
+1'd1: Enable.
+
+RW 0x0
+
+pointer_pp_en
+Register group ping-pong enable.
+1'd0: Disable;
+1'd1: Enable.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2032
+
+RKRK3588 TRM-Part1
+Bit
+
+0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+pointer
+Which register group ready to be set.
+1'd0: Register group 0;
+1'd1: Register group 1.
+
+RKNN_dpu_rdma_operation_enable
+Address: Operational Base + offset (0x5008)
+Bit
+31:1
+
+0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+RW 0x0
+
+Description
+reserved
+op_en
+Set this register will trigger DPU_RDMA block operate.
+This register and after this are all shadowed for ping-pong
+operation.
+1'd0: Disable;
+1'd1: Enable.
+
+RKNN_dpu_rdma_data_cube_width
+Address: Operational Base + offset (0x500C)
+Bit
+
+Attr Reset Value
+
+31:13 RO
+12:0
+
+0x00000
+
+RW 0x0000
+
+Description
+reserved
+width
+Input feature width (need to minus 1).
+
+RKNN_dpu_rdma_data_cube_height
+Address: Operational Base + offset (0x5010)
+Bit
+
+Attr Reset Value
+
+31:29 RO
+
+0x0
+
+Description
+reserved
+
+28:16 RW 0x0000
+
+ew_line_notch_addr
+Line notch of EW.
+
+15:13 RO
+
+reserved
+
+12:0
+
+0x0
+
+RW 0x0000
+
+height
+Input feature height (need to minus 1).
+
+RKNN_dpu_rdma_data_cube_channel
+Address: Operational Base + offset (0x5014)
+Bit
+
+Attr Reset Value
+
+31:13 RO
+12:0
+
+0x00000
+
+RW 0x0000
+
+Description
+reserved
+channel
+Input feature channel (need to minus 1).
+
+RKNN_dpu_rdma_src_base_addr
+Address: Operational Base + offset (0x5018)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2033
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+src_base_addr
+Fly mode source address.
+
+RKNN_dpu_rdma_brdma_cfg
+Address: Operational Base + offset (0x501C)
+Bit
+31:5
+
+Attr Reset Value
+RO
+
+0x0000000
+
+Description
+reserved
+
+4:1
+
+RW 0x0
+
+brdma_data_use
+How many data type need to be read.
+[0]: If read ALU operand, set 1 to enable;
+[1]: If read CPEND operand, set 1 to enable;
+[2]: If read MUL operand, set 1 to enable;
+[3]: If read TRT operand, set 1 to enable.
+
+0
+
+RO
+
+reserved
+
+0x0
+
+RKNN_dpu_rdma_bs_base_addr
+Address: Operational Base + offset (0x5020)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+bs_base_addr
+Base address to read BS ALU, BS CPEND, BS MUL operand.
+
+RKNN_dpu_rdma_nrdma_cfg
+Address: Operational Base + offset (0x5028)
+Bit
+31:5
+
+Attr Reset Value
+RO
+
+0x0000000
+
+Description
+reserved
+
+4:1
+
+RW 0x0
+
+nrdma_data_use
+How many data type need to be read.
+[0]: If read ALU operand, set 1 to enable;
+[1]: If read CPEND operand, set 1 to enable, (tie to 0, cause BN
+do not have CPEND);
+[2]: If read MUL operand, set 1 to enable;
+[3]: If read TRT operand, set 1 to enable.
+
+0
+
+RO
+
+reserved
+
+0x0
+
+RKNN_dpu_rdma_bn_base_addr
+Address: Operational Base + offset (0x502C)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+bn_base_addr
+Base address to read BN ALU, BN MUL operand.
+
+RKNN_dpu_rdma_erdma_cfg
+Address: Operational Base + offset (0x5034)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2034
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+31:30 RW 0x0
+
+erdma_data_mode
+If the read data is per channel or per pixel
+2'd0: Per channel;
+2'd1: Per pixel;
+2'd2: Per channel by pixel;
+2'd3: Reserved.
+
+29
+
+RW 0x0
+
+erdma_surf_mode
+Surface mode of the EW cube.
+1'd0: 1 surface series;
+1'd1: 2 surface series.
+
+28
+
+RW 0x0
+
+erdma_nonalign
+If read the EW cube in non-align mode.
+1'd0: Do not use non-align mode;
+1'd1: Use non-align mode.
+
+27:4
+
+RO
+
+reserved
+
+3:2
+
+1
+
+0
+
+0x000000
+
+RW 0x0
+
+erdma_data_size
+What the precision of the cube that the ERDMA read.
+2'd0: 4bit;
+2'd1: 8bit;
+2'd2: 16bit;
+2'd3: 32bit.
+
+RW 0x0
+
+ov4k_bypass
+Separate the burst command of over 4k to 2 independent burst
+commands.
+1'd0: Enable this feature;
+1'd1: Bypass this feature.
+
+RW 0x0
+
+erdma_disable
+If disable ERDMA.
+1'd0: Do not disable ERDMA;
+1'd1: Disable ERDMA.
+
+RKNN_dpu_rdma_ew_base_addr
+Address: Operational Base + offset (0x5038)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+ew_base_addr
+Base address to read EW operand.
+
+RKNN_dpu_rdma_ew_surf_stride
+Address: Operational Base + offset (0x5040)
+Bit
+
+Attr Reset Value
+
+31:4
+
+RW 0x0000000
+
+ew_surf_stride
+The surface stride of the element wise feature map;
+If erdma_data_mode is per channel, it need set to be 1.
+
+3:0
+
+RO
+
+reserved
+
+0x0
+
+Description
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2035
+
+RKRK3588 TRM-Part1
+RKNN_dpu_rdma_feature_mode_cfg
+Address: Operational Base + offset (0x5044)
+Bit
+
+Attr Reset Value
+
+31:18 RO
+
+0x0000
+
+Description
+reserved
+
+17:15 RW 0x0
+
+in_precision
+Input data precision.
+3'd0: Integer 8bit;
+3'd1: Integer 16bit;
+3'd2: Gloat point 16bit;
+3'd3: Bfloat 16bit;
+3'd4: Integer 32bit;
+3'd5: Float point 32bit;
+3'd6: Integer 4bit.
+
+14:11 RW 0x0
+
+burst_len
+Burst length.
+4'd3: Burst4;
+4'd7: Burst8;
+4'd15: Burst16.
+
+10:8
+
+RW 0x0
+
+comb_use
+[0]: If enable MRDMA and ERDMA to read the same data;
+[1]: Read the data to MRDMA;
+[2]: Read the data to ERDMA.
+
+RW 0x0
+
+proc_precision
+Process precision.
+3'd0: Integer 8bit;
+3'd1: Integer 16bit;
+3'd2: Float point 16bit;
+3'd3: Bfloat 16bit;
+3'd4: Integer 32bit;
+3'd5: Float point 32bit;
+3'd6: Integer 4bit.
+
+4
+
+RW 0x0
+
+mrdma_disable
+If disable MRDMA.
+1'd0: Do not disable MRDMA;
+1'd1: Disable MRDMA.
+
+3
+
+RW 0x0
+
+mrdma_fp16tofp32_en
+If enable DPU input from fp16 to fp32.
+
+RW 0x0
+
+conv_mode
+Convolution mode.
+2'd0: Dc;
+2'd1: Reserved;
+2'd2: Reserved;
+2'd3: Depthwise.
+
+7:5
+
+2:1
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2036
+
+RKRK3588 TRM-Part1
+Bit
+
+0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+flying_mode
+Flying mode enable.
+1'd0: DPU core main data is from convolution output;
+1'd1: DPU core main data is from MRDMA.
+
+RKNN_dpu_rdma_src_dma_cfg
+Address: Operational Base + offset (0x5048)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:19 RW 0x0000
+
+line_notch_addr
+How many pixels from the end of width end to the shape feature
+line end.
+
+18:14 RO
+
+reserved
+
+0x00
+
+13
+
+RW 0x0
+
+pooling_method
+Pooling method
+1'd0: Average pooling (up sampling can use this mode);
+1'd1: Min or max pooling.
+
+12
+
+RW 0x0
+
+unpooling_en
+If enable un-pooling.
+
+11:9
+
+RW 0x0
+
+kernel_stride_height
+Un-pooling kernel stride height (minus 1).
+
+8:6
+
+RW 0x0
+
+kernel_stride_width
+Un-pooling kernel stride width (minus 1).
+
+5:3
+
+RW 0x0
+
+kernel_height
+Un-pooling kernel height (minus 1).
+
+2:0
+
+RW 0x0
+
+kernel_width
+Un-pooling kernel width (minus 1).
+
+RKNN_dpu_rdma_surf_notch
+Address: Operational Base + offset (0x504C)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:4
+
+RW 0x0000000
+
+surf_notch_addr
+How many pixels from the end of this process feature map to the
+end of the shape feature map.
+
+3:0
+
+RO
+
+reserved
+
+0x0
+
+RKNN_dpu_rdma_pad_cfg
+Address: Operational Base + offset (0x5064)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RW 0x0000
+
+pad_value
+Pad value.
+
+15:7
+
+RO
+
+reserved
+
+6:4
+
+RW 0x0
+
+pad_top
+Un-pooling top pad.
+
+3
+
+RO
+
+reserved
+
+0x000
+
+0x0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2037
+
+RKRK3588 TRM-Part1
+Bit
+2:0
+
+Attr Reset Value
+RW 0x0
+
+Description
+pad_left
+Un-pooling left pad.
+
+RKNN_dpu_rdma_weight
+Address: Operational Base + offset (0x5068)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:24 RW 0x00
+
+e_weight
+The arbiter weight for ERDMA.
+
+23:16 RW 0x00
+
+n_weight
+The arbiter weight for NRDMA.
+
+15:8
+
+RW 0x00
+
+b_weight
+The arbiter weight for BRDMA.
+
+7:0
+
+RW 0x00
+
+m_weight
+The arbiter weight for MRDMA.
+
+RKNN_dpu_rdma_ew_surf_notch
+Address: Operational Base + offset (0x506C)
+Bit
+
+Attr Reset Value
+
+31:4
+
+RW 0x0000000
+
+ew_surf_notch
+Surface notch of EW.
+
+3:0
+
+RO
+
+reserved
+
+0x0
+
+Description
+
+RKNN_ppu_s_status
+Address: Operational Base + offset (0x6000)
+Bit
+
+Attr Reset Value
+
+31:18 RO
+
+Description
+
+0x0000
+
+reserved
+
+17:16 RO
+
+0x0
+
+status_1
+Executer 1 status.
+2'd0: Executer 1 is in idle state;
+2'd1: Executer 1 is operating;
+2'd2: Executer 1 is operating, executer 1 is waiting to operate;
+2'd3: Reserved.
+
+15:2
+
+0x0000
+
+reserved
+
+0x0
+
+status_0
+Executer 0 status.
+2'd0: Executer 0 is in idle state;
+2'd1: Executer 0 is operating;
+2'd2: Executer 0 is operating, executer 1 is waiting to operate;
+2'd3: Reserved.
+
+1:0
+
+RO
+
+RO
+
+RKNN_ppu_s_pointer
+Address: Operational Base + offset (0x6004)
+Bit
+
+Attr Reset Value
+
+31:17 RO
+
+0x0000
+
+Description
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2038
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+16
+
+RO
+
+0x0
+
+executer
+Which register group to be used.
+1'd0: Executer group 0;
+1'd1: Executer group 1.
+
+15:6
+
+RO
+
+0x000
+
+reserved
+
+5
+
+W1
+C
+
+0x0
+
+executer_pp_clear
+Clear executer group pointer.
+Set this bit to 1 to clear pointer to 0.
+
+4
+
+W1
+C
+
+0x0
+
+pointer_pp_clear
+Clear register group pointer.
+Set this bit to 1 to clear pointer to 0.
+
+3
+
+2
+
+1
+
+0
+
+RW 0x0
+
+pointer_pp_mode
+Register group ping-pong mode.
+1'd0: Pointer ping-pong by executer;
+eg. if current executer is 0, next pointer will toggle to 1;
+1'd1: Pointer ping-pong by pointer;
+eg. if current pointer is 0, next pointer will toggle to 1.
+
+RW 0x0
+
+executer_pp_en
+Executer group ping-pong enable.
+1'd0: Disable;
+1'd1: Enable.
+
+RW 0x0
+
+pointer_pp_en
+Register group ping-pong enable.
+1'd0: Disable;
+1'd1: Enable.
+
+RW 0x0
+
+pointer
+Which register group ready to be set.
+1'd0: Register group 0;
+1'd1: Register group 1.
+
+RKNN_ppu_operation_enable
+Address: Operational Base + offset (0x6008)
+Bit
+31:1
+
+0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+RW 0x0
+
+Description
+reserved
+op_en
+Set this register will trigger PPU block operate.
+This register and after this are all shadowed for ping-pong
+operation.
+1'd0: Disable;
+1'd1: Enable.
+
+RKNN_ppu_data_cube_in_width
+Address: Operational Base + offset (0x600C)
+Bit
+
+Attr Reset Value
+
+31:13 RO
+
+0x00000
+
+Description
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2039
+
+RKRK3588 TRM-Part1
+Bit
+12:0
+
+Attr Reset Value
+RW 0x0000
+
+Description
+cube_in_width
+Pooling cube width (need to minus 1).
+
+RKNN_ppu_data_cube_in_height
+Address: Operational Base + offset (0x6010)
+Bit
+
+Attr Reset Value
+
+31:13 RO
+12:0
+
+0x00000
+
+RW 0x0000
+
+Description
+reserved
+cube_in_height
+Pooling cube height (need to minus 1).
+
+RKNN_ppu_data_cube_in_channel
+Address: Operational Base + offset (0x6014)
+Bit
+
+Attr Reset Value
+
+31:13 RO
+12:0
+
+0x00000
+
+RW 0x0000
+
+Description
+reserved
+cube_in_channel
+Pooling cube channel (need to minus 1).
+
+RKNN_ppu_data_cube_out_width
+Address: Operational Base + offset (0x6018)
+Bit
+
+Attr Reset Value
+
+31:13 RO
+12:0
+
+0x00000
+
+RW 0x0000
+
+Description
+reserved
+cube_out_width
+Pooling output cube width (need to minus 1).
+
+RKNN_ppu_data_cube_out_height
+Address: Operational Base + offset (0x601C)
+Bit
+
+Attr Reset Value
+
+31:13 RO
+12:0
+
+0x00000
+
+RW 0x0000
+
+Description
+reserved
+cube_out_height
+Pooling output cube height (need to minus 1).
+
+RKNN_ppu_data_cube_out_channel
+Address: Operational Base + offset (0x6020)
+Bit
+
+Attr Reset Value
+
+31:13 RO
+12:0
+
+0x00000
+
+RW 0x0000
+
+Description
+reserved
+cube_out_channel
+Pooling output cube channel (need to minus 1).
+
+RKNN_ppu_operation_mode_cfg
+Address: Operational Base + offset (0x6024)
+Bit
+31
+
+Attr Reset Value
+RO
+
+0x0
+
+Description
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2040
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+30
+
+RW 0x0
+
+index_en
+If enable output the position of each kernel.
+1'd0: Disable;
+1'd1: Enable.
+
+29
+
+RO
+
+reserved
+
+0x0
+
+28:16 RW 0x0000
+
+notch_addr
+How many pixels from the end of the width end to the shape line
+end.
+
+15:8
+
+RO
+
+0x00
+
+reserved
+
+7:5
+
+RW 0x0
+
+use_cnt
+Use_cnt.
+
+4
+
+RW 0x0
+
+flying_mode
+Where the pooling cube from.
+1'd0: DPU;
+1'd1: Outside.
+
+3:2
+
+RO
+
+reserved
+
+1:0
+
+0x0
+
+RW 0x0
+
+pooling_method
+Pooling method.
+2'd0: Average pooling;
+2'd1: Max pooling;
+2'd2: Min pooling;
+2'd3: Reserved.
+
+RKNN_ppu_pooling_kernel_cfg
+Address: Operational Base + offset (0x6034)
+Bit
+
+Attr Reset Value
+
+31:24 RO
+
+0x00
+
+Description
+reserved
+
+23:20 RW 0x0
+
+kernel_stride_height
+Pooling kernel stride height (need to minus 1).
+
+19:16 RW 0x0
+
+kernel_stride_width
+Pooling kernel stride width (need to minus 1).
+
+15:12 RO
+
+reserved
+
+0x0
+
+11:8
+
+RW 0x0
+
+kernel_height
+Pooling kernel height (need to minus 1).
+
+7:4
+
+RO
+
+reserved
+
+3:0
+
+RW 0x0
+
+0x0
+
+kernel_width
+Pooling kernel width (need to minus 1).
+
+RKNN_ppu_recip_kernel_width
+Address: Operational Base + offset (0x6038)
+Bit
+
+Attr Reset Value
+
+31:17 RO
+16:0
+
+0x0000
+
+RW 0x00000
+
+Description
+reserved
+recip_kernel_width
+The Reciprocal of the shape kernel width multiple 2^16.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2041
+
+RKRK3588 TRM-Part1
+RKNN_ppu_recip_kernel_height
+Address: Operational Base + offset (0x603C)
+Bit
+
+Attr Reset Value
+
+31:17 RO
+16:0
+
+0x0000
+
+RW 0x00000
+
+Description
+reserved
+recip_kernel_height
+The Reciprocal of the shape kernel height multiple 2^16.
+
+RKNN_ppu_pooling_padding_cfg
+Address: Operational Base + offset (0x6040)
+Bit
+
+Attr Reset Value
+
+31:15 RO
+
+0x00000
+
+Description
+reserved
+
+14:12 RW 0x0
+
+pad_bottom
+Pooling bottom pad.
+
+11
+
+RO
+
+reserved
+
+10:8
+
+RW 0x0
+
+pad_right
+Pooling right pad.
+
+7
+
+RO
+
+reserved
+
+6:4
+
+RW 0x0
+
+pad_top
+Pooling top pad.
+
+3
+
+RO
+
+reserved
+
+2:0
+
+RW 0x0
+
+0x0
+
+0x0
+
+0x0
+
+pad_left
+Pooling left pad.
+
+RKNN_ppu_padding_value_1_cfg
+Address: Operational Base + offset (0x6044)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+pad_value_0
+Pad_value*1 [31:0].
+
+RKNN_ppu_padding_value_2_cfg
+Address: Operational Base + offset (0x6048)
+Bit
+
+Attr Reset Value
+
+31:3
+
+RO
+
+0x00000000
+
+2:0
+
+RW 0x0
+
+Description
+reserved
+pad_value_1
+Pad_value*1 [34:32].
+
+RKNN_ppu_dst_base_addr
+Address: Operational Base + offset (0x6070)
+Bit
+
+Attr Reset Value
+
+31:4
+
+RW 0x0000000
+
+dst_base_addr
+Base address the output cube goes.
+
+3:0
+
+RO
+
+reserved
+
+0x0
+
+Description
+
+RKNN_ppu_dst_surf_stride
+Address: Operational Base + offset (0x607C)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2042
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:4
+
+RW 0x0000000
+
+dst_surf_stride
+Output shape area.
+
+3:0
+
+RO
+
+reserved
+
+0x0
+
+Description
+
+RKNN_ppu_data_format
+Address: Operational Base + offset (0x6084)
+Bit
+
+Attr Reset Value
+
+Description
+
+RW 0x0000000
+
+index_add
+If index_en enable, this register is dst_surface_stride x number
+of cube surface (every 8bytes per surface), else it equals to
+dst_surface_stride.
+
+3
+
+RW 0x0
+
+dpu_flyin
+If the data from DPU, and DPU data is from outside, this bit set to
+be 1.
+
+2:0
+
+RW 0x0
+
+proc_precision
+Process precision.
+
+31:4
+
+RKNN_ppu_misc_ctrl
+Address: Operational Base + offset (0x60DC)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RW 0x0000
+
+surf_len
+Surface count length.
+
+15:9
+
+reserved
+
+RO
+
+0x00
+
+RW 0x0
+
+mc_surf_out
+If enable multiple surfaces out.
+1'd0: Disable;
+1'd1: Enable.
+
+7
+
+RW 0x0
+
+nonalign
+If enable non-align mode.
+1'd0: Disable;
+1'd1: Enable.
+
+6:4
+
+RO
+
+reserved
+
+8
+
+3:0
+
+0x0
+
+RW 0x0
+
+burst_len
+Burst length
+4'd3: Burst4;
+4'd7: Burst8;
+4'd15: Burst16.
+
+RKNN_ppu_rdma_s_status
+Address: Operational Base + offset (0x7000)
+Bit
+
+Attr Reset Value
+
+31:18 RO
+
+0x0000
+
+Description
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2043
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+17:16 RO
+
+0x0
+
+status_1
+Executer 1 status.
+2'd0: Executer 1 is in idle state;
+2'd1: Executer 1 is operating;
+2'd2: Executer 1 is operating, executer 1 is waiting to operate;
+2'd3: Reserved.
+
+15:2
+
+0x0000
+
+reserved
+
+0x0
+
+status_0
+Executer 0 status.
+2'd0: Executer 0 is in idle state;
+2'd1: Executer 0 is operating;
+2'd2: Executer 0 is operating, executer 1 is waiting to operate;
+2'd3: Reserved.
+
+1:0
+
+RO
+
+RO
+
+RKNN_ppu_rdma_s_pointer
+Address: Operational Base + offset (0x7004)
+Bit
+
+Attr Reset Value
+
+31:17 RO
+
+Description
+
+0x0000
+
+reserved
+
+16
+
+RO
+
+0x0
+
+executer
+Which register group to be used.
+1'd0: Executer group 0;
+1'd1: Executer group 1.
+
+15:6
+
+RO
+
+0x000
+
+reserved
+
+5
+
+W1
+C
+
+0x0
+
+executer_pp_clear
+Clear executer group pointer.
+Set this bit to 1 to clear pointer to 0.
+
+4
+
+W1
+C
+
+0x0
+
+pointer_pp_clear
+Clear register group pointer.
+Set this bit to 1 to clear pointer to 0.
+
+3
+
+2
+
+1
+
+RW 0x0
+
+pointer_pp_mode
+Register group ping-pong mode.
+1'd0: Pointer ping-pong by executer;
+eg. if current executer is 0, next pointer will toggle to 1;
+1'd1: Pointer ping-pong by pointer;
+eg. if current pointer is 0, next pointer will toggle to 1.
+
+RW 0x0
+
+executer_pp_en
+Executer group ping-pong enable.
+1'd0: Disable;
+1'd1: Enable.
+
+RW 0x0
+
+pointer_pp_en
+Register group ping-pong enable.
+1'd0: Disable;
+1'd1: Enable.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2044
+
+RKRK3588 TRM-Part1
+Bit
+
+0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+pointer
+Which register group ready to be set.
+1'd0: Register group 0;
+1'd1: Register group 1.
+
+RKNN_ppu_rdma_operation_enable
+Address: Operational Base + offset (0x7008)
+Bit
+31:1
+
+0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+RW 0x0
+
+Description
+reserved
+op_en
+Set this register will trigger PPU_RDMA block operate.
+This register and after this are all shadowed for ping-pong
+operation.
+1'd0: Disable;
+1'd1: Enable.
+
+RKNN_ppu_rdma_cube_in_width
+Address: Operational Base + offset (0x700C)
+Bit
+
+Attr Reset Value
+
+31:13 RO
+12:0
+
+0x00000
+
+RW 0x0000
+
+Description
+reserved
+cube_in_width
+Pooling cube width (need to minus 1).
+
+RKNN_ppu_rdma_cube_in_height
+Address: Operational Base + offset (0x7010)
+Bit
+
+Attr Reset Value
+
+31:13 RO
+12:0
+
+0x00000
+
+RW 0x0000
+
+Description
+reserved
+cube_in_height
+Pooling cube height (need to minus 1).
+
+RKNN_ppu_rdma_cube_in_channel
+Address: Operational Base + offset (0x7014)
+Bit
+
+Attr Reset Value
+
+31:13 RO
+12:0
+
+0x00000
+
+RW 0x0000
+
+Description
+reserved
+cube_in_channel
+Pooling cube channel (need to minus 1).
+
+RKNN_ppu_rdma_src_base_addr
+Address: Operational Base + offset (0x701C)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+src_base_addr
+Base address of the pooling cube.
+
+RKNN_ppu_rdma_src_line_stride
+Address: Operational Base + offset (0x7024)
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2045
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:4
+
+RW 0x0000000
+
+src_line_stride
+Pooling cube shape width.
+
+3:0
+
+RO
+
+reserved
+
+0x0
+
+Description
+
+RKNN_ppu_rdma_src_surf_stride
+Address: Operational Base + offset (0x7028)
+Bit
+
+Attr Reset Value
+
+31:4
+
+RW 0x0000000
+
+src_surf_stride
+Pooling cube shape area.
+
+3:0
+
+RO
+
+reserved
+
+0x0
+
+Description
+
+RKNN_ppu_rdma_data_format
+Address: Operational Base + offset (0x7030)
+Bit
+31:2
+
+1:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+RW 0x0
+
+Description
+reserved
+in_precision
+Input precision.
+2'd0: 4bit;
+2'd1: 8bit;
+2'd2: 16bit;
+2'd3: 32bit.
+
+RKNN_ddma_cfg_outstanding
+Address: Operational Base + offset (0x8000)
+Bit
+
+Attr Reset Value
+
+31:16 RO
+
+0x0000
+
+Description
+reserved
+
+15:8
+
+RW 0x00
+
+wr_os_cnt
+Max numbers of write outstanding.
+
+7:0
+
+RW 0x00
+
+rd_os_cnt
+Max numbers of read outstanding.
+
+RKNN_ddma_rd_weight_0
+Address: Operational Base + offset (0x8004)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:24 RW 0x00
+
+rd_weight_pdp
+Weight of PPU read burst.
+
+23:16 RW 0x00
+
+rd_weight_dpu
+Weight of DPU read burst.
+
+15:8
+
+RW 0x00
+
+rd_weight_kernel
+Weight of read weight burst.
+
+7:0
+
+RW 0x00
+
+rd_weight_feature
+Weight of read feature burst.
+
+RKNN_ddma_wr_weight_0
+Address: Operational Base + offset (0x8008)
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2046
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:16 RO
+
+0x0000
+
+Description
+reserved
+
+15:8
+
+RW 0x00
+
+wr_weight_pdp
+Write_weight_ppu.
+
+7:0
+
+RW 0x00
+
+wr_weight_dpu
+Write_weight_dpu.
+
+RKNN_ddma_cfg_id_error
+Address: Operational Base + offset (0x800C)
+Bit
+
+Attr Reset Value
+
+31:10 RO
+
+0x000000
+
+Description
+reserved
+
+9:6
+
+RW 0x0
+
+wr_resp_id
+Error write id.
+
+5
+
+RO
+
+reserved
+
+4:0
+
+RW 0x00
+
+0x0
+
+rd_resp_id
+Error read id.
+
+RKNN_ddma_rd_weight_1
+Address: Operational Base + offset (0x8010)
+Bit
+
+Attr Reset Value
+
+31:8
+
+RO
+
+0x000000
+
+7:0
+
+RW 0x00
+
+Description
+reserved
+rd_weight_pc
+Weight of PC read burst.
+
+RKNN_ddma_cfg_dma_fifo_clr
+Address: Operational Base + offset (0x8014)
+Bit
+
+Attr Reset Value
+
+31:1
+
+RO
+
+0x00000000
+
+0
+
+RW 0x0
+
+Description
+reserved
+dma_fifo_clr
+Clear DMA FIFO.
+
+RKNN_ddma_cfg_dma_arb
+Address: Operational Base + offset (0x8018)
+Bit
+
+Attr Reset Value
+
+31:10 RO
+
+0x000000
+
+Description
+reserved
+
+9
+
+RW 0x0
+
+wr_arbit_model
+Write_arbit_model.
+
+8
+
+RW 0x0
+
+rd_arbit_model
+Read_arbit_model.
+
+7
+
+RO
+
+reserved
+
+6:4
+
+RW 0x0
+
+wr_fix_arb
+Write_fix_arb.
+
+3
+
+RO
+
+reserved
+
+2:0
+
+RW 0x0
+
+0x0
+
+0x0
+
+rd_fix_arb
+Read_fix_arb.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2047
+
+RKRK3588 TRM-Part1
+
+RKNN_ddma_cfg_dma_rd_qos
+Address: Operational Base + offset (0x8020)
+Bit
+
+Attr Reset Value
+
+31:10 RO
+
+0x000000
+
+Description
+reserved
+
+9:8
+
+RW 0x0
+
+rd_pc_qos
+Read_pc_qos.
+
+7:6
+
+RW 0x0
+
+rd_ppu_qos
+Read_ppu_qos.
+
+5:4
+
+RW 0x0
+
+rd_dpu_qos
+Read_dpu_qos.
+
+3:2
+
+RW 0x0
+
+rd_kernel_qos
+Read_kernel_qos.
+
+1:0
+
+RW 0x0
+
+rd_feature_qos
+Read feature_qos.
+
+RKNN_ddma_cfg_dma_rd_cfg
+Address: Operational Base + offset (0x8024)
+Bit
+
+Attr Reset Value
+
+31:13 RO
+
+0x00000
+
+Description
+reserved
+
+12
+
+RW 0x0
+
+rd_arlock
+Read_arlock.
+
+11:8
+
+RW 0x0
+
+rd_arcache
+Read_arcache.
+
+7:5
+
+RW 0x0
+
+rd_arprot
+Read_arprot.
+
+4:3
+
+RW 0x0
+
+rd_arburst
+Read_arburst.
+
+2:0
+
+RW 0x0
+
+rd_arsize
+Read_arsize.
+
+RKNN_ddma_cfg_dma_wr_cfg
+Address: Operational Base + offset (0x8028)
+Bit
+
+Attr Reset Value
+
+31:13 RO
+
+0x00000
+
+Description
+reserved
+
+12
+
+RW 0x0
+
+wr_awlock
+Write_awlock.
+
+11:8
+
+RW 0x0
+
+wr_awcache
+Write awcache.
+
+7:5
+
+RW 0x0
+
+wr_awprot
+Write_awprot.
+
+4:3
+
+RW 0x0
+
+wr_awburst
+Write_awburst.
+
+2:0
+
+RW 0x0
+
+wr_awsize
+Write_awsize.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2048
+
+RKRK3588 TRM-Part1
+RKNN_ddma_cfg_dma_wstrb
+Address: Operational Base + offset (0x802C)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+wr_wstrb
+Write_wstrb.
+
+RKNN_ddma_cfg_status
+Address: Operational Base + offset (0x8030)
+Bit
+
+Attr Reset Value
+0x000000
+
+Description
+
+31:9
+
+RO
+
+8
+
+RW 0x0
+
+idel
+Idel.
+
+7:0
+
+RO
+
+reserved
+
+0x00
+
+reserved
+
+RKNN_sdma_cfg_outstanding
+Address: Operational Base + offset (0x9000)
+Bit
+
+Attr Reset Value
+
+31:16 RO
+
+0x0000
+
+Description
+reserved
+
+15:8
+
+RW 0x00
+
+wr_os_cnt
+Max numbers of write outstanding.
+
+7:0
+
+RW 0x00
+
+rd_os_cnt
+Max numbers of read outstanding.
+
+RKNN_sdma_rd_weight_0
+Address: Operational Base + offset (0x9004)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:24 RW 0x00
+
+rd_weight_pdp
+Weight of PPU read burst.
+
+23:16 RW 0x00
+
+rd_weight_dpu
+Weight of DPU read burst.
+
+15:8
+
+RW 0x00
+
+rd_weight_kernel
+Weight of read weight burst.
+
+7:0
+
+RW 0x00
+
+rd_weight_feature
+Weight of read feature burst.
+
+RKNN_sdma_wr_weight_0
+Address: Operational Base + offset (0x9008)
+Bit
+
+Attr Reset Value
+
+31:16 RO
+
+0x0000
+
+Description
+reserved
+
+15:8
+
+RW 0x00
+
+wr_weight_pdp
+Write_weight_ppu.
+
+7:0
+
+RW 0x00
+
+wr_weight_dpu
+Write_weight_dpu.
+
+RKNN_sdma_cfg_id_error
+Address: Operational Base + offset (0x900C)
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2049
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:10 RO
+
+0x000000
+
+Description
+reserved
+
+9:6
+
+RW 0x0
+
+wr_resp_id
+Error write id.
+
+5
+
+RO
+
+reserved
+
+4:0
+
+RW 0x00
+
+0x0
+
+rd_resp_id
+Error read id.
+
+RKNN_sdma_rd_weight_1
+Address: Operational Base + offset (0x9010)
+Bit
+
+Attr Reset Value
+
+31:8
+
+RO
+
+0x000000
+
+7:0
+
+RW 0x00
+
+Description
+reserved
+rd_weight_pc
+Weight of PC read burst.
+
+RKNN_sdma_cfg_dma_fifo_clr
+Address: Operational Base + offset (0x9014)
+Bit
+
+Attr Reset Value
+
+31:1
+
+RO
+
+0x00000000
+
+0
+
+RW 0x0
+
+Description
+reserved
+dma_fifo_clr
+Clear DMA FIFO.
+
+RKNN_sdma_cfg_dma_arb
+Address: Operational Base + offset (0x9018)
+Bit
+
+Attr Reset Value
+
+31:10 RO
+
+0x000000
+
+Description
+reserved
+
+9
+
+RW 0x0
+
+wr_arbit_model
+Write_arbit_model.
+
+8
+
+RW 0x0
+
+rd_arbit_model
+Read_arbit_model.
+
+7
+
+RO
+
+reserved
+
+6:4
+
+RW 0x0
+
+wr_fix_arb
+Write_fix_arb.
+
+3
+
+RO
+
+reserved
+
+2:0
+
+RW 0x0
+
+0x0
+
+0x0
+
+rd_fix_arb
+Read_fix_arb.
+
+RKNN_sdma_cfg_dma_rd_qos
+Address: Operational Base + offset (0x9020)
+Bit
+
+Attr Reset Value
+
+31:10 RO
+
+0x000000
+
+Description
+reserved
+
+9:8
+
+RW 0x0
+
+rd_pc_qos
+Read_pc_qos.
+
+7:6
+
+RW 0x0
+
+rd_ppu_qos
+Read_ppu_qos.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2050
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+5:4
+
+RW 0x0
+
+rd_dpu_qos
+Read_dpu_qos.
+
+3:2
+
+RW 0x0
+
+rd_kernel_qos
+Read_kernel_qos.
+
+1:0
+
+RW 0x0
+
+rd_feature_qos
+Read feature_qos.
+
+RKNN_sdma_cfg_dma_rd_cfg
+Address: Operational Base + offset (0x9024)
+Bit
+
+Attr Reset Value
+
+31:13 RO
+
+0x00000
+
+Description
+reserved
+
+12
+
+RW 0x0
+
+rd_arlock
+Read_arlock.
+
+11:8
+
+RW 0x0
+
+rd_arcache
+Read_arcache.
+
+7:5
+
+RW 0x0
+
+rd_arprot
+Read_arprot.
+
+4:3
+
+RW 0x0
+
+rd_arburst
+Read_arburst.
+
+2:0
+
+RW 0x0
+
+rd_arsize
+Read_arsize.
+
+RKNN_sdma_cfg_dma_wr_cfg
+Address: Operational Base + offset (0x9028)
+Bit
+
+Attr Reset Value
+
+31:13 RO
+
+0x00000
+
+Description
+reserved
+
+12
+
+RW 0x0
+
+wr_awlock
+Write_awlock.
+
+11:8
+
+RW 0x0
+
+wr_awcache
+Write awcache.
+
+7:5
+
+RW 0x0
+
+wr_awprot
+Write_awprot.
+
+4:3
+
+RW 0x0
+
+wr_awburst
+Write_awburst.
+
+2:0
+
+RW 0x0
+
+wr_awsize
+Write_awsize.
+
+RKNN_sdma_cfg_dma_wstrb
+Address: Operational Base + offset (0x902C)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+wr_wstrb
+Write_wstrb.
+
+RKNN_sdma_cfg_status
+Address: Operational Base + offset (0x9030)
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2051
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+0x000000
+
+Description
+
+31:9
+
+RO
+
+8
+
+RW 0x0
+
+idel
+Idel.
+
+7:0
+
+RO
+
+reserved
+
+0x00
+
+reserved
+
+RKNN_global_operation_enable
+Address: Operational Base + offset (0xF008)
+Bit
+
+Attr Reset Value
+0x0000000
+
+Description
+
+31:7
+
+RO
+
+6
+
+RW 0x0
+
+ppu_rdma_op_en
+PPU_RDMA operation enable signal.
+
+5
+
+RW 0x0
+
+ppu_op_en
+PPU operation enable signal.
+
+4
+
+RW 0x0
+
+dpu_rdma_op_en
+DPU_RDMA operation enable signal.
+
+3
+
+RW 0x0
+
+dpu_op_en
+DPU operation enable signal.
+
+2
+
+RW 0x0
+
+core_op_en
+CORE operation enable signal.
+
+1
+
+RO
+
+reserved
+
+0
+
+RW 0x0
+
+0x0
+
+reserved
+
+cna_op_en
+CNA operation enable signal.
+
+36.5 Application Notes
+36.5.1 Ping-pong registers
+In order to reduce the time of fetch registers, every Calculate Core and Control Core of
+RKNN has its owner ping-pong registers. Configure the group 0 when use the group 1, and
+configure the group 1 when use group 0. As a result of hiding the time of fetch registers.
+Writing S_POINTER of every block can enable this function.
+
+36.5.2 Clock and Reset
+1.5.2.1 Clock Domains
+RKNN has two clock domains, one is AHB clock, the other is AXI clock. AHB clock, which is
+the clock for AHB interface, while AXI clock, which is the clock for AXI interface. AXI clock
+also used for core clock for every Calculate Core and Control Core. Clock frequency can be
+controlled by CRU, please refer to the relevant sections. Automatic localized clock gating is
+employed throughout the design in order to minimize the dynamic power consumption.
+Almost all of the flip-flops are clock gated in the design. Block level clock gating also
+implemented in every separate block. If a block and the interface to the block are both idle,
+then the clock of that block will be gated automatically. This feature can be disabled by
+software.
+
+1.5.2.2 NPU Reset
+Correspond to the clock domain, there are two reset signals. Aresetn, the reset signal for
+AXI interface and every Calculate Core and Control Core. Hresetn is the AHB interface reset
+pin and which is synchronized to the AHB clock domain.
+All the two signals must be asserted for a minimum of 32 core clock cycles, using the
+slowest of the two clocks. Then two signals must be release at the same time.
+
+36.5.3 NPU Interrupt Application
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2052
+
+RKRK3588 TRM-Part1
+RKNN has 3 interrupt output signal and it remains asserted until the host processor clears
+the interrupt. Each bit of PC_INTERRUPT_STATUS represents one of the 17 possible events
+that the RKNN can signal to the host processor. By setting the bits of the interrupt enable
+register (PC_INTERRUPT_MASK) the programmer can control which of those events will
+generate an interrupt.
+
+36.5.4 NPU operate flow
+RKNN has two types of work mode: slave configured mode and pc work mode. Pc work
+mode need to initial register information to the system memory, then obey flowing flows as
+Figure 1-3 shows.
+The information of registers initial to the system memory need to generate by the op you
+want to specify. And we describe the normal work flows by describe the slave configured
+mode.
+
+Start
+
+Initial register information in
+system memory
+
+Write pc_interrupt_clear and
+pc_interrupt_mask
+
+Write pc_amount/pc_addr/
+pc_task_number/pc_task_dma_
+base
+
+Write pc_op_enable to start a
+group of tasks
+
+End
+Fig. 36-3 PC flow
+37
+
+Convolution flow
+RKNN supports variety of convolution and matrix multiplication. If use the MAC
+array to calculate, the work flow should obey the Figure 1-4, and if use DPU CORE
+calculate, work flow should obey the Figure 1-5.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2053
+
+RKRK3588 TRM-Part1
+
+Write DPU register to configure the
+extra Ops decide to do and the
+output mode
+
+Start
+
+Write pc_interrupt_clear and
+pc_interrupt_mask
+
+Write Pointer register of every
+module decide to use to enable
+ping-pong register or not
+Write CNA register to configure the
+information of fetch data
+
+Do some pipeline
+surface ops
+
+N
+
+Y
+Write PPU register to configure the
+extra Ops decide to do and the
+output mode
+
+Write register to enable NPU
+
+Write CNA register to configure the
+kind , size, input precision
+proc_precision of CNA CORE
+
+End
+
+Fig. 36-4 Convolution flow 1
+In step 1, do not set PPU mask bit if don’t use PPU.
+In step 3, you need to configure the size of feature map, and the input precision,
+process precision, grains, entries and weight size, including weight height, weight
+width, kernels and weight bytes etc.
+In step 4, you need to configure process precision, conv_mode and auto gating registers of
+CMAC and CNA sequence controller.
+In step 5, you can specify some operators to the outputs of convolution according to
+configure the DPU_CORE. DPU CORE has some fixed operators, also you can specify some
+programmed operators.
+In step 6, you can do some extra operators to the outputs of DPU, pooling for
+example.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2054
+
+RKRK3588 TRM-Part1
+
+Start
+Do some pipeline
+surface ops
+
+Write pc_interrupt_clear and
+pc_interrupt_mask
+Write Pointer register of every
+module decide to use to enable
+ping-pong register or not
+
+N
+
+Y
+Write PPU register to configure the
+extra Ops decide to do and the
+output mode
+
+Write CNA register to configure the
+information of fetch data
+
+Write register to enable NPU
+
+Write DPU register to configure the
+extra Ops decide to do and the
+output mode
+
+End
+
+Fig. 36-5 Convolution flow 2
+In step 3, you need to configure the size of feature map, and the input precision,
+process precision, grains, entries and weight size, including height, width, kernels
+and weight bytes etc. Here we supply zero skipping switch, if there’s a lot of zero or
+some number else in the feature map, you can enable zero skipping by writing
+cna_fc_con0, cna_fc_con1 and cna_fc_con2, as a result of without reading the
+weights correspond to the pixel in the feature map. In zero skipping mode, you can
+specify the feature map size for read different from the feature map size for
+calculate.
+If enable zero skipping, the conv_mode of DPU must configure to be 3, and must bypass
+the BS_CORE. The alu_src must set to be 0, the mul_src must set to be 1, and the
+alu_algo must set be 3. We bypass BS_CORE, and use BN_CORE to calculate
+convolution, so the extra operators have to achieve by EW_CORE. But we use
+NRDMA to read operands to EW_CORE when ew_src is 1.
+38 Pooling flow
+You can use PPU in two ways, pipeline with DPU, and flying mode independently.The first
+one is described above, we describe the second flow below.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2055
+
+RKRK3588 TRM-Part1
+
+Start
+
+Write pc_interrupt_clear and
+pc_interrupt_mask
+Write Pointer register of every
+module decide to use to enable
+ping-pong register or not
+Write PPU register to configure the
+information of fetch data
+Write PPU register to configure the
+extra Ops decide to do and the
+output mode
+
+Write register to enable NPU
+
+End
+Fig. 36-6 Pooling flow
+In step 4, we supply two type of output mode, 8byte align per pixel and non-align
+mode. In some case with uncomfortable feature map size, you can enable non-align
+mode by writing ppu_misc_ctrl_nonalign and ppu_misc_ctrl_surf_len.
+39 Separate op flow
+As for the operators that RKNN do not fixed, you can combine DPU and PPU to achieve
+it. Following we describe the DPU flying mode flow.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2056
+
+RKRK3588 TRM-Part1
+
+Start
+
+Write PC_interrupt_clear and
+PC_interrupt_mask
+Write Pointer register of every
+module decide to use to enable
+ping-pong register or not
+Write DPU_RDMA register to
+configure the information of fetch
+data
+Write DPU register to configure the
+extra Ops decide to do and the
+output mode
+
+Write register to enable NPU
+
+End
+Fig. 36-7 DPU flying mode flow
+In step 3, you can enable MRDMA, BRDMA, NRDMA, ERDMA to fetch data. RKNN
+supports 6 types of data input precision.
+In step 4, you can configure BS_ALU_BYPASS, BS_MUL_BYPASS, BS_RELU_BYPASS,
+BS_MUL_PRELU, BS_MUL_SHIFT, BS_RELUX_EN etc. to specify the operators you
+want to achieve.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2057
+
+RKRK3588 TRM-Part1
+

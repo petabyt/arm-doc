@@ -1,0 +1,1609 @@
+Chapter 27 Digital Audio Codec
+27
+
+27.1 Overview
+Digital Audio Codec is a 16-bit digital audio encoder which supports multiple sample rates. It
+is mainly composed of digital DAC. The aim of digital DAC is to process the data received
+from I2S/PCM interface through filters, volume control and modulation.
+The Digital Audio Codec supports the following features.
+⚫ Support 8-bit APB bus slave interface
+⚫ Support 2-channel digital DAC
+⚫ Support I2S/PCM interface
+⚫ Support I2S/PCM master and slave mode
+⚫ Support 2-channel audio receiving in I2S mode
+⚫ Support 2-channel audio receiving in PCM mode
+⚫ Support I2S normal, left and right justified mode serial audio data transfer
+⚫ Support PCM early, late1, late2, late3 mode serial audio data transfer
+⚫ Support MSB or LSB first serial audio data transfer
+⚫ Support configurable SCLK and LRCK polarity
+⚫ Support 16 bit sample resolution
+⚫ Support programmable left and right channel exchangeable in I2S mode and PCM mode
+⚫ Support three modes of mixing for every digital DAC channel
+⚫ Support volume control
+⚫ Support programmable negative and positive volume gain
+
+27.2 Block Diagram
+
+APB bus
+
+ACDC_RF
+
+ACDC_CRU
+
+2-channel Digital
+DAC filters
+I2S RX ACDC_I2S
+
+mux
+
+DSM
+modulator
+
+audio_out
+
+Fig. 27-1 Digital Audio Codec Block Diagram
+ACDC_RF
+The ACDC_RF implements the 8-bit APB slave operation through APB bus. It is responsible
+for configuring the operation registers of other modules.
+ACDC_CRU
+The ACDC_CRU implements clock and reset generation function. It is responsible for
+generating sample clock, digital DAC operation clock and I2S operation clock.
+Digital DAC
+There are 2 digital DAC channels. The digital DAC receives audio data from ACDC_I2S
+module. It includes one CIC filter, one high-pass filter, several low-pass decimation filters
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1843
+
+RKRK3588 TRM-Part1
+and other audio signal processing related modules. The output of digital DAC is sent to DSM
+modular before transmitting outside.
+ACDC_I2S
+The I2S/PCM audio interface can be configured to master mode or slave mode. In Master
+Mode, SCLK and LRCK are configured as output. In slave mode, SCLK and LRCK are
+configured as input. The ACDC_I2S module can only operate in RX mode. When in RX mode,
+it receives audio data from I2S RX interface and sends it to digital DAC.
+DSM Modulator
+It is a modulator that converts 16 bits audio sample data to 1 bit audio data.
+
+27.3 Function description
+The I2S/PCM interface of Digital Audio Codec is connected to the I2S3 controller. Please
+refer to the I2S chapter for detailed information about I2S and PCM format that Digital Audio
+Codec supports.
+
+27.3.1 Filters of Digital DAC
+I2S module receives two-channel audio data from I2S RX interface and drives it to the
+digital DAC which supports mixing function or directly to the DSM modulator. How to pour 2channel audio data into 2-channel digital DAC can be achieved by programming mixing
+mode.
+The 2-channel digital DAC includes a high-pass filter and a maximum of 5 half-band filters.
+The high-pass filter is used to filter DC components in audio data stream. Result of highpass filter is sent to the digital DAC volume control module. The input of 5 half-band filters
+comes from output of volume control module with each perform 2-times interpolation. But
+not all of them are working all the time. How many of them are needed to work depends on
+the sample rate of digital DAC. The result of half-band filters is sent to a modulator.
+
+27.3.2 Volume Control
+For digital DAC, output of high-pass filters is fed into volume control module. The volume
+control module inside digital DAC contains several sub-modules such as peak detect,
+frequency cross zero detect, LIMITER and digital gain control. It can be digitally attenuated
+over a range of -96dB~0dB in 0.375dB/step for negative gain and amplified over a range of
+0dB~96dB in 0.375dB/step for positive gain. Whether is attenuated or amplified can be
+software programmed.
+
+27.4 Register Description
+27.4.1 Internal Address Mapping
+Slave address can be divided into different length for different usage, which is shown as
+follows.
+
+27.4.2 Registers Summary
+Name
+
+Offset
+
+Size
+
+Reset
+Value
+
+Description
+
+ACDCDIG_DACVUCTL
+
+0x0140
+
+W
+
+0x00000001 DAC Volume Control Register
+
+ACDCDIG_DACVUCTIME
+
+0x0144
+
+W
+
+0x00000000
+
+ACDCDIG_DACDIGEN
+
+0x0148
+
+W
+
+0x00000000 DAC Digital Enable Register
+
+ACDCDIG_DACCLKCTRL
+
+0x014C
+
+W
+
+0x00000000 DAC Clock Control Register
+
+ACDCDIG_DACINT_DIV
+
+0x0154
+
+W
+
+0x00000007
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+DAC Volume Control Time Limit
+Register
+
+DAC Integer Clock Divider
+Register
+
+1844
+
+RKRK3588 TRM-Part1
+
+Size
+
+Reset
+Value
+
+ACDCDIG_DACSCLKRXIN
+0x0160
+T_DIV
+
+W
+
+0x0000001F
+
+I2S SCLK RX Integer Divider
+Register
+
+ACDCDIG_DACPWM_DIV
+
+0x0164
+
+W
+
+0x00000003
+
+PWM Mode Integer Divider
+Register
+
+ACDCDIG_DACPWM_CTRL 0x0168
+
+W
+
+0x00000000 PWM Mode Control Register
+
+ACDCDIG_DACCFG1
+
+0x0184
+
+W
+
+0x00000004 DAC Configure Register 1
+
+ACDCDIG_DACMUTE
+
+0x0188
+
+W
+
+0x00000000 DAC Mute Control Register
+
+ACDCDIG_DACMUTEST
+
+0x018C
+
+W
+
+0x00000000 DAC Mute Status Register
+
+ACDCDIG_DACVOLL0
+
+0x0190
+
+W
+
+0x00000000
+
+Volume of DAC Left Channel 0
+Register
+
+ACDCDIG_DACVOLR0
+
+0x01A0
+
+W
+
+0x00000000
+
+Volume of DAC right Channel 1
+Register
+
+ACDCDIG_DACVOGP
+
+0x01B0
+
+W
+
+0x00000000
+
+DAC Volume Gain Polarity
+Register
+
+ACDCDIG_DACRVOLL0
+
+0x01B4
+
+W
+
+0x000000FF
+
+Internal Volume of DAC Left
+Channel 0 Register
+
+ACDCDIG_DACRVOLR0
+
+0x01C4
+
+W
+
+0x000000FF
+
+Internal Volume of DAC right
+Channel 1 Register
+
+ACDCDIG_DACLMT0
+
+0x01D4
+
+W
+
+0x00000000 DAC Limiter Register 0
+
+ACDCDIG_DACLMT1
+
+0x01D8
+
+W
+
+0x00000000 DAC Limiter Register 1
+
+ACDCDIG_DACLMT2
+
+0x01DC
+
+W
+
+0x00000000 DAC Limiter Register 2
+
+ACDCDIG_DACMIXCTRLL
+
+0x01E0
+
+W
+
+0x00000000
+
+DAC Mixing Control Register Of
+Left Channels
+
+ACDCDIG_DACMIXCTRLR 0x01E4
+
+W
+
+0x00000000
+
+DAC Mixing Control Register Of
+right Channels
+
+ACDCDIG_DACHPF
+
+0x01E8
+
+W
+
+0x00000000
+
+DAC High-pass Filter Control
+Register
+
+ACDCDIG_I2S_RXCR0
+
+0x030C
+
+W
+
+0x0000000F
+
+Receive Operation Control
+Register 0
+
+ACDCDIG_I2S_RXCR1
+
+0x0310
+
+W
+
+0x00000000
+
+Receive Operation Control
+Register 1
+
+ACDCDIG_I2S_CKR0
+
+0x0314
+
+W
+
+0x00000000 Clock Generation Register 0
+
+ACDCDIG_I2S_CKR1
+
+0x0318
+
+W
+
+0x00000000 Clock Generation Register 1
+
+ACDCDIG_I2S_XFER
+
+0x031C
+
+W
+
+0x00000000 Transfer Start Register
+
+ACDCDIG_I2S_CLR
+
+0x0320
+
+W
+
+0x00000000 SCLK Domain Logic Clear Register
+
+ACDCDIG_VERSION
+
+0x0380
+
+W
+
+0x00000002 Version Register
+
+Name
+
+Offset
+
+Description
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+27.4.3 Detail Registers Description
+ACDCDIG_DACVUCTL
+Address: Operational Base + offset (0x0140)
+Bit
+31:3
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1845
+
+RKRK3588 TRM-Part1
+Bit
+
+2
+
+1
+
+0
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+dac_byps
+Digital DAC volume control bypass.
+1'b0: Digital DAC volume control enable
+1'b1: Digital DAC volume control bypass
+
+RW 0x0
+
+dacfade
+Digital DAC volume adjust mode.
+1'b0: Update to new volume immediately.
+1'b1: Update volume as daczdt field describes.
+
+RW 0x1
+
+daczdt
+Digital DAC volume cross zero detect enable. It works when
+dac_byps is 1'b0 and dacfade is 1'b1.
+1'b0: Volume adjusts every sample.
+1'b1: Volume adjusts only when audio waveform crosses zero or
+volume-control time-limit condition meets.
+
+ACDCDIG_DACVUCTIME
+Address: Operational Base + offset (0x0144)
+Bit
+31:8
+
+7:0
+
+Attr Reset Value
+RO
+
+0x000000
+
+RW 0x00
+
+Description
+reserved
+dacvuct
+Volume control time limit, valid only in fade cross zero mode.
+Time limit = dacvuct*(1/sample rate)
+Unit: Sample rate
+
+ACDCDIG_DACDIGEN
+Address: Operational Base + offset (0x0148)
+Bit
+31:5
+
+Attr Reset Value
+RO
+
+0x0000000
+
+Description
+reserved
+
+4
+
+RW 0x0
+
+dacglben
+Global enable of all Digital DAC channels. Only when dacglben
+and the enable signal corresponding to each Digital DAC channel
+is valid before starting work.
+1'b0: Disable
+1'b1: Enable
+
+3:1
+
+RO
+
+reserved
+
+0
+
+0x0
+
+RW 0x0
+
+dacen_l0r1
+Digital DAC left channel 0 and right channel 1 enable.
+1'b0: Disable
+1'b1: Enable
+
+ACDCDIG_DACCLKCTRL
+Address: Operational Base + offset (0x014C)
+Bit
+31:6
+
+Attr Reset Value
+RO
+
+0x0000000
+
+Description
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1846
+
+RKRK3588 TRM-Part1
+Bit
+
+5
+
+4
+
+3
+
+2
+
+1
+
+0
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+dac_cke
+Digital DAC operation clock enable.
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+i2srx_cke
+Clock enable of internal I2S RX channel.
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+cke_bclkrx
+Clock enable of sclk_out_rx.
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+dac_sync_ena
+Enable of the synchronization signal used internally generated by
+Digital DAC.
+1'b0: Disable
+1'b1: Enable
+
+RO
+
+0x0
+
+dac_sync_status
+There is a counter to generate synchronization signal of Digital
+DAC. In order to ensure the integrity of synchronization signal, it
+is necessary to read back dac_sync_status to judge whether the
+counter stops working when dac_sync_ena is set from 1'b1 to
+1'b0. If the signal is read back to 1'b0, it means that the counter
+stops working and the synchronization signal of Digital DAC is
+complete.
+
+RW 0x0
+
+dac_mod_attenu_en
+When enabled, the input of the Digital DAC modulator is
+attenuated by 6dB, and the output of the Digital DAC modulator
+is increased by 6dB.
+1'b0: Disable
+1'b1: Enable
+
+ACDCDIG_DACINT_DIV
+Address: Operational Base + offset (0x0154)
+Bit
+31:8
+
+7:0
+
+Attr Reset Value
+RO
+
+0x000000
+
+RW 0x07
+
+Description
+reserved
+int_div_con
+Integer clock divider to provide 6.144/5.644/4.096MHz sample
+clock for internal filters. Make sure that int_div_con is an odd
+number between 7(8 times division) and 15(16 times division).
+
+ACDCDIG_DACSCLKRXINT_DIV
+Address: Operational Base + offset (0x0160)
+Bit
+31:8
+
+Attr Reset Value
+RO
+
+0x000000
+
+Description
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1847
+
+RKRK3588 TRM-Part1
+Bit
+
+7:0
+
+Attr Reset Value
+
+RW 0x1f
+
+Description
+sckrxdiv
+Integer clock divider to generate sclk_out_rx when I2S RX works
+in master mode. It is ignored when in slave mode.
+Sckrxdiv=((frequency of input operation clock)/(frequency of
+sclk_out_rx))-1. Sckrxdiv can be any value from 0 to 255.
+
+ACDCDIG_DACPWM_DIV
+Address: Operational Base + offset (0x0164)
+Bit
+31:8
+
+7:0
+
+Attr Reset Value
+RO
+
+0x000000
+
+RW 0x03
+
+Description
+reserved
+audio_pwm_div
+PWM mode division of Digital DAC's operation clock.
+The operation clock frequency of DSM module is equal to the
+input operation clock frequency of Digital DAC's divided by
+audio_pwm_div+1. It's recommended that audio_pwm_div is set
+8'h3.
+
+ACDCDIG_DACPWM_CTRL
+Address: Operational Base + offset (0x0168)
+Bit
+31:7
+
+Attr Reset Value
+RO
+
+0x0000000
+
+Description
+reserved
+
+RW 0x0
+
+pwm_mode_cke
+Clock enable of 1-bit PWM modulator
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+pwm_mode
+Audio PWM mode selection
+2'b01: Audio PWM mode 0. The input of 1-bit PWM modulator is
+from the last filter of Audio DAC.
+2'b10: Audio PWM mode 1. The input of 1-bit PWM modulator is
+directly from output of I2S RX inside the ACDCDIG.
+Others: Reserved
+
+3
+
+RW 0x0
+
+pwm_en
+1-bit PWM modulator enable
+1'b0: Disable
+1'b1: Enable
+
+2:0
+
+RW 0x0
+
+dith_sel
+Dith mode selection of 1-bit PWM modulator.
+
+6
+
+5:4
+
+ACDCDIG_DACCFG1
+Address: Operational Base + offset (0x0184)
+Bit
+31:5
+
+Attr Reset Value
+RO
+
+0x0000000
+
+Description
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1848
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+4:2
+
+RW 0x1
+
+dacsrt
+Sample rates of Digital DAC when in audio PWM mode 0. This
+field is ignored when in audio PWM mode 1.
+3'b000: 12kHz/11.024kHz/8kHz
+3'b001: 24kHz/22.05kHz/16kHz
+3'b010: 32kHz/48kHz/44.1kHz
+3'b011: 96kHz/88.2kHz/64kHz
+3'b100: 192kHz/176.4kHz/128kHz
+3'b101~3'b111: Reserved
+
+1:0
+
+RO
+
+reserved
+
+0x0
+
+ACDCDIG_DACMUTE
+Address: Operational Base + offset (0x0188)
+Bit
+31:2
+
+1
+
+0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+reserved
+
+RW 0x0
+
+dacunmt
+1'b0: DAC normal mode
+1'b1: DAC unmute mode. In this mode, DAC volume control block
+will adjust volume to match the value in DACVOLL* and
+DACVOLR*.
+
+RW 0x0
+
+dacmt
+1'b0: DAC normal mode
+1'b1: DAC mute mode
+
+ACDCDIG_DACMUTEST
+Address: Operational Base + offset (0x018C)
+Bit
+31:5
+
+Attr Reset Value
+RO
+
+Description
+
+0x0000000
+
+reserved
+
+4
+
+RO
+
+0x0
+
+unmutest_l0r1
+Unmute status for Digital DAC left channel 0 and right channel 1.
+When unmute is done, it indicates that internal volume is equal to
+the value programmed in DACVOLL* and DACVOLR*.
+1'b0: Unmute not done
+1'b1: Unmute done
+
+3:1
+
+RO
+
+0x0
+
+reserved
+
+0x0
+
+mutest_l0r1
+Mute status for Digital DAC left channel 0 and right channel 1.
+1'b0: Not mute
+1'b1: Mute
+
+0
+
+RO
+
+ACDCDIG_DACVOLL0
+Address: Operational Base + offset (0x0190)
+Bit
+31:8
+
+Attr Reset Value
+RO
+
+0x000000
+
+Description
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1849
+
+RKRK3588 TRM-Part1
+Bit
+
+7:0
+
+Attr Reset Value
+
+RW 0x00
+
+Description
+daclv0
+Volume of Digital DAC left channel 0.
+0db~-95.625db, 0.375db/step.
+8'h0: 0db
+8'h1: -0.375db
+8'h2: -0.75db
+8'h3: -1.125db
+......
+8'hff: -95.625db
+
+ACDCDIG_DACVOLR0
+Address: Operational Base + offset (0x01A0)
+Bit
+31:8
+
+7:0
+
+Attr Reset Value
+RO
+
+0x000000
+
+RW 0x00
+
+Description
+reserved
+dacrv0
+Volume of Digital DAC right channel 1.
+0db~-95.625db, 0.375db/step.
+8'h0: 0db
+8'h1: -0.375db
+8'h2: -0.75db
+8'h3: -1.125db
+......
+8'hff: -95.625db
+
+ACDCDIG_DACVOGP
+Address: Operational Base + offset (0x01B0)
+Bit
+31:2
+
+1
+
+0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+reserved
+
+RW 0x0
+
+volgpr1
+Gain polarity for the volume of Digital DAC right channel 1.
+1'b0: Negative gain
+1'b1: Positive gain
+
+RW 0x0
+
+volgpl0
+Gain polarity for the volume of Digital DAC left channel 0.
+1'b0: Negative gain
+1'b1: Positive gain
+
+ACDCDIG_DACRVOLL0
+Address: Operational Base + offset (0x01B4)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:8
+
+RO
+
+0x000000
+
+reserved
+
+7:0
+
+RO
+
+0xff
+
+rvoll0
+Internal real-time volume of Digital DAC left channel 0.
+
+ACDCDIG_DACRVOLR0
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1850
+
+RKRK3588 TRM-Part1
+Address: Operational Base + offset (0x01C4)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:8
+
+RO
+
+0x000000
+
+reserved
+
+7:0
+
+RO
+
+0xff
+
+rvolr0
+Internal real-time volume of Digital DAC right channel 1.
+
+ACDCDIG_DACLMT0
+Address: Operational Base + offset (0x01D4)
+Bit
+31:2
+
+1
+
+0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+reserved
+
+RW 0x0
+
+limen
+LIMITER enable.
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+limdct
+Limiter detect mode.
+1'b0: (Left channel + right channel)/2
+1'b0: Left channel or right channel independently
+
+ACDCDIG_DACLMT1
+Address: Operational Base + offset (0x01D8)
+Bit
+31:8
+7:4
+
+3:0
+
+Attr Reset Value
+RO
+
+0x000000
+
+Description
+reserved
+
+RW 0x0
+
+atk_rate
+LIMITER attack rate=(power(2, atk_rate)*(8*clk)), clk is such as
+4.096Mhz, 5.6448Mhz, 6.144Mhz.
+
+RW 0x0
+
+rls_rate
+LIMITER release rate=(power(2, rls_rate)*(8*clk)), clk is such as
+4.096MHz, 5.6448MHz, 6.144MHz.
+
+ACDCDIG_DACLMT2
+Address: Operational Base + offset (0x01DC)
+Bit
+31:7
+
+Attr Reset Value
+RO
+
+0x0000000
+
+Description
+reserved
+
+6:4
+
+RW 0x0
+
+max_lilmt
+The highest threshold of LIMITER.
+3'b000~3'b100: 0db~-12db, 3db/step
+3'b101~3'b111: -18db~-30db, 6db/step
+
+3
+
+RO
+
+reserved
+
+2:0
+
+0x0
+
+RW 0x0
+
+min_lilmt
+The lowest threshold of LIMITER.
+3'b000~3'b100: 0db~-12db, 3db/step
+3'b101~3'b111: -18db~-30db, 6db/step
+
+ACDCDIG_DACMIXCTRLL
+Address: Operational Base + offset (0x01E0)
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1851
+
+RKRK3588 TRM-Part1
+Bit
+31:2
+
+1:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+RW 0x0
+
+Description
+reserved
+mixmode_l0
+Digital DAC left channel 0 mixing mode.
+2'b00: Left channel
+2'b01: Right channel
+2'b10~2'b11: (Left channel + right channel)/2
+
+ACDCDIG_DACMIXCTRLR
+Address: Operational Base + offset (0x01E4)
+Bit
+31:2
+
+1:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+RW 0x0
+
+Description
+reserved
+mixmode_r0
+Digital DAC right channel 1 mixing mode.
+2'b00: Left channel
+2'b01: Right channel
+2'b10~2'b11: (Left channel + right channel)/2
+
+ACDCDIG_DACHPF
+Address: Operational Base + offset (0x01E8)
+Bit
+31:6
+
+Attr Reset Value
+RO
+
+0x0000000
+
+Description
+reserved
+
+5:4
+
+RW 0x0
+
+hpfcf
+High-pass filter control.
+2'b00: 80Hz
+2'b01: 100Hz
+2'b10: 120Hz
+2'b11: 140Hz
+
+3:1
+
+RO
+
+reserved
+
+0
+
+0x0
+
+RW 0x0
+
+hpfen_l0r1
+High-pass filter enable for left channel 0 and right channel 1.
+1'b0: High-pass filter is disabled.
+1'b1: High-pass filter is enabled.
+
+ACDCDIG_I2S_RXCR0
+Address: Operational Base + offset (0x030C)
+Bit
+31:8
+
+7:6
+
+Attr Reset Value
+RO
+
+0x000000
+
+RW 0x0
+
+Description
+reserved
+pbm
+PCM bus mode
+2'b00: PCM no delay mode
+2'b01: PCM delay 1 mode
+2'b10: PCM delay 2 mode
+2'b11: PCM delay 3 mode
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1852
+
+RKRK3588 TRM-Part1
+Bit
+
+5
+
+4:0
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+tfs
+Transfer format select
+1'b0: I2S format
+1'b1: PCM format
+
+RW 0x0f
+
+vdw
+Valid data width
+5'b00000~5'b01110: Reserved
+5'b01111: 16bit
+5'b10000: 17bit
+5'b10001: 18bit
+5'b10010: 19bit
+......
+5'b11100: 29bit
+5'b11101: 30bit
+5'b11110: 31bit
+5'b11111: 32bit
+
+ACDCDIG_I2S_RXCR1
+Address: Operational Base + offset (0x0310)
+Bit
+31:8
+
+Attr Reset Value
+RO
+
+0x000000
+
+Description
+reserved
+
+7:6
+
+RW 0x0
+
+rcsr
+Channel select
+2'b00: Two channel
+Others: Reserved
+
+5
+
+RO
+
+reserved
+
+0x0
+
+4
+
+RW 0x0
+
+cex
+Exchange left channel and right channel in the every receive line.
+1'b0: Not exchange
+1'b1: Exchange
+
+3
+
+RO
+
+reserved
+
+2
+
+1:0
+
+0x0
+
+RW 0x0
+
+fbm
+First bit mode
+1'b0: MSB
+1'b1: LSB
+
+RW 0x0
+
+ibm
+I2S bus mode
+2'b00: I2S normal
+2'b01: I2S Left justified
+2'b10: I2S Right justified
+2'b11: Reserved
+
+ACDCDIG_I2S_CKR0
+Address: Operational Base + offset (0x0314)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1853
+
+RKRK3588 TRM-Part1
+Bit
+31:4
+
+Attr Reset Value
+RO
+
+0x0000000
+
+Description
+reserved
+
+3:2
+
+RW 0x0
+
+rsd
+I2S rx sclk divider for rx_lrck generator.
+2'b00: 64
+2'b01: 128
+2'b10~2'b11: 256
+
+1:0
+
+RO
+
+reserved
+
+0x0
+
+ACDCDIG_I2S_CKR1
+Address: Operational Base + offset (0x0318)
+Bit
+31:4
+
+Attr Reset Value
+RO
+
+0x0000000
+
+Description
+reserved
+
+RW 0x0
+
+mss
+Master/slave mode select
+1'b0: Master mode(sclk output)
+1'b1: Slave mode(sclk input)
+
+RW 0x0
+
+ckp
+Sclk polarity
+1'b0: Sample data at posedge sclk and drive data at negedge
+sclk.
+1'b1: Sample data at negedge sclk and drive data at posedge
+sclk.
+
+1
+
+RW 0x0
+
+rlp
+1'b0: Normal polarity
+(I2S normal: low for left channel, high for right channel
+I2S left/right just: high for left channel, low for right channel
+PCM start signal: high valid)
+1'b1: Opposite polarity
+(I2S normal: high for left channel, low for right channel
+I2S left/right just: low for left channel, high for right channel
+PCM start signal: low valid)
+
+0
+
+RO
+
+reserved
+
+3
+
+2
+
+0x0
+
+ACDCDIG_I2S_XFER
+Address: Operational Base + offset (0x031C)
+Bit
+31:2
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+reserved
+
+1
+
+RW 0x0
+
+rxs
+1'b0: Stop RX transfer
+1'b1: Start RX transfer
+
+0
+
+RO
+
+reserved
+
+0x0
+
+ACDCDIG_I2S_CLR
+Address: Operational Base + offset (0x0320)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1854
+
+RKRK3588 TRM-Part1
+Bit
+31:2
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+reserved
+
+1
+
+RW 0x0
+
+rxc
+This is a self-cleared bit. Write 1'b1 to clear all receive logic.
+This bit can be set only when rxs is 1'b0. After writing rxc to 1'b1,
+wait until rxc become 1'b0 by polling rxc.
+
+0
+
+RO
+
+reserved
+
+0x0
+
+ACDCDIG_VERSION
+Address: Operational Base + offset (0x0380)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:8
+
+RO
+
+0x000000
+
+reserved
+
+7:0
+
+RO
+
+0x02
+
+ver
+Version of ACDCDIG.
+
+27.5 Interface Description
+The I2S RX interface of Digital Audio Codec is connected to the TX interface of I2S3 when
+SYS_GRF_SOC_CON6[11] is set to 1’b1.
+When operating in audio PWM mode 0 or 1, Digital Audio Codec outputs two pairs of
+differential signals encoded in PWM format. The following table shows the Digital Audio
+Codec interface description for audio PWM mode.
+Table 27-1 Digital Audio Codec Interface Description
+Module Pin
+Direction
+Pad Name
+IOMUX Setting
+AUDIO_PWM_L_P
+
+O
+
+GMAC1_RXD2/SDIO_D2_M1/I2S3_L
+RCK/AUDDSM_LP/FSPI_D2_M2/UART
+8_TX_M1/SPI4_CLK_M1/GPIO3_A2_
+u
+
+BUS_IOC_GPIO3A_IOMUX_S
+EL_L[11:8]=4’h4
+
+GMAC1_TXD3/SDIO_D1_M1/I2S3_S
+AUDIO_PWM_L_N
+
+O
+
+CLK/AUDDSM_LN/FSPI_D1_M2/I2C6
+_SCL_M4/PWM11_IR_M0/SPI4_MOSI
+
+BUS_IOC_GPIO3A_IOMUX_S
+EL_L[7:4]=4’h4
+
+_M1/GPIO3_A1_u
+GMAC1_TXCLK/SDIO_CMD_M1/I2S3
+AUDIO_PWM_R_P
+
+O
+
+_SDI/AUDDSM_RP/UART8_RTSN_M1
+/SPI4_CS1_M1/GPIO3_A4_d
+
+BUS_IOC_GPIO3A_IOMUX_S
+EL_H[3:0]=4’h4
+
+GMAC1_RXD3/SDIO_D3_M1/I2S3_S
+AUDIO_PWM_R_N
+
+O
+
+DO/AUDDSM_RN/FSPI_D3_M2/UART
+8_RX_M1/SPI4_CS0_M1/GPIO3_A3_
+
+BUS_IOC_GPIO3A_IOMUX_S
+EL_L[15:12]=4’h4
+
+u
+
+27.6 Application Notes
+27.6.1 Software Application Notes
+Steps to configure Digital DAC to work in audio PWM mode 0 are as follows.
+1. Program CRU in the SOC system to achieve the operation frequency of Digital DAC.
+2. Program ACDCDIG_DACINT_DIV to 0x07.
+3. Program ACDCDIG_DACCLKCTRL to 0x3d.
+4. Program ACDCDIG_DACSCLKRXINT_DIV if Digital DAC I2S RX acts as master.
+5. Program ACDCDIG_DACPWM_CTRL to 0x58.
+6. Program ACDCDIG_I2S_CKR0 and ACDCDIG_I2S_CKR1 to set I2S RX related registers.
+7. Program ACDCDIG_I2S_CLR to clear RX logic.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1855
+
+RKRK3588 TRM-Part1
+8. Program ACDCDIG_I2S_RXCR0 and ACDCDIG_I2S_RXCR1.
+9. Program SYS_GRF_SOC_CON6[11] to 1’b1 and program registers of I2S3 that is
+connected to Digital Audio Codec. Don’t start transfer at this time.
+10. Program DAC related registers such as ACDCDIG_DACHPF, ACDCDIG_DACVUCTL and
+ACDCDIG_DACCFG1 to achieve basic configuration.
+11. Program ACDCDIG_I2S_XFER to start I2S RX.
+12. Program registers of I2S3 outside Digital Audio Codec to start TX.
+13. Program ACDCDIG_DACDIGEN to enable digital DAC channels. From now on, the Digital
+Audio Codec begins to work.
+Steps to configure Digital Audio Codec to end audio PWM mode 0 transfer are as follows.
+1. Program registers of I2S3 to stop TX and ACDCDIG_I2S_XFER to stop RX.
+2. Program ACDCDIG_DACPWM_CTRL to 0x0.
+3. Program ACDCDIG_DACDIGEN to disable digital DAC channels.
+4. Program ACDCDIG_DACCLKCTRL to 0x0. Wait ACDCDIG_DACCLKCTRL.dac_sync_status
+until read back to be 1’b0.
+Steps to configure Digital DAC to work in audio PWM mode 1 are as follows.
+1. Program CRU in the SOC system to achieve the operation frequency of Digital DAC.
+2. Program ACDCDIG_DACCLKCTRL to 0x3d.
+3. Program ACDCDIG_DACSCLKRXINT_DIV if Digital DAC I2S RX acts as master.
+4. Program ACDCDIG_DACPWM_CTRL to 0x68.
+5. Program ACDCDIG_I2S_CKR0 and ACDCDIG_I2S_CKR1 to set I2S RX related registers.
+6. Program ACDCDIG_I2S_CLR to clear RX logic.
+7. Program ACDCDIG_I2S_RXCR0 and ACDCDIG_I2S_RXCR1.
+8. Program SYS_GRF_SOC_CON6[11] to 1’b1 and program registers of I2S3 to start TX.
+9. Program ACDCDIG_I2S_XFER to start I2S RX. From now on, the Digital Audio Codec
+begins to work.
+Steps to configure Digital Audio Codec to end audio PWM mode 1 transfer are as follows.
+1. Program registers of I2S3 to stop TX and ACDCDIG_I2S_XFER to stop RX.
+2. Program ACDCDIG_DACPWM_CTRL to 0x0.
+3. Program ACDCDIG_DACCLKCTRL to 0x0. Wait ACDCDIG_DACCLKCTRL.dac_sync_status
+until read back to be 1’b0.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1856
+
+RKRK3588 TRM-Part1
+

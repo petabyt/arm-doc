@@ -1,0 +1,1849 @@
+Chapter 21 I2C Interface
+21.1 Overview
+The Inter-Integrated Circuit (I2C) is a two wired (SCL and SDA), bi-directional serial bus
+that provides an efficient and simple method of information exchange between devices. This
+I2C bus controller supports master mode acting as a bridge between AMBA protocol and
+generic I2C bus system.
+I2C Controller supports the following features:
+⚫ Support 9 independent I2C: I2C0~8, with 42 pairs IOs.
+⚫ Item Compatible with I2C-bus
+⚫ AMBA APB slave interface
+⚫ Supports master mode of I2C bus
+⚫ Software programmable clock frequency and transfer rate up to 400Kbit/sec
+⚫ Supports 7 bits and 10 bits addressing modes
+⚫ Interrupt or polling driven multiple bytes data transfer
+⚫ Clock stretching and wait state generation
+⚫ Filter out glitch on SCL and SDA
+
+21.2 Block Diagram
+
+Fig. 21-1 I2C architecture
+
+21.2.1 I2C_RF
+I2C_RF module is used to control the I2C controller operation by the host with APB
+interface. It implements the register set and the interrupt functionality. The I2C_RF
+component operates synchronously with the pclk.
+
+21.2.2 I2C_PE
+I2C_PE module implements the I2C master operation for transmit data to and receive data
+from other I2C devices. The I2C master controller operates synchronously with the clk_i2c.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1491
+
+RK3588 TRM-Part1
+
+21.2.3 I2C_TOP
+I2C_TOP module is the top module of the I2C controller.
+
+21.3 Function Description
+This chapter provides a description about the functions and behavior under various
+conditions.
+The I2C controller supports only Master function. It supports the 7-bits/10-bits addressing
+mode and support general call address. The maximum clock frequency and transfer rate can
+be up to 400Kbit/sec.
+The operations of I2C controller is divided to 2 parts and described separately: initialization
+and master mode programming.
+
+21.3.1 Initialization
+The I2C controller is based on AMBA APB bus architecture and usually is part of a SOC. So
+before I2C operates, some system setting and configuration must be conformed, which
+includes:
+⚫ I2C interrupt connection type: CPU interrupt scheme should be considered. If the I2C
+interrupt is connected to extra Interrupt Controller module, we need decide the INTC
+vector.
+⚫ I2C Clock Rate: The I2C controller uses the APB clock to configure controller and uses
+clk_i2c as the working clock. The correct register setting is subject to the system
+requirement.
+
+21.3.2 Master Mode Programming
+⚫
+
+SCL Clock
+When the I2C controller is programmed in Master mode, the SCL frequency is
+determined by I2C_CLKDIV register. The SCL frequency is calculated by the following
+formula:
+SCL Divisor = 8*(CLKDIVL + 1 + CLKDIVH + 1); clk_i2c = 100MHz~200MHz.
+SCL = clk_i2c/ SCLK Divisor.
+
+⚫
+
+Data Receiver Register Access
+When the I2C controller received MRXCNT bytes data, CPU can get the data through
+register RXDATA0 ~ RXDATA7. The controller can receive up to 32 bytes’ data in one
+transaction.
+When MRXCNT register is written, the I2C controller will start to drive SCL to receive
+data.
+
+⚫
+
+Transmit Transmitter Register
+Data to transmit are written to TXDATA0~7 by CPU. The controller can transmit up to 32
+bytes’ data in one transaction. The lower byte will be transmitted first.
+When MTXCNT register is written, the I2C controller will start to transmit data.
+
+⚫
+
+Start Command
+Write 1 to I2C_CON[3], the controller will send I2C start command.
+
+⚫
+
+Stop Command
+Write 1 to I2C_CON[4], the controller will send I2C stop command.
+
+⚫
+
+I2C Operation mode
+There are four i2c operation modes.
+◼ When I2C_CON[2:1] is 2’b00, the controller transmit all valid data in
+TXDATA0~TXDATA7 byte by byte. The controller will transmit lower byte first.
+◼ When I2C_CON[2:1] is 2’b01, the controller will transmit device address in
+MRXADDR first (Write/Read bit = 0) and then transmit device register address in
+MRXRADDR. After that, the controller will assert restart signal and resend MRXADDR
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1492
+
+RK3588 TRM-Part1
+◼
+◼
+
+(Write/Read bit = 1). At last, the controller enter receive mode.
+When I2C_CON[2:1] is 2’b10, the controller is in receive mode, it will trigger clock
+to read MRXCNT byte data.
+When I2C_CON[2:1] is 2’b11, the controller will transmit device address in
+MRXADDR first (Write/Read bit = 1) and then transmit device register address in
+MRXRADDR. After that, the controller will assert restart signal and resend MRXADDR
+(Write/Read bit = 1). At last, the controller enter receive mode.
+
+⚫
+
+Read/Write Command
+◼ When I2C_OPMODE(I2C_CON[2:1]) is 2’b01 or 2’b11, the Read/Write command bit
+is decided by controller itself.
+◼ In RX only mode (I2C_CON[2:1] is 2’b10), the Read/Write command bit is decided
+by MRXADDR[0].
+◼ In TX only mode (I2C_CON[[2:1] is 2’b00), the Read/Write command bit is decided
+by TXDATA[0].
+
+⚫
+
+Master Interrupt Condition
+There are 7 interrupt bits in I2C_ISR register related to master mode.
+◼ Byte transmitted finish interrupt (Bit 0): The bit is asserted when Master completed
+transmitting a byte.
+◼ Byte received finish interrupt (Bit 1): The bit is asserted when Master completed
+receiving a byte.
+◼ MTXCNT bytes data transmitted finish interrupt (Bit 2): The bit is asserted when
+Master completed transmitting MTXCNT bytes.
+◼ MRXCNT bytes data received finish interrupt (Bit 3): The bit is asserted when Master
+completed receiving MRXCNT bytes.
+◼ Start interrupt (Bit 4): The bit is asserted when Master finished asserting start
+command to I2C bus.
+◼ Stop interrupt (Bit 5): The bit is asserted when Master finished asserting stop
+command to I2C bus.
+◼ NAK received interrupt (Bit 6): The bit is asserted when Master received a NAK
+handshake.
+
+⚫
+
+Last byte acknowledge control
+◼ If I2C_CON[5] is 1, the I2C controller will transmit NAK handshake to slave when
+the last byte received in RX only mode.
+◼ If I2C_CON[5] is 0, the I2C controller will transmit ACK handshake to slave when
+the last byte received in RX only mode.
+
+⚫
+
+How to handle NAK handshake received
+◼ If I2C_CON[6] is 1, the I2C controller will stop all transactions when NAK handshake
+received. And the software should take responsibility to handle the problem.
+◼ If I2C_CON[6] is 0, the I2C controller will ignore all NAK handshake received.
+
+⚫
+
+I2C controller data transfer waveform
+◼ Bit transferring
+◆ Data Validity
+The SDA line must be stable during the high period of SCL, and the data on SDA
+line can only be changed when SCL is in low state.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1493
+
+RK3588 TRM-Part1
+
+◆
+
+Fig. 21-2 I2C DATA Validity
+START and STOP conditions
+START condition occurs when SDA goes low while SCL is in high period. STOP
+condition is generated when SDA line goes high while SCL is in high state.
+
+Fig. 21-3 I2C Start and stop conditions
+
+◆
+
+Data transfer
+➢ Acknowledge
+After a byte of data transferring (clocks labeled as 1~8), in 9th clock the
+receiver must assert an ACK signal on SDA line, if the receiver pulls SDA line
+to low, it means “ACK”, on the contrary, it’s “NOT ACK”.
+
+Fig. 21-4 I2C Acknowledge
+
+➢
+
+Byte transfer
+The master own I2C bus might initiate multi byte to transfer to a slave. The
+transfer starts from a “START” command and ends in a “STOP” command.
+After every byte transfer, the receiver must reply an ACK to transmitter.
+
+Fig. 21-5 I2C byte transfer
+
+21.4 Register Description
+21.4.1 Registers Summary
+Name
+RKI2C_CON
+
+Offset
+0x0000
+
+Size
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Reset
+Description
+Value
+0x00050000 Control register
+
+1494
+
+RK3588 TRM-Part1
+Name
+
+Offset
+
+Size
+
+Reset
+Value
+0x00000001
+
+RKI2C_CLKDIV
+
+0x0004
+
+W
+
+RKI2C_MRXADDR
+
+0x0008
+
+W
+
+RKI2C_MRXRADDR
+
+0x000C
+
+W
+
+RKI2C_MTXCNT
+
+0x0010
+
+W
+
+RKI2C_MRXCNT
+
+0x0014
+
+W
+
+RKI2C_IEN
+RKI2C_IPD
+
+0x0018
+0x001C
+
+W
+W
+
+RKI2C_FCNT
+
+0x0020
+
+W
+
+RKI2C_SCL_OE_DB
+
+0x0024
+
+W
+
+RKI2C_TXDATA0
+RKI2C_TXDATA1
+RKI2C_TXDATA2
+RKI2C_TXDATA3
+RKI2C_TXDATA4
+RKI2C_TXDATA5
+RKI2C_TXDATA6
+RKI2C_TXDATA7
+RKI2C_RXDATA0
+RKI2C_RXDATA1
+RKI2C_RXDATA2
+RKI2C_RXDATA3
+RKI2C_RXDATA4
+RKI2C_RXDATA5
+RKI2C_RXDATA6
+RKI2C_RXDATA7
+RKI2C_ST
+RKI2C_DBGCTRL
+RKI2C_CON1
+
+0x0100
+0x0104
+0x0108
+0x010C
+0x0110
+0x0114
+0x0118
+0x011C
+0x0200
+0x0204
+0x0208
+0x020C
+0x0210
+0x0214
+0x0218
+0x021C
+0x0220
+0x0224
+0x0228
+
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+
+Description
+
+Clock divider register I2C CLK =
+PCLK / (16*CLKDIV)
+The slave address accessed for
+0x00000000
+master rx mode
+The slave register address
+0x00000000
+accessed for master rx mode
+Master transmit count, specify the
+0x00000000
+total bytes to be transmit (0~32)
+Master rx count, specify the total
+0x00000000
+bytes to be recieved(0~32)
+0x00000000 Interrupt enable register
+0x00000000 Interrupt pending register
+Finished count: the count of data
+0x00000000 which has been transmitted or
+received for debug purpose
+Slave hold debounce configure
+0x00000020
+register
+0x00000000 I2C tx data register 0
+0x00000000 I2C tx data register 1
+0x00000000 I2C tx data register 2
+0x00000000 I2C tx data register 3
+0x00000000 I2C tx data register 4
+0x00000000 I2C tx data register 5
+0x00000000 I2C tx data register 6
+0x00000000 I2C tx data register 7
+0x00000000 I2C rx data register 0
+0x00000000 I2C rx data register 1
+0x00000000 I2C rx data register 2
+0x00000000 I2C rx data register 3
+0x00000000 I2C rx data register 4
+0x00000000 I2C rx data register 5
+0x00000000 I2C rx data register 6
+0x00000000 I2C rx data register 7
+0x00000000 Status debug register
+0x00000000 Debug config register
+0x00000000 Control register
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+21.4.2 Detail Registers Description
+RKI2C_CON
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+version
+31:16 RO 0x0005
+Rki2c version information.
+stop_setup
+15:14 RW 0x0
+Stop setup config.
+TSU;sto = (stop_setup + 1) * T(SCL_HIGH) + Tclk_i2c.
+start_setup
+Start setup config.
+13:12 RW 0x0
+TSU;sta = (start_setup + 1) * T(SCL_HIGH) + Tclk_i2c.
+THD;sta = (start_setup + 2) * T(SCL_HIGH) - Tclk_i2c.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1495
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+11:8
+
+RW 0x0
+
+7
+
+RO
+
+6
+
+RW 0x0
+
+5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+3
+
+RW 0x0
+
+2:1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+0x0
+
+Description
+data_upd_st
+SDA update point config.
+Used to config sda change state when scl is low, used to adjust
+setup/hold time.
+4'bn: Thold = (n + 1) * Tclk_i2c.
+Note: 0 <= n <= 5
+reserved
+act2nak
+Operation when NAK handshake is received.
+1'b0: Ignored.
+1'b1: Stop transaction.
+ack
+Last byte acknowledge control in master receive mode.
+1'b0: ACK
+1'b1: NAK
+stop
+Stop enable, when this bit is written to 1, I2C will generate stop
+signal.
+start
+Start enable, when this bit is written to 1, I2C will generate start
+signal.
+i2c_mode
+I2c mode select.
+2'b00: Transmit only.
+2'b01: Transmit address (device + register address) --> Restart -> Transmit address -> Receive only.
+2'b10: Receive only.
+2'b11: Transmit address (device + register address, write/read
+bit is 1) --> Restart --> Transmit address (device address) -->
+Receive data.
+i2c_en
+I2c module enable.
+1'b0: Disable
+1'b1: Enable
+
+RKI2C_CLKDIV
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+CLKDIVH
+31:16 RW 0x0000
+SCL high level clock count.
+T(SCL_HIGH) = Tclk_i2c * (CLKDIVH + 1) * 8.
+CLKDIVL
+15:0 RW 0x0001
+SCL low level clock count.
+T(SCL_LOW) = Tclk_i2c * (CLKDIVL + 1) * 8.
+RKI2C_MRXADDR
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+31:27 RO 0x00
+reserved
+addhvld
+Address high byte valid.
+26
+RW 0x0
+1'b0: Invalid
+1'b1: Valid
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1496
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+25
+
+RW 0x0
+
+24
+
+RW 0x0
+
+23:0
+
+RW 0x000000
+
+Description
+addmvld
+Address middle byte valid.
+1'b0: Invalid
+1'b1: Valid
+addlvld
+Address low byte valid.
+1'b0: Invalid
+1'b1: Valid
+saddr
+Master address register.
+The lowest bit indicate write or read.
+24 bits address register.
+
+RKI2C_MRXRADDR
+Address: Operational Base + offset (0x000C)
+Bit Attr Reset Value
+Description
+31:27 RO 0x00
+reserved
+sraddhvld
+Address high byte valid.
+26
+RW 0x0
+1'b0: Invalid
+1'b1: Valid
+sraddmvld
+Address middle byte valid.
+25
+RW 0x0
+1'b0: Invalid
+1'b1: Valid
+sraddlvld
+Address low byte valid.
+24
+RW 0x0
+1'b0: Invalid
+1'b1: Valid
+sraddr
+23:0 RW 0x000000
+Slave register address accessed.
+24 bits register address
+RKI2C_MTXCNT
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+31:6 RO 0x0000000
+reserved
+mtxcnt
+5:0
+RW 0x00
+Master transmit count.
+6 bits counter
+RKI2C_MRXCNT
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+31:6 RO 0x0000000
+reserved
+mrxcnt
+5:0
+RW 0x00
+Master rx count.
+6 bits counter
+RKI2C_IEN
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+Description
+
+Description
+
+1497
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+7
+
+RW 0x0
+
+6
+
+RW 0x0
+
+5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+slavehdsclen
+Slave hold scl interrupt enable.
+1'b0: Disable
+1'b1: Enable
+nakrcvien
+NAK handshake received interrupt enable.
+1'b0: Disable
+1'b1: Enable
+stopien
+Stop operation finished interrupt enable.
+1'b0: Disable
+1'b1: Enable
+startien
+Start operation finished interrupt enable.
+1'b0: Disable
+1'b1: Enable
+mbrfien
+MRXCNT data received finished interrupt enable.
+1'b0: Disable
+1'b1: Enable
+mbtfien
+MTXCNT data transfer finished interrupt enable.
+1'b0: Disable
+1'b1: Enable
+brfien
+Byte rx finished interrupt enable.
+1'b0: Disable
+1'b1: Enable
+btfien
+Byte tx finished interrupt enable.
+1'b0: Disable
+1'b1: Enable
+
+RKI2C_IPD
+Address: Operational Base + offset (0x001C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+slavehdsclipd
+Slave hold scl interrupt pending bit.
+7
+RW 0x0
+1'b0: No interrupt available.
+1'b1: Slave hold scl interrupt appear, write 1 to clear.
+nakrcvipd
+W1
+NAK handshake received interrupt pending bit.
+6
+0x0
+C
+1'b0: No interrupt available.
+1'b1: NAK handshake received interrupt appear, write 1 to clear.
+stopipd
+W1
+Stop operation finished interrupt pending bit.
+5
+0x0
+C
+1'b0: No interrupt available.
+1'b1: Stop operation finished interrupt appear, write 1 to clear.
+startipd
+W1
+Start operation finished interrupt pending bit.
+4
+0x0
+C
+1'b0: No interrupt available.
+1'b1: Start operation finished interrupt appear, write 1 to clear.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1498
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+3
+
+W1
+C
+
+0x0
+
+2
+
+W1
+C
+
+0x0
+
+1
+
+W1
+C
+
+0x0
+
+0
+
+W1
+C
+
+0x0
+
+Description
+mbrfipd
+MRXCNT data received finished interrupt pending bit.
+1'b0: No interrupt available.
+1'b1: MRXCNT data received finished interrupt appear, write 1 to
+clear.
+mbtfipd
+MTXCNT data transfer finished interrupt pending bit.
+1'b0: No interrupt available.
+1'b1: MTXCNT data transfer finished interrupt appear, write 1 to
+clear.
+brfipd
+Byte rx finished interrupt pending bit.
+1'b0: No interrupt available.
+1'b1: Byte rx finished interrupt appear, write 1 to clear.
+btfipd
+Byte tx finished interrupt pending bit.
+1'b0: No interrupt available.
+1'b1: Byte tx finished interrupt appear, write 1 to clear.
+
+RKI2C_FCNT
+Address: Operational Base + offset (0x0020)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+fcnt
+5:0
+RO 0x00
+The count of data which has been transmitted or received for
+debug purpose.
+RKI2C_SCL_OE_DB
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+scl_oe_db
+7:0
+RW 0x20
+Slave hold scl debounce.
+Cycles for debounce (unit: Tclk_i2c).
+RKI2C_TXDATA0
+Address: Operational Base + offset (0x0100)
+Bit Attr Reset Value
+txdata0
+31:0 RW 0x00000000 Data0 to be transmitted.
+32 bits data
+RKI2C_TXDATA1
+Address: Operational Base + offset (0x0104)
+Bit Attr Reset Value
+txdata1
+31:0 RW 0x00000000 Data1 to be transmitted.
+32 bits data
+
+Description
+
+Description
+
+RKI2C_TXDATA2
+Address: Operational Base + offset (0x0108)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1499
+
+RK3588 TRM-Part1
+Bit
+31:0
+
+Attr Reset Value
+RW 0x00000000
+
+Description
+txdata2
+Data2 to be transmitted.
+32 bits data
+
+RKI2C_TXDATA3
+Address: Operational Base + offset (0x010C)
+Bit Attr Reset Value
+txdata3
+31:0 RW 0x00000000 Data3 to be transmitted.
+32 bits data
+RKI2C_TXDATA4
+Address: Operational Base + offset (0x0110)
+Bit Attr Reset Value
+txdata4
+31:0 RW 0x00000000 Data4 to be transmitted.
+32 bits data
+RKI2C_TXDATA5
+Address: Operational Base + offset (0x0114)
+Bit Attr Reset Value
+txdata5
+31:0 RW 0x00000000 Data5 to be transmitted.
+32 bits data
+RKI2C_TXDATA6
+Address: Operational Base + offset (0x0118)
+Bit Attr Reset Value
+txdata6
+31:0 RW 0x00000000 Data6 to be transmitted.
+32 bits data
+RKI2C_TXDATA7
+Address: Operational Base + offset (0x011C)
+Bit Attr Reset Value
+txdata7
+31:0 RW 0x00000000 Data7 to be transmitted.
+32 bits data
+RKI2C_RXDATA0
+Address: Operational Base + offset (0x0200)
+Bit Attr Reset Value
+rxdata0
+31:0 RO 0x00000000 Data0 received.
+32 bits data
+RKI2C_RXDATA1
+Address: Operational Base + offset (0x0204)
+Bit Attr Reset Value
+rxdata1
+31:0 RO 0x00000000 Data1 received.
+32 bits data
+
+Description
+
+Description
+
+Description
+
+Description
+
+Description
+
+Description
+
+Description
+
+RKI2C_RXDATA2
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1500
+
+RK3588 TRM-Part1
+Address: Operational Base + offset (0x0208)
+Bit Attr Reset Value
+rxdata2
+31:0 RO 0x00000000 Data2 received.
+32 bits data
+RKI2C_RXDATA3
+Address: Operational Base + offset (0x020C)
+Bit Attr Reset Value
+rxdata3
+31:0 RO 0x00000000 Data3 received.
+32 bits data
+RKI2C_RXDATA4
+Address: Operational Base + offset (0x0210)
+Bit Attr Reset Value
+rxdata4
+31:0 RO 0x00000000 Data4 received.
+32 bits data
+RKI2C_RXDATA5
+Address: Operational Base + offset (0x0214)
+Bit Attr Reset Value
+rxdata5
+31:0 RO 0x00000000 Data5 received.
+32 bits data
+RKI2C_RXDATA6
+Address: Operational Base + offset (0x0218)
+Bit Attr Reset Value
+rxdata6
+31:0 RO 0x00000000 Data6 received.
+32 bits data
+RKI2C_RXDATA7
+Address: Operational Base + offset (0x021C)
+Bit Attr Reset Value
+rxdata7
+31:0 RO 0x00000000 Data7 received.
+32 bits data
+RKI2C_ST
+Address: Operational Base + offset (0x0220)
+Bit Attr Reset Value
+31:2 RO 0x00000000 reserved
+scl_st
+SCL status.
+1
+RO 0x0
+1'b0: SCL status low.
+1'b0: SCL status high.
+sda_st
+SDA status.
+0
+RO 0x0
+1'b0: SDA status low.
+1'b0: SDA status high.
+
+Description
+
+Description
+
+Description
+
+Description
+
+Description
+
+Description
+
+Description
+
+RKI2C_DBGCTRL
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1501
+
+RK3588 TRM-Part1
+Address: Operational Base + offset (0x0224)
+Bit Attr Reset Value
+Description
+31:15 RO 0x00000
+reserved
+h0_check_scl
+1'b0: Check if scl been pull down by slave at the whole
+14
+RW 0x0
+SCL_HIGH.
+1'b1: Check if scl been pull down by slave only at the h0 of
+SCL_HIGH(SCL_HIGH including h0~h7).
+nak_release_scl
+13
+RW 0x0
+1'b0: Hold scl as low when recieved nack.
+1'b1: Release scl as high when recieved nack.
+flt_en
+SCL edage glitch filter enable.
+12
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+slv_hold_scl_th
+11:8 RW 0x0
+Slave hold scl threshold = slv_hold_scl_db * Tclk_i2c.
+flt_r
+7:4
+RW 0x0
+Filter scl rising edge glitches of width less than flt_r * Tclk_i2c.
+flt_f
+3:0
+RW 0x0
+Filter scl falling edge glitches of width less than flt_f * Tclk_i2c.
+RKI2C_CON1
+Address: Operational Base + offset (0x0228)
+Bit Attr Reset Value
+Description
+31:3 RO 0x00000000 reserved
+auto_stop_nak
+Auto stop when i2c master recieved nak from slave.
+2
+RW 0x0
+Work when CON1[0]=1'b1.
+1'b0: Do not auto stop when recieved nak.
+1'b1: Auto stop when recieved nak.
+auto_stop_tx_end
+Auto stop when i2c master tx end.
+1
+RW 0x0
+Work when CON1[0]=1'b1.
+1'b0: Do not auto stop when tx end.
+1'b1: Auto stop when tx end.
+auto_stop
+Auto stop when i2c master recieved nak from slave or tx end.
+0
+RW 0x0
+1'b0: Do not auto stop when recieved nak or tx end.
+1'b1: Auto stop when recieved nak or tx end.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1502
+
+RK3588 TRM-Part1
+
+21.5
+21.6 Interface Description
+Table 21-1 I2C Interface Description
+Module pin
+
+Direction
+
+I2C0_SCL_M0
+
+I/O
+
+I2C0_SDA_M0
+
+I/O
+
+I2C0_SCL_M1
+
+I/O
+
+I2C0_SDA_M1
+
+I/O
+
+I2C0_SCL_M2
+
+I/O
+
+I2C0_SDA_M2
+
+I/O
+
+I2C1_SCL_M0
+
+I/O
+
+I2C1_SDA_M0
+
+I/O
+
+I2C1_SCL_M1
+
+I/O
+
+I2C1_SDA_M1
+
+I/O
+
+I2C1_SCL_M2
+
+I/O
+
+I2C1_SDA_M2
+
+I/O
+
+I2C1_SCL_M3
+
+I/O
+
+Pin name
+
+IOMUX
+
+PMU1_IOC_GPIO0B_IOMUX_S
+EL_L[15:12]=0x2
+PMU1_IOC_GPIO0A_IOMUX_S
+SPI2_MOSI_M2/I2C0_SDA_M0/GPIO0_A6_z
+EL_H[11:8]=0x2
+BUS_IOC_GPIO4C_IOMUX_SEL
+GMAC0_MDIO/I2C0_SCL_M1/UART9_CTSN_M0/PWM6_M2/SPI3_MOSI_M0/GPIO4_C5_d
+_H[7:4]=0x9
+BUS_IOC_GPIO4C_IOMUX_SEL
+GMAC0_TXER/I2C0_SDA_M1/UART7_CTSN_M0/PWM7_IR_M3/SPI3_CLK_M0/GPIO4_C6_d
+_H[11:8]=0x9
+I2S1_SDO0_M1/CPU_BIG0_AVS/I2C0_SCL_M2/UART0_CTSN/UART1_TX_M2/HDMI_RX_SDA_M0/SPI0_CS0_M0/PC PMU1_IOC_GPIO0D_IOMUX_S
+IE30X2_CLKREQN_M0/HDMI_TX0_CEC_M1/GPIO0_D1_u
+EL_L[7:4]=0x3
+I2S1_SDO1_M1/I2C0_SDA_M2/UART1_RX_M2/HDMI_RX_SCL_M0/SPI3_MOSI_M2/PCIE30X2_WAKEN_M0/HDMI_T PMU1_IOC_GPIO0D_IOMUX_S
+X1_CEC_M1/GPIO0_D2_u
+EL_L[11:8]=0x3
+BUS_IOC_GPIO0B_IOMUX_SEL
+_H[7:4]=0x9
+I2S1_MCLK_M1/JTAG_TCK_M2/I2C1_SCL_M0/UART2_TX_M0/PCIE30X1_1_CLKREQN_M0/GPIO0_B5_d
+PMU2_IOC_GPIO0B_IOMUX_S
+EL_H[7:4]=0x8
+BUS_IOC_GPIO0B_IOMUX_SEL
+_H[11:8]=0x9
+I2S1_SCLK_M1/JTAG_TMS_M2/I2C1_SDA_M0/UART2_RX_M0/PCIE30X1_1_WAKEN_M0/GPIO0_B6_d
+PMU2_IOC_GPIO0B_IOMUX_S
+EL_H[11:8]=0x8
+PMU1_IOC_GPIO0B_IOMUX_S
+SPI2_CS1_M2/I2C1_SCL_M1/UART0_RX_M1/GPIO0_B0_z
+EL_L[3:0]=0x2
+PMU1_IOC_GPIO0B_IOMUX_S
+SPI2_CS0_M2/I2C1_SDA_M1/PWM5_M0/UART0_TX_M1/GPIO0_B1_z
+EL_L[7:4]=0x2
+BUS_IOC_GPIO0D_IOMUX_SEL
+I2S1_SDO2_M1/PDM0_SDI2_M1/PWM3_IR_M0/I2C1_SCL_M2/CAN2_RX_M1/HDMI_TX0_SDA_M1/SPI3_CS0_M2/PCI
+_H[3:0]=0x9
+E30X2_PERSTN_M0/SATA_CPDET/GPIO0_D4_u
+PMU2_IOC_GPIO0D_IOMUX_S
+EL_H[3:0]=0x8
+BUS_IOC_GPIO0D_IOMUX_SEL
+I2S1_SDO3_M1/CPU_BIG1_AVS/I2C1_SDA_M2/CAN2_TX_M1/HDMI_TX0_SCL_M1/SPI3_CS1_M2/SATA_MP_SWITC
+_H[7:4]=0x9
+H/GPIO0_D5_u
+PMU2_IOC_GPIO0D_IOMUX_S
+EL_H[7:4]=0x8
+BUS_IOC_GPIO2D_IOMUX_SEL
+EMMC_D4/I2C1_SCL_M3/UART5_RX_M2/GPIO2_D4_u
+_H[3:0]=0x9
+SPI2_MISO_M2/I2C0_SCL_M0/GPIO0_B3_z
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1503
+
+RK3588 TRM-Part1
+Module pin
+
+Direction
+
+I2C1_SDA_M3
+
+I/O
+
+I2C1_SCL_M4
+
+I/O
+
+I2C1_SDA_M4
+
+I/O
+
+I2C2_SCL_M0
+
+I/O
+
+I2C2_SDA_M0
+
+I/O
+
+I2C2_SCL_M1
+
+I/O
+
+I2C2_SDA_M1
+
+I/O
+
+I2C2_SCL_M2
+
+I/O
+
+I2C2_SDA_M2
+
+I/O
+
+I2C2_SCL_M3
+
+I/O
+
+I2C2_SDA_M3
+
+I/O
+
+I2C2_SCL_M4
+
+I/O
+
+I2C2_SDA_M4
+
+I/O
+
+I2C3_SCL_M0
+
+I/O
+
+I2C3_SDA_M0
+
+I/O
+
+I2C3_SCL_M1
+
+I/O
+
+I2C3_SDA_M1
+
+I/O
+
+I2C3_SCL_M2
+
+I/O
+
+Pin name
+
+IOMUX
+
+BUS_IOC_GPIO2D_IOMUX_SEL
+_H[7:4]=0x9
+BUS_IOC_GPIO1D_IOMUX_SEL
+I2S0_SDO3/I2S0_SDI2/PDM0_SDI2_M0/I2C1_SCL_M4/UART4_TX_M0/PWM0_M1/SPI1_CLK_M2/GPIO1_D2_d
+_L[11:8]=0x9
+BUS_IOC_GPIO1D_IOMUX_SEL
+I2S0_SDI1/PDM0_SDI3_M0/I2C1_SDA_M4/UART4_RX_M0/PWM1_M1/SPI1_CS0_M2/GPIO1_D3_d
+_L[15:12]=0x9
+BUS_IOC_GPIO0B_IOMUX_SEL
+_H[15:12]=0x9
+I2S1_LRCK_M1/PWM0_M0/I2C2_SCL_M0/CAN0_TX_M0/SPI0_CS1_M0/PCIE30X1_1_PERSTN_M0/GPIO0_B7_d
+PMU2_IOC_GPIO0B_IOMUX_S
+EL_H[15:12]=0x8
+BUS_IOC_GPIO0C_IOMUX_SEL
+_L[3:0]=0x9
+PDM0_CLK0_M1/PWM1_M0/I2C2_SDA_M0/CAN0_RX_M0/SPI0_MOSI_M0/PCIE30X1_0_CLKREQN_M0/GPIO0_C0_d
+PMU2_IOC_GPIO0C_IOMUX_S
+EL_L[3:0]=0x8
+BUS_IOC_GPIO2C_IOMUX_SEL
+GMAC0_RXD0/I2C2_SCL_M1/UART1_CTSN_M0/SPI1_MISO_M0/GPIO2_C1_d
+_L[7:4]=0x9
+BUS_IOC_GPIO2C_IOMUX_SEL
+GMAC0_TXEN/I2S2_LRCK_M0/I2C2_SDA_M1/UART1_RTSN_M0/SPI1_CLK_M0/GPIO2_C0_d
+_L[3:0]=0x9
+BUS_IOC_GPIO2A_IOMUX_SEL
+EMMC_RSTN/I2C2_SCL_M2/UART5_RTSN_M1/GPIO2_A3_d
+_L[15:12]=0x9
+BUS_IOC_GPIO2A_IOMUX_SEL
+EMMC_DATA_STROBE/I2C2_SDA_M2/UART5_CTSN_M1/GPIO2_A2_d
+_L[11:8]=0x9
+BUS_IOC_GPIO1C_IOMUX_SEL
+I2S0_LRCK/I2C2_SCL_M3/UART4_RTSN/GPIO1_C5_d
+_H[7:4]=0x9
+BUS_IOC_GPIO1C_IOMUX_SEL
+PDM0_CLK1_M0/I2C2_SDA_M3/PWM11_IR_M2/SPI4_CS1_M0/GPIO1_C4_d
+_H[3:0]=0x9
+PCIE30X1_1_WAKEN_M2/DP1_HPDIN_M2/SATA1_ACT_LED_M1/I2C2_SCL_M4/UART6_TX_M1/SPI4_MOSI_M2/GPI BUS_IOC_GPIO1A_IOMUX_SEL
+O1_A1_d
+_L[7:4]=0x9
+BUS_IOC_GPIO1A_IOMUX_SEL
+PCIE30X1_1_CLKREQN_M2/DP0_HPDIN_M2/I2C2_SDA_M4/UART6_RX_M1/SPI4_MISO_M2/GPIO1_A0_d
+_L[3:0]=0x9
+BUS_IOC_GPIO1C_IOMUX_SEL
+I2C3_SCL_M0/UART3_TX_M0/SPI4_MOSI_M0/GPIO1_C1_z
+_L[7:4]=0x9
+BUS_IOC_GPIO1C_IOMUX_SEL
+I2C3_SDA_M0/UART3_RX_M0/SPI4_MISO_M0/GPIO1_C0_z
+_L[3:0]=0x9
+BUS_IOC_GPIO3B_IOMUX_SEL
+GMAC1_PTP_REF_CLK/HDMI_TX1_HPD_M1/I2C3_SCL_M1/SPI1_MOSI_M1/GPIO3_B7_d
+_H[15:12]=0x9
+BUS_IOC_GPIO3C_IOMUX_SEL
+GMAC1_PPSTRIG/I2C3_SDA_M1/UART7_TX_M1/SPI1_MISO_M1/GPIO3_C0_d
+_L[3:0]=0x9
+BUS_IOC_GPIO4A_IOMUX_SEL
+CIF_D4/BT1120_D4/PCIE30X1_0_WAKEN_M1/I2C3_SCL_M2/UART0_RX_M2/SPI2_MISO_M1/GPIO4_A4_d
+_H[3:0]=0x9
+EMMC_D5/I2C1_SDA_M3/UART5_TX_M2/GPIO2_D5_u
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1504
+
+RK3588 TRM-Part1
+Module pin
+
+Direction
+
+I2C3_SDA_M2
+
+I/O
+
+I2C3_SCL_M3
+
+I/O
+
+I2C3_SDA_M3
+
+I/O
+
+I2C3_SCL_M4
+
+I/O
+
+I2C3_SDA_M4
+
+I/O
+
+I2C4_SCL_M0
+
+I/O
+
+I2C4_SDA_M0
+
+I/O
+
+I2C4_SCL_M1
+
+I/O
+
+I2C4_SDA_M1
+
+I/O
+
+I2C4_SCL_M2
+
+I/O
+
+I2C4_SDA_M2
+
+I/O
+
+I2C4_SCL_M3
+
+I/O
+
+I2C4_SDA_M3
+
+I/O
+
+I2C4_SCL_M4
+
+I/O
+
+I2C4_SDA_M4
+
+I/O
+
+I2C5_SCL_M0
+
+I/O
+
+I2C5_SDA_M0
+
+I/O
+
+I2C5_SCL_M1
+
+I/O
+
+Pin name
+
+IOMUX
+
+CIF_D5/BT1120_D5/I2S1_SDI0_M0/PCIE30X1_0_PERSTN_M1/I2C3_SDA_M2/UART3_TX_M2/SPI2_MOSI_M1/GPIO4 BUS_IOC_GPIO4A_IOMUX_SEL
+_A5_d
+_H[7:4]=0x9
+BUS_IOC_GPIO2B_IOMUX_SEL
+GMAC0_TXD3/SDIO_CMD_M0/I2C3_SCL_M3/GPIO2_B2_u
+_L[11:8]=0x9
+BUS_IOC_GPIO2B_IOMUX_SEL
+GMAC0_TXCLK/SDIO_CLK_M0/FSPI_CLK_M1/I2C3_SDA_M3/GPIO2_B3_d
+_L[15:12]=0x9
+BUS_IOC_GPIO4D_IOMUX_SEL
+SDMMC_D0/PDM1_SDI3_M0/JTAG_TCK_M1/I2C3_SCL_M4/UART2_TX_M1/PWM8_M1/GPIO4_D0_u
+_L[3:0]=0x9
+BUS_IOC_GPIO4D_IOMUX_SEL
+SDMMC_D1/PDM1_SDI2_M0/JTAG_TMS_M1/I2C3_SDA_M4/UART2_RX_M1/PWM9_M1/GPIO4_D1_u
+_L[7:4]=0x9
+BUS_IOC_GPIO3A_IOMUX_SEL
+ETH1_REFCLKO_25M/MIPI_CAMERA1_CLK_M1/I2C4_SCL_M0/GPIO3_A6_d
+_H[11:8]=0x9
+GMAC1_RXCLK/SDIO_CLK_M1/MIPI_CAMERA0_CLK_M1/FSPI_CLK_M2/I2C4_SDA_M0/UART8_CTSN_M1/GPIO3_A BUS_IOC_GPIO3A_IOMUX_SEL
+5_d
+_H[7:4]=0x9
+BUS_IOC_GPIO2B_IOMUX_SEL
+GMAC0_PPSTRING/FSPI_CS1N_M1/HDMI_TX1_SCL_M0/I2C4_SCL_M1/UART7_TX_M0/GPIO2_B5_u
+_H[7:4]=0x9
+BUS_IOC_GPIO2B_IOMUX_SEL
+GMAC0_PTP_REFCLK/FSPI_CS0N_M1/HDMI_TX1_SDA_M0/I2C4_SDA_M1/UART7_RX_M0/GPIO2_B4_u
+_H[3:0]=0x9
+BUS_IOC_GPIO0C_IOMUX_SEL
+I2S1_SDI0_M1/GPU_AVS/UART0_TX_M0/I2C4_SCL_M2/DP1_HPDIN_M1/PWM4_M0/PCIE30X1_0_PERSTN_M0/GPI
+_H[7:4]=0x9
+O0_C5_u
+PMU2_IOC_GPIO0C_IOMUX_S
+EL_H[7:4]=0x8
+BUS_IOC_GPIO0C_IOMUX_SEL
+_H[3:0]=0x9
+PDM0_CLK1_M1/PWM2_M0/UART0_RX_M0/I2C4_SDA_M2/DP0_HPDIN_M1/PCIE30X1_0_WAKEN_M0/GPIO0_C4_d
+PMU2_IOC_GPIO0C_IOMUX_S
+EL_H[3:0]=0x8
+BUS_IOC_GPIO1A_IOMUX_SEL
+HDMI_TX1_SDA_M2/I2C4_SCL_M3/UART6_CTSN_M1/PWM1_M2/SPI4_CS0_M2/GPIO1_A3_d
+_L[15:12]=0x9
+BUS_IOC_GPIO1A_IOMUX_SEL
+VOP_POST_EMPTY/I2C4_SDA_M3/UART6_RTSN_M1/PWM0_M2/SPI4_CLK_M2/GPIO1_A2_d
+_L[11:8]=0x9
+BUS_IOC_GPIO1C_IOMUX_SEL
+I2S0_SDO0/I2C4_SCL_M4/UART4_CTSN/GPIO1_C7_d
+_H[15:12]=0x9
+BUS_IOC_GPIO1C_IOMUX_SEL
+PDM0_CLK0_M0/I2C4_SDA_M4/PWM15_IR_M2/GPIO1_C6_d
+_H[11:8]=0x9
+BUS_IOC_GPIO3C_IOMUX_SEL
+CIF_D11/PCIE20X1_2_CLKREQN_M0/HDMI_TX0_SCL_M2/I2C5_SCL_M0/SPI3_MOSI_M3/GPIO3_C7_u
+_H[15:12]=0x9
+CIF_D12/PCIE20X1_2_WAKEN_M0/HDMI_TX0_SDA_M2/I2C5_SDA_M0/UART4_RX_M1/PWM8_M2/SPI3_CLK_M3/G BUS_IOC_GPIO3D_IOMUX_SEL
+PIO3_D0_u
+_L[3:0]=0x9
+BT1120_D12/PCIE30X4_PERSTN_M1/HDMI_RX_HPDOUT_M0/SATA0_ACT_LED_M0/I2C5_SCL_M1/PWM13_M1/SPI BUS_IOC_GPIO4B_IOMUX_SEL
+3_MOSI_M1/GPIO4_B6_d
+_H[11:8]=0x9
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1505
+
+RK3588 TRM-Part1
+Module pin
+
+Direction
+
+I2C5_SDA_M1
+
+I/O
+
+I2C5_SCL_M2
+
+I/O
+
+I2C5_SDA_M2
+
+I/O
+
+I2C5_SCL_M3
+
+I/O
+
+I2C5_SDA_M3
+
+I/O
+
+I2C5_SCL_M4
+
+I/O
+
+I2C5_SDA_M4
+
+I/O
+
+I2C6_SCL_M0
+
+I/O
+
+I2C6_SDA_M0
+
+I/O
+
+I2C6_SCL_M1
+
+I/O
+
+I2C6_SDA_M1
+
+I/O
+
+I2C6_SCL_M2
+
+I/O
+
+I2C6_SDA_M2
+
+I/O
+
+I2C6_SCL_M3
+
+I/O
+
+I2C6_SDA_M3
+
+I/O
+
+I2C6_SCL_M4
+
+I/O
+
+I2C6_SDA_M4
+
+I/O
+
+I2C7_SCL_M0
+
+I/O
+
+I2C7_SDA_M0
+
+I/O
+
+I2C7_SCL_M1
+
+I/O
+
+Pin name
+
+IOMUX
+
+BUS_IOC_GPIO4B_IOMUX_SEL
+_H[15:12]=0x9
+CIF_D6/BT1120_D6/I2S1_SDI1_M0/PCIE30X2_CLKREQN_M1/I2C5_SCL_M2/UART3_RX_M2/SPI2_CLK_M1/GPIO4_A BUS_IOC_GPIO4A_IOMUX_SEL
+6_d
+_H[11:8]=0x9
+BUS_IOC_GPIO4A_IOMUX_SEL
+CIF_D7/BT1120_D7/I2S1_SDI2_M0/PCIE30X2_WAKEN_M1/I2C5_SDA_M2/SPI2_CS0_M1/GPIO4_A7_d
+_H[15:12]=0x9
+MIPI_CAMERA1_CLK_M0/SPDIF0_TX_M0/PCIE30X2_WAKEN_M3/HDMI_RX_HPDOUT_M2/I2C5_SCL_M3/UART1_T BUS_IOC_GPIO1B_IOMUX_SEL
+X_M1/GPIO1_B6_d
+_H[11:8]=0x9
+MIPI_CAMERA2_CLK_M0/SPDIF1_TX_M0/PCIE30X2_PERSTN_M3/HDMI_RX_CEC_M2/SATA2_ACT_LED_M1/I2C5_ BUS_IOC_GPIO1B_IOMUX_SEL
+SDA_M3/UART1_RX_M1/PWM13_M2/GPIO1_B7_u
+_H[15:12]=0x9
+BUS_IOC_GPIO2B_IOMUX_SEL
+GMAC0_TXD0/I2S2_MCLK_M0/I2C5_SCL_M4/UART1_RX_M0/GPIO2_B6_d
+_H[11:8]=0x9
+BUS_IOC_GPIO2B_IOMUX_SEL
+GMAC0_TXD1/I2S2_SCLK_M0/I2C5_SDA_M4/UART1_TX_M0/GPIO2_B7_d
+_H[15:12]=0x9
+I2S1_SDI3_M1/PDM0_SDI1_M1/I2C6_SCL_M0/UART1_CTSN_M2/PWM7_IR_M0/SPI3_MISO_M2/PCIE30X4_PERSTN BUS_IOC_GPIO0D_IOMUX_SEL
+_M0/GPIO0_D0_d
+_L[3:0]=0x9
+I2S1_SDI2_M1/PDM0_SDI0_M1/I2C6_SDA_M0/UART1_RTSN_M2/PWM6_M0/SPI0_MISO_M0/PCIE30X4_WAKEN_M0 BUS_IOC_GPIO0C_IOMUX_SEL
+/GPIO0_C7_d
+_H[15:12]=0x9
+BUS_IOC_GPIO1C_IOMUX_SEL
+I2S0_SCLK/I2C6_SCL_M1/UART3_CTSN/PWM7_IR_M2/SPI4_CS0_M0/GPIO1_C3_d
+_L[15:12]=0x9
+BUS_IOC_GPIO1C_IOMUX_SEL
+I2S0_MCLK/I2C6_SDA_M1/UART3_RTSN/PWM3_IR_M2/SPI4_CLK_M0/GPIO1_C2__d
+_L[11:8]=0x9
+BUS_IOC_GPIO2C_IOMUX_SEL
+ETH0_REFCLKO_25M/I2S2_SDI_M0/I2C6_SCL_M2/SPI1_CS0_M0/GPIO2_C3_d
+_L[15:12]=0x9
+BUS_IOC_GPIO2C_IOMUX_SEL
+GMAC0_RXD1/I2C6_SDA_M2/UART9_TX_M0/SPI1_MOSI_M0/GPIO2_C2_d
+_L[11:8]=0x9
+MIPI_CAMERA0_CLK_M0/SPDIF1_TX_M1/I2S1_SDO0_M0/PCIE30X1_0_BUTTON_RSTN/SATA2_ACT_LED_M0/I2C6 BUS_IOC_GPIO4B_IOMUX_SEL
+_SCL_M3/UART8_RX_M0/SPI0_CS1_M1/GPIO4_B1_u
+_L[7:4]=0x9
+CIF_CLKIN/BT1120_CLKOUT/I2S1_SDI3_M0/PCIE30X2_PERSTN_M1/I2C6_SDA_M3/UART8_TX_M0/SPI2_CS1_M1/ BUS_IOC_GPIO4B_IOMUX_SEL
+GPIO4_B0_d
+_L[3:0]=0x9
+GMAC1_TXD3/SDIO_D1_M1/I2S3_SCLK/AUDDSM_LN/FSPI_D1_M2/I2C6_SCL_M4/PWM11_IR_M0/SPI4_MOSI_M1/G BUS_IOC_GPIO3A_IOMUX_SEL
+PIO3_A1_u
+_L[7:4]=0x9
+BUS_IOC_GPIO3A_IOMUX_SEL
+GMAC1_TXD2/SDIO_D0_M1/I2S3_MCLK/FSPI_D0_M2/I2C6_SDA_M4/PWM10_M0/SPI4_MISO_M1/GPIO3_A0_u
+_L[3:0]=0x9
+BUS_IOC_GPIO1D_IOMUX_SEL
+I2S0_SDO1/I2C7_SCL_M0/UART6_TX_M2/SPI1_MISO_M2/GPIO1_D0_d
+_L[3:0]=0x9
+BUS_IOC_GPIO1D_IOMUX_SEL
+I2S0_SDO2/I2S0_SDI3/PDM0_SDI1_M0/I2C7_SDA_M0/UART6_RX_M2/SPI1_MOSI_M2/GPIO1_D1_d
+_L[7:4]=0x9
+BUS_IOC_GPIO4C_IOMUX_SEL
+GMAC0_MCLKINOUT/I2S2_SDO_M0/I2C7_SCL_M1/PWM4_M1/SPI3_CS1_M0/GPIO4_C3_d
+_L[15:12]=0x9
+BT1120_D13/PCIE20X1_2_CLKREQN_M1/HDMI_TX0_SCL_M0/I2C5_SDA_M1/SPI3_CLK_M1/GPIO4_B7_u
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1506
+
+RK3588 TRM-Part1
+Module pin
+
+Direction
+
+I2C7_SDA_M1
+
+I/O
+
+I2C7_SCL_M2
+
+I/O
+
+I2C7_SDA_M2
+
+I/O
+
+I2C7_SCL_M3
+
+I/O
+
+I2C7_SDA_M3
+
+I/O
+
+I2C8_SCL_M0
+
+I/O
+
+I2C8_SDA_M0
+
+I/O
+
+I2C8_SCL_M1
+
+I/O
+
+I2C8_SDA_M1
+
+I/O
+
+I2C8_SCL_M2
+
+I/O
+
+I2C8_SDA_M2
+
+I/O
+
+I2C8_SCL_M3
+
+I/O
+
+I2C8_SDA_M3
+
+I/O
+
+I2C8_SCL_M4
+
+I/O
+
+I2C8_SDA_M4
+
+I/O
+
+Pin name
+
+IOMUX
+
+BUS_IOC_GPIO4C_IOMUX_SEL
+_H[3:0]=0x9
+CIF_D14/PCIE30X2_CLKREQN_M2/HDMI_RX_SCL_M1/I2C7_SCL_M2/UART9_RTSN_M2/SPI0_MOSI_M3/GPIO3_D2 BUS_IOC_GPIO3D_IOMUX_SEL
+_d
+_L[11:8]=0x9
+CIF_D15/PCIE30X2_WAKEN_M2/HDMI_RX_SDA_M1/I2C7_SDA_M2/UART9_CTSN_M2/PWM10_M2/SPI0_CLK_M3/G BUS_IOC_GPIO3D_IOMUX_SEL
+PIO3_D3_d
+_L[15:12]=0x9
+CIF_HREF/BT1120_D8/I2S1_SDO1_M0/PCIE30X1_1_BUTTON_RSTN/I2C7_SCL_M3/UART8_RTSN_M0/PWM14_M1/ BUS_IOC_GPIO4B_IOMUX_SEL
+SPI0_CS0_M1/CAN1_RX_M1/GPIO4_B2_u
+_L[11:8]=0x9
+CIF_VSYNC/BT1120_D9/I2S1_SDO2_M0/PCIE20X1_2_BUTTON_RSTN/I2C7_SDA_M3/UART8_CTSN_M0/PWM15_IR BUS_IOC_GPIO4B_IOMUX_SEL
+_M1/CAN1_TX_M1/GPIO4_B3_u
+_L[15:12]=0x9
+BUS_IOC_GPIO4D_IOMUX_SEL
+SDMMC_D2/PDM1_SDI1_M0/JTAG_TCK_M0/I2C8_SCL_M0/UART5_CTSN_M0/GPIO4_D2_u
+_L[11:8]=0x9
+BUS_IOC_GPIO4D_IOMUX_SEL
+SDMMC_D3/PDM1_SDI0_M0/JTAG_TMS_M0/I2C8_SDA_M0/UART5_RTSN_M0/PWM10_M1/GPIO4_D3_u
+_L[15:12]=0x9
+BUS_IOC_GPIO2B_IOMUX_SEL
+GMAC0_RXCLK/SDIO_D2_M0/FSPI_D2_M1/I2C8_SCL_M1/UART6_RTSN_M0/GPIO2_B0_u
+_L[3:0]=0x9
+BUS_IOC_GPIO2B_IOMUX_SEL
+GMAC0_TXD2/SDIO_D3_M0/FSPI_D3_M1/I2C8_SDA_M1/UART6_CTSN_M0/GPIO2_B1_u
+_L[7:4]=0x9
+BUS_IOC_GPIO1D_IOMUX_SEL
+MIPI_CAMERA3_CLK_M0/HDMI_RX_SCL_M2/I2C8_SCL_M2/UART1_RTSN_M1/PWM14_M2/GPIO1_D6_u
+_H[11:8]=0x9
+MIPI_CAMERA4_CLK_M0/PCIE30X2_CLKREQN_M3/HDMI_RX_SDA_M2/I2C8_SDA_M2/UART1_CTSN_M1/PWM15_I BUS_IOC_GPIO1D_IOMUX_SEL
+R_M3/GPIO1_D7_u
+_H[15:12]=0x9
+BUS_IOC_GPIO4C_IOMUX_SEL
+BT1120_D14/PCIE20X1_2_WAKEN_M1/HDMI_TX0_SDA_M0/I2C8_SCL_M3/SPI3_CS0_M1/GPIO4_C0_u
+_L[3:0]=0x9
+BT1120_D15/SPDIF1_TX_M2/PCIE20X1_2_PERSTN_M1/HDMI_TX0_CEC_M0/I2C8_SDA_M3/PWM6_M1/SPI3_CS1_ BUS_IOC_GPIO4C_IOMUX_SEL
+M1/GPIO4_C1_d
+_L[7:4]=0x9
+BUS_IOC_GPIO3C_IOMUX_SEL
+GMAC1_MDC/MIPI_TE0/I2C8_SCL_M4/UART7_RTSN_M1/PWM14_M0/SPI1_CS0_M1/GPIO3_C2_d
+_L[11:8]=0x9
+BUS_IOC_GPIO3C_IOMUX_SEL
+GMAC1_MDIO/MIPI_TE1/I2C8_SDA_M4/UART7_CTSN_M1/PWM15_IR_M0/SPI1_CS1_M1/GPIO3_C3_d
+_L[15:12]=0x9
+GMAC0_MDC/I2C7_SDA_M1/UART9_RTSN_M0/PWM5_M2/SPI3_MISO_M0/GPIO4_C4_d
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1507
+
+RKRK3588 TRM-Part1
+
+21.7 Application Notes
+The I2C controller core operation flow chart below is to describe how the software configures
+and performs an I2C transaction through this I2C controller core. Descriptions are divided
+into 3 sections, transmit only mode, receive only mode, and mix mode. Users are strongly
+advised to follow:
+⚫ Transmit only mode (I2C_CON[1:0]=2’b00)
+start
+
+Config I2C_CLKDIV to
+select I2C_SCL frequency
+
+Config I2C_CON to
+select TX only mode
+
+Config I2C_CON to send
+start signal
+
+Write datas to
+I2C_TXDATA0~I2C_TXDA
+TA7
+
+Write datas counts to
+I2C_MTXCNT
+
+Wait for tx complete irq
+（I2C_IPD[2]）
+
+More data to
+transfer ？
+
+YES
+
+NO
+Config I2C_CON to send
+stop signal
+
+Stop
+
+Fig. 21-6 I2C Flow chat for transmit only mode
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1508
+
+RKRK3588 TRM-Part1
+⚫
+
+Receive only mode (I2C_CON[1:0]=2’b10)
+
+start
+
+Config I2C_CLKDIV to
+select I2C_SCL frequency
+
+Config I2C_CON to
+select RX only mode
+
+Config I2C_CON to send
+start signal
+
+Write datas counts to
+I2C_MRXCNT
+
+Wait for rx complete irq
+（I2C_IPD[3]）
+
+More data to
+receive ？
+
+YES
+
+NO
+Config I2C_CON to send
+stop signal
+
+Stop
+Fig. 21-7 I2C Flow chat for receive only mode
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1509
+
+RKRK3588 TRM-Part1
+⚫
+
+Mix mode (I2C_CON[1:0]=2’b01 or I2C_CON[1:0]=2’b11)
+
+start
+Config I2C_CLKDIV to
+select I2C_SCL frequency
+
+Config I2C_CON to
+select MIX mode
+
+Config I2C_CON to send
+start signal
+
+Config I2C_MRXADDR
+and I2C_MRXRADDR
+
+Write data counts to
+I2C_MRXCNT
+
+Wait for rx complete irq
+（I2C_IPD[3]）
+
+More data to
+receive ？
+
+Config I2C_CON to
+select RX only mode
+
+YES
+
+NO
+Config I2C_CON to send
+stop signal
+
+Stop
+Fig. 21-8 I2C Flow chat for mix mode
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1510
+
+RKRK3588 TRM-Part1
+

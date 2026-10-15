@@ -1,0 +1,257 @@
+Chapter 12 USB2.0 Host & PHY
+12.1 Overview
+
+USB2.0 host subsystem include two USB2.0 host controller and USB2.0 PHY. The two host
+are same. USB2.0 host controller supports fully USB2.0 functions with one EHCI host
+controller and one OHCI host controller, and each host controller has one USB port. OHCI
+host controller only supports full-speed and low-speed mode and is used for full-speed
+devices and low-speed devices. EHCI only supports high-speed mode and is used for highspeed devices. OHCI host controller and EHCI host controller shares the same USB port,
+EHCI host controller will auto select the owner (OHCI or EHCI) of this USB port depending
+on the speed mode of attached devices, when selecting OHCI as owner, OHCI host controller
+will serve for the attached device; when selecting EHCI as owner, EHCI host controller will
+serve for the attached device.
+USB2.0 host supports the following features:
+⚫ Compatible Specifications
+◼ Universal Serial Bus Specification, Revision 2.0
+◼ Enhanced host Controller Interface Specification (EHCI), Revision 1.0
+◼ Open host Controller Interface Specification (OHCI), Revision 1.0a
+⚫ Support High-speed (480Mbps), Full-speed (12Mbps) and Low-speed (1.5Mbps)
+
+12.2 Block Diagram
+
+USB2.0 host subsystem include two USB2.0 host controller and USB2.0 PHY.
+USB2.0 host Controller comprises with:
+⚫ EHCI host Controller: Perform High-speed transactions
+⚫ OHCI host Controller: Perform full/low-speed transactions
+⚫ Port Routing Control: Select EHCI host Controller or OHCI host Controller
+
+USB2.0 Host Controller
+
+USB2.0 Host Controller
+
+EHCI Host Controller
+
+OHCI Host Controller
+
+EHCI Host Controller
+
+OHCI Host Controller
+
+Port Routing Control
+
+Port Routing Control
+
+UTMI+
+
+UTMI+
+
+USB2.0 PHY
+
+USB2.0 PHY
+
+USB2HOST_0
+
+USB2HOST_1
+
+Fig. 12-1 USB2.0 Host Block Diagram
+
+12.3 Function Description
+12.3.1 EHCI Host Controller
+
+It performs descriptors and data read or write from or to system memory and packs or
+unpack USB transactions from or to UTMI+ interface defined in EHCI specification for highspeed data transmission.
+
+12.3.2 OHCI Host Controller
+
+It performs descriptors and data read/write from/to system memory and packs or un-pack
+USB transactions from or to UTMI+ interface defined in OHCI specification for full-speed or
+low-speed data transmission.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2182
+
+RK3588 TRM-Part2
+
+12.3.3 Port Routing Control
+
+As part of logic in the EHCI host controller, it is used to auto-select EHCI or OHCI host
+controller to serve the attached device depending on the speed of the attached device.
+
+12.4 Register Description
+
+12.4.1 Internal Address Mapping
+
+Slave address can be divided into different length for different usage, which is shown as
+follows.
+Table 12-1 USB2.0 Host Controller Address Mapping
+Base Address
+Device
+0xFC800000~0xFC87FFFF
+USB2HOST_0 controller
+0xFC880000~0xFC8FFFFF
+USB2HOST_1 controller
+USB2.0 Host Controller Address Mapping
+Offset Address Range
+Register Type
+0x00000 ~ 0x3ffff
+EHCI
+0x40000 ~ 0x7ffff
+OHCI
+EHCI and OHCI register definitions, please refer to Enhanced Host Controller Interface
+Specification (EHCI), Revision 1.0 and Open Host Controller Interface Specification (OHCI),
+Revision 1.0a.
+
+12.5 Interface Description
+Pad Name
+USB20_HOST0_DM
+USB20_HOST0_DP
+USB20_HOST0_REXT
+USB20_HOST1_DM
+USB20_HOST1_DP
+USB20_HOST1_REXT
+
+Table 12-2 USB2.0 PHY Interface Description
+Direction
+Descriptions
+I/O
+USB D- Signal
+I/O
+USB D+ Signal
+I/O
+USB2.0 PHY Transmitter Resistor Tune Pin
+I/O
+USB D- Signal
+I/O
+USB D+ Signal
+I/O
+USB2.0 PHY Transmitter Resistor Tune Pin
+
+12.6 Application Notes
+
+12.6.1 Host Charge Detect Sequence
+The USB2.0 PHY supports battery charger detection to enable device draw increased current
+from VBUS for charging and/or powering up from dedicated charging ports or charging
+downstream ports.
+The related signals with GRF is following:
+Table 12-3 USB2PHY Battery Charging GRF Description
+GRF
+Description
+USB2PHY_GRF_CON2[5]
+CHRGSEL: This signal selects whether the Battery Charger
+circuit sets voltage sourcing on the DP line and sensing on
+the DM line or voltage sourcing on DM and sensing on DP.
+USB2PHY_GRF_CON2[6]
+VDATDETENB: This signal activates the Battery Charger
+comparator and enables detection of the DP and DM lines
+according to the Battery Charging specification.
+USB2PHY_GRF_CON2[7]
+VDATSRCENB: This signal activates the voltage sourcing on
+the DP or DM line.
+USB2PHY_GRF_STATUS0[0]
+CHGDET: This signal is the battery charge detection
+(VDAT_REF) comparator output.
+USB2PHY_GRF_STATUS0[1]
+FSVPLUS: This signal is the DP FS/LS single ended receiver
+output, which is also the VLGC output.
+USB2PHY_GRF_STATUS0[2]
+FSVMINUS: This signal is the DM FS/LS single ended
+receiver output, which is also the VLGC output.
+USB2PHY_GRF_STATUS0[11] OTGSESSVLD0: This signal is the VBUS session valid
+detection and can be used by a portable device to detect
+the VBUS voltage from the host or charger port.
+Table 1-6 lists the detection flow.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2183
+
+RK3588 TRM-Part2
+Table 12-4 USB2PHY Battery Charging Operations
+Inputs
+
+Mode of Operation
+
+CHRGSEL
+
+VDATDETENB
+
+VDATSRCENB
+
+OTGSESSVLD
+
+CHGDET
+
+FSVPUS
+
+FSVMINUS
+
+Outputs
+
+Battery charging is disabled
+PHY is operating as a host CDP with no PD
+detected.
+PHY is operating as a host CDP that detects an
+attached PD, which supports the BC specification.
+PHY is operating as a host CDP that detects a
+connect from the PD D+ pullup.
+
+X
+1
+
+0
+1
+
+0
+0
+
+X
+X
+
+0
+0
+
+X
+0
+
+X
+X
+
+1
+
+1
+
+1
+
+X
+
+1
+
+0
+
+X
+
+1
+
+1
+
+0
+
+X
+
+X
+
+1
+
+0
+
+12.6.2 Program Flow
+
+Please refer to Enhanced Host Controller Interface Specification (EHCI), Revision 1.0 and
+Open Host Controller Interface Specification (OHCI), Revision 1.0a.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2184
+
+RK3588 TRM-Part2
+

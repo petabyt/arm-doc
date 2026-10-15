@@ -1,0 +1,2277 @@
+Chapter 38 FishEye Correction(FEC)
+38.1 Overview
+FEC supports the following features:
+⚫ Input mode and data format
+◼ Support RASTER: YUV422SP, YUV422I, YUV420SP
+⚫ Output mode and data format
+◼ RASTER: YUV422SP, YUV422I, YUV420SP
+◼ FBCE: YUV422SP, YUV420SP
+⚫ Support 16x8, 32x16 two density
+⚫ Support up to 4 times reduction factor
+The basic unit of the destination end is 16x16 and 32x32. For the larger distortion uses
+16x16, and the smaller distortion uses 32x32. When the corresponding source exceeds
+64x64, then directly fills Y=0, U=128, V=128
+⚫ Support level interrupt
+⚫ Support 32bit AHB
+⚫ Support 128bit AXI
+⚫ Support 128bit MMU, MMU affect FEC performance, it is recommended to close MMU
+⚫ Input resolution 128x128~8188x8188
+⚫ Output resolution 128x128~4096x4096
+⚫ Source width and height must be x4
+⚫ Destination width and height must be x4
+⚫ Y Interpolation: Bicubic; C Interpolation: Biliner
+
+38.2 Block Diagram
+
+Fig. 38-1 FEC Block Diagram
+
+38.3 Function Description
+The principle of FEC is to obtain the corresponding source data according to the meshgrid
+requirements, and then perform interpolation according to the corresponding coefficients, as
+shown in the following figure:
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2259
+
+RKRK3588 TRM-Part1
+
+Fig. 38-2 FEC function description
+1、 You need to align the resolution to 32x32 firstly, and then down-sample according to the
+meshgrid density of 16x8 or 32x16
+2、 Decimals meshgrid and integer meshgrid are stored separately, and the address must
+aligned to 16B
+3、 And due to the pixel scan, in order to achieve the maximum efficiency of using the grid,
+the meshgrid timing needs to be overlapped, according to the 32x128 block, as shown in the
+following figure:
+
+Fig. 38-3 FEC meshgrid overlap
+4、Consistent with the pixel scanning, the meshgrid can be used with maximum efficiency
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2260
+
+RKRK3588 TRM-Part1
+
+Fig. 38-4 FEC meshgrid order in DDR
+
+38.4 Register Description
+38.4.1 Registers Summary
+Name
+
+Offset
+
+Size
+
+Reset
+Value
+
+Description
+
+FEC_ISPP_START
+
+0x0000
+
+W
+
+0x00000000 ISPP command start
+
+FEC_ISPP_UPDATE
+
+0x0004
+
+W
+
+0x00000004 ISPP register force update
+
+FEC_ISPP_RESET
+
+0x000C
+
+W
+
+0x00000000 ISPP soft reset
+
+FEC_ISPP_CLKGATE
+
+0x0010
+
+W
+
+0x00000000 FEC clock gating
+
+FEC_INT_MSK
+
+0x0020
+
+W
+
+0x00000000 Interrupt mask
+
+FEC_INT_RAW
+
+0x0024
+
+W
+
+0x00000000 Interrupt raw status
+
+FEC_INT_STA
+
+0x0028
+
+W
+
+0x00000000 Interrupt status
+
+FEC_INT_SET
+
+0x002C
+
+W
+
+0x00000000 Interrupt enable
+
+FEC_INT_CLR
+
+0x0030
+
+W
+
+0x00000000 Interrupt clear
+
+FEC_ISPP_STATUS
+
+0x0054
+
+W
+
+0x00000000 ISPP status register
+
+FEC_MI_CTRL
+
+0x0C00
+
+W
+
+0x00004000 Memory interface control
+
+FEC_RD_VIR_STRIDE
+
+0x0C04
+
+W
+
+0x00000000
+
+FEC RD virtual stride, 16B
+aligned, word unit
+
+FEC_RD_Y_BASE
+
+0x0C08
+
+W
+
+0x00000000
+
+FEC DMA read y base address,
+16B aligned
+
+FEC_RD_UV_BASE
+
+0x0C0C
+
+W
+
+0x00000000
+
+FEC DMA read uv base address,
+16B aligned
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2261
+
+RKRK3588 TRM-Part1
+
+Name
+
+Offset
+
+Size
+
+Reset
+Value
+
+Description
+
+FEC_MESH_XINT_BASE
+
+0x0C10
+
+W
+
+0x00000000
+
+FEC mesh x integer base address,
+16B aligned
+
+FEC_MESH_XFRA_BASE
+
+0x0C14
+
+W
+
+0x00000000
+
+FEC mesh x fraction base address,
+16B aligned
+
+FEC_MESH_YINT_BASE
+
+0x0C18
+
+W
+
+0x00000000
+
+FEC mesh y integer base address,
+16B aligned
+
+FEC_MESH_YFRA_BASE
+
+0x0C1C
+
+W
+
+0x00000000
+
+FEC mesh y fraction base address,
+16B aligned
+
+FEC_WR_VIR_STRIDE
+
+0x0C20
+
+W
+
+0x00000000
+
+FEC write virtual stride,16B
+aligned, word unit
+
+FEC_WR_Y_BASE
+
+0x0C24
+
+W
+
+0x00000000
+
+FEC DMA write y base address,
+16B aligned
+
+FEC_WR_UV_BASE
+
+0x0C28
+
+W
+
+0x00000000
+
+FEC DMA write uv base address,
+16B aligned
+
+FEC_RD_Y_BASE_SHD
+
+0x0C2C
+
+W
+
+0x00000000
+
+FEC DMA read y base address
+shadow, 16B aligned
+
+FEC_RD_UV_BASE_SHD
+
+0x0C30
+
+W
+
+0x00000000
+
+FEC DMA read uv base address
+shadow, 16B aligned
+
+FEC_MESH_XINT_BASE_S
+0x0C34
+HD
+
+W
+
+0x00000000
+
+FEC DMA read x integer base
+address shadow, 16B aligned
+
+FEC_MESH_XFRA_BASE_S
+0x0C38
+HD
+
+W
+
+0x00000000
+
+FEC DMA read x fraction base
+address shadow, 16B aligned
+
+FEC_MESH_YINT_BASE_S
+0x0C3C
+HD
+
+W
+
+0x00000000
+
+FEC DMA read y integer base
+address shadow, 16B aligned
+
+FEC_MESH_YFRA_BASE_S
+0x0C40
+HD
+
+W
+
+0x00000000
+
+FEC DMA read y fraction base
+address shadow, 16B aligned
+
+FEC_WR_Y_BASE_SHD
+
+0x0C44
+
+W
+
+0x00000000
+
+FEC DMA write y base address
+shadow, 16B aligned
+
+FEC_WR_UV_BASE_SHD
+
+0x0C48
+
+W
+
+0x00000000
+
+FEC DMA write uv base address
+shadow, 16B aligned
+
+FEC_AR_QOS_CTRL
+
+0x0C54
+
+W
+
+0x00000030 FEC read qos control
+
+FEC_CORE_CTRL
+
+0x0C80
+
+W
+
+0x00000000 FEC core control
+
+FEC_DST_SIZE
+
+0x0C88
+
+W
+
+0x00000000 FEC destination size
+
+FEC_MESH_SIZE
+
+0x0C8C
+
+W
+
+0x00000000 FEC mesh size
+
+FEC_DMA_STATUS
+
+0x0C90
+
+W
+
+0x00000000 FEC DMA status
+
+FEC_SRC_SIZE
+
+0x0C98
+
+W
+
+0x00000000 FEC source size
+
+FEC_MMU_DTE_ADDR
+
+0x0F00
+
+W
+
+0x00000000 MMU current page Table address
+
+FEC_MMU_STATUS
+
+0x0F04
+
+W
+
+0x00000018 MMU status
+
+FEC_MMU_COMMAND
+
+0x0F08
+
+W
+
+0x00000000 MMU command
+
+FEC_MMU_PAGE_FAULT_
+ADDR
+
+0x0F0C
+
+W
+
+0x00000000 MMU address of last page fault
+
+FEC_MMU_ZAP_ONE_LINE 0x0F10
+
+W
+
+0x00000000
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+MMU address to be invalidated
+from the page table cache
+
+2262
+
+RKRK3588 TRM-Part1
+
+Name
+
+Offset
+
+Reset
+Value
+
+Size
+
+Description
+
+FEC_MMU_INT_RAWSTAT 0x0F14
+
+W
+
+0x00000000 MMU raw interrupt
+
+FEC_MMU_INT_CLEAR
+
+0x0F18
+
+W
+
+0x00000000 MMU interrupt clear
+
+FEC_MMU_INT_MASK
+
+0x0F1C
+
+W
+
+0x00000000 MMU interrupt mask
+
+FEC_MMU_INT_STATUS
+
+0x0F20
+
+W
+
+0x00000000 MMU interrupt status
+
+FEC_MMU_AUTO_GATING 0x0F24
+
+W
+
+0x00000003 MMU auto gating
+
+FEC_MMU_REG_LOAD_EN 0x0F28
+
+W
+
+0x00000000 MMU register load enable
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access
+
+38.4.2 Detail Register Description
+FEC_ISPP_START
+Address: Operational Base + offset (0x0000)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:3
+
+RO
+
+0x00000000
+
+reserved
+
+2
+
+W1
+C
+
+0x0
+
+sw_fec_st
+ISPP command start
+
+1:0
+
+RO
+
+0x0
+
+reserved
+
+FEC_ISPP_UPDATE
+Address: Operational Base + offset (0x0004)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:3
+
+RO
+
+0x00000000
+
+reserved
+
+2
+
+W1
+C
+
+0x1
+
+sw_cfg_force_upd
+ISPP register force update for FEC
+
+1:0
+
+RO
+
+0x0
+
+reserved
+
+FEC_ISPP_RESET
+Address: Operational Base + offset (0x000C)
+Bit
+
+Attr Reset Value
+
+31:22 RO
+
+0x000
+
+Description
+reserved
+
+21:16 RW 0x00
+
+sw_glb_init_dis
+Hardware will reset automatically at frame start if the module
+Corresponding bit set to 0
+
+15:12 RO
+
+reserved
+
+0x0
+
+11:8
+
+RW 0x0
+
+sys_reg_msoft_rst
+Scale hardware will reset automatically at frame start if the
+module Corresponding bit set to 0
+
+7:2
+
+RO
+
+reserved
+
+0x00
+
+1
+
+RW 0x0
+
+sw_rst_protect_dis
+Safety reset select
+1'b0: Protect reset
+1'b1: Direct reset
+
+0
+
+W1
+C
+
+sw_glb_soft_rst_all
+FEC soft reset with self-clear
+
+0x0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2263
+
+RKRK3588 TRM-Part1
+
+FEC_ISPP_CLKGATE
+Address: Operational Base + offset (0x0010)
+Bit
+
+Attr Reset Value
+0x0000000
+
+Description
+
+31:6
+
+RO
+
+5
+
+RW 0x0
+
+sw_glb_ckg_dis
+Global clk gate_dis
+
+4:0
+
+RO
+
+reserved
+
+0x00
+
+reserved
+
+FEC_INT_MSK
+Address: Operational Base + offset (0x0020)
+Bit
+31:9
+
+Attr Reset Value
+RO
+
+0x000000
+
+Description
+reserved
+
+RW 0x0
+
+bound_cross_p
+FEC bound cross buffer interrupt mask
+1'b0: Mask
+1'b1: Not mask
+
+7
+
+RW 0x0
+
+sw_fec_frame_end
+FEC frame end interrupt mask
+1'b0: Mask
+1'b1: Not mask
+
+6:4
+
+RO
+
+reserved
+
+8
+
+0x0
+
+3
+
+RW 0x0
+
+esp_fifo_full_err
+FEC rdata fifo write error when full interrupt mask
+1'b0: Mask
+1'b1: Not mask
+
+2:0
+
+RO
+
+reserved
+
+0x0
+
+FEC_INT_RAW
+Address: Operational Base + offset (0x0024)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:9
+
+RO
+
+0x000000
+
+reserved
+
+8
+
+RO
+
+0x0
+
+bound_cross_p
+FEC bound cross buffer interrupt raw status
+
+7
+
+RO
+
+0x0
+
+sw_fec_frame_end
+FEC frame end interrupt raw status
+
+6:4
+
+RO
+
+0x0
+
+reserved
+
+3
+
+RO
+
+0x0
+
+esp_fifo_full_err
+FEC rdata fifo write error when full raw status
+
+2:0
+
+RO
+
+0x0
+
+reserved
+
+FEC_INT_STA
+Address: Operational Base + offset (0x0028)
+Bit
+31:9
+
+Attr Reset Value
+RO
+
+0x000000
+
+Description
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2264
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+8
+
+RO
+
+0x0
+
+bound_cross_p
+FEC bound cross buffer interrupt status
+
+7
+
+RO
+
+0x0
+
+sw_fec_frame_end
+FEC frame end interrupt status
+
+6:4
+
+RO
+
+0x0
+
+reserved
+
+3
+
+RO
+
+0x0
+
+esp_fifo_full_err
+FEC rdata fifo write error when full interrupt status
+
+2:0
+
+RO
+
+0x0
+
+reserved
+
+FEC_INT_SET
+Address: Operational Base + offset (0x002C)
+Bit
+31:9
+
+Attr Reset Value
+RO
+W1
+C
+
+8
+
+Description
+
+0x000000
+
+reserved
+
+0x0
+
+bound_cross_p
+FEC bound cross buffer interrupt set
+1'b0: Disable
+1'b1: Enable
+
+7
+
+W1
+C
+
+0x0
+
+sw_fec_frame_end
+FEC frame end interrupt set
+1'b0: Disable
+1'b1: Enable
+
+6:4
+
+RO
+
+0x0
+
+reserved
+
+3
+
+W1
+C
+
+0x0
+
+esp_fifo_full_err
+FEC rdata fifo write error when full interrupt set
+1'b0: Disable
+1'b1: Enable
+
+2:0
+
+RO
+
+0x0
+
+reserved
+
+FEC_INT_CLR
+Address: Operational Base + offset (0x0030)
+Bit
+31:9
+
+8
+
+Attr Reset Value
+RO
+W1
+C
+
+Description
+
+0x000000
+
+reserved
+
+0x0
+
+bound_cross_p
+FEC bound cross buffer interrupt clear
+1'b0: Not clear
+1'b1: Clear
+
+7
+
+W1
+C
+
+0x0
+
+sw_fec_frame_end
+FEC frame end interrupt clear
+1'b0: Not clear
+1'b1: Clear
+
+6:4
+
+RO
+
+0x0
+
+reserved
+
+0x0
+
+esp_fifo_full_err
+FEC rdata fifo write error when full interrupt clear
+1'b0: Not clear
+1'b1: Clear
+
+3
+
+W1
+C
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2265
+
+RKRK3588 TRM-Part1
+Bit
+2:0
+
+Attr Reset Value
+RO
+
+0x0
+
+Description
+reserved
+
+FEC_ISPP_STATUS
+Address: Operational Base + offset (0x0054)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:23 RO
+
+0x000
+
+reserved
+
+22:16 RO
+
+0x00
+
+fec_tile_lint_cnt
+FEC tile line counter
+
+15:0
+
+0x0000
+
+reserved
+
+RO
+
+FEC_MI_CTRL
+Address: Operational Base + offset (0x0C00)
+Bit
+
+Attr Reset Value
+
+31:20 RO
+
+0x000
+
+Description
+reserved
+
+19:14 RW 0x01
+
+sw_fec_rd_level_i
+FEC read level
+
+13
+
+RW 0x0
+
+sw_fec_rd_opt_dis
+FEC read option disable
+
+12
+
+RW 0x0
+
+sw_fec_fbce_sparse_mode
+FEC fbce mode sparse_en
+
+11:9
+
+RO
+
+reserved
+
+8
+
+RW 0x0
+
+sw_fec_wr_yuv_limit
+FEC write YUV limit
+
+RW 0x0
+
+sw_fec_wr_yuyv_ycswap
+FEC write to DDR y/c swap
+1'b0: Y/C do not swap
+1'b1: Y/C swap
+
+RW 0x0
+
+sw_fec_wr_yuyv_format
+FEC write to DDR format
+1'b0: YUV422 not YUYV format
+1'b1: YUV422 YUYV forma
+
+RW 0x0
+
+sw_fec_wr_yuv_formt
+FEC write YUV format
+1'b0: YUV420
+1'b1: YUV422
+
+RW 0x0
+
+sw_fec_wr_fbce_mode
+FEC write to DDR mode
+1'b0: Raster mode
+1'b1: FBCE mode
+
+RW 0x0
+
+sw_fec_rd_yuyv_ycswap
+FEC read y/c swap
+1'b0: Y/C do not swap
+1'b1: Y/C swap
+
+7
+
+6
+
+5
+
+4
+
+3
+
+0x0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2266
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+sw_fec_rd_yuyv_format
+FEC read YUYV format
+1'b0: 422 non YUYV format
+1'b1: 422 YUYV format
+
+1
+
+RW 0x0
+
+sw_fec_rd_yuv_format
+FEC read YUV format
+1'b0: YUV420
+1'b1: YUV422
+
+0
+
+RO
+
+reserved
+
+2
+
+0x0
+
+FEC_RD_VIR_STRIDE
+Address: Operational Base + offset (0x0C04)
+Bit
+
+Attr Reset Value
+
+31:13 RO
+12:0
+
+0x00000
+
+RW 0x0000
+
+Description
+reserved
+sw_fec_rd_vir_stride
+FEC RD virtual stride, 16B aligned, word unit
+
+FEC_RD_Y_BASE
+Address: Operational Base + offset (0x0C08)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+sw_fec_rd_y_base
+FEC DMA read y base address, 16B aligned
+
+FEC_RD_UV_BASE
+Address: Operational Base + offset (0x0C0C)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+sw_fec_rd_uv_base
+FEC DMA read uv base address, 16B aligned
+
+FEC_MESH_XINT_BASE
+Address: Operational Base + offset (0x0C10)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+sw_fec_mesh_xint_base
+FEC mesh x integer base address, 16B aligned
+
+FEC_MESH_XFRA_BASE
+Address: Operational Base + offset (0x0C14)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+sw_fec_mesh_xfra_base
+FEC mesh x fraction base address, 16B aligned
+
+FEC_MESH_YINT_BASE
+Address: Operational Base + offset (0x0C18)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2267
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+sw_fec_mesh_yint_base
+FEC mesh y integer base address, 16B aligned
+
+FEC_MESH_YFRA_BASE
+Address: Operational Base + offset (0x0C1C)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+sw_mesh_yfra_base
+FEC mesh y fraction base address, 16B aligned
+
+FEC_WR_VIR_STRIDE
+Address: Operational Base + offset (0x0C20)
+Bit
+
+Attr Reset Value
+
+31:13 RO
+12:0
+
+0x00000
+
+RW 0x0000
+
+Description
+reserved
+sw_fec_wr_vir_stride
+FEC write virtual stride,16B aligned, word unit
+
+FEC_WR_Y_BASE
+Address: Operational Base + offset (0x0C24)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+sw_fec_wr_y_base
+FEC DMA write y base address, 16B aligned
+
+FEC_WR_UV_BASE
+Address: Operational Base + offset (0x0C28)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+sw_fec_wr_uv_base
+FEC DMA write uv base address, 16B aligned
+
+FEC_RD_Y_BASE_SHD
+Address: Operational Base + offset (0x0C2C)
+Bit
+31:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+sw_fec_rd_y_base_shd
+FEC DMA read y base address shadow, 16B aligned
+
+FEC_RD_UV_BASE_SHD
+Address: Operational Base + offset (0x0C30)
+Bit
+31:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+sw_fec_rd_uv_base_shd
+FEC DMA read uv base address shadow, 16B aligned
+
+FEC_MESH_XINT_BASE_SHD
+Address: Operational Base + offset (0x0C34)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2268
+
+RKRK3588 TRM-Part1
+Bit
+31:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+sw_fec_mesh_xint_base_shd
+FEC DMA read x integer base address shadow, 16B aligned
+
+FEC_MESH_XFRA_BASE_SHD
+Address: Operational Base + offset (0x0C38)
+Bit
+31:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+sw_fec_mesh_xfra_base_shd
+FEC DMA read x fraction base address shadow, 16B aligned
+
+FEC_MESH_YINT_BASE_SHD
+Address: Operational Base + offset (0x0C3C)
+Bit
+31:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+sw_fec_mesh_yint_base_shd
+FEC DMA read y integer base address shadow, 16B aligned
+
+FEC_MESH_YFRA_BASE_SHD
+Address: Operational Base + offset (0x0C40)
+Bit
+31:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+sw_fec_mesh_yfra_base_shd
+FEC DMA read y fraction base address shadow, 16B aligned
+
+FEC_WR_Y_BASE_SHD
+Address: Operational Base + offset (0x0C44)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+sw_fec_wr_y_base_shd
+FEC DMA write y base address shadow, 16B aligned
+
+FEC_WR_UV_BASE_SHD
+Address: Operational Base + offset (0x0C48)
+Bit
+31:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+sw_fec_wr_uv_base_shd
+FEC DMA write uv base address shadow, 16B aligned
+
+FEC_AR_QOS_CTRL
+Address: Operational Base + offset (0x0C54)
+Bit
+
+Attr Reset Value
+
+31:11 RO
+
+0x000000
+
+Description
+reserved
+
+10:8
+
+RW 0x0
+
+sw_noc_hurry_value
+FEC AXI read hurry enable
+
+7
+
+RO
+
+reserved
+
+6:4
+
+RW 0x3
+
+sw_fec_ar_mmu_qos
+FEC AXI read qos value
+
+3:1
+
+RO
+
+reserved
+
+0x0
+
+0x0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2269
+
+RKRK3588 TRM-Part1
+Bit
+
+0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+sw_fec_ar_qos_en
+FEC AXI read qos enable
+1'b0: Disable
+1'b1: Enable
+
+FEC_CORE_CTRL
+Address: Operational Base + offset (0x0C80)
+Bit
+
+Attr Reset Value
+
+Description
+
+31
+
+RO
+
+0x0
+
+sw_fec_en_shd
+FEC enable shadow
+
+30
+
+RO
+
+0x0
+
+sw_minbuf_non_update_shd
+Mesh inbuf no update shadow
+
+29:9
+
+RO
+
+0x000000
+
+reserved
+
+8
+
+RW 0x0
+
+sw_fec_cross_dis
+FEC cross buffer disable
+1'b0: FEC cross buffer enable
+1'b1: FEC do not cross buffer
+
+7
+
+RO
+
+reserved
+
+0x0
+
+RW 0x0
+
+sw_minbuf_non_update
+Mesh inbuf no update
+1'b0: Mesh update current frame
+1'b1: Mesh no update current frame
+
+RW 0x0
+
+sw_mesh_density
+Mesh density
+1'b0: 16x8 mesh density
+1'b1: 32x16 mesh density
+
+4:3
+
+RW 0x0
+
+sw_fec_bic_mode
+Bicubic mode
+2'b00: Precise
+2'b01: Spline
+2'b10: Catrom
+2'b11: Mitchell
+
+2
+
+RO
+
+reserved
+
+6
+
+5
+
+1
+
+0
+
+0x0
+
+RW 0x0
+
+sw_fec2ddr_dis
+FEC2DDR disable control bit
+1'b0: Data write to DDR
+1'b1: Data do not write to DDR
+
+RW 0x0
+
+sw_fec_en
+FEC enable
+1'b0: Disable
+1'b1: Enable
+
+FEC_DST_SIZE
+Address: Operational Base + offset (0x0C88)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2270
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:29 RO
+
+0x0
+
+Description
+reserved
+
+28:16 RW 0x0000
+
+sw_fec_dst_height
+FEC destination height
+
+15:13 RO
+
+reserved
+
+12:0
+
+0x0
+
+RW 0x0000
+
+sw_fec_dst_width
+FEC destination width
+
+FEC_MESH_SIZE
+Address: Operational Base + offset (0x0C8C)
+Bit
+
+Attr Reset Value
+
+31:22 RO
+
+21:0
+
+0x000
+
+RW 0x000000
+
+Description
+reserved
+sw_mesh_size
+FEC mesh size
+act_width_ex = 32*((sw_fec_act_width+31)/32)
+act_height_ex = 32*((sw_fec_act_height+31)/32)
+spb_num = (act_height_x+127)/128
+left_height = ((act_height_ex % 128) == 0) ? 128 :
+(act_height_ex % 128)
+mesh_width = (sw_fec_mesh_density == 1) ?
+(act_width_ex/32+1) : (act_width_ex/16+1)
+mesh_height = (sw_fec_mesh_density == 1) ? (128/16+1) :
+(128/8+1)
+mesh_left_height = (sw_fec_mesh_density == 1) ?
+(left_height/16+1) : (left_height/8+1)
+spb_mesh_size = mesh_width * mesh_height
+mesh_size = (spb_num - 1) * mesh_width * mesh_height +
+mesh_width * mesh_left_height
+
+FEC_DMA_STATUS
+Address: Operational Base + offset (0x0C90)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:14 RO
+
+0x00000
+
+reserved
+
+13
+
+RO
+
+0x0
+
+bound_v_err
+FEC bound vertical error
+
+12
+
+RO
+
+0x0
+
+bound_h_err
+FEC bound horizontal error
+
+11
+
+RO
+
+0x0
+
+blkline_err_v
+FEC blockline vertical error
+
+10
+
+RO
+
+0x0
+
+blkline_err_h
+FEC blockline horizontal error
+
+9
+
+RO
+
+0x0
+
+blk_err_v
+FEC blockline vertical error
+
+8
+
+RO
+
+0x0
+
+blk_err_h
+FEC block horizontal error
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2271
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+7
+
+RO
+
+0x0
+
+pbuf_pp_fail
+FEC pixel buffer ping-pong switch fail
+
+6
+
+RO
+
+0x0
+
+minbuf_pp_fail
+FEC mesh buffer ping-pong switch fail
+
+5
+
+RO
+
+0x0
+
+reserved
+
+4
+
+RO
+
+0x0
+
+pic_dma_active
+FEC Pixel DMA active
+1'b0: DMA is not working
+1'b1: DMA is working
+
+3
+
+RO
+
+0x0
+
+reserved
+
+2
+
+RO
+
+0x0
+
+mesh_y_dma_active
+FEC MESH Y DMA active
+1'b0: DMA is not working
+1'b1: DMA is working
+
+1
+
+RO
+
+0x0
+
+reserved
+
+0x0
+
+mesh_x_dma_active
+FEC MESH X DMA active
+1'b0: DMA is not working
+1'b1: DMA is working
+
+0
+
+RO
+
+FEC_SRC_SIZE
+Address: Operational Base + offset (0x0C98)
+Bit
+
+Attr Reset Value
+
+31:29 RO
+
+0x0
+
+Description
+reserved
+
+28:16 RW 0x0000
+
+sw_fec_src_height
+FEC source height
+
+15:13 RO
+
+reserved
+
+12:0
+
+0x0
+
+RW 0x0000
+
+sw_fec_src_width
+FEC source width
+
+FEC_MMU_DTE_ADDR
+Address: Operational Base + offset (0x0F00)
+Bit
+
+Attr Reset Value
+
+31:4
+
+RW 0x0000000
+
+MMU_DTE_ADDR
+MMU current page Table address
+
+3:0
+
+RO
+
+reserved
+
+0x0
+
+Description
+
+FEC_MMU_STATUS
+Address: Operational Base + offset (0x0F04)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:11 RO
+
+0x000000
+
+reserved
+
+10:6
+
+0x00
+
+PAGE_FAULT_BUS_ID
+Index of master responsible for last page fault
+
+RO
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2272
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+5
+
+RO
+
+0x0
+
+PAGE_FAULT_IS_WRITE
+The direction of access for last page fault:
+1'b0: Read
+1'b1: Write
+
+4
+
+RO
+
+0x1
+
+REPLAY_BUFFER_EMPTY
+The MMU replay buffer is empty
+
+0x1
+
+MMU_IDLE
+The MMU is idle when accesses are being translated and there are
+no unfinished translated accesses
+
+0x0
+
+STAIL_ACTIVE
+MMU stall mode currently enabled. The mode is enabled by
+command
+
+3
+
+RO
+
+2
+
+RO
+
+1
+
+RO
+
+0x0
+
+PAGE_FAULT_ACTIVE
+MMU page fault mode currently enabled. The mode is enabled by
+command
+
+0
+
+RO
+
+0x0
+
+PAGING_ENABLED
+Paging is enabled
+
+FEC_MMU_COMMAND
+Address: Operational Base + offset (0x0F08)
+Bit
+31:3
+
+2:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+WO 0x0
+
+Description
+reserved
+MMU_CMD
+MMU_CMD. This can be:
+3'b000: MMU_ENABLE_PAGING
+3'b001: MMU_DISABLE_PAGING
+3'b010: MMU_ENABLE_STALL
+3'b011: MMU_DISABLE_STALL
+3'b100: MMU_ZAP_CACHE
+3'b101: MMU_PAGE_FAULT_DONE
+3'b110: MMU_FORCE_RESET
+
+FEC_MMU_PAGE_FAULT_ADDR
+Address: Operational Base + offset (0x0F0C)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+PAGE_FAULT_ADDR
+MMU address of last page fault
+
+FEC_MMU_ZAP_ONE_LINE
+Address: Operational Base + offset (0x0F10)
+Bit
+
+Attr Reset Value
+
+31:0
+
+WO 0x00000000
+
+Description
+MMU_ZAP_ONE_LINE
+MMU address to be invalidated from the page table cache
+
+FEC_MMU_INT_RAWSTAT
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2273
+
+RKRK3588 TRM-Part1
+Address: Operational Base + offset (0x0F14)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:2
+
+RO
+
+0x00000000
+
+reserved
+
+1
+
+RO
+
+0x0
+
+READ_BUS_ERROR
+Read bus error
+
+0
+
+RO
+
+0x0
+
+PAGE_FAULT
+Page fault
+
+FEC_MMU_INT_CLEAR
+Address: Operational Base + offset (0x0F18)
+Bit
+
+Attr Reset Value
+0x00000000
+
+Description
+
+31:2
+
+RO
+
+reserved
+
+1
+
+WO 0x0
+
+READ_BUS_ERROR
+Read bus error
+
+0
+
+WO 0x0
+
+PAGE_FAULT
+Page fault
+
+FEC_MMU_INT_MASK
+Address: Operational Base + offset (0x0F1C)
+Bit
+
+Attr Reset Value
+0x00000000
+
+Description
+
+31:2
+
+RO
+
+reserved
+
+1
+
+RW 0x0
+
+READ_BUS_ERROR
+Read bus error
+
+0
+
+RW 0x0
+
+PAGE_FAULT
+Page fault
+
+FEC_MMU_INT_STATUS
+Address: Operational Base + offset (0x0F20)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:2
+
+RO
+
+0x00000000
+
+reserved
+
+1
+
+RO
+
+0x0
+
+READ_BUS_ERROR
+Read bus error
+
+0
+
+RO
+
+0x0
+
+PAGE_FAULT
+Page fault
+
+FEC_MMU_AUTO_GATING
+Address: Operational Base + offset (0x0F24)
+Bit
+
+Attr Reset Value
+
+Description
+
+31
+
+RW 0x0
+
+mmu_bug_fixed_disable
+MMU bug fixed disable, must be 1
+
+30:2
+
+RO
+
+0x00000000
+
+reserved
+
+1
+
+RO
+
+0x1
+
+mmu_cfg_mode
+MMU configuration mode
+
+0
+
+RW 0x1
+
+mmu_auto_gating
+When it is 1'b1, the MMU will auto gate itself
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2274
+
+RKRK3588 TRM-Part1
+
+FEC_MMU_REG_LOAD_EN
+Address: Operational Base + offset (0x0F28)
+Bit
+
+Attr Reset Value
+
+31:1
+
+RO
+
+0x00000000
+
+0
+
+RW 0x0
+
+Description
+reserved
+reg_load_mmu_en
+MMU register load enable
+
+38.5 Application Notes
+38.5.1 Setup Flow
+⚫
+
+⚫
+
+⚫
+
+⚫
+⚫
+
+setting meshgrid information
+◼ sw_mesh_xint_base, aligned to 16B
+◼ sw_mesh_xfra_base, aligned to 16B
+◼ sw_mesh_yint_base, aligned to 16B
+◼ sw_mesh_yfra_base, aligned to 16B
+setting source information
+◼ setting sw_pic_y_base/sw_pic_c_base, aligned to 16B
+◼ setting source format YUV420/YUV422/YUV422I
+◼ setting sw_fec_src_width, sw_fec_src_height
+◼ setting sw_rd_vir_stride, word unit, aligned to 16B
+setting destination information
+◼ setting sw_wr_y_base/sw_wr_uv_base, aligned to 16B
+◼ setting destination YUV420/YUV422/YUV422I
+◼ setting sw_fec_act_width, sw_fec_act_height
+◼ setting sw_wr_vir_stride, word unit, aligned to 16B
+set sw_cfg_force_upd for FEC
+set sw_fec_st
+
+38.5.2 Note
+⚫
+
+⚫
+⚫
+
+It is recommended malloc one line more than original source buffer in DDR. For example,
+1920x1080 source recommended 1920x1081 in DDR. When the boundary is accessed,
+since the internal DMA accesses at least 16 pixels, it may access the data of the next line.
+It is recommended that MMU is turned off to improve performance.
+Max mesh value must <= 8189
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2275
+
+RKRK3588 TRM-Part1
+

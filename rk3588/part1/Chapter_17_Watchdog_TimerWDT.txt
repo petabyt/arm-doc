@@ -1,0 +1,321 @@
+Chapter 17 Watchdog Timer(WDT)
+17
+
+17.1 Overview
+Watchdog Timer (WDT) is an APB slave peripheral that can be used to prevent system
+lockup that caused by conflicting parts or programs in a SOC. The WDT would generate
+interrupt or reset signal when its counter reaches zero, then a reset controller would reset
+the system.
+WDT supports the following features:
+⚫ 32 bits APB bus width
+⚫ WDT counter’s clock can be chosen from 24MHz or 32KHz clock
+⚫ 32 bits WDT counter width
+⚫ Counter counts down from a preset value to 0 to indicate the occurrence of a timeout
+⚫ WDT can perform two types of operations when timeout occurs:
+◼ Generate a system reset
+◼ First generate an interrupt and if this is not cleared by the service routine by the
+time a second timeout occurs then generate a system reset
+⚫ Programmable reset pulse length
+⚫ Total 16 defined-ranges of main timeout period
+⚫ There are five WDTs : WDT_PMU,WDT_NPU,WDT_DDR,WDT_S,WDT_NS
+⚫ All the five WDTs can drive CRU to generate global software reset
+
+17.2 Block Diagram
+WDT
+
+APB
+Interface
+
+Register
+Block
+
+Interrupt&
+System
+Reset
+Control
+
+Fig. 17-1 WDT Block Diagram
+
+WDT comprises with:
+⚫ APB Interface
+The APB Interface implements the APB slave operation. Its data bus width is 32 bits.
+⚫ Register Block
+A register block that read coherence for the current count register.
+⚫ Interrupt & System Reset Control
+An interrupt/system reset generation block is comprised of a decrementing counter and
+control logic.
+
+17.3 Function Description
+17.3.1 Operation
+Counter
+The WDT counts from a preset (timeout) value in descending order to zero. When the
+counter reaches zero, depending on the output response mode selected, either a system
+reset or an interrupt occurs. When the counter reaches zero, it wraps to the selected
+timeout value and continues decrementing. The user can restart the counter to its initial
+value. This is programmed by writing to the restart register at any time. The process of
+restarting the watchdog counter is sometimes referred as kicking the dog. As a safety
+feature to prevent accidental restarts, the value 0x76 must be written to the Current
+Counter Value Register (WDT_CRR).
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1403
+
+RK3588 TRM-Part1
+Interrupts
+The WDT can be programmed to generate an interrupt (and then a system reset) when a
+timeout occurs. When a 1 is written to the response mode field (RMOD, bit 1) of the
+Watchdog Timer Control Register (WDT_CR), the WDT generates an interrupt. If it is not
+cleared by the time a second timeout occurs, then it generates a system reset. If a restart
+occurs at the same time the watchdog counter reaches zero, an interrupt is not generated.
+System Resets
+When a 0 is written to the output response mode field (RMOD, bit 1) of the Watchdog Timer
+Control Register (WDT_CR), the WDT generates a system reset when a timeout occurs.
+Reset Pulse Length
+The reset pulse length is the number of pclk cycles for which a system reset is asserted.
+When a system reset is generated, it remains asserted for the number of cycles specified by
+the reset pulse length or until the system is reset. A counter restart has no effect on the
+system reset once it has been asserted.
+
+17.3.2 Programming Sequence
+Reset
+Program WDT_TORR.1
+Program WDT_CR.2
+Counter Restarted?3
+
+YES
+
+Reload Counter.4
+
+YES
+
+Reload Counter.4
+
+NO
+Decrement Counter
+NO
+
+Counter = 0?
+YES
+Counter Restarted?3
+NO
+Assert Interrupt
+
+Counter wraps to selected
+timeout period and continues
+to decrement.
+Interrupt Cleared?5
+
+YES
+
+NO
+Decrement Counter
+YES
+NO
+
+Counter = 0?
+
+YES
+
+Interrupt Cleared?5
+
+NO
+
+Assert System Reset
+
+1. Select required timeout period.
+2. Set reset pulse length, response mode, and enable WDT.
+3. Write 0x76 to WDT_CRR.
+4. Starts back to selected timeout period.
+5. Can clear by reading WDT_EOI or restarting (kicking) the counter by writing 0x76 to WDT_CRR.
+
+Fig. 17-2 WDT Operation Flow (RMOD=1)
+
+17.4 Register Description
+This section describes the control/status registers of the design. Software should read and
+write these registers using 32-bits accesses. There are five WDTs , and each of them has
+same register group. Therefore, five WDTs’ register groups have five different base
+addresses.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1404
+
+RK3588 TRM-Part1
+
+17.4.1 Registers Summary
+Name
+WDT_CR
+WDT_TORR
+WDT_CCVR
+WDT_CRR
+WDT_STAT
+WDT_EOI
+
+Offset
+0x0000
+0x0004
+0x0008
+0x000C
+0x0010
+0x0014
+
+Size
+W
+W
+W
+W
+W
+W
+
+Reset
+Description
+Value
+0x00000008 Control Register
+0x00000000 Timeout Range Register
+0x0000FFFF Current Counter Value Register
+0x00000000 Counter Restart Register
+0x00000000 Interrupt Status Register
+0x00000000 Interrupt Clear Register
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+17.4.2 Detail Registers Description
+WDT_CR
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+rst_pluse_length
+This is used to select the number of pclk cycles
+for which the system reset stays asserted.
+3'b000: 2 pclk cycles
+3'b001: 4 pclk cycles
+4:2
+RW 0x2
+3'b010: 8 pclk cycles
+3'b011: 16 pclk cycles
+3'b100: 32 pclk cycles
+3'b101: 64 pclk cycles
+3'b110: 128 pclk cycles
+3'b111: 256 pclk cycles
+resp_mode
+Selects the output response generated to a timeout.
+1
+RW 0x0
+1'b0: Generate a system reset.
+1'b1: First generate an interrupt and if it is not cleared by the
+time a second timeout occurs then generate a system reset.
+en
+This bit is used to enable and disable the WDT.When disabled, the
+counter dose not decrement .Thus, no interrupt or system reset
+0
+RW 0x0
+are generated. Once this bit has been enabled, it can be cleared
+only by a system reset.
+1'b0: WDT disabled.
+1'b1: WDT enabled.
+WDT_TORR
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+31:4 RO 0x0000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1405
+
+RK3588 TRM-Part1
+Bit
+
+3:0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+timeout_period
+This field is used to select the timeout period from which the
+watchdog counter restarts. A change of the timeout period takes
+effect only after the next counter restart (kick).
+The range of values available for a 32-bit watchdog counter are:
+4'b0000: 0x0000ffff
+4'b0001: 0x0001ffff
+4'b0010: 0x0003ffff
+4'b0011: 0x0007ffff
+4'b0100: 0x000fffff
+4'b0101: 0x001fffff
+4'b0110: 0x003fffff
+4'b0111: 0x007fffff
+4'b1000: 0x00ffffff
+4'b1001: 0x01ffffff
+4'b1010: 0x03ffffff
+4'b1011: 0x07ffffff
+4'b1100: 0x0fffffff
+4'b1101: 0x1fffffff
+4'b1110: 0x3fffffff
+4'b1111: 0x7fffffff
+
+WDT_CCVR
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+Description
+cur_cnt
+31:0 RO 0x0000ffff
+This register, when read, is the current value of the internal
+counter. This value is read coherently whenever it is read.
+WDT_CRR
+Address: Operational Base + offset (0x000C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+cnt_restart
+This register is used to restart the WDT counter. As a safety
+7:0
+WO 0x00
+feature to prevent accidental restarts, the value 0x76 must be
+written. A restart also clears the WDT interrupt. Reading this
+register returns zero.
+WDT_STAT
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+status
+This register shows the interrupt status of the WDT.
+0
+RO 0x0
+1'b1: Interrupt is active regardless of polarity.
+1'b0: Interrupt is inactive.
+WDT_EOI
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+int_clr
+0
+RO 0x0
+This can be used to clear the interrupt without restarting the
+watchdog counter.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1406
+
+RK3588 TRM-Part1
+
+17.5 Application Notes
+⚫
+
+WDTs can trigger global software reset. Please refer to Chapter 3 for more information.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1407
+
+RK3588 TRM-Part1
+

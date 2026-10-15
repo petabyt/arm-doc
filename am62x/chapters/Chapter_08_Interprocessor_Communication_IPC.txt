@@ -1,0 +1,580 @@
+=== Page 786 ===
+This chapter describes the interprocessor communication (IPC) modules in the device.
+8.1 Inter-processor Communication Scheme (IPC).....................................................................................................787
+Chapter 8
+Interprocessor Communication (IPC)
+
+=== Page 787 ===
+8.1 Inter-processor Communication Scheme (IPC)
+Device has multiple hardware mechanisms to provide inter-processor level communication.
+
+=== Page 788 ===
+8.1.1 Mailbox
+This chapter describes the Mailbox module of the device.
+8.1.1.1 Mailbox Overview
+Mailbox module serves to facilitate the communication between the various on-chip processors of the device by
+providing a queued mailbox-interrupt mechanism.
+The queued mailbox-interrupt mechanism allows the software to establish a communication channel between
+two processors (users) through a set of registers and associated interrupt signals.
+8.1.1.1.1 Mailbox Features
+Each mailbox module supports the following features:
+•
+Parameters configured at design time:
+•
+Number of mailbox clusters
+•
+Each mailbox cluster has the same configuration
+•
+Clusters are accessed via separate VBUS regions. Clusters can be treated as mailbox module
+instances.
+•
+Number of users
+•
+Number of mailbox message queues
+•
+Number of messages (FIFO depth) for each message queue
+•
+32-bit message width
+•
+Partial writes do not advance the FIFO pointers
+•
+Message reception and queue-not-full notification using interrupts
+•
+Non-intrusive emulation
+Note
+Some features may not be available. See Module Integration for more information.
+
+=== Page 789 ===
+8.1.1.2 Mailbox Functional Description
+The mailbox module provides a means of communication through message queues among the users. The
+individual mailbox modules, or FIFOs, can associate (or de-associate) with any of the processors using the
+MAILBOX_IRQ_ENABLE_SET_j (or MAILBOX_IRQ_ENABLE_CLR_j) register.
+Each user has a dedicated interrupt signal from the corresponding mailbox module instance and dedicated
+interrupt enabling and status registers.
+Each MAILBOX_IRQ_STATUS_RAW_j/MAILBOX_IRQ_STATUS_CLR_j interrupt status register corresponds to
+a particular user.
+8.1.1.2.1 Mailbox Block Diagram
+Figure 8-1 shows the mailbox internal block diagram.
+32
+Message out
+Message in
+Mailbox y
+Message FIFO
+Local interface
+MAILBOX Cluster c
+Interconnect
+32
+32
+32
+MAILBOX_SYSCONFIG
+System register
+MAILBOX_IRQENABLE_CLR_j
+MAILBOX_IRQENABLE_SET_j
+MAILBOX_MSGSTATUS_y
+MAILBOX_FIFOSTATUS_y
+MAILBOX_MESSAGE_y
+MAILBOX_IRQSTATUS_CLR_j
+MAILBOX_IRQSTATUS_RAW_j
+Interrupt registers
+for user j
+Interrupt
+request
+to user j
+mailbox-007
+Figure 8-1. Mailbox Block Diagram
+c = 0 to 11
+j = 0 to 3
+y = 0 to 15
+8.1.1.2.2 Mailbox Software Reset
+The mailbox module supports a software reset through the MAILBOX_SYSCONFIG[0] SOFTRESET bit. Setting
+this bit to 1 enables an active software reset that is functionally equivalent to a hardware reset. Reading the
+MAILBOX_SYSCONFIG[0] SOFTRESET bit gives the status of the software reset:
+•
+Read 1: the software reset is on-going.
+•
+Read 0: the software reset is complete.
+The software must ensure that the software reset completes before doing mailbox operations.
+
+=== Page 790 ===
+8.1.1.2.3 Mailbox Power Management
+The clkstop_idle will be asserted if all of the following are true:
+•
+The VBUSP interface is inactive
+•
+All mailboxes are empty
+•
+There are no enabled events or outstanding interrupts
+An enabled event means there is pending action required from one of the users, and it means one or more
+mailboxes still expect data.
+8.1.1.2.4 Mailbox Interrupt Requests
+An interrupt request allows the user of the mailbox to be notified when a message is received or when the
+message queue is not full. There is one interrupt per user.
+Table 8-1 lists the event flags, and their mask, that can cause module interrupts.
+Table 8-1. Interrupt Events
+Non-Maskable Event
+Flag(1)
+Maskable Event Flag
+Event Mask Bit
+Event Unmask Bit
+Description
+MAILBOX_IRQ_STATUS_
+RAW_j[0+y*2]
+NEWMSGSTATUSMBy
+MAILBOX_IRQ_STATUS_
+CLR_j[0+y*2]
+NEWMSG_STATUSMBy
+MAILBOX_IRQ_ENABLE_
+CLR_j[0+y*2]
+NEWMSG_STATUSMBy
+MAILBOX_IRQ_ENABLE_
+SET_j[0+y*2]
+NEWMSG_STATUSMBy
+Mailbox y receives a new
+message.
+MAILBOX_IRQ_STATUS_
+RAW_j[1+y*2]
+NOTFULLSTATUSMBy
+MAILBOX_IRQ_STATUS_
+CLR_j[1+y*2]
+NOTFULLSTATUSMBy
+MAILBOX_IRQ_ENABLE_
+CLR_j[1+y*2]
+NOTFULLSTATUSMBy
+MAILBOX_IRQ_ENABLE_
+SET_j[1+y*2]
+NOTFULLSTATUSMBy
+Mailbox y message queue
+is not full.
+(1)
+MAILBOX_IRQ_STATUS_RAW_j register is mostly used for debug purposes.
+CAUTION
+Once an event generating the interrupt request has been processed by the software, it must
+be cleared by writing a logical 1 in the corresponding bit of the MAILBOX_IRQ_STATUS_CLR_j
+register.
+Writing a logical 1 in a bit of the MAILBOX_IRQ_STATUS_CLR_j register will also clear to 0 the
+corresponding bit in the appropriate MAILBOX_IRQ_STATUS_RAW_j register.
+An event can generate an interrupt request when a logical 1 is written to the corresponding
+unmask bit in the MAILBOX_IRQ_ENABLE_SET_j register. Events are reported in the appropriate
+MAILBOX_IRQ_ENABLE_CLR_j and MAILBOX_IRQ_STATUS_RAW_j registers.
+An event stops generating interrupt requests when a logical 1 is written to the corresponding
+mask bit in the MAILBOX_IRQ_ENABLE_CLR_j register. Events are only reported in the appropriate
+MAILBOX_IRQ_STATUS_RAW_j register.
+In case of the MAILBOX_IRQ_STATUS_RAW_j register, the event is reported in the corresponding bit even if the
+interrupt request generation is disabled for this event.
+8.1.1.2.5 Mailbox Assignment
+8.1.1.2.5.1 Description
+To assign a receiver to a mailbox, set the new message interrupt enable bit corresponding to the desired mailbox
+in the MAILBOX_IRQ_ENABLE_SET_j register. The receiver reads the MAILBOX_MESSAGE_y register to
+retrieve a message from the mailbox.
+An alternate method for the receiver that does not use the interrupts is to poll the MAILBOX_FIFO_STATUS_y
+and/or MAILBOX_MSG_STATUS_y registers to know when to send or retrieve a message to or from the
+mailbox. This method does not require assigning a receiver to a mailbox. Because this method does not include
+the explicit assignment of the mailbox, the software must avoid having multiple receivers use the same mailbox,
+which can result in incoherency.
+
+=== Page 791 ===
+To assign a sender to a mailbox, set the queue-not-full interrupt enable bit of the desired mailbox in the
+MAILBOX_IRQ_ENABLE_SET_j register, where u is the number of the sending user. However, direct allocation
+of a mailbox to a sender is not recommended because it can cause the sending processor to be constantly
+interrupted.
+It is recommended that register polling be used to:
+•
+Check the status of either the MAILBOX_FIFO_STATUS_y or MAILBOX_MSG_STATUS_y registers
+•
+Write the message to the corresponding MAILBOX_MESSAGE_y register, if space is available.
+The sender might use the queue-not-full interrupt when the initial mailbox status check indicates the mailbox
+is full. In this case, the sender can enable the queue-not-full interrupt for its mailbox in the appropriate
+MAILBOX_IRQ_ENABLE_SET_j register. This allows the sender to be notified by interrupt only when a FIFO
+queue has at least one available entry.
+Reading the MAILBOX_IRQ_STATUS_CLR_j register determines the status of the new message and the queue-
+not-full interrupts for a particular user. Writing 1 to the corresponding bit in the MAILBOX_IRQ_STATUS_CLR_j
+register acknowledges, and subsequently clears, an interrupt.
+CAUTION
+Assigning multiple senders or multiple receivers to the same mailbox is not recommended.
+8.1.1.2.6 Sending and Receiving Messages
+8.1.1.2.6.1 Description
+When a 32-bit message is written to the MAILBOX_MESSAGE_y register, the message is appended into the
+FIFO queue. This queue holds four messages. If the queue is full, the message is discarded.
+Queue overflow can be avoided by first reading the MAILBOX_FIFO_STATUS_y register to check that the
+mailbox message queue is not full before writing a new message to it.
+Reading the MAILBOX_MESSAGE_y register returns the message at the beginning of the FIFO queue and
+removes it from the queue. If the FIFO queue is empty when the MAILBOX_MESSAGE_y register is read, the
+value 0 is returned.
+The new message interrupt is asserted when at least one message is in the mailbox message FIFO queue. To
+determine the number of messages in the mailbox message FIFO queue, read the MAILBOX_MSG_STATUS_y
+register.
+
+=== Page 792 ===
+8.1.1.2.7 Example of Communication
+Figure 8-2 shows an example of communication between two processors.
+MAILBOX Cluster 0
+CLUSTER0_PEND_INTR0
+Mailbox0
+MAILBOX_FIFO_STATUS_0
+Interrupt
+controller
+Processor
+Message FIFO
+MAILBOX_IRQ_ENABLE_SET_1
+NEWMSGSTATUSMB0
+Mailbox1
+Message FIFO
+NEWMSGSTATUSMB1
+NOTFULLSTATUSMB0
+NOTFULLSTATUSMB1
+Interrupt to user1
+Interrupt to user0
+User 1
+Writing to mailbox message register through interconnect
+Reading from mailbox message register through interconnect
+MAILBOX_SYSCONFIG
+System registers
+Processor
+MAILBOX_MSG_STATUS_0
+MAILBOX_MESSAGE_0
+MAILBOX_IRQ_STATUS_CLR_1
+MAILBOX_FIFO_STATUS_1
+MAILBOX_MSG_STATUS_1
+MAILBOX_MESSAGE_1
+MAILBOX_IRQ_ENABLE_SET_0
+MAILBOX_IRQ_STATUS_CLR_0
+User 0
+MAILBOX_IRQ_ENABLE_CLR_1
+MAILBOX_IRQ_ENABLE_CLR_0
+Interrupt
+controller
+CLUSTER0_PEND_INTR1
+mailbox-008
+Figure 8-2. Example of Communication
+
+=== Page 793 ===
+8.1.1.3 Mailbox Programming Guide
+8.1.1.3.1 Mailbox Low-level Programming Models
+This section covers the low-level hardware programming sequences for configuration and usage of the mailbox
+module.
+8.1.1.3.1.1 Global Initialization
+8.1.1.3.1.1.1 Surrounding Modules Global Initialization
+This section identifies the requirements of initializing the surrounding modules when the mailbox module is to be
+used for the first time after a device reset. This initialization of surrounding modules is based on the integration of
+the mailbox.
+See Mailbox Integration, for further information.
+Table 8-2. Global Initialization of Surrounding Modules for MAILBOX
+Surrounding Modules
+Comments
+LPSC
+The MAILBOX functional and interface clock must be enabled.
+Interrupt Controllers
+Processor's (user's) interrupt controller must be configured to enable the interrupt request generation.
+8.1.1.3.1.1.2 Mailbox Global Initialization
+8.1.1.3.1.1.2.1 Main Sequence - Mailbox Global Initialization
+This procedure initializes the mailbox module after a power-on or software reset.
+Table 8-3. Mailbox Global Initialization
+Step
+Register/Bit Field/Programming Model
+Value
+Perform a software reset
+MAILBOX_SYSCONFIG[0] SOFT_RESET
+0x1
+Wait until reset is complete
+MAILBOX_SYSCONFIG[0] SOFT_RESET
+=0x0
+8.1.1.3.1.2 Mailbox Operational Modes Configuration
+8.1.1.3.1.2.1 Mailbox Processing modes
+8.1.1.3.1.2.1.1 Main Sequence - Sending a Message (Polling Method)
+Table 8-4. Sending a Message (Polling Method)
+Step
+Register/Bit Field/Programming Model
+Value
+IF: Is FIFO full?
+MAILBOX_FIFO_STATUS_y[0] FULL
+=0x1
+Wait until at least one message slot is
+available
+MAILBOX_FIFO_STATUS_y[0] FULL
+=0x0
+ELSE
+Write message
+MAILBOX_MESSAGE_y[31:0] VALUE
+0x-
+ENDIF
+8.1.1.3.1.2.1.2 Main Sequence - Sending a Message (Interrupt Method)
+Table 8-5. Sending a Message (Interrupt Method)
+Step
+Register/Bit Field/Programming Model
+Value
+IF: Is FIFO full?
+MAILBOX_FIFO_STATUS_yMAILBOX_FIFO_STATUS_y[0]
+FULL
+=0x1
+Enable interrupt event
+MAILBOX_IRQ_ENABLE_SET_jMAILBOX_IRQ_ENABLE_
+SET_j[1+ y*2]
+0x1
+User (processor) can perform another task
+until interrupt occurs
+See Section 8.1.1.3.1.3.1 for interrupt
+handling in sending mode
+ELSE
+
+=== Page 794 ===
+Table 8-5. Sending a Message (Interrupt Method) (continued)
+Step
+Register/Bit Field/Programming Model
+Value
+Write message
+MAILBOX_MESSAGE_yMAILBOX_MESSAGE_y[31:0]
+VALUE
+0x-
+ENDIF
+8.1.1.3.1.2.1.3 Main Sequence - Receiving a Message (Polling Method)
+Table 8-6. Receiving a Message (Polling Method)
+Step
+Register/Bit Field/Programming Model
+Value
+IF: Number of messages is not equal to 0
+MAILBOX_MSG_STATUS_y[2:0] NUM_MESSAGES
+×0x0
+Read message
+MAILBOX_MESSAGE_y[31:0] VALUE
+0x-
+ENDIF
+8.1.1.3.1.2.1.4 Main Sequence - Receiving a Message (Interrupt Method)
+Table 8-7. Receiving a Message (Interrupt Method)
+Step
+Register/Bit Field/Programming Model
+Value
+Enable interrupt event
+MAILBOX_IRQ_ENABLE_SET_j[0 + y*2]
+0x1
+User (processor) can perform another task
+until interrupt occurs
+See Section 8.1.1.3.1.3.2 for interrupt
+handling in receiving mode
+8.1.1.3.1.3 Mailbox Events Servicing
+8.1.1.3.1.3.1 Events Servicing in Sending Mode
+Table 8-8 describes the events servicing in sending mode.
+Table 8-8. Events Servicing in Sending Mode
+Step
+Register/Bit Field/Programming Model
+Value
+Read interrupt status bit
+MAILBOX_IRQ_STATUS_CLR_j[1 + y*2]
+0x1
+Write message
+MAILBOX_MESSAGE_y[31:0] VALUE
+0x--
+Write 1 to acknowledge interrupt
+MAILBOX_IRQ_STATUS_CLR_j[1 + y*2]
+0x1
+8.1.1.3.1.3.2 Events Servicing in Receiving Mode
+Table 8-9 describes the events servicing in receiving mode.
+Table 8-9. Events Servicing in Receiving Mode
+Step
+Register/Bit Field/Programming Model
+Value
+Read interrupt status bit
+MAILBOX_IRQ_STATUS_CLR_j[0 + y*2]
+0x1
+IF: Number of messages is not equal to 0?
+MAILBOX_MSG_STATUS_y[2:0] NUM_MESSAGES
+×0x0
+Read message
+MAILBOX_MESSAGE_y[31:0] VALUE
+0x--
+ELSE
+Write 1 to acknowledge interrupt
+MAILBOX_IRQ_STATUS_CLR_j[0 + y*2]
+0x1
+ENDIF
+
+=== Page 795 ===
+8.1.2 Spinlock
+This chapter describes the Spinlock module of the device.
+8.1.2.1 Spinlock Overview
+The Spinlock module provides hardware assistance for synchronizing the processes running on multiple
+processors in the device.
+The Spinlock module implements 256 spinlocks (or hardware semaphores), which provide an efficient way to
+perform a lock operation of a device resource using a single read-access, avoiding the need of a read-modify-
+write bus transfer that the programmable cores are not capable of.
+Figure 8-3 shows an overview of the Spinlock module.
+Lock register 256
+INFRA_CBASS0
+spinlock-001
+SPINLOCK0
+LPSC
+FICLK
+RST
+Device
+Lock register 2
+Lock register 1
+clock
+reset
+...
+PLL
+Figure 8-3. Spinlock Overview
+Note
+Some features may not be available. See Module Integration for more information.
+8.1.2.2 Spinlock Functional Description
+8.1.2.2.1 Spinlock Software Reset
+The Spinlock module can be reset by software through the SPINLOCK_SYSCONFIG[1] SOFTRESET bit.
+Setting this bit to 1 enables an active software reset that is functionally equivalent to a hardware reset. The
+SPINLOCK_SYSTATUS[0] RESETDONE bit can be polled to check the reset status (reading 1 indicates that
+reset sequence is done; reading 0 indicates that reset sequence is in progress). The software must ensure that
+the software reset completes before doing Spinlock operations.
+8.1.2.2.2 Spinlock Power Management
+The Spinlock module supports the Power Idle interface. Software must arrange to only power off the Spinlock
+module when no locks would be lost. In general, the steps to powering down the Spinlock module are:
+1.
+Software must check that all controllers that may be using the Spinlock module are either:
+a.
+Already powered off (all in-use flags are 0)
+b.
+Notified that Spinlock is not available and the notification is acknowledged
+2.
+If desired, check that no locks are currently held in the Spinlock module. The status of each bank of 32 locks
+can be read from the SPINLOCK_SYSTATUS register. If any locks are held, they are orphaned because
+they are not held by any controller that is still active. Alternatively, you may decide to wait a timeout period to
+allow any active controller to clean up its locks before powering down.
+
+=== Page 796 ===
+The Spinlock module may now be powered off.
+8.1.2.2.3 About Spinlocks
+Spinlocks are present to solve the need for synchronization and mutual exclusion between heterogeneous
+processors and those not operating under a single, shared operating system. There is no alternative mechanism
+to accomplish these operations between processors in separate subsystems.
+Spinlocks are not the best way to synchronize between tasks or threads on one CPU. Instead, spinlocks are
+for use in synchronization between different subsystems in the device that don't have any other means of
+hardware-based synchronization.
+Spinlocks do not solve all system synchronization issues. They have limited applicability and should be used
+with care to implement higher level synchronization protocols.
+A spinlock is appropriate for mutual exclusion for access to a shared data structure. It should be used only when:
+1.
+The time to hold the lock is predictable and small (for example, a maximum hold time of less than 200 CPU
+cycles may be acceptable).
+2.
+The locking task cannot be preempted, suspended, or interrupted while holding the lock (this would make
+the hold time large and unpredictable).
+3.
+The lock is lightly contended, that is the chance of any other process (or processor) trying to acquire the lock
+while it is held is small.
+If these conditions are met, then the locking code can retry a failed attempt to acquire the lock until success.
+If the conditions are not met, then a spinlock is not a good candidate. One alternative is to use a spinlock
+for critical section control (engineered to meet the conditions) to implement a higher level semaphore that can
+support preemption, notification, timeout or other higher level properties.
+8.1.2.2.4 Spinlock Functional Operation
+The Spinlock module supports 256 spinlocks. It accepts only a single command at a time and
+processes the command fully before accepting the next command. A lock is requested by reading the
+SPINLOCK_LOCK_REG_i[0] TAKEN bit. There are two states: Taken (SPINLOCK_LOCK_REG_y[0] TAKEN
+= 1) or Not Taken (SPINLOCK_LOCK_REG_y[0] TAKEN = 0), where y = 0h to FFh.
+When the status of lock y (where y = 0 to 255) is Not Taken (free), a read from the SPINLOCK_LOCK_REG_y
+register returns 0 and sets the lock to Taken (locked). When the status of lock y is Taken, a read returns 1 and
+does not change the state of the lock.
+A write to the SPINLOCK_LOCK_REG_y register does not change the state of lock, unless when writing 0 when
+the lock is in Taken state. By doing this, the requester frees the lock.
+Figure 8-4 shows the SPINLOCK_LOCK_REG_y register state diagram.
+read ->0
+read ->1
+write 0
+write 1
+write 0/1
+reset
+spinlock-003
+NOT TAKEN
+state
+TAKEN
+state
+Figure 8-4. Lock Register State Diagram
+
+=== Page 797 ===
+Note
+•
+There is no support to ensure that a lock register is locked and unlocked by the same process.
+This must be ensured in software.
+•
+There is no support to check that the same initiator that acquired the lock is the one that is freeing
+the lock.
+
+=== Page 798 ===
+8.1.2.3 Spinlock Programming Guide
+8.1.2.3.1 Spinlock Low-level Programming Models
+This section covers the low-level hardware programming sequences for configuration and usage of the module.
+8.1.2.3.1.1 Surrounding Modules Global Initialization
+This procedure initializes the surrounding modules when the Spinlock module is used for the first time after a
+device reset.
+Table 8-10. Global Initialization of Surrounding Modules
+Surrounding Modules
+Comments
+LPSC
+Spinlock functional and interface clock must be enabled. For more information, see Clocking
+8.1.2.3.1.2 Basic Spinlock Operations
+The main Spinlock operations are:
+•
+Clear all the Taken spinlocks (only after a system bug recovery)
+•
+Take a spinlock
+•
+Release spinlock
+8.1.2.3.1.2.1 Spinlocks Clearing After a System Bug Recovery
+Module initialization (after reset) is not needed, except after system bug recovery. The following table
+presents the Spinlock initialization after a system bug recovery. Software should store 0 into each of the
+SPINLOCK_LOCK_REG_y registers at system startup to insure that all locks are initialized to Not Taken.
+Table 8-11. Spinlock System Bug Recovery
+Step
+Register
+Value
+IF: SPINLOCK_SYSTATUS[0] IU0 = 1?
+SPINLOCK_SYSTATUS[0] IU0
+=1
+Free the 256 locks
+SPINLOCK_LOCK_REG_y[0] TAKEN (y = 0 to 255)
+0x0
+END
+8.1.2.3.1.2.2 Take and Release Spinlock
+This procedure configures the take and release (free) operations for the Spinlock module. A spinlock should only
+be held with interrupts disabled. So, before attempting to obtain the spinlock, software must disable interrupts.
+Then it must read the SPINLOCK_LOCK_REG_y[0] TAKEN bit to attempt to obtain the lock. If it succeeds,
+it must proceed directly through the critical section then unlock and re-enable interrupts. If the acquisition
+attempt fails, the acquisition must be reattempted. To prevent unknown interrupt disabled time, interrupts must
+be re-enabled and then disabled before reattempting to acquire the lock. Figure 8-5 shows the described above
+procedure.
+
+=== Page 799 ===
+Start
+Is the lock taken?
+SPINLOCK_LOCK_REG_i[0] TAKEN = 0
+Disable all interrupts
+Enable all interrupts
+Critical code section
+End
+SPINLOCK_LOCK_REG_i[0] TAKEN = 0
+Enable all interrupts
+Take a lock
+Free a lock
+spinlock-004
+Yes
+No
+Figure 8-5. Take and Release Spinlock
+Table 8-12. Register Call Summary
+Register Name
+SPINLOCK_LOCK_REG_y[0] TAKEN
+Table 8-13. Subprocess Call Summary
+Subprocess Name
+Description
+Disable (Mask) All Interrupts
+For information about disabling/enabling all interrupts in an Arm® processor, refer to Arm Technical
+Reference Manual, available at infocenter.arm.com/help/index.jsp.
+For information about disabling/enabling all interrupts in other processors, refer to the corresponding
+processor chapter.
+Enable (Unmask) All Interrupts
+
+=== Page 800 ===
+8.1.3 Secure Proxy (SEC_PROXY)
+The third IPC hardware mechanism is to use SEC_PROXY, which provides an IPC mechanism which carries
+a large message for complex communications among processors. It allows processors to read and write a
+message in small chunks.
+There are two sets of SEC_PROXY in the device, one SEC_PROXY is dedicated for IPC for HSM M4F, and
+the second SEC_PROXY is for the rest. When the SEC_PROXY generates events, an IPC message is received
+or sent, and events are sent to interrupt aggregators before those events are converted into interrupts to the
+processors. The utilization of SEC_PROXY is user defined through memory map allocation. Each processor can
+be allocated with its own SEC_PROXY region to receive and send IPC messages.
+

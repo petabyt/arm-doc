@@ -1,0 +1,4676 @@
+Chapter 16 Multiple Protocol PHY Subsystem
+16.1 Overview
+
+The subsystem contains two types of PHY. One is dedicated for PCIe 3.0 protocol with
+aggregation and bifurcation feature. The other one is a combo of multiple protocol including
+the PCIe, SATA, USB and QSGMII.
+
+16.1.1 Combo PIPE PHY Overview
+
+The Combo PHY supports physical layer of multiple protocol including USB3.0 Super Speed
+(5GT/s), PCIe Gen1/Gen2(2.5GT/s and 5GT/s), SATA Gen1/Gen2/Gen3 (1.5GT/3GT/6GT)
+and QSGMII(1.25GT/5GT). QSGMII mode is not used in current chip.
+The key features of the Combo PIPE PHY core include:
+⚫ Compatible with PCIe/USB3/SATA/QSGMII base Specification
+⚫ Fully compatible with PIPE 4.3 interface specification
+⚫ Data rate configurable to 1.25G/1.5G/2.5G/3G/5G/6G for different application
+⚫ Support 16-bit or 32-bit parallel interface when encode/decode enabled
+⚫ Support 20-bit parallel interface when encode/decode bypassed
+⚫ Support flexible reference clock frequency
+⚫ Support 100MHz differential reference clock input or output (optional with SSC) in PCIe
+Mode
+⚫ Support Spread-Spectrum clock (SSC) generation and receiving from -5000ppm to
+0ppm
+⚫ Support programmable transmit amplitude and De-emphasis
+⚫ Support TX detect RX function in PCIE and USB3.0 Mode
+⚫ Support Beacon signal generation and detection in PCIE Mode
+⚫ Support Low Frequency Periodic Signaling (LFPS) generation and detection in USB3.0
+Mode
+⚫ Support COMWAKE, COMINIT and COMRESET (OOB) generation and detection in SATA
+Mode
+⚫ Support L1 sub-state power management
+⚫ Support RX low latency mode in SATA operation mode
+⚫ Support Loopback BERT and Multiple Pattern BIST Mode
+
+16.1.2 PCIe 3.0 PHY Overview
+
+The PHY provides the following features:
+⚫ Standard PIPE 4 interface to upper layers of protocol stack (MAC layer and above)
+⚫ PCIe: 8b/10b (Gen 1/2) and 128b/130b (Gen3) encoding and decoding
+⚫ Translation of PIPE 4 power states (P0, P1, and so on) into the appropriate PHY controls,
+including any PHY-specific intermediate state sequencing
+⚫ Clock-rate compensation via SKP ordered sets and an elasticity buffer
+⚫ Each PCS lane can be independently configured to operate as follows:
+◼ PCIe (1.1, 2.1, and 3.0) modes
+⚫ PIPE4.3- or PIPE4.2-compliant PCIe 1.1, 2.1, or 3.0 controllers
+◼ Highly customizable physical medium attachment (PMA) configuration PCIe data
+rates: 2.5 Gbps (PCIe 1.1), 5 Gbps (PCIe 2.1), 8 Gbps (PCIe 3.0)
+◼ Single, dual and quad channel macros configurations lanes Extensive PMA debug
+capability through read/write and read-only registers in PCS
+◼ Register-based control of all PCS-to-PMA signals
+◼ Adaptive and configurable RX continuous time linear equalizer (CTLE) and decision
+feedback equalizer (DFE)
+◼ Programmable TX equalization
+⚫ PCIe 3.0 aggregation and bifurcation up to x4 PHY configuration
+⚫ Supports PCIe L1-substate power managements
+⚫ Built-in Self-Test (BIST) features for production; at-speed testing on any digital tester
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2321
+
+RK3588 TRM-Part2
+⚫
+⚫
+
+⚫
+
+Advanced, built-in diagnostics including on-chip sampling scope
+Visibility and controllability of hard macro functions through programmable registers in
+the design:
+◼ Overrides on all ASIC side functional control inputs for easy debug
+◼ Access register space through a parallel interface
+◼ Access register space through a JTAG port
+Configurable PCS with extensive debug options:
+◼ Independent TX and RX control per lane
+◼ Configurable TX and RX power modes
+◼ Pseudo-random bit sequence (PRBS) generation and checker (PRBS31, PRBS23,
+PRBS16, PRBS15, PRBS11, PRBS9, PRBS7)
+◼ Programmable 10-bit pattern generation with error injection capability
+
+16.2 Block Diagram
+PHP Multiple Protocol PHY
+Subsystem
+PCIe3.0 PHY Wrapper
+PCIe3.0 PIPE Wrapper
+
+SRAM 0
+
+PHY 0
+
+APB
+
+PHY Configuration and Status
+port0_tx0_{p,m}
+
+PCIe30X4 DM
+
+PMA
+
+PHP GRF
+PHP GRF
+
+port0_tx1_{p,m}
+port0_rx0_{p,m}
+port0_rx1_{p,m}
+
+PCIe30X2 RC
+PCIe30X1_0 RC
+
+Multiplexer
+Aggregation
+Bifurcation
+
+MUX
+
+PCIe30X2 RC
+
+Raw PCS
+
+PCIe30X4 DM
+
+PIPE Interface
+
+PCIe30X1_1 RC
+
+PCIe 30
+PHY GRF
+
+PCIe 3.0
+uPCS
+
+txX_xxx
+rxX_xxx
+
+sel_xxx
+
+pcie30_phy_mode
+
+PHY 1
+
+PCS Configuration
+port1_tx0_{p,m}
+Raw PCS
+
+PMA
+
+PCIe30X1_0 RC
+PHP GRF
+
+MUX
+
+SRAM1
+
+PCIe30X1_0 RC
+
+port1_tx1_{p,m}
+port1_rx0_{p,m}
+port1_rx1_{p,m}
+
+APB
+
+PHY Configuration and Status
+
+Combo PIPE PHY 1 Wrapper
+
+pipe_phymode
+
+PIPE PHY1 GRF
+
+PCIe30X1_0 RC
+
+SATA_1
+
+pipe_xxx
+
+COMBO_PHY1_TXP/N
+
+PIPE Interface
+MUX
+
+SATA_1
+PHP GRF
+
+MUX
+
+SATA_1
+
+sel_xxx
+
+Combo PIPE PHY 1
+
+PMA
+
+COMBO_PHY1_TXP/N
+
+pcie1l0_sel
+PHY APB
+PHP GRF
+
+pcie1l1_sel
+
+SATA_2
+
+PHP GRF
+
+USBOTG_2
+
+PHP GRF
+
+pipe_phymode
+
+PIPE PHY2 GRF
+
+PCIe30X1_1 RC
+
+SATA_2
+
+SATA_2
+
+USBOTG_2
+
+USBOTG_2
+
+sel_xxx
+pipe_xxx
+
+COMBO_PHY2_TXP/N
+
+PIPE Interface
+MUX
+
+PHP GRF
+
+MUX
+
+PCIe30X1_1 RC
+
+MUX
+
+Combo PIPE PHY 2 Wrapper
+PCIe30X1_1 RC
+
+Combo PIPE PHY 2
+
+PMA
+
+COMBO_PHY2_TXP/N
+
+PHY APB
+
+Combo PIPE PHY 0 Wrapper
+
+SATA_0
+
+SATA_0
+
+PHP GRF
+
+pipe_phymode
+
+PIPE PHY0 GRF
+
+sel_xxx
+
+pipe_xxx
+
+COMBO_PHY0_TXP/N
+
+PIPE Interface
+MUX
+
+SATA_0
+
+PCIe30X1_2 RC
+
+PHP GRF
+
+MUX
+
+PCIe30X1_2 RC
+
+PCIe30X1_2 RC
+
+Combo PIPE PHY 0
+
+PMA
+
+COMBO_PHY0_TXP/N
+
+PHY APB
+
+Note: MUX instance including multiplexer and feedthrough; The location of each component only
+indicates the functionality, not design hierarchy
+
+Fig. 16-1 Diagram of Multiple Protocol PHY Subsystem Architecture
+There are three Combo protocol PHYs illustrated above. The pipe_phymode is used to select
+the target protocol controller. The PIPE PHYn GRF module is used to generate common
+control signals and override some PIPE interface signal in specific cases, PIPE interface bus
+is connected with the selected protocol controller by default. The PHY APB can config the
+PHY internal register to adjust the trims of CDR, PLL, etc. Please refer to PIPE PHY GRF and
+for detail description.
+The PCIe 3.0 PHY is consist of two PHY Marco and interfacing with a X4 uPCS. PHY0 and
+PHY1 can be aggregated as one X4 Link, and both can be bifurcated into two X1 Link. Each
+PHY has individual PHY configuration and status space, the PCIe 30 PHY GRF is used to
+control the multiplexers and PCS configuration, it is also used override some PIPE interface
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2322
+
+RK3588 TRM-Part2
+signal in some specific scenarios. APB is in charge of accessing the internal control register
+and status of each PHY. Two external SRAM 0/1 are included for the purpose of updating the
+IP firmware, it can be updated by APB bus access. The aggregation and bifurcation of the
+PHYs are controlled by pcie30_phy_mode.
+The multiplex function table is listed in section Subsystem Protocol Link Mapping.
+
+16.2.1 Combo PHY Function Description
+16.2.1.1 Block Diagram and Description
+rx_los
+Signal Detector
+
+rx_oob_out
+
+RXP
+
+rx_en_rterm
+
+Rterm
+
+RXN
+
+rx_rdy
+CTLE
+
+CDR
+
+DeSerializer
+
+rx_data[19:0]
+rx_pck
+
+Serializer
+
+tx_data[19:0]
+tx_rck
+tx_pck
+
+Internal Serial Data Loop Back
+TXP
+Driver
+
+FFE
+
+TXN
+
+rterm_det_out
+Receiver Detector
+
+rterm_det_done
+
+Transceiver
+
+Multi-Phase High Speed Clock
+
+Pre-driver
+
+PFD
+
+CP
+
+LPF
+
+VCO
+
+Post-Driver
+
+Divider
+
+CKREFP
+CKREFN
+
+CKRCV/
+DRV
+
+SU
+
+Lock
+Detector
+
+Mux
+
+ck_sys_ckref
+ck_sys_p16link
+ck_sys_p20link
+
+IVREF
+
+pll_rdy
+
+PLL_CKREF_INNER
+
+Fig. 16-2 PMA Block Diagram of Multi-PHY
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2323
+
+RK3588 TRM-Part2
+
+PHY_STATUS
+RX_STATUS
+RX_VALID
+RX_ELECIDLE
+PWDN
+RX_POLAR
+
+tx_pck
+
+PHY
+Status/Control
+
+MUX
+
+ck_sys_ckref
+
+BIST_OUT
+Pattern Checker
+
+RX_DATA
+RX_DATAK
+RX_CLK
+RX_CLK10
+
+Decoder
+
+TXDETRX_LPBK
+
+Elastic Buffer
+
+Comma
+Alignment
+
+Parallel Data
+from PMA
+
+Loopback BERT Control
+
+PIPE_CLK
+PIPE_CLK10
+TX_DATA
+TX_DATAK
+PCLK
+BIST_MODE
+
+MUX
+
+Encoder
+
+Mux
+
+Parallel Data
+to PMA
+
+Pattern
+Generator
+
+PCS
+
+Fig. 16-3 PCS Block Diagram of Multi-PHY
+Combo PIPE PHY includes two major blocks, PMA and PCS. PMA is an analog macro to
+perform serial to parallel and parallel to serial conversion. PMA includes three blocks,
+Transmitter, Receiver and SU(includes PLL, IVREF, etc.). PCS is a digital synthesis macro to
+perform PHY coding sub-layer function like 8bit/10bit code and decode, elastic buffer,
+comma alignment and BERT loopback, it also includes a register interface to access internal
+control registers with APB interface.
+
+16.2.1.2 SHARED UNIT (SU)
+
+PLL takes reference clock input from CKREFP/N and PLL_CKREF_INNER, to
+generate a high-speed clock for data transmission and clock data recovery. The highspeed clock generated by PLL could be SSC (spectrum spread clock) modulated if SSC
+mode is turned on. When SSC is enabled, the PHY is transmitting spread-spectrum
+serial data with frequency offset in 31.5KHz periodically.
+IVREF includes a voltage and current reference generator, which comprises a Bandgap
+Reference and a Voltage Regulator. Reference voltage and current are generated for
+internal circuit usage. IVREF block is always on as long as IP power up, it will
+consume ~170uA static current all the time.
+CKDRV is an input/output differential clock buffer, when it is used as input, it can
+receive a wide range differential reference clock. When used as output, CKDRV can
+drive a 100MHz differential clock for PCIE host application.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2324
+
+RK3588 TRM-Part2
+
+16.2.1.3 TRANSMITTER (TX)
+
+The Serializer block converts parallel data from PHY PCS to high-speed serial data by using
+high speed clock generated by PLL. A feed forward equalizer (FFE) is implemented to
+compensate channel ISI.
+Driver will convert the serial data to differential signal on TXP/TXM, also the driver will
+transmit Beacon Signal (PCIE2.0), OOB(SATA) or LFPS(USB3.0) signaling. The differential
+output amplitude and Deemphasis level can be programmed via setting PIPE3 control pins
+TX_SWING, TX_DEEMPH[2:0] and TX_MARGIN[2:0].
+The receiver detector will be used to detect the far-end receiver present or not.
+
+16.2.1.4 RECEIVER (RX)
+
+The CTLE (Continuous Time Linear Equalizer) is used to compensate channel loss and cancel
+ISI of the input signals by boosting high frequency gain. The CTLE can be set to adaptive
+mode or manual setting mode.
+The CDR (Clock and Data Recover) tracks input data stream and generate recovered clock
+for data de-serializer. De-Serializer converts incoming serial bit stream recovered by CDR
+into a synchronized parallel data bus and forward it to PHY PCS block.
+The Signal Detector detects OOB/LFPS on the RX input pair.
+
+16.2.1.5 PCS
+
+PCS module is a pure digital synthesis module, it works as an interface between PMA and
+MAC, it accomplishes functions including comma alignment, 8bit/10bit code/decode, elastic
+buffer, power control and IP testing. This module also includes an APB interface for accessing
+PHY control registers. PCS is fully compatible with the PIPE3 interface of “PHY interface for
+PCI express and USB3.0 architecture by intel”.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2325
+
+RK3588 TRM-Part2
+
+16.2.2 PCIe 3.0 PHY Function Description
+16.2.2.1 uPCS Transmit and Receive Datapath
+
+Fig. 16-4 Transmit and Receive Datapath
+
+The pcs_txX_data transmit data and controls are converted from the PIPE interface
+clock to the internal pcs_clk in the TX gasket. The fixed data-path-width data at the
+output of the TX gasket is encoded as follows:
+⚫ 8b10b-encoded for 8b10b protocols
+⚫ 128b-130b-encoded for PCIe Gen3
+To support RX-to-TX loopback mode as specified in the PIPE specification, the RX
+recovered data is multiplexed into the TX Datapath. Note that for 8b10b mode, the nondecoded 8b10b received data is sent to the transmitter. For non-8b10b data, the received
+data is decoded first; that is, the header is extracted from the data, then looped back into
+the TX Datapath, where it is encoded before being transmitted to the PHY. The encoded
+TX data goes through override logic where fixed patterns are inserted into the TX datastream controller by the pcs_txX_ones_zeros and pcs_txX_pattern[1:0] PIPE signals.
+Data received from the PHY is processed to find symbol alignment for 8b10b data and
+block alignment for non-8b10b data. The aligned data is monitored for EIOS ordered
+sets (PCIe) to detect end-of-packets and to infer entry into electrical idle condition.
+After detecting EIOSs, the Consumer PCIe 3.0 PCS de-asserts phy_rxX_data_en to the
+PHY lane, causing the lane CDR to stop monitoring input data transitions and to switch
+to reference clock tracking mode. The aligned data is passed to the elastic buffer, where
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2326
+
+RK3588 TRM-Part2
+
+compensation for frequency drift is performed by adding or removing SKP (PCIe)
+ordered sets. The frequency-compensated data is 8b10b-decoded for 8b10b data, then
+passed through the PIPE RX processing block where data and status signals are cyclealigned. The RX data and status signals pass through the RX gasket that maps the
+internal fixed-width data to variable interface widths supported by the PIPE interface.
+16.2.2.2 Physical Medium Attachment (PMA)
+
+Each PMA comprises a full duplex transceiver for each lane. On the transmit (TX) side, the
+PMA receives parallel data from the relevant lane of the PCS. The data is serialized and sent
+to the TX driver, which is a high-speed, hybrid-mode (voltage and current), differentialoutput driver. TX driver characteristics, such as amplitude, 3-tap feed-forward equalization,
+and termination, are user controllable. The TX driver output is sent to a pair of external
+pads.
+On the receive (RX) side, the PMA receives differential serial data from a pair of external
+pads. Receiver characteristics, such as equalization and termination, are user controllable. A
+continuous-time linear equalizer (CTLE) is first used to compensate for channel loss. A
+decision feedback equalizer (DFE) is also implemented after the CTLE to further equalize the
+signal for high-speed data rates. A clock and data recovery (CDR) circuit is implemented,
+which recovers the clock from the data. A dedicated VCO is implemented as the source of
+the recovering clock. The CDR loop adjusts the VCO clock frequency and phase until the
+frequency matches incoming data and the phase is aligned with incoming data. This
+recovered clock is used to retime received data and send it to the de-serializer, which
+produces parallel data and a parallel data clock for the relevant PCS lane.
+
+Fig. 16-5 PMA Analog Architecture(Single Lane)
+
+16.2.2.3 Raw PCS
+
+The PMA PCS features listed below:
+⚫ Power-up calibration algorithms for the PMA analog front-end, for example, RX AFE
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2327
+
+RK3588 TRM-Part2
+offset cancellation, RX slicer calibration, MPLL calibrations, and RX VCO calibrations
+Controls for the adaptation routines in the PMA for modes when adaptation is enabled
+MPLL power-up and power-down control based upon txX_pstate and txX_mpllb_sel
+inputs
+⚫ JTAG Tap controller for serial register access
+⚫ Register access arbitration between JTAG/CR Parallel access, and the internal power-up
+and adaptation routines
+The selection between JTAG and CR Parallel interfaces is controlled using primary input
+cr_para_sel, which means that both of these interfaces cannot operate simultaneously. A
+round-robin arbitration mechanism exists to provide equal priority to different sources
+requesting access to the shared internal register bus. These sources include multiple internal
+state machines as well as external register access interfaces (JTAG/CR-Parallel).
+⚫
+⚫
+
+Fig. 16-6 PMA Analog Architecture(Single Lane)
+Each lane module (raw_pcs_lane) contains finite state machines (FSMs) to execute the
+power-up calibration and run-time adaptation algorithms. The algorithms are stored in a
+register bank located in a common module (raw_pcs_cmn). The design includes two register
+access arbiters. The Memory arbiter is used for accessing the register bank whereas the
+Control Register Arbiter is used to access all other registers in the PMA PCS and the PMA.
+This mechanism provides efficient use of the registers and state machines within each lane
+where each lane can independently execute a different portion of the algorithm while
+reducing the register access bottleneck.
+All control registers in the PMA PCS and PMA can be externally accessed using JTAG or CR
+Parallel Interfaces, with only one interface at any given time.
+
+16.3 Register Description
+
+16.3.1 Internal Address Mapping
+
+Slave address can be divided into different length for different usage, which is shown as
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2328
+
+RK3588 TRM-Part2
+follows.
+Table 16-1 Combo PHY Address Mapping Table
+Name
+
+Address Base
+
+Size
+
+Combo PIPE PHY0
+
+0xFEE00000
+
+0x10000(64KB)
+
+Combo PIPE PHY1
+
+0xFEE10000
+
+0x10000(64KB)
+
+Combo PIPE PHY2
+
+0xFEE20000
+
+0x10000(64KB)
+
+Combo PIPE PHY0 GRF
+
+0xFD5BC000
+
+0x4000(16KB)
+
+Combo PIPE PHY1 GRF
+
+0xFD5C0000
+
+0x4000(16KB)
+
+Combo PIPE PHY2 GRF
+
+0xFD5C4000
+
+0x4000(16KB)
+
+Table 16-2 PCIe 3.0 PHY Address Mapping Table
+Name
+
+Address Base
+
+Size
+
+PCIe 3.0 PHY 0
+
+0xFEE80000
+
+0x40000(256KB)
+
+PCIe 3.0 PHY 1
+
+0xFEEC0000
+
+0x40000(256KB)
+
+PCIe 3.0 PHY GRF
+
+0xFD5B8000
+
+0x4000(16KB)
+
+Note: The offset of the each PCIe 3.0 PHY’s SRAM begins at 0x18000(Base 0xFEE80000/0xFEEC0000), ends
+up at 0x1BFFC.
+
+16.3.2 Combo PIPE PHY Registers Summary
+Name
+
+Offset
+
+COMBO_PIPE_PHY_REG_0
+0x0000
+00
+COMBO_PIPE_PHY_REG_0
+0x0004
+01
+COMBO_PIPE_PHY_REG_0
+0x0008
+02
+COMBO_PIPE_PHY_REG_0
+0x000C
+03
+COMBO_PIPE_PHY_REG_0
+0x0010
+04
+COMBO_PIPE_PHY_REG_0
+0x0014
+05
+COMBO_PIPE_PHY_REG_0
+0x0018
+06
+COMBO_PIPE_PHY_REG_0
+0x001C
+07
+COMBO_PIPE_PHY_REG_0
+0x0020
+08
+COMBO_PIPE_PHY_REG_0
+0x0024
+09
+COMBO_PIPE_PHY_REG_0
+0x0028
+10
+COMBO_PIPE_PHY_REG_0
+0x002C
+11
+COMBO_PIPE_PHY_REG_0
+0x0030
+12
+COMBO_PIPE_PHY_REG_0
+0x0034
+13
+
+Size
+
+Reset
+Value
+
+Description
+
+W
+
+0x00000000 Combo PHY Register 0
+
+W
+
+0x00000080 Combo PHY Register 1
+
+W
+
+0x000000FF Combo PHY Register 2
+
+W
+
+0x00000000 Combo PHY Register 3
+
+W
+
+0x00000000 Combo PHY Register 4
+
+W
+
+0x00000000 Combo PHY Register 5
+
+W
+
+0x00000088 Combo PHY Register 6
+
+W
+
+0x00000008 Combo PHY Register 7
+
+W
+
+0x00000060 Combo PHY Register 8
+
+W
+
+0x00000009 Combo PHY Register 9
+
+W
+
+0x00000093 Combo PHY Register 10
+
+W
+
+0x00000002 Combo PHY Register 11
+
+W
+
+0x00000008 Combo PHY Register 12
+
+W
+
+0x00000059 Combo PHY Register 13
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2329
+
+RK3588 TRM-Part2
+Name
+
+Offset
+
+COMBO_PIPE_PHY_REG_0
+0x0038
+14
+COMBO_PIPE_PHY_REG_0
+0x003C
+15
+COMBO_PIPE_PHY_REG_0
+0x0040
+16
+COMBO_PIPE_PHY_REG_0
+0x0044
+17
+COMBO_PIPE_PHY_REG_0
+0x0048
+18
+COMBO_PIPE_PHY_REG_0
+0x004C
+19
+COMBO_PIPE_PHY_REG_0
+0x0050
+20
+COMBO_PIPE_PHY_REG_0
+0x0054
+21
+COMBO_PIPE_PHY_REG_0
+0x0058
+22
+COMBO_PIPE_PHY_REG_0
+0x005C
+23
+COMBO_PIPE_PHY_REG_0
+0x0060
+24
+COMBO_PIPE_PHY_REG_0
+0x0064
+25
+COMBO_PIPE_PHY_REG_0
+0x0068
+26
+COMBO_PIPE_PHY_REG_0
+0x006C
+27
+COMBO_PIPE_PHY_REG_0
+0x0070
+28
+COMBO_PIPE_PHY_REG_0
+0x0074
+29
+COMBO_PIPE_PHY_REG_0
+0x0078
+30
+COMBO_PIPE_PHY_REG_0
+0x007C
+31
+COMBO_PIPE_PHY_REG_0
+0x0080
+32
+COMBO_PIPE_PHY_REG_0
+0x0084
+33
+COMBO_PIPE_PHY_REG_0
+0x0088
+34
+COMBO_PIPE_PHY_REG_0
+0x008C
+35
+COMBO_PIPE_PHY_REG_0
+0x0090
+36
+COMBO_PIPE_PHY_REG_0
+0x0094
+37
+COMBO_PIPE_PHY_REG_0
+0x0098
+38
+COMBO_PIPE_PHY_REG_0
+0x009C
+39
+
+Size
+
+Reset
+Value
+
+Description
+
+W
+
+0x00000040 Combo PHY Register 14
+
+W
+
+0x00000063 Combo PHY Register 15
+
+W
+
+0x00000000 Combo PHY Register 16
+
+W
+
+0x00000032 Combo PHY Register 17
+
+W
+
+0x0000009B Combo PHY Register 18
+
+W
+
+0x00000047 Combo PHY Register 19
+
+W
+
+0x0000000B Combo PHY Register 20
+
+W
+
+0x00000041 Combo PHY Register 21
+
+W
+
+0x0000002C Combo PHY Register 22
+
+W
+
+0x00000030 Combo PHY Register 23
+
+W
+
+0x00000000 Combo PHY Register 24
+
+W
+
+0x00000000 Combo PHY Register 25
+
+W
+
+0x00000014 Combo PHY Register 26
+
+W
+
+0x00000000 Combo PHY Register 27
+
+W
+
+0x00000005 Combo PHY Register 28
+
+W
+
+0x00000040 Combo PHY Register 29
+
+W
+
+0x00000000 Combo PHY Register 30
+
+W
+
+0x00000010 Combo PHY Register 31
+
+W
+
+0x00000000 Combo PHY Register 32
+
+W
+
+0x00000000 Combo PHY Register 33
+
+W
+
+0x00000000 Combo PHY Register 34
+
+W
+
+0x00000000 Combo PHY Register 35
+
+W
+
+0x00000000 Combo PHY Register 36
+
+W
+
+0x00000000 Combo PHY Register 37
+
+W
+
+0x00000000 Combo PHY Register 38
+
+W
+
+0x00000000 Combo PHY Register 39
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2330
+
+RK3588 TRM-Part2
+Name
+
+Offset
+
+COMBO_PIPE_PHY_REG_0
+0x00A0
+40
+COMBO_PIPE_PHY_REG_0
+0x00A4
+41
+COMBO_PIPE_PHY_REG_0
+0x00A8
+42
+COMBO_PIPE_PHY_REG_0
+0x00AC
+43
+COMBO_PIPE_PHY_REG_0
+0x00B0
+44
+COMBO_PIPE_PHY_REG_0
+0x00B4
+45
+COMBO_PIPE_PHY_REG_0
+0x00B8
+46
+COMBO_PIPE_PHY_REG_0
+0x00BC
+47
+COMBO_PIPE_PHY_REG_0
+0x00C0
+48
+COMBO_PIPE_PHY_REG_0
+0x00C4
+49
+
+Reset
+Value
+
+Size
+
+Description
+
+W
+
+0x00000000 Combo PHY Register 40
+
+W
+
+0x00000000 Combo PHY Register 41
+
+W
+
+0x00000000 Combo PHY Register 42
+
+W
+
+0x00000000 Combo PHY Register 43
+
+W
+
+0x00000000 Combo PHY Register 44
+
+W
+
+0x00000000 Combo PHY Register 45
+
+W
+
+0x00000000 Combo PHY Register 46
+
+W
+
+0x00000000 Combo PHY Register 47
+
+W
+
+0x00000000 Combo PHY Register 48
+
+W
+
+0x00000000 Combo PHY Register 49
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+16.3.3 Combo PIPE PHY Detail Registers Description
+
+COMBO_PIPE_PHY_REG_000
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+clk_out_sel
+Select which internal clock connect to output test_clk
+7
+RW 0x0
+1'b0: TXPLL clock/4
+1'b1: RXCDR clock/4
+inv_txpll_clk
+6
+RW 0x0
+1'b1: Invert the PLL clock from PHY to PCS in PCS
+inv_rxcdr_clk
+5
+RW 0x0
+1'b1: Invert the CDR clock from PHY to PCS in PCS
+4:0
+RO 0x00
+reserved
+COMBO_PIPE_PHY_REG_001
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+pwdn_ctrl_l
+[0]: If 1, PHY block power controlled by pwon** signals instead
+7:6
+RW 0x2
+of PIPE signals
+[1]: Enable IVREF in PMA when pwdn_ctrl[0]=1
+5:1
+RO 0x00
+reserved
+custom_specific
+0
+RW 0x0
+Used to select which of operation2 or operation3 L1 SSTM the
+PHY interface would act as
+COMBO_PIPE_PHY_REG_002
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2331
+
+RK3588 TRM-Part2
+Bit
+
+7:0
+
+Attr Reset Value
+
+RW 0xff
+
+Description
+pwdn_ctrl_h
+[2]: Enable PWON_TX_BUF to power on TX driver in PMA
+pwdn_ctrl[0]=1
+[3]: Enable PWON_TXPLL to power on PLL in PMA pwdn_ctrl[0]=1
+[4]: Enable PWON_IDLE_DET to power on PCIE EIDLE detect
+driver in PMA pwdn_ctrl[0]=1
+[5]: Enable PWON_LFPS_DET to power on USB LFPS detect in
+PMA pwdn_ctr[0]=1
+[6]: Enable PWON_RX_BUF to power on RX CTLE in PMA
+pwdn_ctrl[0]=1
+[7]: Enable PWON_CDR to power on RX CDR in PMA
+pwdn_ctrl[0]=1
+[8]: Enable PWON_OOB_DET to power on SATA OOB detect in
+PMA pwdn_ctr[0]=1
+[9]: Enable PWON_HS_DET to power on SATA high speed data
+detect in PMA pwdn_ctrl[0]=1
+
+COMBO_PIPE_PHY_REG_003
+Address: Operational Base + offset (0x000C)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+rx_rterm_vcom
+RX vcom voltage select signal
+6
+RW 0x0
+2'b00: GND
+2'b01, 2'b10: Floating
+2'b11: 320mV
+tx_rate
+bit[2]: PMA tx_rate source selects.
+5:3
+RW 0x0
+1'b0: Source from PIPE
+1'b1: Source from APB
+bit[1:0]: tx_rate control
+rx_rate
+bit[2]: PMA rx_rate source selects.
+2:0
+RW 0x0
+1'b0: Source from PIPE
+1'b1: Source from APB
+bit[1:0]: rx_rate control
+COMBO_PIPE_PHY_REG_004
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+31:7 RO 0x0000000
+reserved
+bist_mode
+6:3
+RO 0x0
+IP bist mode control
+2:0
+RO 0x0
+reserved
+
+Description
+
+COMBO_PIPE_PHY_REG_005
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+pll_ckref_div
+PLL input clock divider, valid when su_trim[14]=1
+2'b00: 1
+7:6
+RW 0x0
+2'b01: 1/2
+2'b10: 1/3
+2'b11: 1/4
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2332
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+5:3
+
+RW 0x0
+
+2:0
+
+RW 0x0
+
+Description
+rate
+bit[2]: PMA PLL rate source selects.
+1'b0: Source from PIPE
+1'b1: Source from APB
+bit[1:0]: PLL rate control
+phy_mode
+bit[2]: PMA phy_mode source selects.
+1'b0: Source from PIPE
+1'b1: Source from APB
+bit[1:0]: Phy model control.
+
+COMBO_PIPE_PHY_REG_006
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+tx_rterm
+TX output resister adjust signal by step about 1ohm
+4'h0: 60
+7:4
+RW 0x8
+4'h8: 50
+4'hf: 44
+Others: Reserved
+rx_rterm
+RX input resister adjust signal by step about 1ohm
+4'h0: 60
+3:0
+RW 0x8
+4'h8: 50
+4'hf: 43.5
+Others: Reserved
+COMBO_PIPE_PHY_REG_007
+Address: Operational Base + offset (0x001C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+byps_cdr_en
+1'b0: CDR recovered clock will be operation while PLL is locked
+and CDR is operation, and rx_cdr_trim[7] only can be set to 1'b0
+7
+RW 0x0
+using reference clock for rx_rdy generation.
+1'b1: CDR recovered clock will be operation while PLL is locked,
+and rx_cdr_trim[7] can be set to 1'b1 using recovered clock for
+rx_rdy generation.
+tx_swing
+6
+RW 0x0
+Tx_swing control.
+near_end_lpk_enable
+5
+RW 0x0
+PHY Near end loop back enable in BIST mode.
+ssc_en
+4
+RW 0x0
+In U3 and SATA mode, this bit= 1, set SSC on.
+In PCIE mode, this bit=0 set SSC off.
+tx_swing_com
+TX boost level adjust signal
+3:0
+RW 0x8
+3'b000: Minimum
+3'b111: Maximum
+COMBO_PIPE_PHY_REG_008
+Address: Operational Base + offset (0x0020)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2333
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+7
+
+RW 0x0
+
+6
+
+RW 0x1
+
+5
+
+RW 0x1
+
+4
+
+RW 0x0
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+byps_cdr_fl_en
+1'b0: rx_rdy is pulse signal to indicate CDR start to clock and
+data recovered from input serial data.
+1'b1: rx_rdy is not controlled by PMA/PCS interface signal
+"cdr_fl_en".
+byps_cpath_limit
+1'b0: CDR CPATH will be reset while CDR CPATH is overflow.
+1'b1: CDR CPATH will be locked to MAX frequency offset while
+CDR CPATH is overflow.
+byps_capth_overflow
+1'b0: CDR CPATH is controlled by CDR CPATH overflow.
+1'b1: CDR CPATH is not controlled by CDR CPATH overflow.
+byps_fgain_adpt
+1'b0: CDR CPATH gain is X2 while CDR recover frequency while
+rx_cdr_trim[6]=0.
+1'b1: CDR CPATH gain is X1 while CDR recover frequency while
+rx_cdr_trim[6]=0.
+byps_pwon_rx_buf
+1'b0: CTLE and LOS detector is controlled by PWDN[1:0].
+1'b1: CTLE and LOS detector is operation while reference clock
+and RX
+termination is present.
+byps_pown_rx_cdr
+1'b0: CDR is controlled by PWDN[1:0].
+1'b1: CDR is operation after PLL is locked while reference clock
+and RX
+termination is present.
+byps_pwon_tx_buf
+1'b0: TX Driver is controlled by PWDN[1:0].
+1'b1: TX Driver is operation after PLL is locked while reference
+clock is present, and TX detect RX is finished.
+byps_resetn
+1'b0: PMA is reset by RSTN.
+1'b1: PMA is not controlled by RSTN.
+
+COMBO_PIPE_PHY_REG_009
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+byps_rterm_en
+7
+RW 0x0
+1'b0: RX termination is controlled by RTERM_EN.
+1'b1: RX termination is present all the way.
+byps_rx_cdr_idle
+6
+RW 0x0
+1'b0: CDR is reset if EIDLE is detected by LOS Detect module.
+1'b1: CDR is not controlled by LOS Detect module.
+byps_rx_rdy_pulse
+5
+RW 0x0
+1'b0: rx_rdy is pulse signal.
+1'b1: rx_rdy is step signal while byps_cdr_fl_en=1.
+byps_tx_eidle_en
+1'b0: TX EIDLE is controlled by PMA/PCS interface signal
+4
+RW 0x0
+"tx_eidle_en" (SATA Mode) or "tx_lfps_beacon_en"(PCIE/USB
+Mode).
+1'b1: TX EIDLE is disable.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2334
+
+RK3588 TRM-Part2
+Bit
+
+3:0
+
+Attr Reset Value
+
+RW 0x9
+
+Description
+ssc_ppm
+PLL SCC ppm adjust signal by step 500ppm.
+4'h0: 0ppm
+4'h1: 500ppm
+4'h8: 4000ppm
+4'hf: 7500ppm
+
+COMBO_PIPE_PHY_REG_010
+Address: Operational Base + offset (0x0028)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2335
+
+RK3588 TRM-Part2
+Bit
+
+7:0
+
+Attr Reset Value
+
+RW 0x93
+
+Description
+su_trim_bank0
+SU adjust signal
+[2:0]: PLL KVCO adjust
+3'b000: Min
+3'b111: Max
+[3]: PLL force lock
+[24:23], [6:4]: PLL charge pump current adjusts
+5'b00000: Min
+5'b11111: Max
+[10:7]: PLL LPF R1 adjust
+3'b000: Max
+3'b111: Min
+[11]: bypass PLL power down control
+[12]: bypass ref clock detect function
+[13]: bypass vcntl detect
+[14]: bypass PLL loop divider code
+[15]: bypass ivref power down control
+[16]: bypass PLL lock detect mode of always detect
+[17]: bypass POR function
+[18]: bypass ivref power down control
+[19]: CKRCV common voltage adjust
+1'b0: floating
+1'b1: GND
+[21:20]: CKRCV termination resister adjust
+2'b00: 100ohm
+2'b01: 200ohm
+2'b10: 1000ohm
+2'b11: Hi-Z
+[22]: CKRCV mode select
+1'b0: difference receiver mode
+1'b1: signal receiver mode (CKREFP is valid, CKREFN is disable)
+[24:23]: CKRCV amp input common voltage adjust
+2'b00: 480 mV
+2'b01: 510 mV
+2'b10: 600 mV (default)
+2'b11: 660 mV
+[28:25]: CKDRV output swing adjust, step:50 mV
+4'h0: 100 mV
+.....
+4'hf: 860 mV
+[29]: CKDRV input clock select signal,
+1'b0: ck100m_pcie from PLL
+1'b1: ckref from CKRCV
+[31:30]: CKDRV output slew rate adjusts
+2'b00: Fast
+2'b11: Slow
+
+COMBO_PIPE_PHY_REG_011
+Address: Operational Base + offset (0x002C)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2336
+
+RK3588 TRM-Part2
+Bit
+
+7:0
+
+Attr Reset Value
+
+RW 0x02
+
+Description
+su_trim_bank1
+SU adjust signal
+[2:0]: PLL KVCO adjust
+3'b000: Min
+3'b111: Max
+[3]: PLL force lock
+[24:23], [6:4]: PLL charge pump current adjusts
+5'b00000: Min
+5'b11111: Max
+[10:7]: PLL LPF R1 adjust
+3'b000: Max
+3'b111: Min
+[11]: bypass PLL power down control
+[12]: bypass ref clock detect function
+[13]: bypass vcntl detect
+[14]: bypass PLL loop divider code
+[15]: bypass ivref power down control
+[16]: bypass PLL lock detect mode of always detect
+[17]: bypass POR function
+[18]: bypass ivref power down control
+[19]: CKRCV common voltage adjust
+1'b0: floating
+1'b1: GND
+[21:20]: CKRCV termination resister adjust
+2'b00: 100ohm
+2'b01: 200ohm
+2'b10: 1000ohm
+2'b11: Hi-Z
+[22]: CKRCV mode select
+1'b0: difference receiver mode
+1'b1: signal receiver mode (CKREFP is valid, CKREFN is disable)
+[24:23]: CKRCV amp input common voltage adjust
+2'b00: 480 mV
+2'b01: 510 mV
+2'b10: 600 mV (default)
+2'b11: 660 mV
+[28:25]: CKDRV output swing adjust, step:50 mV
+4'h0: 100 mV
+.....
+4'hf: 860 mV
+[29]: CKDRV input clock select signal,
+1'b0: ck100m_pcie from PLL
+1'b1: ckref from CKRCV
+[31:30]: CKDRV output slew rate adjusts
+2'b00: Fast
+2'b11: Slow
+
+COMBO_PIPE_PHY_REG_012
+Address: Operational Base + offset (0x0030)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2337
+
+RK3588 TRM-Part2
+Bit
+
+7:0
+
+Attr Reset Value
+
+RW 0x08
+
+Description
+su_trim_bank2
+SU adjust signal
+[2:0]: PLL KVCO adjust
+3'b000: Min
+3'b111: Max
+[3]: PLL force lock
+[24:23], [6:4]: PLL charge pump current adjusts
+5'b00000: Min
+5'b11111: Max
+[10:7]: PLL LPF R1 adjust
+3'b000: Max
+3'b111: Min
+[11]: bypass PLL power down control
+[12]: bypass ref clock detect function
+[13]: bypass vcntl detect
+[14]: bypass PLL loop divider code
+[15]: bypass ivref power down control
+[16]: bypass PLL lock detect mode of always detect
+[17]: bypass POR function
+[18]: bypass ivref power down control
+[19]: CKRCV common voltage adjust
+1'b0: floating
+1'b1: GND
+[21:20]: CKRCV termination resister adjust
+2'b00: 100ohm
+2'b01: 200ohm
+2'b10: 1000ohm
+2'b11: Hi-Z
+[22]: CKRCV mode select
+1'b0: difference receiver mode
+1'b1: signal receiver mode (CKREFP is valid, CKREFN is disable)
+[24:23]: CKRCV amp input common voltage adjust
+2'b00: 480 mV
+2'b01: 510 mV
+2'b10: 600 mV (default)
+2'b11: 660 mV
+[28:25]: CKDRV output swing adjust, step:50 mV
+4'h0: 100 mV
+.....
+4'hf: 860 mV
+[29]: CKDRV input clock select signal,
+1'b0: ck100m_pcie from PLL
+1'b1: ckref from CKRCV
+[31:30]: CKDRV output slew rate adjusts
+2'b00: Fast
+2'b11: Slow
+
+COMBO_PIPE_PHY_REG_013
+Address: Operational Base + offset (0x0034)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2338
+
+RK3588 TRM-Part2
+Bit
+
+7:0
+
+Attr Reset Value
+
+RW 0x59
+
+Description
+su_trim_bank3
+SU adjust signal
+[2:0]: PLL KVCO adjust
+3'b000: Min
+3'b111: Max
+[3]: PLL force lock
+[24:23], [6:4]: PLL charge pump current adjusts
+5'b00000: Min
+5'b11111: Max
+[10:7]: PLL LPF R1 adjust
+3'b000: Max
+3'b111: Min
+[11]: bypass PLL power down control
+[12]: bypass ref clock detect function
+[13]: bypass vcntl detect
+[14]: bypass PLL loop divider code
+[15]: bypass ivref power down control
+[16]: bypass PLL lock detect mode of always detect
+[17]: bypass POR function
+[18]: bypass ivref power down control
+[19]: CKRCV common voltage adjust
+1'b0: floating
+1'b1: GND
+[21:20]: CKRCV termination resister adjust
+2'b00: 100ohm
+2'b01: 200ohm
+2'b10: 1000ohm
+2'b11: Hi-Z
+[22]: CKRCV mode select
+1'b0: difference receiver mode
+1'b1: signal receiver mode (CKREFP is valid, CKREFN is disable)
+[24:23]: CKRCV amp input common voltage adjust
+2'b00: 480 mV
+2'b01: 510 mV
+2'b10: 600 mV (default)
+2'b11: 660 mV
+[28:25]: CKDRV output swing adjust, step:50 mV
+4'h0: 100 mV
+.....
+4'hf: 860 mV
+[29]: CKDRV input clock select signal,
+1'b0: ck100m_pcie from PLL
+1'b1: ckref from CKRCV
+[31:30]: CKDRV output slew rate adjusts
+2'b00: Fast
+2'b11: Slow
+
+COMBO_PIPE_PHY_REG_014
+Address: Operational Base + offset (0x0038)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2339
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+7:6
+
+RW 0x1
+
+5:2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+ssc_cnt_l
+PLL control SSC module period
+When the pll_ckref_inner is 100MHz/25MHz, This signal should be
+set to its default value unless the user want to change the
+31.5KHz SSC modulation frequency.
+When the pll_ckref_inner is 24MHz, this signal should be set to its
+default value unless the user want to change the 32.8KHz SSC
+modulation frequency.
+test_sel
+select the digital test signal.
+4'h0: Input Reference Clock
+4'h1: PLL Loopback Clock
+4'h2: PLL Locked
+4'h3: RX PCL enable
+4'h4: RX CDR enable
+4'h5: RX CTLE enable
+4'h6: CDR overflow
+4'h7: RX ready
+4'h8: RX LFPS idle detect
+4'h9: RX PCIE idle detect
+4'ha: RX SATA idle detect
+4'hb: RX super speed detect
+4'hc: Iddq_en
+4'hd: Rterm detect
+Others: Reserved
+rx_tseq
+USB Mode
+When asserted, it is used to instruct USB3.0 PHY to bypass
+normal operation and do a receiver equalization training. Please
+refer to PIPE3 interface and USB3.0 base spec for more detail
+information.
+en_adpt
+Adaptive Continuous Time Linear Equalizer (CTLE) enable signal
+1'b0: Disable adaptive CTLE
+1'b1: Enable adaptive CTLE
+
+COMBO_PIPE_PHY_REG_015
+Address: Operational Base + offset (0x003C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ssc_cnt_h
+PLL control SSC module period
+When the pll_ckref_inner is 100MHz/25MHz, This signal should be
+set to its default value unless the user want to change the
+7:0
+RW 0x63
+31.5KHz SSC modulation frequency.
+When the pll_ckref_inner is 24MHz, this signal should be set to its
+default value unless the user want to change the 32.8KHz SSC
+modulation frequency.
+COMBO_PIPE_PHY_REG_016
+Address: Operational Base + offset (0x0040)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2340
+
+RK3588 TRM-Part2
+Bit
+7:0
+
+Attr Reset Value
+RW 0x00
+
+Description
+pll_div_l
+PLL loop divider, valid when su_trim[14]=1, [14:10] is the
+integer number of divider factor, and [9:0] are the decimal
+fraction.
+
+COMBO_PIPE_PHY_REG_017
+Address: Operational Base + offset (0x0044)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+frez_apt_eq
+1'b0: The adaptive equalizer will be always working when the
+adaptive equalizer function is enabled.
+1'b1: The adaptive equalizer will freeze at its final result when
+7
+RW 0x0
+equalizer training pattern transmission is done.
+This signal is used in USB3.1 mode, when equalizer training
+pattern transmission is done, IP user can stop adaptive
+equalization and freeze the result.
+pll_div_h
+PLL loop divider, valid when su_trim[14]=1, [14:10] is the
+6:0
+RW 0x32
+integer number of divider factor, and [9:0] are the decimal
+fraction.
+COMBO_PIPE_PHY_REG_018
+Address: Operational Base + offset (0x0048)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+cdr_valid_sel
+7:6
+RW 0x0
+cdr data valid counter delay in pcs select.
+rx_afe_trim
+5:3
+RW 0x0
+Receiver 2nd stage equalizer res control, used to adjust pole-zero
+of RX eq.
+rx_afe_ctrim
+2:0
+RW 0x3
+Receiver 1st stage equalizer cap control, used to adjust pole-zero
+of RX EQ.
+COMBO_PIPE_PHY_REG_019
+Address: Operational Base + offset (0x004C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+com_det_once
+Disable Look for the comma location multiple times
+7
+RW 0x0
+1'b0: 5 times
+1'b1: 2 times
+sata_vlaid_sel
+6
+RW 0x1
+SATA mode rx_valid source selects
+beacon_timeout_sel
+5
+RW 0x0
+PCIe beacon timeout select
+rx_polar
+RX output polarity set
+4
+RW 0x0
+1'b0: No invert RX output data polarity
+1'b1: Invert RX output data polarity
+rx_afe_rtrim
+3:0
+RW 0x7
+Receiver 1st stage equalizer res control, used to adjust pole-zero
+of RX eq.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2341
+
+RK3588 TRM-Part2
+COMBO_PIPE_PHY_REG_020
+Address: Operational Base + offset (0x0050)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+rx_sqdet_trim_l
+RX squelch adjust
+[2:0]: squelch input filler bandwidth adjusts
+3'b000: Max bandwidth
+3'b111: Min bandwidth
+[4:3]: squelch delay adjusts
+2'b00: Max delay
+7:0
+RW 0x0B
+2'b11: Min delay
+[6:5]: amp bias adjusts
+2'b00: Max ibias
+2'b11: Min ibias
+[8:7]: squelch detect vth adjust
+2'b00: Min vth
+2'b11: Max vth
+COMBO_PIPE_PHY_REG_021
+Address: Operational Base + offset (0x0054)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+rx_adpt_eq_trim
+7:4
+RW 0x4
+[2:0]: adaptive equalizer detection threshold control
+[3]: adaptive equalizer gain control
+rx_sqdet_trim_h
+[9]: bypass rx_superspeed
+1'b1: rx_superspeed=1
+[10]: rx_superspeed function selects
+3:0
+RW 0x1
+1'b0: ~los output
+1'b1: ~los output | squelch output
+[11]: rx_pcie_idle function selects
+1'b0: ~ squelch output
+1'b1: los output
+COMBO_PIPE_PHY_REG_022
+Address: Operational Base + offset (0x0058)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+rx_adpt_eq_trim_h
+[6:4]: adaptive equalizer bandwidth control
+[8:7]: adaptive output refresh bandwidth control
+7:0
+RW 0x2c
+[9]: bypass the adaptive Cj function
+[10]: test mode selects
+[11]: Reserved
+COMBO_PIPE_PHY_REG_023
+Address: Operational Base + offset (0x005C)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2342
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+7:4
+
+RW 0x3
+
+3:0
+
+RW 0x0
+
+Description
+rx_cdr_trim_l
+[3]: CDR gain adjust
+1'b0: 1/4([4]=1), 1/8([4]=0)
+1'b1: 1/8
+[2:0]: The slew rate control for PI
+3'b000: Fast slew rate
+3'b111: Slow slew rate
+rx_los_trim
+RX los detect adjust
+[1:0]: Low vth adjust
+[2]: Reserved
+[3]: Enable signal of Los eidle reseting CDR or not
+1'b0: Los eidle not reset CDR
+1'b1: Los eidle reset CDR
+
+COMBO_PIPE_PHY_REG_024
+Address: Operational Base + offset (0x0060)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+rx_cdr_trim_h
+[4]: CDR gain adjust
+1'b0: 1/8
+1'b1: 1/4 when rx_cdr_trim[3]=1
+[5]: CDR phase path gain adjust
+1'b0: x1
+1'b1: x2
+[6]: CDR cpath bandwidth gain adjusts
+1'b0: Low bandwidth
+7:0
+RW 0x00
+1'b1: High bandwidth
+[7]: rx_rdy counter clock select
+1'b0: Ref clock
+1'b1: CDR recovery clock
+[9:8]: rx_rdy delay time select
+2'b00: 1.28us
+2'b01: 0.64us
+2'b10: 2.56us
+2'b11: 5.12us
+[11:10]: Reserved
+COMBO_PIPE_PHY_REG_025
+Address: Operational Base + offset (0x0064)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2343
+
+RK3588 TRM-Part2
+Bit
+
+7:0
+
+Attr Reset Value
+
+RW 0x00
+
+Description
+tx_trim_l
+TX adjust
+[3:0]: TX FFE adjust valid when tx_trim[4]=1
+[4]: Manual mode enable
+[5]: Force rterm detect ready
+1'b1: Force rtern_det_out=1
+[6]: Force eidle
+1'b1: txp/txm is eidle
+[7]: hi-z idle enable
+[8]: tx_pck invert enable
+[9]: MSB enable
+[10]: Bypass low resister eidle mode
+1'b0: Eidle has not hi-z mode
+1'b1: Eidle has hi-z mode
+[11]: Bypass 0.6kohm charge resister
+1'b0: 0.6kohm resister
+1'b1: 1kohm resister
+[13:12]: Rterm detect vth adjust
+2'b00: Max vth
+2'b11: Min vth
+[14]: Bypass signal of gate_tx_pck
+
+COMBO_PIPE_PHY_REG_026
+Address: Operational Base + offset (0x0068)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+tx_trim_h
+TX adjust
+[3:0]: TX FFE adjust valid when tx_trim[4]=1
+[4]: Manual mode enable
+[5]: Force rterm detect ready
+1'b1: Force rtern_det_out=1
+[6]: Force eidle
+1'b1: txp/txm is eidle
+[7]: hi-z idle enable
+[8]: tx_pck invert enable
+7:0
+RW 0x14
+[9]: MSB enable
+[10]: Bypass low resister eidle mode
+1'b0: Eidle has not hi-z mode
+1'b1: Eidle has hi-z mode
+[11]: Bypass 0.6kohm charge resister
+1'b0: 0.6kohm resister
+1'b1: 1kohm resister
+[13:12]: Rterm detect vth adjust
+2'b00: Max vth
+2'b11: Min vth
+[14]: Bypass signal of gate_tx_pck
+COMBO_PIPE_PHY_REG_027
+Address: Operational Base + offset (0x006C)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2344
+
+RK3588 TRM-Part2
+Bit
+
+7:0
+
+Attr Reset Value
+
+RW 0x00
+
+Description
+rx_trim
+[0]: rx_pck invert enable
+[1]: RX MSB enable
+[3:2]: PLL LPF C1 adjust signal
+2'b00: 20pf
+2'b01: 40pf
+2;b10: 65pf
+2'b11: 85pf
+[5:4]: PLL loop's divider factor(pre-divider) adjust signal
+2'b00, 2'b01: 1
+2'b10: 2
+2'b11: 4
+[6]: PLL LPF R1 fine-adjust signal
+1'b0: Disable(2.5kohm by step)
+1'b1: Enable(1.25kohm by step)
+[7]: Reserved
+
+COMBO_PIPE_PHY_REG_028
+Address: Operational Base + offset (0x0070)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+tx_margin
+7:5
+RW 0x0
+Tx margin control
+rterm_det_trim
+[1:0]: rterm detect pre-charge time adjust
+2'b00: 512us
+2'b11: 4096us
+4:0
+RW 0x05
+[3:2]: rterm detect post-charge time adjust
+2'b00: 8us
+2'b11: 64us
+[4]: Reserved
+COMBO_PIPE_PHY_REG_029
+Address: Operational Base + offset (0x0074)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+unused_name1_bank0
+Bit[3]: gate_tx_pck_sel length select
+7:4
+RW 0x4
+Bit[2]: Reserved
+Bit[1]: Bypass idle det in PCIe P1.1 and P1.2
+Bit[0]: SATA align detect logic output select
+bist_out_sel
+3
+RW 0x0
+Reserved
+tx_deemph
+2:0
+RW 0x0
+Tx_deemph control
+COMBO_PIPE_PHY_REG_030
+Address: Operational Base + offset (0x0078)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+testo_sel
+7:0
+RW 0x00
+pcs internal signal to testo io select
+COMBO_PIPE_PHY_REG_031
+Address: Operational Base + offset (0x007C)
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2345
+
+RK3588 TRM-Part2
+Bit
+31:8
+
+7:0
+
+Attr Reset Value
+Description
+RO 0x000000
+reserved
+register_bank0
+[0]: bypass the mode of pd_ck100m controlling CKDRV
+1'b0: CKDRV is on only in PCIE mode
+1'b1: CKDRV is controlled by ckref_src[1:0]
+[2:1]: CKDRV output slew rate adjusts
+2'b00: Fast
+2'b11: Slow
+[3]: 50ohm termination disable signal in CKREP/N TX mode
+1'b0: Not disable
+1'b1: Disable mode
+[5:4]: Select signal of SSC direction
+2'b00: Up spread spectrum
+2'b01: Down spread spectrum
+2'b10: Illegal
+RW 0x10
+2'b11: Intermediate spread spectrum
+[7:6]: SSC offset compensation
+2'b00: 0ppm
+2'b01: +500ppm
+2'b10, 2'b11: -500ppm
+[8]: pll_rdy delay control when rate change
+1'b0: Delay 3*TX_PCK relative to the falling edge of gate_tx_pck
+1'b1: Delay about 20us relative to the falling edge of gate_tx_pck
+[9]: Select pll_lock to TX/RX
+1'b0: pll_lock_txrx is same to pll_lock_pcs
+1'b1: pll_lock_txrx is not controled by gate_tx_pck
+[12:10]: PLL KVCO fine tuning signals
+[13]: PLL control SSC module period
+[15:14]: Reserved
+
+COMBO_PIPE_PHY_REG_032
+Address: Operational Base + offset (0x0080)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2346
+
+RK3588 TRM-Part2
+Bit
+
+7:0
+
+Attr Reset Value
+
+RW 0x00
+
+Description
+register_bank1
+[0]: bypass the mode of pd_ck100m controlling CKDRV
+1'b0: CKDRV is on only in PCIE mode
+1'b1: CKDRV is controlled by ckref_src[1:0]
+[2:1]: CKDRV output slew rate adjusts
+2'b00: Fast
+2'b11: Slow
+[3]: 50ohm termination disable signal in CKREP/N TX mode
+1'b0: Not disable
+1'b1: Disable mode
+[5:4]: Select signal of SSC direction
+2'b00: Up spread spectrum
+2'b01: Down spread spectrum
+2'b10: Illegal
+2'b11: Intermediate spread spectrum
+[7:6]: SSC offset compensation
+2'b00: 0ppm
+2'b01: +500ppm
+2'b10, 2'b11: -500ppm
+[8]: pll_rdy delay control when rate change
+1'b0: Delay 3*TX_PCK relative to the falling edge of gate_tx_pck
+1'b1: Delay about 20us relative to the falling edge of gate_tx_pck
+[9]: Select pll_lock to TX/RX
+1'b0: pll_lock_txrx is same to pll_lock_pcs
+1'b1: pll_lock_txrx is not controled by gate_tx_pck
+[12:10]: PLL KVCO fine tuning signals
+[13]: PLL control SSC module period
+[15:14]: Reserved
+
+COMBO_PIPE_PHY_REG_033
+Address: Operational Base + offset (0x0084)
+Bit Attr Reset Value
+31:7 RO 0x0000000
+reserved
+COMMA_DET
+6
+RO 0x0
+Comma detect
+COMMA_RECEIVED
+5
+RO 0x0
+Comma received
+CDR_DATA_VALID
+4
+RO 0x0
+CDR data valid
+RX_SUPERSPEED
+3
+RO 0x0
+RX super speed
+DET_FINISH_PUSE
+2
+RO 0x0
+Detection finish
+SKP_REMOVED
+1
+RO 0x0
+SKP removed
+SKP_INSERTED
+0
+RO 0x0
+SKP inserted
+COMBO_PIPE_PHY_REG_034
+Address: Operational Base + offset (0x0088)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+EB_OF
+7
+RO 0x0
+Ebuffer overflow
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+Description
+
+2347
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+6
+
+RO
+
+0x0
+
+5:4
+
+RO
+
+0x0
+
+3:2
+
+RO
+
+0x0
+
+1:0
+
+RO
+
+0x0
+
+Description
+EB_UF
+Ebuffer underflow
+DISPARITY_ERR
+Dsiparity error
+INVALID_CODE
+Invalid code
+BRST_SYM
+BRST_SYM
+
+COMBO_PIPE_PHY_REG_035
+Address: Operational Base + offset (0x008C)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+NO_ERR
+7
+RO 0x0
+NO_ERR
+BIST_RESULT
+6
+RO 0x0
+BIST result
+TEST_DONE
+5
+RO 0x0
+Test done
+RX_ELECIDLE_O
+4
+RO 0x0
+RX electrical idle
+BIST_DONE
+3
+RO 0x0
+BIST done
+BIST_TIMEOUT
+2
+RO 0x0
+BIST timeout
+DET_FINSH
+1
+RO 0x0
+Detect finish
+DET_RESULT
+0
+RO 0x0
+Detect result
+COMBO_PIPE_PHY_REG_036
+Address: Operational Base + offset (0x0090)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+ERR_CNT
+7:0
+RO 0x00
+Error count
+COMBO_PIPE_PHY_REG_037
+Address: Operational Base + offset (0x0094)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+MAX_JITTER
+7:2
+RO 0x00
+Max jitter
+CDR_FL_EN
+1
+RO 0x0
+CDR_FL_EN
+CDR_FREQ_LK
+0
+RO 0x0
+CDR frequency lock
+COMBO_PIPE_PHY_REG_038
+Address: Operational Base + offset (0x0098)
+Bit Attr Reset Value
+31:7 RO 0x0000000
+reserved
+USB3_MODE
+6
+RO 0x0
+USB3_MODE
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+Description
+
+Description
+
+Description
+
+2348
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+5
+
+RO
+
+0x0
+
+4
+
+RO
+
+0x0
+
+3
+
+RO
+
+0x0
+
+2
+
+RO
+
+0x0
+
+1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+SATA_MODE
+SATA_MODE
+PCIE_MODE
+PCIE_MODE
+BEACON_LFPS
+BEACON_LFPS
+TX_DET_RX_0
+TX_DET_RX_0
+GAT_PLL_CLK
+GAT_PLL_CLK
+SS_MODULE
+SS_MODULE
+
+COMBO_PIPE_PHY_REG_039
+Address: Operational Base + offset (0x009C)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+RATE_1_O
+7
+RO 0x0
+RATE_1_O
+RATE_0_O
+6
+RO 0x0
+RATE_0_O
+RATE_TX_1
+5
+RO 0x0
+RATE_TX_1
+RATE_TX_0
+4
+RO 0x0
+RATE_TX_0
+RATE_RX_1
+3
+RO 0x0
+RATE_RX_1
+RATE_RX_0
+2
+RO 0x0
+RATE_RX_0
+PWON_PLL_O
+1
+RO 0x0
+PWON_PLL_O
+TXPLL_LOCK
+0
+RO 0x0
+TX PLL lock
+COMBO_PIPE_PHY_REG_040
+Address: Operational Base + offset (0x00A0)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+PWON_IREF
+7
+RO 0x0
+PWON_IREF
+PWON_LFPS_DET
+6
+RO 0x0
+PWON_LFPS_DET
+PWON_IDLE_DET
+5
+RO 0x0
+PWON_IDLE_DET
+PWON_OOB_DET
+4
+RO 0x0
+PWON_OOB_DET
+PWON_HS_DET
+3
+RO 0x0
+PWON_HS_DET
+PWON_RX_BUS
+2
+RO 0x0
+PWON_TX_BUF
+PWON_TX_BUF
+1
+RO 0x0
+PWON_TX_BUF
+PWON_CDR_O
+0
+RO 0x0
+PWON_CDR_O
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+Description
+
+2349
+
+RK3588 TRM-Part2
+
+COMBO_PIPE_PHY_REG_041
+Address: Operational Base + offset (0x00A4)
+Bit Attr Reset Value
+31:7 RO 0x0000000
+reserved
+RX_DETECEED
+6
+RO 0x0
+RX_DETECEED
+RX_LFPS_I
+5
+RO 0x0
+RX_LFPS_I
+RX_SUPERSPEED
+4
+RO 0x0
+RX_SUPERSPEED
+RX_SATA_IDLE
+3
+RO 0x0
+RX_SATA_IDLE
+RX_PCIE_IDLE
+2
+RO 0x0
+RX_PCIE_IDLE
+RX_ELECIDLE
+1
+RO 0x0
+RX_ELECIDLE
+RX_VALID
+0
+RO 0x0
+RX_VALID
+COMBO_PIPE_PHY_REG_042
+Address: Operational Base + offset (0x00A8)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+REFCK_DET_OUT
+7:6
+RO 0x0
+REFCK_DET_OUT
+RTERM_DET_OUT
+5
+RO 0x0
+RTERM_DET_OUT
+RX_ADPE_EQ_FL
+4
+RO 0x0
+RX_ADPE_EQ_FL
+RX_ADPT_EQ_TRIM
+3:0
+RO 0x0
+RX_ADPT_EQ_TRIM
+COMBO_PIPE_PHY_REG_043
+Address: Operational Base + offset (0x00AC)
+Bit Attr Reset Value
+31:7 RO 0x0000000
+reserved
+BERC_SYM
+6:5
+RO 0x0
+BERC_SYM
+LP_RX_EN
+4
+RO 0x0
+LP_RX_EN
+LP_SLAVE_EN
+3
+RO 0x0
+LP_SLAVE_EN
+RX_ADPT_EQ_CTRIM
+2:0
+RO 0x0
+RX_ADPT_EQ_CTRIM
+COMBO_PIPE_PHY_REG_044
+Address: Operational Base + offset (0x00B0)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+RX_DEBUG_R
+7:0
+RO 0x00
+RX_DEBUG_R
+
+Description
+
+Description
+
+Description
+
+Description
+
+COMBO_PIPE_PHY_REG_045
+Address: Operational Base + offset (0x00B4)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2350
+
+RK3588 TRM-Part2
+Bit
+31:8
+7:0
+
+Attr Reset Value
+RO 0x000000
+reserved
+UNUSED_DEBUG
+RO 0x00
+RX_DEBUG_R
+
+Description
+
+COMBO_PIPE_PHY_REG_046
+Address: Operational Base + offset (0x00B8)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+unused_name1_bank1
+bit[5]: phy clk_src source selects
+1'b0: Source from APB
+1'b1: Source from SOC
+bit[4:3]: phy clk_src control
+bit[2]: IP BIST_MODE source selects
+7:0
+RW 0x00
+1'b0: Source from APB
+1'b1: Source from SOC
+bit[1:0]: rx_supperspeed delay selects:
+2'b00: Delay 2 reference clock cycles
+2'b01: Delay 6 reference clock cycles
+2'b10: Delay 8 reference clock cycles
+2'b11: Delay 10 reference clock cycles
+COMBO_PIPE_PHY_REG_047
+Address: Operational Base + offset (0x00BC)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+unused_name1_bank2
+bit[7]: bypass PHY power down in p1.2 with PCIe mode
+1'b0: Disable
+1'b1: Enable
+bit[6]: mac_interface module data valid input source selects
+1'b0: CDR lock from PMA
+1'b1: Data valid generation by cdr_ctrl module
+bit[5]: PMA tx_deemph control source selects
+1'b0: Source from PCS
+1'b1: From APB config
+bit[4]: PMA tx_margin control source selects
+1'b0: Source from PCS
+7:0
+RW 0x00
+1'b1: From APB config
+bit[3]: PMA tx_swing control source selects
+1'b0: Source from PCS
+1'b1: From APB config
+bit[2]: Reserved
+bit[1]: RX_STANDY_O output selects
+1'b0: rx_standby_o active when rx_standby assert
+1'b1: rx_standby_o normal output when rx_standby dis-assert
+bit[0]: Bypass com_det module sata_mode input when PHY in
+general serdes model
+1'b0: Not SATA mode
+1'b1: SATA mode
+COMBO_PIPE_PHY_REG_048
+Address: Operational Base + offset (0x00C0)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2351
+
+RK3588 TRM-Part2
+Bit
+7:0
+
+Attr Reset Value
+RW 0x00
+
+Description
+register_bank2
+Reserved
+
+COMBO_PIPE_PHY_REG_049
+Address: Operational Base + offset (0x00C4)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+register_bank3
+7:0
+RW 0x00
+Reserved
+
+Description
+
+16.3.4 PCIe 3.0 PHY Registers Summary
+N/A
+
+16.3.5 PCIe 3.0 PHY Detail Registers Description
+N/A
+
+16.4 Interface Description
+Table 16-3 PCIe 3.0 Analog IO Port 0 Interface Description
+Module Pin
+ref_pad_clk_
+m
+ref_pad_clk_
+p
+
+Dir
+
+Pin Name
+
+IOMUX Setting
+
+I
+
+PCIE30_PORT0_REF_CLKN
+
+N/A
+
+I
+
+PCIE30_PORT0_REF_CLKP
+
+resref
+
+I/O
+
+PCIE30_PORT0_RESREF
+
+N/A
+
+rx0_m
+
+I
+
+PCIE30_PORT0_RX0N
+
+N/A
+
+rx0_p
+
+I
+
+PCIE30_PORT0RX0P
+
+N/A
+
+rx1_m
+
+I
+
+PCIE30_PORT0_RX1N
+
+N/A
+
+rx1_p
+
+I
+
+PCIE30_PORT0_RX1P
+
+N/A
+
+tx0_m
+
+O
+
+PCIE30_PORT0_TX0N
+
+N/A
+
+tx0_p
+
+O
+
+PCIE30_PORT0_TX0P
+
+N/A
+
+tx1_m
+
+O
+
+PCIE30_PORT0_TX1N
+
+N/A
+
+tx1_p
+
+O
+
+PCIE30_PORT0_TX1P
+
+N/A
+
+vp/vptxX/vpd
+ig
+
+I/O
+
+PCIE30_PORT0_AVDD0V75
+
+vph
+
+I/O
+
+PCIE30_PORT0_AVDD1V8
+
+N/A
+
+N/A
+N/A
+
+Notes: I=input, O=output, I/O=input/output, bidirectional.
+
+Table 16-4 PCIe 3.0 Analog IO Port 1 Interface Description
+Module Pin
+ref_pad_clk_
+m
+ref_pad_clk_
+p
+
+Dir
+
+Pin Name
+
+IOMUX Setting
+
+I
+
+PCIE30_PORT1_REF_CLKN
+
+I
+
+PCIE30_PORT1_REF_CLKP
+
+resref
+
+I/O
+
+PCIE30_PORT1_RESREF
+
+N/A
+
+rx0_m
+
+I
+
+PCIE30_PORT1_RX0N
+
+N/A
+
+rx0_p
+
+I
+
+PCIE30_PORT1_RX0P
+
+N/A
+
+rx1_m
+
+I
+
+PCIE30_PORT1_RX1N
+
+N/A
+
+rx1_p
+
+I
+
+PCIE30_PORT1_RX1P
+
+N/A
+
+tx0_m
+
+O
+
+PCIE30_PORT1_TX0N
+
+N/A
+
+tx0_p
+
+O
+
+PCIE30_PORT1_TX0P
+
+N/A
+
+tx1_m
+
+O
+
+PCIE30_PORT1_TX1N
+
+N/A
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+N/A
+N/A
+
+2352
+
+RK3588 TRM-Part2
+Module Pin
+
+Dir
+
+tx1_p
+
+O
+
+PCIE30_PORT1_TX1P
+
+Pin Name
+
+vp/vptxX/vpd
+ig
+
+I/O
+
+PCIE30_PORT1_AVDD0V75
+
+vph
+
+I/O
+
+PCIE30_PORT1_AVDD1V8
+
+IOMUX Setting
+N/A
+N/A
+N/A
+
+Notes: I=input, O=output, I/O=input/output, bidirectional.
+
+Table 16-5 Combo PIPE PHY 0 Analog IO Interface Description
+Module Pin
+
+Dir
+
+Pin Name
+
+IOMUX Setting
+
+AVDH
+
+I/O
+
+PCIE20_SATA30_0_AVDD_1V8
+
+N/A
+
+AVDL
+
+I/O
+
+PCIE20_SATA30_0_AVDD_0V85
+
+N/A
+
+CKREFN
+
+I/O
+
+PCIE20_0_REFCLKN
+
+N/A
+
+CKREFP
+
+I/O
+
+PCIE20_0_REFCLKP
+
+N/A
+
+RXN
+
+I
+
+PCIE20_0_RXN/SATA30_0_RXN
+
+N/A
+
+RXP
+
+I
+
+PCIE20_0_RXP/SATA30_0_RXP
+
+N/A
+
+TXN
+
+O
+
+PCIE20_0_TXN/SATA30_0_TXN
+
+N/A
+
+TXP
+
+O
+
+PCIE20_0_TXP/SATA30_0_TXP
+
+N/A
+
+Notes: I=input, O=output, I/O=input/output, bidirectional.
+
+Table 16-6 Combo PIPE PHY 1 Analog IO Interface Description
+Module Pin
+
+Dir
+
+AVDH
+
+I/O
+
+PCIE20_SATA30_1_AVDD_1V8
+
+Pin Name
+N/A
+
+IOMUX Setting
+
+AVDL
+
+I/O
+
+PCIE20_SATA30_1_AVDD_0V85
+
+N/A
+
+CKREFN
+
+I/O
+
+PCIE20_1_REFCLKN
+
+N/A
+
+CKREFP
+
+I/O
+
+PCIE20_1_REFCLKP
+
+N/A
+
+RXN
+
+I
+
+PCIE20_1_RXN/SATA30_1_RXN
+
+N/A
+
+RXP
+
+I
+
+PCIE20_1_RXP/SATA30_1_RXP
+
+N/A
+
+TXN
+
+O
+
+PCIE20_1_TXN/SATA30_1_TXN
+
+N/A
+
+TXP
+
+O
+
+PCIE20_1_TXP/SATA30_1_TXP
+
+N/A
+
+Notes: I=input, O=output, I/O=input/output, bidirectional.
+
+Table 16-7 Combo PIPE PHY 2 Analog IO Interface Description
+Module Pin
+
+Dir
+
+AVDH
+
+I/O
+
+PCIE20_SATA30_USB30_2_AVDD_1V8
+
+Pin Name
+N/A
+
+IOMUX Setting
+
+AVDL
+
+I/O
+
+PCIE20_SATA30_USB30_2_AVDD_0V85
+
+N/A
+
+CKREFN
+
+I/O
+
+PCIE20_2_REFCLKN
+
+N/A
+
+CKREFP
+
+I/O
+
+PCIE20_2_REFCLKP
+
+N/A
+
+RXN
+
+I
+
+PCIE20_2_RXN/SATA30_2_RXN/USB30_SSRXN
+
+N/A
+
+RXP
+
+I
+
+PCIE20_2_RXP/SATA30_2_RXP/USB30_SSRXP
+
+N/A
+
+TXN
+
+O
+
+PCIE20_2_TXN/SATA30_2_TXN/USB30_SSTXN
+
+N/A
+
+TXP
+
+O
+
+PCIE20_2_TXP/SATA30_2_TXP/USB30_SSTXP
+
+N/A
+
+Notes: I=input, O=output, I/O=input/output, bidirectional.
+
+16.5 Application Notes
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2353
+
+RK3588 TRM-Part2
+
+16.5.1 Subsystem Protocol Link Mapping
+Table 16-8 Protocol Link Mapping
+Controller
+Name
+
+PCIE30X4
+DM
+
+Physical Link Option
+
+PCIE30_PORT0_LANE0
+PCIE30_PORT0_LANE1
+
+PCIe
+Link
+
+REF CLKP/N
+
+X4G3
+
+PCIE30_PORT0_REF_CLKP/N
+
+3’b011
+
+3’b001
+
+Note
+
+3’b000
+
+3’b010
+
+Config
+1
+○
+3
+
+Config
+2
+
+Config
+3
+
+Config
+4
+
+Config
+5
+
+√
+
+×
+
+×
+
+×
+
+×
+
+N/A
+
+PCIE30_PORT0_LANE0
+PCIE30_PORT0_LANE1
+PCIE30_PORT0_LANE0
+
+4
+X2G3○
+
+PCIE30_PORT0_REF_CLKP/N
+
+2
+O○
+
+√
+
+×
+
+×
+
+√
+
+4
+X1G3○
+
+PCIE30_PORT0_REF_CLKP/N
+
+2
+O○
+
+2
+O○
+
+√
+
+√
+
+2
+O○
+
+PCIE30_PORT1_LANE0
+PCIE30_PORT1_LANE1
+PCIE30_PORT1_LANE0
+
+X2G3
+
+PCIE30_PORT1_REF_CLKP/N
+
+×
+
+√
+
+×
+
+√
+
+×
+
+X1G3
+
+PCIE30_PORT1_REF_CLKP/N
+
+×
+
+2
+O○
+
+√
+
+2
+O○
+
+√
+
+PCIE30_PORT0_LANE1
+
+X1G3
+
+PCIE30_PORT0_REF_CLKP/N
+
+×
+
+×
+
+√
+
+√
+
+×
+
+3’b1xx
+
+COMBO_PHY_1_LANE0
+
+X1G2
+
+PCIE20_1_REFCLKP/N
+
+1
+√○
+
+1
+√○
+
+1
+√○
+
+1
+√○
+
+1
+√○
+
+3’b000
+
+SATA30_1
+
+COMBO_PHY_1_LANE0
+
+PCIE30X1_1
+RC
+
+PCIE30_PORT1_LANE1
+COMBO_PHY_2_LANE0
+
+PCIE30X2_*
+
+PCIE30X1_0_*
+
+N/A
+
+TBD
+
+1
+√○
+
+1
+√○
+
+1
+√○
+
+1
+√○
+
+1
+√○
+
+3’bx10
+
+X1G3
+
+PCIE30_PORT1_REF_CLKP/N
+
+PCIE30X1_1_*
+
+×
+
+×
+
+√
+
+×
+
+√
+
+3’b1xx
+
+X1G2
+
+PCIE20_2_REFCLKP/N
+
+1
+√○
+
+1
+√○
+
+1
+√○
+
+1
+√○
+
+1
+√○
+
+3’b000
+
+1
+√○
+○
+√1
+
+1
+√○
+○
+√1
+
+1
+√○
+○
+√1
+
+1
+√○
+
+3’bx10
+
+1
+√○
+
+1
+√○
+○
+√1
+
+SATA30_2
+
+COMBO_PHY_2_LANE0
+
+N/A
+
+TBD
+
+USB30OTG_2
+
+COMBO_PHY_2_LANE0
+
+N/A
+
+N/A
+
+PCIE30X1_2
+RC
+SATA30_0
+
+COMBO_PHY_0_LANE0
+
+PCIE20_0_REFCLKP/N
+
+PCIE30X1_2_*
+
+1
+√○
+
+1
+√○
+
+1
+√○
+
+1
+√○
+
+1
+√○
+
+3’bx00
+
+N/A
+
+TBD
+
+1
+√○
+
+1
+√○
+
+1
+√○
+
+1
+√○
+
+1
+√○
+
+3’bx10
+
+X1G2
+
+3’bx01
+
+○
+
+5
+
+COMBO_PHY_0_LANE0
+
+{pcie_1ln_sel,pipe_phymode}
+
+PCIE30X1_0
+RC
+
+PCIE30X4_*
+
+pcie30_phy_mode[2:0]
+3’b1xx
+
+PCIE30_PORT1_REF_CLKP/N
+
+6
+PCIE30_PORT1_LANE0(2)○
+6
+PCIE30_PORT1_LANE1(3)○
+
+PCIE30X2
+RC
+
+Digital GPIO
+
+Note：
+○
+1 ：The pcie_30_phy_mode is ignored by the tagged Configuration, it is only decided by
+{pcie_1ln_sel,pipe_phymode}.
+○
+2 : The tagged link is down width of an upper link width.
+○
+3 : In this configuration, if the link width down to X2 or X1, both of the reference clocks still need to be
+driven and should be from the same clock generator.
+○
+4 : If this link is active and regarded as Endpoint function, then this *PORT0* can’t be bifurcated.
+○
+5 : The pcie_1ln_sel stands for pcie_1l0_sel and pcie_1l1_sel located in PD PHP GRF, and for COMBO PHY 0,
+the pcie_1l2_sel is reserved. The pcie_1ln_sel is only valid in PCIe scenario.
+○
+6 : In X4 link, the PORT 1 Lane0 aka Lane2, and PORT 1 Lane1 aka Lane3
+
+Table 16-9 Name Mapping of Controller
+Controller Number
+
+Name
+
+0
+1
+2
+3
+4
+
+PCIe30X4 DM
+PCIe30X2 RC
+PCIe30X1_0 RC
+PCIe30X1_1 RC
+PCIe30X1_2 RC
+
+Aka
+PCIe3_4L
+PCIe3_2L
+PCIe3_1L0
+PCIe3_1L1
+PCIe3_1L2
+
+Table 16-10 Link IO Name Mapping
+PHY IO Name
+COMBO_PHY_0_LANE0
+COMBO_PHY_1_LANE0
+COMBO_PHY_2_LANE0
+
+PCIe
+1L2
+1L0
+1L1
+
+PCIe IO
+PCIE20_0_{TX,RX}P/N
+PCIE20_1_{TX,RX}P/N
+PCIE20_2_{TX,RX}P/N
+
+SATA IO
+SATA30_0_{TX,RX}P/N
+SATA30_1_{TX,RX}P/N
+SATA30_2_{TX,RX}P/N
+
+USBOTG IO
+
+USB30_SS{TX,RX}P/N
+
+16.5.2 Combo PHY Application Note
+16.5.2.1 Operation Mode Support
+The following mode are supported for IP operation, IP configuration other than this list are
+not supported
+Table 16-11 PHY operation mode
+
+PHY_MODE
+
+RATE
+00
+
+00
+01
+
+BUS_WIDTH
+00
+01
+00
+01
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+PHY Operation Mode
+PCIe Gen1, 32bit, PCLK=62.5M
+N/A
+PCIe Gen2, 32bit, PCLK=125M
+N/A
+
+2354
+
+RK3588 TRM-Part2
+
+PHY_MODE
+
+RATE
+
+01
+01
+
+00
+00
+
+BUS_WIDTH
+
+PHY Operation Mode
+
+00
+USB3.0, 32bit, PCLK=125M
+01
+N/A
+00
+N/A
+00
+01
+SATA Gen1, 16bit, PCLK=75M
+00
+N/A
+10
+01
+01
+SATA Gen2, 16bit, PCLK=150M
+00
+N/A
+10
+01
+SATA Gen3, 16bit, PCLK=300M
+⚫ PHY_MODE is configured by PIPE_PHY_GRF_PIPE_CON0.pipe_phymode
+⚫ RATE is controlled by protocol controller or can be configured
+PIPE_PHY_GRF_PIPE_CON0.pipe_rate when override is enabled
+⚫ BUS_WIDTH is controlled by protocol controller or can be configured
+PIPE_PHY_GRF_PIPE_CON0.pipe_databuswidth when override is enabled
+
+16.5.2.2 Power Down Mode
+Power down control signals to individual analog modules are generated based on PWDN[1:0]
+setting from PIPE inputs as shown in below table. An override function is provided for debug
+purpose, see Multi-PHY register list. (√ – active; ╳– power down)
+Table 16-12 PCIE power down mode
+PWDN[3:0]
+0000
+
+TX_ELECIDLE
+TX_Buffer
+RX_Buffer
+CDR
+TX_PLL
+-√
+√
+√
+√
+0(illegal)
+√
+√
+√
+√
+0001
+╳
+1
+√
+√
+√
+╳
+╳
+0(illegal)
+√
+√
+0010
+╳
+╳
+╳
+1
+√
+╳
+╳
+╳
+0
+√
+0011
+╳
+╳
+╳
+╳
+1
+╳
+╳
+╳
+0(illegal)
+√
+1--╳
+╳
+╳
+╳
+1
+In PCIe mode, power for IVREF and PCIe idle detector are always on, while power for LFPS,
+1.5G SATA idle and 3G/6G SATA idle detectors are always off, and power of Rx buffer is off
+when RX_STANDBY is high.
+Note: If TX_ELECIDLE(pipe_txelecidle) and TX_COMPLIANCE(pipe_txcompliance) is both
+asserted, all powers are off.
+Table 16-13 USB3 power down mode
+PWDN[3:0]
+0000
+
+TX_ELECIDLE
+TX_Buffer
+RX_Buffer
+CDR
+TX_PLL
+-√
+√
+√
+√
+╳
+√
+0
+√
+√
+0001
+╳
+1
+√
+√
+√
+√
+╳
+0
+√
+√
+0010
+√
+╳
+1
+√
+√
+√
+╳
+╳
+0
+√
+0011
+╳
+√
+╳
+╳
+1
+In USB3.0 mode, power for IVREF and LFPS detector are always on, while power for PCIe
+idle, 1.5G SATA idle and 3G/6G SATA idle detectors are always off, and power of LFPS
+detector and power of Rx buffer are turned off if termination is not on.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2355
+
+RK3588 TRM-Part2
+Table 16-14 SATA power down mode
+PWDN[3:0]
+0000
+
+TX_ELECIDLE
+TX_Buffer
+RX_Buffer
+CDR
+TX_PLL
+-√
+√
+√
+√
+╳
+0(illegal)
+√
+√
+√
+0001
+╳
+╳
+1
+√
+√
+╳
+╳
+0(illegal)
+√
+√
+0011
+╳
+╳
+╳
+1
+√
+╳
+0(illegal)
+√
+√
+√
+0101
+╳
+╳
+1
+√
+√
+╳
+╳
+╳
+0(illegal)
+√
+0111
+╳
+╳
+╳
+╳
+1
+In SATA mode, power for IVREF and 1.5G SATA idle detector are always on, while power for
+LFPS and PCIE idle detectors are always off, and power of Rx buffer is off when
+RX_STANDBY is high.
+The PWDN is controlled by protocol controller default, it also can be controlled by
+PIPE_PHY_GRF_PIPE_CON0.pipe_powerdown when override is enabled.
+
+16.5.2.3 Reference Clock
+
+Combo PIPE PHY’s reference clock source can be selected from either PLL_CKREF_INNER or
+CKREFP/CKREFN, according to the status CKREF_SRC[1:0] after the PHY de-asserted reset.
+The differential pair CKREFP/N can be configured as either reference clock input or reference
+clock output, according to CKREF_SRC[1]
+Configure the register signal su_trim[29] to select reference clock(ckref) or 100MHz clock
+(ck100m_pcie) from PLL to drive to CKREFP/N
+The CKREF_SRC is controlled by PIPE_PHY_GRF_PIPE_CON3.phy_clk_ref_src, and the
+PIPE_PHY_GRF_PIPE_CON3.phy_clk_sel is used to set the frequency of the selected
+reference clock.
+The PLL_CKREF_INNER is derived by SoC internal CRU, refers to CRU for detail
+configurations to generate the appropriate reference clock.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2356
+
+RK3588 TRM-Part2
+CKREF_SRC[0] & ~CKREF_SRC[1]
+
+PLL_CKREF_INNER
+0
+MUX
+
+CKREFP
+CKRCV
+
+CK_SYS_CKREF
+PLL
+
+Buffer
+
+1
+
+CKREFP
+
+MUX
+
+1
+CKDRV
+
+0
+ck100m_pcie
+
+CKREF_SRC[1]
+
+~CKR EF_SRC[1]
+&CKREF_SRC[0]
+
+su_trim[29]
+
+Fig. 16-7 Reference Clock Structure of Combo PIPE PHY
+
+16.5.3 PCIe 3.0 PHY Application Note
+16.5.3.1 Aggregation and Bifurcation
+
+The PCIe 3.0 PCS can be connected to up to 2 PHYs, so that the number of lanes on the
+PCIe 3.0 PCS equals the cumulative number of lanes on the PHYs. This feature is referred to
+as PHY aggregation.
+The PCIe 3.0 PCS lanes can be configured to operate as one or more links with each link
+configured to operate at a different rate (pipe_laneX_rate) and in a different protocol
+(pipe_laneX_protocol), provided the PHY supports such a bifurcation configuration. Each
+PCIe 3.0 PCS lane can be independently configured to be part of a particular link using the
+pipe_laneX_phy_src_sel input.
+In current design subsystem, aggregation and bifurcation is automatically implemented by
+configuring the pcie30_phy_mode, it is no necessary do other configuration by default.
+The pipe_laneX_phy_src_sel changed depends on the pcie30_phy_mode, so any changes to
+pcie30_phy_mode must be followed by phy_reset
+(PHPTOPSOFTRST_CON00.resetn_pcie30_phy) assertion.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2357
+
+RK3588 TRM-Part2
+
+PCIe3.0 PIPE Wrapper
+
+lane 0
+lane 1
+PCIe30X4
+DM
+
+lane 2
+
+lane0
+
+lane 3
+PHY0
+
+PCIe30X1_0
+RC
+
+lane 0
+
+lane1
+
+lane 0
+PCIe30X2
+RC
+
+lane0/lane2
+
+lane 1
+PHY1
+
+PCIe30X1_1
+RC
+
+lane 0
+
+lane1/lane3
+
+Fig. 16-8 Full Mapped Interconnection of PCIe 3.0 PHY
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2358
+
+RK3588 TRM-Part2
+
+PCIe3.0 PIPE Wrapper
+
+lane 0
+lane 1
+PCIe30X4
+DM
+
+lane 2
+
+lane0
+
+port0_lane 0
+
+lane 3
+PHY0
+
+PCIe30X1_0
+RC
+
+lane 0
+
+lane 0
+PCIe30X2
+RC
+
+lane1
+
+port0_lane 1
+
+lane0/lane2
+
+port1_lane0
+
+lane 1
+PHY1
+
+PCIe30X1_1
+RC
+
+lane 0
+
+lane1/lane3
+
+port1_lane1
+
+Fig. 16-9 Config1 -- Aggregation of PCIe 3.0 PHY0 and PHY1
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2359
+
+RK3588 TRM-Part2
+
+PCIe3.0 PIPE Wrapper
+
+lane 0
+lane 1
+PCIe30X4
+DM
+
+lane 2
+
+lane0
+
+port0_lane 0
+
+lane 3
+PHY0
+
+PCIe30X1_0
+RC
+
+lane 0
+
+lane 0
+PCIe30X2
+RC
+
+lane1
+
+port0_lane 1
+
+lane0/lane2
+
+lane 1
+PHY1
+
+PCIe30X1_1
+RC
+
+lane 0
+
+lane1/lane3
+
+port1_lane1
+
+Fig. 16-10 Config2 -- Non-Aggregation and Non-Bifurcation of PHY0 and PHY1
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2360
+
+RK3588 TRM-Part2
+
+PCIe3.0 PIPE Wrapper
+
+lane 0
+lane 1
+PCIe30X4
+DM
+
+lane 2
+
+lane0
+
+port0_lane 0
+
+lane 3
+PHY0
+
+PCIe30X1_0
+RC
+
+lane 0
+
+lane1
+
+lane 0
+PCIe30X2
+RC
+
+lane0/lane2
+
+lane 1
+PHY1
+
+PCIe30X1_1
+RC
+
+lane 0
+
+lane1/lane3
+
+port1_lane1
+
+Fig. 16-11 Config3 -- Bifurcation for Both PHY0 and PHY1
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2361
+
+RK3588 TRM-Part2
+
+PCIe3.0 PIPE Wrapper
+
+lane 0
+lane 1
+PCIe30X4
+DM
+
+lane 2
+
+lane0
+
+port0_lane 0
+
+lane 3
+PHY0
+
+PCIe30X1_0
+RC
+
+lane 0
+
+lane1
+
+lane 0
+PCIe30X2
+RC
+
+port0_lane 1
+
+lane0/lane2
+
+lane 1
+PHY1
+
+PCIe30X1_1
+RC
+
+lane 0
+
+lane1/lane3
+
+port1_lane1
+
+Fig. 16-12 Config4 -- Only PHY0 Bifurcation
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2362
+
+RK3588 TRM-Part2
+
+PCIe3.0 PIPE Wrapper
+
+lane 0
+lane 1
+PCIe30X4
+DM
+
+lane 2
+
+lane0
+
+lane 3
+PHY0
+
+PCIe30X1_0
+RC
+
+lane 0
+
+lane1
+
+lane 0
+PCIe30X2
+RC
+
+lane0/lane2
+
+lane 1
+PHY1
+
+PCIe30X1_1
+RC
+
+lane 0
+
+lane1/lane3
+
+Fig. 16-13 Config5 -- Only PHY1 Bifurcation
+
+16.5.3.2 PHY Power-Up
+
+Power up the vp* and vph power supplies in any order and then proceed with the PHY reset
+and initialization sequence (vp* indicates the grouping of all core supplies; vp, vpdig, and
+vptxX).
+⚫ The state of the PHY is unknown after power up but before assertion of reset. The PHY
+may exhibit unwanted behavior such as TX enabled, or RX terminations activated.
+⚫ While the unknown state is undesirable, the PHY has been designed to prevent damage
+if it is left in this state.
+⚫ Use a ramp time of no faster than 10 μs and a rate no faster than (supply voltage)/10
+us. The ramp requirement is set based on our ESD clamp triggering time.
+
+16.5.3.3 PHY Initialization and Reset Sequences
+
+During PHY reset and initialization sequence, the PHY performs power up circuit calibrations
+and enters the configuration mode defined by the primary inputs. The PHY does not require
+any clocks to be supplied to enter the reset state (assertion of phy_reset). Exit from the
+reset state is indicated by de-assertion of txX_ack/rxX_ack and requires a reference clock to
+be supplied and ref_clk_en input to be asserted.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2363
+
+RK3588 TRM-Part2
+When phy_reset is asserted, the TX and RX terminations are disabled and txX_p/m are tristated for all lanes of the PHY. In addition to global phy_reset, txX_reset/rxX_reset inputs
+can be used to reset individual lanes in the PHY. When txX_reset is asserted, the txX_pstate
+is similar to P2, the TX terminations are disabled and txX_p/m are tri-stated for lane X.
+When rxX_reset is asserted, the rxX_pstate is similar to P2, the RX terminations are
+disabled for lane X. TxX_reset/rxX_reset are ignored when phy_reset is asserted. Asserting
+either txX_reset or rxX_reset during phy_reset assertion stalls the Raw_PCS FSM operation
+before internal registers are updated for lane X after phy_reset is de-asserted.
+
+16.5.3.4 Lane Disabling and Up/Down-Configuration
+16.5.3.4.1
+RX Standby Mode
+
+A lane in an active link can be disabled by setting pcs_txX_elecidle = 1 and
+pcs_rxX_standby = 1 while keeping pcs_laneX_powerdown set to P0. This setting maintains
+the TX common mode on the lane while turning off the transmit driver and disabling the
+CDR—keeping the rest of receiver circuitry on. The disabled lanes can be enabled again with
+minimal supported wake-up time by setting pcs_txX_elecidle = 0 and pcs_rxX_standby = 0.
+
+16.5.3.4.2
+
+PIPE Lane Disable
+
+A lane in an active link can be disabled by setting pcs_txX_elecidle = 1 and
+pcs_tx1_compliance = 1. In this state, the PHY’s TX and RX are placed in a P2-equivalent
+state (TX and RX circuits off). This state is a significantly lower power state as compared to
+disabling the lane using pcs_txX_elecidle = 1 and pcs_rxX_standby = 1. The disabled lanes
+can be enabled again according to the requirements defined in the PIPE 4.3 specification,
+“Multi-lane PIPE – PCI Express Mode” section. Therefore, the MAC must either assert
+pcs_laneX_reset_n or set pcs_laneX_powerdown to P1 at the same time as exiting the
+disabled state
+
+16.5.3.4.2.1 Exception
+The PIPE 4.3 specification states that the PHY should ignore the PIPE signals when a lane is
+disabled using pcs_txX_elecidle = 1 and pcs_tx1_compliance = 1.
+When in such a disabled state, the Consumer PCIe 3.0 PCS supports the following two
+modes:
+⚫ upcs_pipe_config[0] = 0: The Consumer PCIe 3.0 PCS ignores PIPE interface signals. In
+this mode, the pcs_laneX_pcs_clk output is gated.
+⚫ upcs_pipe_config[0] = 1: The Consumer PCIe 3.0 PCS monitors the PIPE interface
+signal, pcs_laneX_powerdown. Therefore, if pcs_laneX_powerdown is set to P0/P0s/P1 ,
+the pcs_laneX_pcs_clk output is available. This mode enables the MAC to continue using
+the pcs_laneX_pcs_clk output from a particular lane in a link to sample/launch PIPE
+signals for other active lanes in the same link, resulting in a simpler clock architecture in
+the MAC. Without this mode, the MAC would be required to use the pcs_laneX_pcs_clk
+output of each lane to sample/launch data of the same lane.
+
+16.5.3.4.3
+
+P1.2 State
+
+A lane can also be disabled by placing the lane in a P1.2 state. If all other lanes in the link
+and all lanes on one PHY are in a P1.2 state, this mode is the most power-efficient mode,
+because in this case the reference clock for that PHY can be turned off.
+
+16.5.3.5 Configuration for a Disabled PHY
+
+There are several methods to disable a PHY, if the PHY is not being used in application (one
+or more PHYs are disabled). To disable a PHY, follow the methods outlined in below table.
+Table 16-15 Signal Connections if the PHY is Not Used
+Signal
+
+PMA inputs from
+Raw PCS
+
+Method 1: All
+Power Supplies
+(vp, vph, vptxX,
+vpdig, gd) at
+Nominal Voltage
+and IDDQ = 1
+Automatically
+engaged isolation
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Method 2: All
+Power Supplies
+(vp, vph, vptxX,
+vpdig, gd)
+Connected to
+Ground
+Tie all inputs to
+ground—
+
+Method 3: All
+Power Supplies
+(vp, vph, vptxX,
+vpdig, gd) Left
+Unconnected
+(Floating)
+Tie all inputs to
+ground—
+
+2364
+
+RK3588 TRM-Part2
+Signal
+
+PMA outputs to Raw
+PCS
+rxX_p, rxX_m
+
+Method 1: All
+Power Supplies
+(vp, vph, vptxX,
+vpdig, gd) at
+Nominal Voltage
+and IDDQ = 1
+cells
+Insert isolation gaterecommended
+Leave floating or tie
+low
+Leave floating
+Leave floating
+Tie low
+
+Method 2: All
+Power Supplies
+(vp, vph, vptxX,
+vpdig, gd)
+Connected to
+Ground
+recommended
+Insert isolation gate
+
+Method 3: All
+Power Supplies
+(vp, vph, vptxX,
+vpdig, gd) Left
+Unconnected
+(Floating)
+recommended
+Insert isolation gate
+
+Leave floating or tie
+low
+Leave floating
+Leave floating
+Tie low
+
+Leave floating or tie
+low
+Leave floating
+Leave floating
+Tie low
+
+txX_p, txX_m
+resref
+ref_pad_clk_p,
+ref_pad_clk_m
+ref_alt_clk_p,
+Tie low
+Tie low
+Tie low
+ref_alt_clk_m
+⚫ For methods 2 and 3, to ensure that the outputs do not float high nor drive any active
+logic, you must use isolation gates on PHY outputs, this is achieved by set
+pcie30_clamp_n to “0” . Furthermore, to prevent the PHY circuitry from inadvertently
+toggling, it is good practice to tie all the inputs to the ground.
+⚫ If REXT is being shared with other PHYs, use only method 1. For REXT sharing, the
+request and ack handshake logic within each PHY must be powered and should allow the
+handshake signals from other PHYs to propagate through.
+⚫ If clock is being repeated, ensure that you do not power down the PMAs in the chain.
+⚫ For more information about IDDQ mode, set test_burnin =0 && test_powerdown =1
+
+16.5.3.6 Reference Clock Implementation
+
+The PHY supports a differential reference clock source. The source may be driven through
+either external pads or internal pins. The reference clock must meet specific requirements
+for signal swing and jitter. The clock frequency supported by current PHY is 100M.
+There are two types of reference clock implementations:
+⚫ External off-chip reference clocks using ref_pad_clk_p/ref_pad_clk_m
+⚫ On-chip reference clocks using ref_alt_clk_p/ref_alt_clk_m, from internal CRU
+The external off-chip reference clock implementation support either a differential clock or a
+CMOS single ended clock. The external off-chip reference clock input is an unterminated, AC
+coupled input. If the reference clock is a single-ended CMOS clock, one of the clock inputs
+(such as ref_pad_clk_p) must be a full-swing CMOS clock, and the other input (such as
+ref_pad_clk_m) should be tied to either high or low. If the reference clock is differential, it
+may be CML or LVDS, or any differential specification that meets the specification. Any
+reference clock inputs that are not being used should be tied to ground.
+The on-chip reference clock implementation supports only a CMOS level clock
+implementation. The on-chip reference clock can we input either differentially or singleended. If the on-chip reference clock is sent in single-ended then ref_alt_clk_p must be
+used and ref_alt_clk_m should be tied to ground.
+
+16.5.3.6.1
+
+External Off-Chip Clock Sources
+
+When routing reference clocks in from off-chip, a signal integrity (SI) analysis should be
+performed using a model of the clock input, package, board traces, and clock source. This
+analysis should confirm that the reference clock input specification is being met across the
+external on-chip reference clock input (ref_pad_clk_p/ref_pad_clk_m).
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2365
+
+RK3588 TRM-Part2
+
+Fig. 16-14 Model of Reference Clock Pad Input Load
+
+Table 16-16 Reference Clock External Pad Input Parasitics
+Location
+Parasitic Device
+Value
+Unit
+OFF PHY
+R1
+≤50
+Ohm
+OFF PHY
+C1
+≤1
+pF
+Within PHY: Bump to R2
+≤50
+Ohm
+prescaler input
+Within PHY: Bump to C2
+≤1
+pF
+prescaler input
+Within prescaler:
+R3
+400
+Ohm
+2nd ESD Prot
+resistor
+Within prescaler: AC C3
+840
+fF
+cap
+Within prescaler: DC R4
+456k
+Ohm
+Bias resistor
+Within prescaler:
+C4
+50
+fF
+Input cap of
+prescaler input RX
+To improve common-mode rejection ratio (CMRR), differential traces should be as well
+matched as possible
+The reference clock inputs are not terminated. This is to allow for connection of reference
+clocks to multiple PHYs at the same time. If termination is used, it should be placed on your
+board as close to the chip as possible. For PCIe, see the PCIe CEM specification for detail on
+how to implement the on-board termination
+
+16.5.3.6.2
+
+On-Chip Clock Sources
+
+Many applications require an on-chip reference clock. The challenge is getting the reference
+clock to the PHY without adding supply-noise-induced jitter to the clock. The
+ref_alt_clk_p/ref_alt_clk_m is supplied by PHP PLL which powered by PMU VDD to get
+cleaner clock.
+
+16.5.3.7 External SRAM Support
+
+The Raw PCS stores the instruction code to execute the calibration and adaptation
+algorithms. In order to minimize the area of the Raw PCS, this pre-optimized and prevalidated code is stored in the form of hardcoded lookup table. An external SRAM must be
+included for the purpose of updating the IP firmware. This provides flexibility for future and
+post-silicon product enhancements.
+After de-assertion of phy_reset, the boot loader in the Raw PCS loads the code from the
+internal lookup table to the external SRAM and asserts output signal, sram_init_done. After
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2366
+
+RK3588 TRM-Part2
+initialization of SRAM, user can change the SRAM contents (or access any PHY register)
+using either the JTAG or the CR Parallel Interface by addressing the SRAM address space in
+the register map. After external access to the SRAM (or any other PHY register) is complete,
+input sram_ext_ld_done should be set high, allowing the FSMs in the Raw PCS to start
+executing the code from SRAM.
+When sram_bypass is asserted, the access to the SRAM is bypassed and the lane FSMs
+execute the code from the hard-coded lookup table in the Raw PCS. This signal is meant to
+be used only for debugging purposes and must not change after phy_reset is negated.
+The offset of the each PHY’s SRAM begins at 0x18000, ends at 0x1BFFC.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2367
+
+RK3588 TRM-Part2
+

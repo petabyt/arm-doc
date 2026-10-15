@@ -1,0 +1,2383 @@
+Chapter 30 Flexible Serial Peripheral Interface (FSPI )
+30
+
+30.1 Overview
+The FSPI is a flexible serial peripheral interface host controller to interface with external device.
+The FSPI supports the following features:
+⚫ Support various vendor devices with flexible command sequencer engine
+◼ Serial NOR Flash
+◼ Serial NAND Flash
+◼ Serial pSRAM
+◼ Serial SRAM
+⚫ Support SDR mode
+⚫ Support Single/Dual/Quad IO mode
+⚫ Support a 32-bit AHB slave to read and write controller register bank and initiate
+command sequence, including transfer data from/to external device indirectly
+⚫ Support a 32-bit AHB master with embedded DMA engine to transfer data from/to
+external device indirectly
+⚫ Support independent clock for system bus HCLK and controller core SCLK
+⚫ Support maskable interrupts generation
+⚫ Support sampling clock with optionally configurable delay line
+⚫ Support 2 CS# operation
+
+30.2 Block Diagram
+SCLK
+
+ASYNC TX FIFO
+
+SO/SIO1
+
+ASYNC MM
+RX FIFO
+
+NSPI CTRL
+
+IO BUF
+
+Memory-Mapped CTRL
+
+Memory-Mapped
+AHB Slave
+
+AHB BUS
+
+SI/SIO0
+
+ASYNC MM
+TX FIFO
+
+WP#/SIO2
+
+HOLD#/SIO3
+
+ASYNC RX FIFO
+
+nCS#
+
+DMA CTRL
+
+AHB Slave
+
+REG File
+
+AHB Master
+
+AHB_BUS
+
+Fig. 30-1 FSPI Architecture
+Memory-Mapped AHB slave is available when XIP feature is present. In current chip, this
+feature is not provided.
+
+30.3 Function Description
+30.3.1 AHB Slave
+
+The AHB slave block is used to configure the register of controller to generate flexible
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1903
+
+RKRK3588 TRM-Part1
+command sequence, process the interrupt exception, target various device feature and AC
+timing specification. It is also used to write CMD/ADDR/DATA to TX FIFO and read DATA
+from RX FIFO which buffer the DATA from external device.
+
+30.3.2 AHB Master
+
+When the embedded DMA CTRL is used to transfer DATA, the AHB master is used to transfer
+data to other system region, such as internal SRAM, peripheral, external DRAM.
+
+30.3.3 Memory-Mapped AHB Slave
+
+After the software initialize the controller based on the specialized memory device, CPU and
+other system bus masters can read data from external memory directly. If the external
+memory is SRAM or pSRAM, it also supports write data to it. The Memory-Mapped AHB Slave
+module can generate the relative CS# based on the access address from system address,
+example CS#0 and CS#1. Non-Supported in this chip.
+
+30.3.4 REG File
+
+The REG File is configurable register bank to control the store the static configuration and
+dynamic status of controller.
+
+30.3.5 DMA CTRL
+
+A block takes responsible for splitting a long length transfer trans into AHB bus transaction
+and interfacing with ASYNC TX or RX FIFO.
+
+30.3.6 FIFO
+
+There are four FIFO in the FSPI controller. ASYNC TX FIFO and ASYNC RX FIFO is for normal
+transaction that initiated by command sequence driver. The ASYNC MM (Memory-Mapped)
+TX FIFO and ASYNC MM (Memory-Mapped) RX FIFO is only used to buffer DATA from or to
+external device initiated by system bus master directly.
+
+30.3.7 NSPI CTRL
+
+Sequence decode engine which generates specialized timing sequence for various device.
+The NSPI decode the transaction from TX FIFO and Memory-Mapped Controller and convert
+it to relative CMD/ADDR/DATA frame based on the configuration.
+
+30.4 Register Description
+30.4.1 Internal Address Mapping
+Slave address can be divided into different length for different usage, which is shown as
+follows.
+
+Name
+FSPI CFG
+
+Table 30-1 FSPI Address Mapping Table
+Address Base
+0xFE2B0000
+
+Size
+
+0x10000(64KB)
+
+30.4.2 Registers Summary
+FSPI_CTRL0
+FSPI_IMR
+FSPI_ICLR
+FSPI_FTLR
+FSPI_RCVR
+
+0x0000
+0x0004
+0x0008
+0x000C
+0x0010
+
+W
+W
+W
+W
+W
+
+FSPI_AX0
+
+0x0014
+
+W
+
+FSPI_ABIT0
+
+0x0018
+
+W
+
+FSPI_ISR
+FSPI_FSR
+FSPI_SR
+FSPI_RISR
+FSPI_VER
+
+0x001C
+0x0020
+0x0024
+0x0028
+0x002C
+
+W
+W
+W
+W
+W
+
+Reset
+Description
+Value
+0x00000000 Control Register for CS0 Device
+0x000001FF Interrupt Mask Register
+0x00000000 Interrupt Clear Register
+0x00001010 FIFO Threshold Level Register
+0x00000000 FSPI Recover Register
+FSPI Auxiliary Data Value for CS0
+0x00000000
+Device
+Extend Address Bits for CS0
+0x00000000
+Device
+0x00000000 Interrupt Status
+0x00000001 FIFO Status Register
+0x00000000 FSPI Status Register
+0x00000000 Raw Interrupt Status Register
+0x00000004 Version Register
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1904
+
+Name
+
+Offset
+
+Size
+
+RKRK3588 TRM-Part1
+Name
+
+Offset
+
+Size
+
+Reset
+Value
+0x00000000
+
+FSPI_QOP
+
+0x0030
+
+W
+
+FSPI_EXT_CTRL
+
+0x0034
+
+W
+
+FSPI_DLL_CTRL0
+
+0x003C
+
+W
+
+FSPI_EXT_AX
+
+0x0044
+
+W
+
+FSPI_SCLK_INATM_CNT
+
+0x0048
+
+W
+
+FSPI_XMMC_WCMD0
+
+0x0050
+
+W
+
+FSPI_XMMC_RCMD0
+
+0x0054
+
+W
+
+FSPI_XMMC_CTRL
+FSPI_MODE
+FSPI_DEVRGN
+
+0x0058
+0x005C
+0x0060
+
+W
+W
+W
+
+FSPI_DEVSIZE0
+
+0x0064
+
+W
+
+FSPI_TME0
+
+0x0068
+
+W
+
+FSPI_XMMC_RX_WTMRK
+
+0x0070
+
+W
+
+FSPI_DMATR
+FSPI_DMAADDR
+FSPI_LEN_CTRL
+FSPI_LEN_EXT
+FSPI_XMMCSR
+FSPI_CMD
+FSPI_ADDR
+FSPI_DATA
+FSPI_CTRL1
+
+0x0080
+0x0084
+0x0088
+0x008C
+0x0094
+0x0100
+0x0104
+0x0108
+0x0200
+
+W
+W
+W
+W
+W
+W
+W
+W
+W
+
+FSPI_AX1
+
+0x0214
+
+W
+
+FSPI_ABIT1
+
+0x0218
+
+W
+
+FSPI_DLL_CTRL1
+
+0x023C
+
+W
+
+FSPI_XMMC_WCMD1
+
+0x0250
+
+W
+
+FSPI_XMMC_RCMD1
+
+0x0254
+
+W
+
+FSPI_DEVSIZE1
+
+0x0264
+
+W
+
+FSPI_TME1
+
+0x0268
+
+W
+
+Description
+
+Quad Line Operation IO Level Preset Register
+0x00004023 Extend Control Register
+Delay Line Control Register for
+0x00000001
+CS0 Device
+Extend Auxiliary Data Control
+0x0000F0FF
+Register
+0xFFFFFFFF SCLK Inactive Timeout Counter
+Memory Mapped Control Write
+0x00000000
+Command Register for CS0 Device
+Memory Mapped Control Read
+0x00000000
+Command Register for CS0 Device
+0x000072E0 Memory Mapped Control Register
+0x00000000 Controller Working Mode Register
+0x00000017 Device Region Size Register
+Device Size Register for CS0
+0x00000012
+Device
+Timeout Enable Control Register
+0x00000000
+for CS0 Device
+Memory Mapped Mode Receiver
+0x00000002
+FIFO Water Mark Register
+0x00000000 DMA Trigger Register
+0x00000000 DMA Address Register
+0x00000000 Length Control Register
+0x00000000 Length Extended Register
+0x00000000 Memory Mapped Status Register
+0x00000000 Indirect Command Register
+0x00000000 Address Register
+0x00000000 Data Register
+0x00000000 Control Register for CS1 Device
+FSPI Auxiliary Data Value for CS1
+0x00000000
+Device
+Extend Address Bits for CS1
+0x00000000
+Device
+Delay Line Control Register for
+0x00000001
+CS1 Device
+Memory Mapped Control Write
+0x00000000
+Command Register for CS1 Device
+Memory-Mapped Command
+0x00000000
+Control Register for CS1 Device
+Device Size Register for CS1
+0x00000012
+Device
+Timeout Enable Control Register
+0x00000000
+for CS1 Device
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+30.4.3 Detail Registers Description
+
+FSPI_CTRL0
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+31:14 RO 0x00000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1905
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+13:12 RW 0x0
+
+11:10 RW 0x0
+
+9:8
+
+RW 0x0
+
+7:4
+
+RW 0x0
+
+3:2
+
+RO
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+0x0
+
+Description
+DATB
+Data Line Width
+2'b00: 1 bit, x1 mode
+2'b01: 2 bits, x2 mode
+2'b10: 4 bits, x4 mode
+2'b11: Reserved
+Set this DATB to match the CMD sequence before doing indirect
+access mode and memory mapped access mode.
+ADRB
+Address Line Width
+2'b00: 1 bit, x1 mode
+2'b01: 2 bits, x2 mode
+2'b10: 4 bits, x4 mode
+2'b11: Reserved
+Set this ADRB to match the CMD sequence before doing indirect
+access mode and memory mapped access mode.
+CMDB
+Command Line Width
+2'b00: 1 bit, x1 mode
+2'b01: 2 bits, x2 mode
+2'b10: 4 bits, x4 mode
+2'b11: Reserved
+Set this CMDB to match the CMD sequence before doing indirect
+access mode and memory mapped access mode.
+IDLE_CYCLE
+Idle Cycles When Switching IO from Output to Input
+4'h0: Idle hold is disable
+4'h1: Hold the SCLK in idle for 2 cycles when switch to shift in
+...
+4'hf: Hold the SCLK in idle for 16 cycles when switch to shift in
+To improve the transform IO timing, the application can set this
+register to hold the SCLK in low state or high state.
+reserved
+SHIFTPHASE
+Shift Phase of Data Input in Controller
+1'b0: Shift input data at posedge SCLK
+1'b1: Shift input data at negedge SCLK
+The application can select the input data captured by posedge of
+SCLK when "0" or negedge of SCLK when "1".
+SPIM
+Serial Peripheral Interface Mode
+1'b0: Mode 0
+1'b1: Mode 3
+SPIM is used to control the serial mode (CPOL and CPHA). CPOL
+indicates clock polarity of Serial master, CPOL=1 for SCLK high
+while idle, CPOL=0 for SCLK low while not transmitting. CPHA
+indicates clock phase. The combination of CPOL bit and CPHA bit
+decides which Serial mode is supported.
+
+FSPI_IMR
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1906
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+7
+
+RW 0x1
+
+6
+
+RW 0x1
+
+5
+
+RW 0x1
+
+4
+
+RW 0x1
+
+3
+
+RW 0x1
+
+2
+
+RW 0x1
+
+1
+
+RW 0x1
+
+0
+
+RW 0x1
+
+Description
+DMAM
+DMA Finish Interrupt Mask
+1'b0: DMA finish interrupt is not masked
+1'b1: DMA finish interrupt is masked
+Only valid in indirect access mode.
+NSPIM
+NSPI Interrupt Mask
+1'b0: NSPI interrupt is not masked
+1'b1: NSPI interrupt is masked
+Valid in indirect access mode and memory mapped mode.
+AHBM
+AMBA AHB Error Interrupt Mask
+1'b0: AMBA AHB Error interrupt is not masked
+1'b1: AMBA AHB Error interrupt is masked
+Only valid in indirect access mode.
+TRANSM
+Transfer Finish Interrupt Mask
+1'b0: Transfer finish interrupt is not masked
+1'b1: Transfer finish interrupt is masked
+Only valid in indirect access mode.
+TXEM
+Transmit FIFO Empty Interrupt Mask
+1'b0: Transmit FIFO empty interrupt is not masked
+1'b1: Transmit FIFO empty interrupt is masked
+Only valid in indirect access mode.
+TXOM
+Transmit FIFO Overflow Interrupt Mask
+1'b0: Transmit FIFO overflow interrupt is not masked
+1'b1: Transmit FIFO overflow interrupt is masked
+Only valid in indirect access mode.
+RXUM
+Receive FIFO Underflow Interrupt Mask
+1'b0: Receive FIFO underflow interrupt is not masked
+1'b1: Receive FIFO underflow interrupt is masked
+Only valid in indirect access mode.
+RXFM
+Receive FIFO Full Interrupt Mask
+1'b0: Receive FIFO full interrupt is not masked
+1'b1: Receive FIFO full interrupt is masked
+Only valid in indirect access mode.
+
+FSPI_ICLR
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+DMAC
+DMA Finish Interrupt Clear
+W1
+7
+0x0
+1'b0: No action
+C
+1'b1: Clear interrupt
+Write "1" to clear the DMAS
+NSPIC
+NSPI Error Interrupt Clear
+W1
+6
+0x0
+1'b0: No action
+C
+1'b1: Clear interrupt
+Write "1" to clear the NSPIS.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1907
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+5
+
+W1
+C
+
+0x0
+
+4
+
+W1
+C
+
+0x0
+
+3
+
+W1
+C
+
+0x0
+
+2
+
+W1
+C
+
+0x0
+
+1
+
+W1
+C
+
+0x0
+
+0
+
+W1
+C
+
+0x0
+
+Description
+AHBC
+AMBA AHB Error Interrupt Clear
+1'b0: No action
+1'b1: Clear interrupt
+Write "1" to clear the AHBS.
+TRANSC
+Transfer Finish Interrupt Clear
+1'b0: No action
+1'b1: Clear interrupt
+Write "1" to clear the TRANSS.
+TXEC
+Transmit FIFO Empty Interrupt Clear
+1'b0: No action
+1'b1: Clear interrupt
+Write "1" to clear the TXES.
+TXOC
+Transmit FIFO Overflow Interrupt Clear
+1'b0: No action
+1'b1: Clear interrupt
+Write "1" to clear the TXOS.
+RXUC
+Receive FIFO Underflow Interrupt Clear
+1'b0: No action
+1'b1: Clear interrupt
+Write "1" to clear the RXUS.
+RXFC
+Receive FIFO Full Interrupt Clear
+1'b0: No action
+1'b1: Clear interrupt
+Write "1" to clear the RXFS.
+
+FSPI_FTLR
+Address: Operational Base + offset (0x000C)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+RXFTLR
+Receive FIFO Threshold Level
+8'h0: 0 entry level
+8'h1: 1 entry level
+15:8 RW 0x10
+...
+8'h10: 16 entry level(default)
+...
+When the number of receive FIFO entries is bigger than or equal
+to this value, the receive FIFO full interrupt is triggered.
+TXFTLR
+Transmit FIFO Threshold Level
+8'h0: 0 entry level
+8'h1: 1 entry level
+7:0
+RW 0x10
+...
+8'h10: 16 entry level(default)
+...
+When the number of transmit FIFO entries is less than or equal to
+this value, the transmit FIFO empty interrupt is triggered.
+FSPI_RCVR
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1908
+
+RKRK3588 TRM-Part1
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+RCVR
+R/W
+FSPI Recover
+0
+0x0
+SC
+Write any values to trigger the recovery of SMC NSPI state
+machine, FIFO state and other logic state.
+FSPI_AX0
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+AX
+Auxiliary Data
+7:0
+RW 0x00
+The AX value when doing the continuous read (enhance mode or
+XIP mode). That is M7-M0 in "Continuous Read Mode".
+FSPI_ABIT0
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+ABIT
+Address Bits Extend
+5'h0: 1 bit
+4:0
+RW 0x00
+5'h1: 2 bits
+...
+5'h1f: 32 bits
+Only valid when ADDRB is set to 2'b11.
+FSPI_ISR
+Address: Operational Base + offset (0x001C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+DMAS
+DMA Finish Interrupt Status
+7
+RO 0x0
+1'b0: No interrupt
+1'b1: Active interrupt generated
+NSPIS
+NSPI Transaction Decode Error Interrupt Status
+6
+RO 0x0
+1'b0: No interrupt
+1'b1: Active interrupt generated
+AHBS
+AMBA AHB Error Interrupt Status
+5
+RO 0x0
+1'b0: No interrupt
+1'b1: Active interrupt generated
+TRANSS
+Transfer Finish Interrupt Status
+4
+RO 0x0
+1'b0: No interrupt
+1'b1: Active interrupt generated
+TXES
+Transmit FIFO Empty Interrupt Status
+3
+RO 0x0
+1'b0: No interrupt
+1'b1: Active interrupt generated
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1909
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+2
+
+RO
+
+0x0
+
+1
+
+RO
+
+0x0
+
+0
+
+RW 0x0
+
+Description
+TXOS
+Transmit FIFO Overflow Interrupt Status
+1'b0: No interrupt
+1'b1: Active interrupt generated
+RXUS
+Receive FIFO Underflow Interrupt Status
+1'b0: No interrupt
+1'b1: Active interrupt generated
+RXFS
+Receive FIFO Full Interrupt Status
+1'b0: No interrupt
+1'b1: Active interrupt generated
+
+FSPI_FSR
+Address: Operational Base + offset (0x0020)
+Bit Attr Reset Value
+Description
+31:21 RO 0x000
+reserved
+RXWLVL
+RX FIFO Water Level
+5'h0: FIFO is empty
+20:16 RW 0x00
+5'h1: 1 entry is taken
+...
+5'h10: 16 entry is taken, FIFO is full
+15:13 RO 0x0
+reserved
+TXWLVL
+TX FIFO Water Level
+5'h0: FIFO is full
+12:8 RO 0x00
+5'h1: 1 entry is left
+...
+5'h10: 16 entry is left, FIFO is empty
+7:4
+RO 0x0
+reserved
+RXFS
+Receive FIFO Full Status
+3
+RO 0x0
+1'b0: RX FIFO is not full
+1'b1: RX FIFO is full
+RXES
+Receive FIFO Empty Status
+2
+RO 0x0
+1'b0: RX FIFO is not empty
+1'b1: RX FIFO is empty
+TXES
+Transmit FIFO Empty Status
+1
+RO 0x0
+1'b0: TX FIFO is not empty
+1'b1: TX FIFO is empty
+TXFS
+Transmit FIFO Full Status
+0
+RO 0x1
+1'b0: TX FIFO is not full
+1'b1: TX FIFO is full
+FSPI_SR
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+31:1 RO 0x00000000 reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1910
+
+RKRK3588 TRM-Part1
+Bit
+
+0
+
+Attr Reset Value
+
+RO
+
+0x0
+
+Description
+SR
+Status Register
+1'b0: NSPI Controller is idle
+1'b1: NSPI Controller is busy
+When controller is busy, don't change the setting of control
+register. When NSPI is idle, the software can initiate new
+transaction to external device.
+
+FSPI_RISR
+Address: Operational Base + offset (0x0028)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+DMAS
+DMA Finish Interrupt Status
+1'b0: No active raw interrupt
+7
+RO 0x0
+1'b1: Active raw interrupt is generated
+Cleared by writing corresponding ICLR bit to clear raw interrupt
+status.
+NSPIS
+NSPI Error Interrupt Status
+1'b0: No active raw interrupt
+6
+RO 0x0
+1'b1: Active raw interrupt is generated
+Cleared by writing corresponding ICLR bit to clear raw interrupt
+status.
+AHBS
+AMBA AHB Error Interrupt Status
+1'b0: No active raw interrupt
+5
+RO 0x0
+1'b1: Active raw interrupt is generated
+Cleared by writing corresponding ICLR bit to clear raw interrupt
+status.
+TRANSS
+Transfer Finish Interrupt Status
+1'b0: No active raw interrupt
+4
+RO 0x0
+1'b1: Active raw interrupt is generated
+Cleared by writing corresponding ICLR bit to clear raw interrupt
+status.
+TXES
+Transmit FIFO Empty Interrupt Status
+1'b0: No active raw interrupt
+3
+RO 0x0
+1'b1: Active raw interrupt is generated
+Cleared by writing corresponding ICLR bit to clear raw interrupt
+status.
+TXOS
+Transmit FIFO Overflow Interrupt Status
+1'b0: No active raw interrupt
+2
+RO 0x0
+1'b1: Active raw interrupt is generated
+Cleared by writing corresponding ICLR bit to clear raw interrupt
+status.
+RXUS
+Receive FIFO Underflow Interrupt Status
+1'b0: No active raw interrupt
+1
+RO 0x0
+1'b1: Active raw interrupt is generated
+Cleared by writing corresponding ICLR bit to clear raw interrupt
+status.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1911
+
+RKRK3588 TRM-Part1
+Bit
+
+0
+
+Attr Reset Value
+
+RO
+
+0x0
+
+Description
+RXFS
+Receive FIFO Full Interrupt Status
+1'b0: No active raw interrupt
+1'b1: Active raw interrupt is generated
+Cleared by writing corresponding ICLR bit to clear raw interrupt
+status.
+
+FSPI_VER
+Address: Operational Base + offset (0x002C)
+Bit Attr Reset Value
+31:16 RO 0x0000
+reserved
+VER
+15:0 RO 0x0005
+The Version ID of FSPI
+
+Description
+
+FSPI_QOP
+Address: Operational Base + offset (0x0030)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+SO123BP
+SO123 Bypass Mode
+1
+RW 0x0
+1'b0: Disable bypass
+1'b1: Enable bypass
+Default is enabled.
+SO123
+D1/D2/D3 Data Value During Inactive When CS is Active
+1'b0: Set to "0"
+0
+RW 0x0
+1'b1: Set to "1"
+The value of SO1, SO2 and SO3 during command and address
+bits input.
+FSPI_EXT_CTRL
+Address: Operational Base + offset (0x0034)
+Bit Attr Reset Value
+Description
+31:15 RO 0x00000
+reserved
+SR_GEN_MODE
+Status Register Generation Mode
+1'b0: Compatible mode with old controller
+14
+RW 0x1
+1'b1: Robust generation to indicates the status of controller
+If set to "1", the controller will only clear the SR bit after
+operation sequence done and CS is high.
+TRANS_INT_MODE
+Transmit Done Interrupt Generation Mode
+13
+RW 0x0
+1'b0: Trigger NSPI end in data done
+1'b1: Trigger NSPI end in CS inactive
+Default Generation is compatible with old controller.
+12
+RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1912
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+11:8
+
+RW 0x0
+
+7:4
+
+RW 0x2
+
+3:0
+
+RW 0x3
+
+Description
+SWITCH_IO_O2I_CNT
+Switch IO Attribute Cycles in O2I Idle Phase
+4'h0: 1st cycle
+4'h1: 2nd cycle
+4'h2: 3rd cycle
+4'h3: 4th cycle
+...
+4'hf: 16th cycle
+The target cycle when switching from output to input in O2I idle
+phase.
+SWITCH_IO_DUMM_CNT
+Switch IO Attribute Cycles in Dummy Phase
+4'h0: 1st cycle
+4'h1: 2nd cycle
+4'h2: 3rd cycle
+4'h3: 4th cycle
+...
+4'hf: 16th cycle
+The target cycle when switching from output to input in Dummy
+data phase.
+CS_DESEL_CTRL
+CS Inactive Control
+4'h0: 1 cycle
+4'h1: 2 cycles
+4'h2: 3 cycles
+4'h3: 4 cycles
+...
+4'hf: 16 cycles
+The target cycles to hold CS inactive after de-assert the CS.
+Default value are 4 SCLK cycles that is enough for normal device.
+
+FSPI_DLL_CTRL0
+Address: Operational Base + offset (0x003C)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+SCLK_SMP_SEL
+SCLK Sampling Selection
+15
+RW 0x0
+1'b0: Bypass DLL
+1'b1: From DLL
+The sampling SCLK source selection.
+14:9 RO 0x00
+reserved
+SMP_DLL_CFG
+Sample Delay Line Configuration
+9'h0: 1 DLL element cell
+9'h1: 1 DLL element cell
+8:0
+RW 0x001
+9'h2: 2 DLL element cells
+...
+9'h1ff: 511 DLL element cells
+This register to control the sampling delay line cell used. The
+maximum DLL element cells is decided by process.
+FSPI_EXT_AX
+Address: Operational Base + offset (0x0044)
+Bit Attr Reset Value
+31:16 RO 0x0000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1913
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+15:8
+
+RW 0xf0
+
+7:0
+
+RW 0xff
+
+Description
+AX_SETUP_PAT
+Auxiliary Setup Data Pattern
+The AX data pattern that setup the continuous/enhance/XIP read
+mode
+AX_CANCEL_PAT
+Auxiliary Cancel Data Pattern
+The AX data pattern that cancel the continuous/enhance/XIP read
+mode.
+
+FSPI_SCLK_INATM_CNT
+Address: Operational Base + offset (0x0048)
+Bit Attr Reset Value
+Description
+SCLK_INATM_CNT
+SCLK Inactive Timeout Counter
+When CS is active and SCLK is hold in high or low due to TX FIFO
+31:0 RW 0xffffffff
+is empty or RX FIFO is full, if SCLK_INATM_EN is enabled, and
+timeout occurs, the controller will go back to idle and RX FIFO is
+flushed.
+FSPI_XMMC_WCMD0
+Address: Operational Base + offset (0x0050)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+ADDRB
+Address Bits
+2'b00: 0 bit
+2'b01: 24 bits
+15:14 WO 0x0
+2'b10: 32 bits
+2'b11: From the ABIT register
+Address bits number select in memory mapped mode, if there is
+not address command to send, set to zero.
+CONT
+Continuous
+1'b0: Disable continuous mode
+13
+WO 0x0
+1'b1: Enable continuous mode
+AX mode or Continuous mode or XIP mode for device which
+begins with address.
+12
+RO 0x0
+reserved
+DUMM
+Dummy Cycles
+4'h0: No dummy cycle
+11:8 WO 0x0
+...
+4'h8: 8 cycles
+...
+Dummy bit cycles in memory mapped mode.
+CMD
+7:0
+WO 0x00
+Command
+Command data in memory mapped access mode.
+FSPI_XMMC_RCMD0
+Address: Operational Base + offset (0x0054)
+Bit Attr Reset Value
+31:16 RO 0x0000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1914
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+15:14 WO 0x0
+
+13
+
+WO 0x0
+
+12
+
+RO
+
+11:8
+
+WO 0x0
+
+7:0
+
+WO 0x00
+
+0x0
+
+Description
+ADDRB
+Address Bits
+2'b00: 0 bit
+2'b01: 24 bits
+2'b10: 32 bits
+2'b11: From the ABIT register
+Address bits number select in memory mapped mode, if there is
+not address command to send, set to zero.
+CONT
+Continuous
+1'b0: Disable continuous mode
+1'b1: Enable continuous mode
+AX mode or Continuous mode or XIP mode for device which
+begins with address.
+reserved
+DUMM
+Dummy Cycles
+4'h0: No dummy cycle
+...
+4'h8: 8 cycles
+...
+Dummy bit cycles in memory mapped mode.
+CMD
+Command
+Command data in memory mapped access mode.
+
+FSPI_XMMC_CTRL
+Address: Operational Base + offset (0x0058)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0
+reserved
+PFT_EN
+Prefetch Enable
+1'b0: Disable
+6
+RW 0x1
+1'b1: Enable
+Should disable prefetch if controller communicate with pSRAM
+which need refresh.
+DEV_HWEN
+Device AMBA AHB HWRITE Enable
+5
+RW 0x1
+1'b0: Disable
+1'b1: Enable
+4:0
+RO 0x00
+reserved
+FSPI_MODE
+Address: Operational Base + offset (0x005C)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+XMMC_MODE_EN
+Memory Mapped Mode Enable
+1'b0: Disable, indirect access mode
+1'b1: Enable, Memory-Mapped mode
+0
+RW 0x0
+Before switching from indirect access mode to Memory-Mapped
+mode, the application should make sure the controller is in idle
+state and no pending transaction. If switch from Memory-Mapped
+to indirect access mode, software should initiate a dummy read
+by CPU before that.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1915
+
+RKRK3588 TRM-Part1
+
+FSPI_DEVRGN
+Address: Operational Base + offset (0x0060)
+Bit Attr Reset Value
+Description
+31:10 RO 0x000000
+reserved
+DEC_CTRL
+Decode Control
+2'b00: 1 CS#
+9:8
+RW 0x0
+2'b01: 2 CS#
+2'b10: 4 CS#
+2'b11: Reserved
+Only valid in XMMC mode.
+7:5
+RO 0x0
+reserved
+RSIZE
+Region Size
+5'd0: 1 byte
+5'd1: 2 bytes
+5'd2: 4 bytes
+.....
+4:0
+RW 0x17
+5'd10: 1K bytes
+.....
+5'd20: 1M bytes
+.....
+5'd31: 4G bytes
+In Memory-Mapped mode, the CS is controlled by AHB address
+bus, region size is used to generate CS.
+FSPI_DEVSIZE0
+Address: Operational Base + offset (0x0064)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+DSIZE
+Device Size
+5'd0: 1 byte
+5'd1: 2 bytes
+5'd2: 4 bytes
+.....
+4:0
+RW 0x12
+5'd10: 1K bytes
+.....
+5'd20: 1M bytes
+.....
+5'd31: 4G byte
+Device size is used to generate slop over status.
+FSPI_TME0
+Address: Operational Base + offset (0x0068)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+SCLK_INATM_EN
+SCLK Inactive Timeout Enable
+1
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+0
+RO 0x0
+reserved
+FSPI_XMMC_RX_WTMRK
+Address: Operational Base + offset (0x0070)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1916
+
+RKRK3588 TRM-Part1
+Bit
+31:8
+7:0
+
+Attr Reset Value
+Description
+RO 0x000000
+reserved
+RX_FULL_WTMRK
+RW 0x02
+Memory Mapped Mode Receiver FIFO Water Mark.
+Default is enough.
+
+FSPI_DMATR
+Address: Operational Base + offset (0x0080)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+DMATR
+W1
+0
+0x0
+DMA Trigger
+C
+Write "1" to start the DMA transfer.
+FSPI_DMAADDR
+Address: Operational Base + offset (0x0084)
+Bit Attr Reset Value
+Description
+DMAADDR
+31:0 RW 0x00000000 DMA Address
+The destination or source data address in current system.
+FSPI_LEN_CTRL
+Address: Operational Base + offset (0x0088)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+TRB_SEL
+Total Transfer Bytes Selection
+0
+RW 0x0
+1'b0: TRB controlled by CMD[TRB]
+1'b1: TRB controlled by LEN_EXT
+FSPI_LEN_EXT
+Address: Operational Base + offset (0x008C)
+Bit Attr Reset Value
+Description
+TRB_EXT
+Total Transfer Bytes Extended
+32'd0: No data
+31:0 RW 0x00000000 32'd1: 1 Byte
+32'd2: 2 Bytes
+...
+Total data bytes number that will write to /read from the device.
+FSPI_XMMCSR
+Address: Operational Base + offset (0x0094)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+SLOPOVER1
+Slop Over Register for CS1
+R/W
+1'b0: Normal state
+1
+0x0
+SC
+1'b1: Address slop over
+When the access address in memory map mode is bigger than
+DEVSIZE, this bit will be set. Write "1" to clear this bit.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1917
+
+RKRK3588 TRM-Part1
+Bit
+
+0
+
+Attr Reset Value
+R/W
+0x0
+SC
+
+Description
+SLOPOVER0
+Slop Over Register for CS0
+1'b0: Normal state
+1'b1: Address slop over
+When the access address in memory map mode is bigger than
+DEVSIZE, this bit will be set. Write "1" to clear this bit.
+
+FSPI_CMD
+Address: Operational Base + offset (0x0100)
+Bit Attr Reset Value
+Description
+CS
+Device Chip Select.
+2'b00: Chip select 0
+31:30 WO 0x0
+2'b01: Chip select 1
+2'b10: Reserved
+2'b11: Reserved
+TRB
+Total Transfer Bytes
+14'd0: No data
+14'd1: 1 Byte
+29:16 WO 0x0000
+14'd2: 2 Bytes
+...
+Total data bytes number that will write to or read from the
+device.
+ADDRB
+Address Bits
+2'b00: 0 bit
+2'b01: 24 bits
+15:14 WO 0x0
+2'b10: 32 bits
+2'b11: From the ABIT register
+Address bits number select in indirect access mode. If there is
+not address command to send, set to zero.
+CONT
+Continuous
+1'b0: Disable continuous mode
+13
+WO 0x0
+1'b1: Enable continuous mode
+AX mode or Continuous mode or XIP mode for device which
+begins with address.
+WR
+Write or Read
+12
+WO 0x0
+1'b0: Read
+1'b1: Write
+DUMM
+Dummy Cycles
+4'h0: No dummy cycle
+11:8 WO 0x0
+...
+4'h8: 8 cycles
+...
+Dummy bit cycles in indirect access mode.
+CMD
+7:0
+WO 0x00
+Command
+Command data in indirect access mode.
+FSPI_ADDR
+Address: Operational Base + offset (0x0104)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1918
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:0
+
+WO 0x00000000
+
+Description
+ADDR
+Address Register
+Indirect access start address data for current command
+sequence.
+
+FSPI_DATA
+Address: Operational Base + offset (0x0108)
+Bit Attr Reset Value
+Description
+DATA
+31:0 RW 0x00000000 Data Register
+Device data read or write from/to device.
+FSPI_CTRL1
+Address: Operational Base + offset (0x0200)
+Bit Attr Reset Value
+Description
+31:14 RO 0x00000
+reserved
+DATB
+Data Line Width
+2'b00: 1 bit, x1 mode
+2'b01: 2 bits, x2 mode
+13:12 RW 0x0
+2'b10: 4 bits, x4 mode
+2'b11: Reserved
+Set this DATB to match the CMD sequence before doing indirect
+access mode and memory mapped access mode.
+ADRB
+Address Line Width
+2'b00: 1 bit, x1 mode
+2'b01: 2 bits, x2 mode
+11:10 RW 0x0
+2'b10: 4 bits, x4 mode
+2'b11: Reserved
+Set this ADRB to match the CMD sequence before doing indirect
+access mode and memory mapped access mode.
+CMDB
+Command Line Width
+2'b00: 1 bit, x1 mode
+2'b01: 2 bits, x2 mode
+9:8
+RW 0x0
+2'b10: 4 bits, x4 mode
+2'b11: Reserved
+Set this CMDB to match the CMD sequence before doing indirect
+access mode and memory mapped access mode.
+IDLE_CYCLE
+Idle Cycles When Switching IO from Output to Input
+4'h0: Idle hold is disable
+4'h1: Hold the SCLK in idle for 2 cycles when switch to shift in
+7:4
+RW 0x0
+...
+4'hf: Hold the SCLK in idle for 16 cycles when switch to shift in
+To improve the transform IO timing, the application can set this
+register to hold the SCLK in low state or high state.
+3:2
+RO 0x0
+reserved
+SHIFTPHASE
+Shift Phase of Data Input in Controller
+1'b0: Shift input data at posedge SCLK
+1
+RW 0x0
+1'b1: Shift input data at negedge SCLK
+The application can select the input data captured by posedge of
+SCLK when "0" or negedge of SCLK when "1".
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1919
+
+RKRK3588 TRM-Part1
+Bit
+
+0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+SPIM
+Serial Peripheral Interface Mode
+1'b0: Mode 0
+1'b1: Mode 3
+SPIM is used to control the serial mode (CPOL and CPHA). CPOL
+indicates clock polarity of Serial master, CPOL=1 for SCLK high
+while idle, CPOL=0 for SCLK low while not transmitting. CPHA
+indicates clock phase. The combination of CPOL bit and CPHA bit
+decides which Serial mode is supported.
+
+FSPI_AX1
+Address: Operational Base + offset (0x0214)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+AX
+Auxiliary Data
+7:0
+RW 0x00
+The AX value when doing the continuous read (enhance mode or
+XIP mode). That is M7-M0 in "Continuous Read Mode".
+FSPI_ABIT1
+Address: Operational Base + offset (0x0218)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+ABIT
+Address Bits Extend
+5'h0: 1 bit
+4:0
+RW 0x00
+5'h1: 2 bits
+...
+5'h1f: 32 bits
+Only valid when ADDRB is set to 2'b11.
+FSPI_DLL_CTRL1
+Address: Operational Base + offset (0x023C)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+SCLK_SMP_SEL
+SCLK sampling selection
+15
+RW 0x0
+1'b0: Bypass DLL
+1'b1: From DLL
+The sampling SCLK source selection.
+14:9 RO 0x00
+reserved
+SMP_DLL_CFG
+Sample Delay Line Configuration
+9'h0: 1 DLL element cell
+9'h1: 1 DLL element cell
+8:0
+RW 0x001
+9'h2: 2 DLL element cells
+...
+9'h1ff: 511 DLL element cells
+This register to control the sampling delay line cell used. The
+maximum DLL element cells is decided by process.
+FSPI_XMMC_WCMD1
+Address: Operational Base + offset (0x0250)
+Bit Attr Reset Value
+31:16 RO 0x0000
+reserved
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1920
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+15:14 WO 0x0
+
+13
+
+WO 0x0
+
+12
+
+RO
+
+11:8
+
+WO 0x0
+
+7:0
+
+WO 0x00
+
+0x0
+
+Description
+ADDRB
+Address Bits
+2'b00: 0 bit
+2'b01: 24 bits
+2'b10: 32 bits
+2'b11: From the ABIT register
+Address bits number select in memory mapped mode, if there is
+not address command to send, set to zero.
+CONT
+Continuous
+1'b0: Disable continuous mode
+1'b1: Enable continuous mode
+AX mode or Continuous mode or XIP mode for device which
+begins with address.
+reserved
+DUMM
+Dummy Cycles
+4'h0: No dummy cycle
+...
+4'h8: 8 cycles
+...
+Dummy bit cycles in memory mapped mode.
+CMD
+Command
+Command data in memory mapped access mode.
+
+FSPI_XMMC_RCMD1
+Address: Operational Base + offset (0x0254)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+ADDRB
+Address Bits
+2'b00: 0 bit
+2'b01: 24 bits
+15:14 WO 0x0
+2'b10: 32 bits
+2'b11: From the ABIT register
+Address bits number select in memory mapped mode, if there is
+not address command to send, set to zero.
+CONT
+Continuous
+1'b0: Disable continuous mode
+13
+WO 0x0
+1'b1: Enable continuous mode
+AX mode or Continuous mode or XIP mode for device which
+begins with address.
+12
+RO 0x0
+reserved
+DUMM
+Dummy Cycles
+4'h0: No dummy cycle
+11:8 WO 0x0
+...
+4'h8: 8 cycles
+...
+Dummy bit cycles in memory mapped mode.
+CMD
+7:0
+WO 0x00
+Command
+Command data in memory mapped access mode.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1921
+
+RKRK3588 TRM-Part1
+
+FSPI_DEVSIZE1
+Address: Operational Base + offset (0x0264)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+DSIZE
+Device Size
+5'd0: 1 byte
+5'd1: 2 bytes
+5'd2: 4 bytes
+.....
+4:0
+RW 0x12
+5'd10: 1K bytes
+.....
+5'd20: 1M bytes
+.....
+5'd31: 4G bytes
+Device size is used to generate slop over status.
+FSPI_TME1
+Address: Operational Base + offset (0x0268)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+SCLK_INATM_EN
+SCLK Inactive Timeout Enable
+1
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+0
+RO 0x0
+reserved
+
+30.5 Interface Description
+Table 30-2 FSPI IO M0 Group Interface Description
+Module Pin
+
+Dir
+
+sfc_sclk
+
+O
+
+EMMC_CMD/FSPI_CLK_M0/GPIO2_A0_u
+
+Pin Name
+
+IOMUX Setting
+
+sfc_csn0
+
+O
+
+EMMC_D6/FSPI_CS0N_M0/GPIO2_D6_u
+
+sfc_csn1
+
+O
+
+EMMC_D7/FSPI_CS1N_M0/GPIO2_D7_u
+
+sfc_sio0
+
+I/O
+
+EMMC_D0/FSPI_D0_M0/GPIO2_D0_u
+
+BUS_IOC_GPIO2D_IOMUX_SEL_L[3:0]=4’h2
+
+sfc_sio1
+
+I/O
+
+EMMC_D1/FSPI_D1_M0/GPIO2_D1_u
+
+BUS_IOC_GPIO2D_IOMUX_SEL_L[7:4]=4’h2
+
+sfc_sio2
+
+I/O
+
+EMMC_D2/FSPI_D2_M0/GPIO2_D2_u
+
+sfc_sio3
+
+I/O
+
+EMMC_D3/FSPI_D3_M0/GPIO2_D3_u
+
+BUS_IOC_GPIO2A_IOMUX_SEL_L[3:0]=4’h2
+BUS_IOC_GPIO2D_IOMUX_SEL_H[11:8]=4’h
+2
+BUS_IOC_GPIO2D_IOMUX_SEL_H[15:12]=4’
+h2
+
+BUS_IOC_GPIO2D_IOMUX_SEL_L[11:8]=4’h
+2
+BUS_IOC_GPIO2D_IOMUX_SEL_L[15:12]=4’
+h2
+
+Notes: I=input, O=output, I/O=input/output, bidirectional.
+
+Table 30-3 FSPI M1 Group Interface Description
+Module Pin
+
+Dir
+
+sfc_sclk
+
+O
+
+sfc_csn0
+
+O
+
+sfc_csn1
+
+O
+
+sfc_sio0
+
+I/O
+
+Pin Name
+
+IOMUX Setting
+
+GMAC0_TXCLK/SDIO_CLK_M0/FSPI_CLK_M1/I2C3_S
+
+BUS_IOC_GPIO2B_IOMUX_SEL_L[15:12]=4’
+h3
+
+DA_M3/GPIO2_B3_d
+GMAC0_PTP_REFCLK/FSPI_CS0N_M1/HDMI_TX1_SD
+A_M0/I2C4_SDA_M1/UART7_RX_M0/GPIO2_B4_u
+GMAC0_PPSTRING/FSPI_CS1N_M1/HDMI_TX1_SCL_
+M0/I2C4_SCL_M1/UART7_TX_M0/GPIO2_B5_u
+GMAC0_RXD2/SDIO_D0_M0/FSPI_D0_M1/UART6_RX
+_M0/GPIO2_A6_u
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+BUS_IOC_GPIO2B_IOMUX_SEL_H[3:0]=4’h3
+
+BUS_IOC_GPIO2B_IOMUX_SEL_H[7:4]=4’h3
+BUS_IOC_GPIO2A_IOMUX_SEL_H[11:8]=4’h
+3
+
+1922
+
+RKRK3588 TRM-Part1
+Module Pin
+
+Dir
+
+sfc_sio1
+
+I/O
+
+sfc_sio2
+
+I/O
+
+sfc_sio3
+
+I/O
+
+Pin Name
+
+IOMUX Setting
+
+GMAC0_RXD3/SDIO_D1_M0/FSPI_D1_M1/UART6_TX
+
+BUS_IOC_GPIO2A_IOMUX_SEL_H[15:12]=4’
+h3
+
+_M0/GPIO2_A7_u
+GMAC0_RXCLK/SDIO_D2_M0/FSPI_D2_M1/I2C8_SCL
+_M1/UART6_RTSN_M0/GPIO2_B0_u
+GMAC0_TXD2/SDIO_D3_M0/FSPI_D3_M1/I2C8_SDA
+_M1/UART6_CTSN_M0/GPIO2_B1_u
+
+BUS_IOC_GPIO2B_IOMUX_SEL_L[3:0]=4’h3
+
+BUS_IOC_GPIO2B_IOMUX_SEL_L[7:4]=4’h3
+
+Notes: I=input, O=output, I/O=input/output, bidirectional.
+
+Table 30-4 FSPI M2 Group Interface Description
+Module Pin
+
+Dir
+
+Pin Name
+
+IOMUX Setting
+
+GMAC1_RXCLK/SDIO_CLK_M1/MIPI_CAMERA0_CLK_
+sfc_sclk
+
+O
+
+M1/FSPI_CLK_M2/I2C4_SDA_M0/UART8_CTSN_M1/G
+
+BUS_IOC_GPIO3A_IOMUX_SEL_H[7:4]=4’h5
+
+PIO3_A5_d
+CIF_D8/FSPI_CS0N_M2/PCIE30X4_CLKREQN_M2/HD
+sfc_csn0
+
+O
+
+MI_TX1_CEC_M2/CAN2_RX_M0/UART5_TX_M1/SPI3
+
+BUS_IOC_GPIO3C_IOMUX_SEL_H
+[3:0]=4’h2
+
+_CS0_M3/GPIO3_C4_u
+CIF_D9/FSPI_CS1N_M2/PCIE30X4_WAKEN_M2/HDMI
+sfc_csn1
+
+O
+
+_TX1_SDA_M1/CAN2_TX_M0/UART5_RX_M1/SPI3_C
+
+BUS_IOC_GPIO3C_IOMUX_SEL_H
+[7:4]=4’h2
+
+S1_M3/GPIO3_C5_u
+GMAC1_TXD2/SDIO_D0_M1/I2S3_MCLK/FSPI_D0_M
+sfc_sio0
+
+I/O
+
+2/I2C6_SDA_M4/PWM10_M0/SPI4_MISO_M1/GPIO3
+
+BUS_IOC_GPIO3A_IOMUX_SEL_L[3:0]=4’h5
+
+_A0_u
+GMAC1_TXD3/SDIO_D1_M1/I2S3_SCLK/AUDDSM_LN
+sfc_sio1
+
+I/O
+
+/FSPI_D1_M2/I2C6_SCL_M4/PWM11_IR_M0/SPI4_M
+
+BUS_IOC_GPIO3A_IOMUX_SEL_L[7:4]=4’h5
+
+OSI_M1/GPIO3_A1_u
+GMAC1_RXD2/SDIO_D2_M1/I2S3_LRCK/AUDDSM_LP
+sfc_sio2
+
+I/O
+
+/FSPI_D2_M2/UART8_TX_M1/SPI4_CLK_M1/GPIO3_A
+
+BUS_IOC_GPIO3A_IOMUX_SEL_L[11:8]=4’h
+5
+
+2_u
+GMAC1_RXD3/SDIO_D3_M1/I2S3_SDO/AUDDSM_RN
+sfc_sio3
+
+I/O
+
+/FSPI_D3_M2/UART8_RX_M1/SPI4_CS0_M1/GPIO3_
+
+BUS_IOC_GPIO3A_IOMUX_SEL_L[15:12]=4’
+h5
+
+A3_u
+
+Notes: I=input, O=output, I/O=input/output, bidirectional.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1923
+
+RKRK3588 TRM-Part1
+
+30.6 Application Notes
+30.6.1 Typical Program Flow Without DMA
+
+Config FSPI_CTRL
+and other relative
+register to select
+operation mode
+
+Start
+
+FSPI_SR
+Config FSPI_CMD
+BUSY
+IDLE
+
+Write Enable
+CMD SEQ
+
+ADDR is needed
+
+Y
+
+N
+
+Program
+CMD SEQ
+
+Config FSPI_ADDR
+
+DATA is needed
+
+Read Statues
+CMD SEQ
+
+Y
+
+1
+
+W/R FSPI_DATA
+Loop
+WIP
+
+Done
+
+0
+
+FSPI_SR
+
+N
+
+BUSY
+
+Done
+
+IDLE
+
+Fig. 30-2 Program Flow
+All the AHB bus write data to FSPI_CMD, FSPI_ADDR and FSPI_DATA will be marked with
+different header and then pushed into transmit FIFO by writing order.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1924
+
+RKRK3588 TRM-Part1
+
+30.6.2 Typical READ Flow Without DMA
+
+Start
+
+Config FSPI_CTRL
+and other relative
+register to select
+operation mode
+
+FSPI_SR
+Config FSPI_CMD
+
+BUSY
+IDLE
+
+READ
+CMD SEQ
+
+ADDR is needed
+
+Y
+
+N
+
+Config FSPI_ADDR
+
+Done
+
+DATA is needed
+
+Y
+
+W/R FSPI_DATA
+Loop
+
+N
+
+Done
+
+FSPI_SR
+
+BUSY
+IDLE
+
+Fig. 30-3 Read Flow
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1925
+
+RKRK3588 TRM-Part1
+
+30.6.3 Command Flow with DMA
+
+Config FSPI_CTRL
+and other relative
+register to select
+operation mode
+
+Config FSPI_CMD
+
+ADDR is needed
+
+Y
+
+N
+
+Config FSPI_ADDR
+
+DATA is needed
+
+Y
+Config DMAADDR,
+then config
+FSPI_DMATR
+
+N
+Wait DMAS
+interrrupt Done
+N
+Y
+
+FSPI_SR
+
+BUSY
+IDLE
+
+Fig. 30-4 Command with DMA Flow
+The total transfer bytes is decided by TRB register in FSPI_CMD and must be aligned to 2
+bytes.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1926
+
+RKRK3588 TRM-Part1
+
+30.6.4 SPI Mode and Sampling Phase Control
+
+The register SPIM in FSPI_CTRL will decide the default value of SCLK when CS# is inactive.
+When SPIM=0, the default value is 0, means Mode 0. When SPIM=1, the default value is 1,
+means SPI Mode 3.
+The register SHIFTPAHSE in FSPI_CTRL will decide when to sample the SIO data. If
+SHIFTPAHSE=0, it will sample the data at the posedge of SCLK sampling clock. If
+SHIFTPHASE=1, it will sample the data at the negedge of SCLK sampling. The phase delay
+of sampling clock SCLK is configurable by SMP_DLL_CFG. It is strongly recommended that
+the SMP_DLL_CFG is set to 1 when SCLK_SMP_SEL is in bypass mode.
+Individual FSPI_DLL_CTRL[n] allows flexibly control the DLL for each CSn channel, and the
+DLL is switched dynamically when the CSn is in operation.
+SHIFTPHASE=0
+
+SHIFTPHASE=1
+
+SCLK
+Internal
+DLL
+
+SCLK
+sample
+IO CSN
+
+IO Delay
+SPIM=1
+
+IO SCLK
+
+SPIM=0
+CMD0
+
+IO D[3:0]
+
+Fig. 30-5 SPI mode
+
+30.6.5 Idle Cycles
+
+The FSPI_CTRL register is a global control register, when the controller is in busy state
+(FSPI_SR), FSPI_CTRL cannot be set. The field IDLE_CYCLE (FSPI_CTRL[7:4]) of this
+register are used to configure the idle level cycles of FSPI core clock (SCLK) before reading
+the first bit of the read command.
+Like the following picture shows, the highlighted line of the SCLK is the idle cycles, during
+these cycles, the chip pad is switched to output. When IDLE_CYCLE =0, it means there will
+be no idle level cycles.
+IO CSN
+SPIM=1
+
+IO SCLK
+
+SPIM=0
+
+CMD0
+
+IO D[3:0]
+
+Fig. 30-6 Idle cycles
+
+30.6.6 Memory-Mapped Mode
+
+After the Controller is configured as Memory-Mapped mode, the normal operation mode is
+not allowed which means indirect command transaction is forbidden unless software
+configures the FSPI_MODE back to indirect access mode.
+Before switching into Memory-Mapped mode, the software should initiate some transactions
+to configure the external device, such as Quad IO enable and IO Drive Strength.
+In Memory-Mapped mode, it supports read transaction from serial NOR Flash and serial
+pSRAM, but only support write transaction into serial pSRAM.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1927
+
+RKRK3588 TRM-Part1
+

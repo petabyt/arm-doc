@@ -1,0 +1,2286 @@
+12.7 Timer Modules
+This section describes the timer modules in the device.
+12.7.1 Global Timebase Counter (GTC)
+This section describes the global timebase counter (GTC) in the device.
+12.7.1.1 Global Timebase Counter (GTC)
+This section describes the Global Timebase Counter (GTC) in the device.
+12.7.1.1.1 GTC Overview
+The GTC module provides a continuous running counter that can be used for time synchronization and debug
+trace time stamping.
+12.7.1.1.1.1 GTC Features
+The GTC supports the following features:
+•
+64-bit up counter
+•
+No rollover during the lifetime of the device
+•
+Compatible with ARMv8 system counter requirements:
+•
+Disabled at power-up
+•
+Register definition and memory map aligned to ARMv8 definition
+•
+Implements memory-mapped counter control and status frames
+•
+Outputs reflected binary (Gray) encoded timer value for system timer bus distribution to other modules
+•
+Selectable counter bit output as a push event that can be used by CPTS modules, timers or interface
+protocols
+12.7.1.1.1.2 Unsupported Features
+See the Module Integration section for information about unsupported features.
+Note
+Some features may not be available. See Module Integration for more information.
+=== Page 1763 ===
+12.7.1.2 GTC Functional Description
+12.7.1.2.1 GTC Block Diagram
+The GTC is essentially comprised of a 64-bit up counter, a Gray encoder, a 64-bit multiplexer, and memory-
+mapped control registers. Figure 12-411 shows a high-level block diagram of the GTC.
+48/64-bit Gray
+code encoder
+64-bit counter
+Registers
+64:1
+Control
+Status
+Push event
+GTC
+64
+48
+System timer bus
+Debug timer bus
+32-bit VBUSP
+GTC_CLK
+Debug halt
+Device
+Figure 12-411. GTC Block Diagram
+12.7.1.2.2 GTC Counter
+The counter is a 64-bit binary up counter that increments on every GTC_CLK rising edge. The source for
+GTC_CLK is selected through a mux which is controlled via the CTRLMMR_GTC_CLKSEL[2-0] CLK_SEL
+register bit field.
+The counter is disabled by default (at power-on-reset) and increments only when enabled by setting the
+GTC_CNTCR[0] EN bit to '1'. The current counter value is readable via the combined COUNTVALUE bit field of
+both GTC_CNTCV_HI (upper 32 bits) and GTC_CNTCV_LO (lower 32 bits) registers.
+When counting is disabled, a new counter value can be loaded via a software write to the combined
+COUNTVALUE bit field. In this case, when the counter gets re-enabled, it will start counting from the last value
+written to this field.
+The counter can be optionally configured to stop incrementing when a debug halt signal is issued, by writing a '1'
+to the GTC_CNTCR[1] HDBG bit. This condition is indicated through the GTC_CNTSR[1] DBGH status bit.
+12.7.1.2.2.1 Steps to Clear the Counter Value to Zero
+1.
+Disable the GTC
+2.
+Clear GTC_CNTCV_LO (First)
+3.
+Clear GTC_CNTCV_HI (Second)
+4.
+Enable the GTC
+Once the GTC is enabled, the GTC_CNTCV_HI bit will be cleared to zero.
+12.7.1.2.3 GTC Register Partitioning
+The ARMv8 architecture spec requires specific system-level components, each with one or two register frames.
+To accommodate this, the GTC memory-mapped registers (MMRs) are divided into four separate regions (4KB
+each):
+•
+Peripheral MMRs (GTC0_GTC_CFG0): This region includes standard peripheral identification registers and
+any other control registers not associated with the ARMv8 system timer functions.
+=== Page 1764 ===
+•
+Counter control MMRs (GTC0_GTC_CFG1): This region includes registers that provide control over the
+operation of the system timer.
+•
+Counter status MMRs (GTC0_GTC_CFG2): This region includes registers that provide a mechanism for
+reading the status of the system timer.
+•
+Timer control MMRs (GTC0_GTC_CFG3): This region includes registers that identify and provide a control
+mechanism for memory-mapped timer implementations. For this device, no memory-mapped timers are
+implemented and only the minimum registers required to indicate the presence of no timers are necessary.
+12.7.2 RTI-Windowed Watchdog Timer (WWDT)
+This section describes the Windowed Watchdog Timer (WWDT), implemented by using the Digital Windowed
+Watchdog (DWWD) function of the Real Time Interrupt (RTI) module in the device.
+CAUTION
+The RTI module shall be used to serve only as a Digital Windowed Watchdog (DWWD).
+The Real Time Interrupt module provides timer functionality for operating systems and for benchmarking code.
+The module incorporates several counters, which define the timebases needed for scheduling in the operating
+system.
+This module is specifically designed to fulfill the requirements for OSEK („Offene Systeme und deren
+Schnittstellen für die Elektronik im Kraftfahrzeug“; „Open Systems and the Corresponding Interfaces for
+Automotive Electronics“) as well as OSEK/Time compliant operating systems.
+The timers also provide the ability to benchmark certain areas of code by reading the counter contents at the
+beginning and the end of the desired code range and calculating the difference between the values.
+12.7.2.1 RTI Features
+The RTI modules include the following main features:
+•
+Windowed Watchdog Timer (WWDT) feature.
+•
+Two independent 64 bit counter blocks (counter block0 or counter block1). Each block consists of
+•
+One 32 bit up counter
+•
+One 32 bit free running counter
+•
+Two capture registers for capturing the prescale and free running counter on a special event.
+•
+Free running counter 0 can be incremented by either the internal prescale counter or by an external event.
+•
+Four configurable compare registers for generating operating system ticks . Each event can be driven by
+either counter block0 or counter block1.
+•
+Fast enabling/disabling of events.
+•
+RTI clock input derived from any of the available clock sources, selectable in the System Module
+•
+Optional capability to drive a pulse-width modulated signal out on an interrupt line.
+12.7.2.2 Unsupported Features
+See the Module Integration section for information about unsupported features.
+Note
+Some features may not be available. See Module Integration for more information.
+=== Page 1765 ===
+12.7.2.3 RTI Functional Description
+The MCU_RTI0 and RTI modules are hereinafter referred to as RTI module.
+12.7.2.3.1 RTI Digital Windowed Watchdog
+Note
+Some of the RTI features described in this section may not be supported on this family of devices. For
+more information, see RTI Not Supported Features.
+Note
+Digital windowed watchdog (DWWD) timer is implemented using the digital windowed watchdog
+function of the RTI modules. Real time interrupt functionality is not supported. In this mode, the timer
+should default to disabled and user can adjust the period as desired before enabling the watchdog.
+In addition to the time-out boundary configurable via the digital watchdog (DWD), some applications may also
+want to configure the start-time boundary of the watchdog. This is enabled by the digital windowed watchdog
+(DWWD) feature.
+Functional Behavior
+The DWWD opens a configurable time window in which the watchdog must be serviced. Any attempt to service
+the watchdog outside this time window, or a failure to service the watchdog in this time window, will cause the
+watchdog to generate either a reset or a non-maskable interrupt to the CPU. This is controlled by configuring
+the RTI_WWDRXNCTRL register. As stated earlier, when the watchdog needs to be enabled by software, the
+watchdog counter is disabled on a system reset. When the DWWD is configured to generate a non-maskable
+interrupt on a window violation, the watchdog counter continues to count down. The RTI_INTR_WWD interrupt
+handler needs to clear the watchdog violation status flag(s) and then service the watchdog by writing the
+correct sequence in the watchdog key RTI_WDKEY register. This service will cause the watchdog counter to get
+reloaded from the preload value and start counting down. If the RTI_INTR_WWD handler does not service the
+watchdog in time, it could count down all the way to zero and wrap around. No second exception for a time out is
+generated in this case.
+Configuration of DWWD
+The DWWD preload value (same as DWD preload) can only be configured when the DWWD counter is disabled.
+The window size and watchdog reaction to a violation can be configured even after the watchdog has been
+enabled. Any changes to the window size and watchdog reaction configurations will only take effect after the
+next servicing of the DWWD.
+=== Page 1766 ===
+rti-008
+100% window
+DWD
+Down Counter
+50% window
+25% window
+12.5% window
+6.25% window
+OPEN WINDOW
+OPEN WINDOW
+OPEN WINDOW
+Figure 12-412. RTI Digital Windowed Watchdog Timing Example
+12 bit preload
+25 bit down counter
+reload upper part of
+down counter with
+preload
+window size 100%
+window size 50%
+window size 25%
+window size 12.5%
+window size 12.5%
+window size 6.25%
+DWWDWS (window size)
+equality compare
+OPEN WINDOW
+flag
+(down counter reaches zero) or
+(DWWD successfully serviced)
+set
+clear
+rti_009
+Figure 12-413. RTI Digital Windowed Watchdog Operation Block Diagram
+=== Page 1767 ===
+12.7.2.3.1.1 RTI Debug Mode Behavior
+Note
+Some of the RTI features described in this section may not be supported on this family of devices. For
+more information, see RTI Not Supported Features.
+Once the system enters debug mode, the behavior of the RTI depends on the RTI_GCTRL[15] COS bit. If the bit
+is cleared and debug mode is active, all counters will stop operation. If the bit is set to one, all counters will be
+clocked normally and the RTI will work like in normal mode.
+The DWD counter will not decrement in debug mode and will hold its current value, regardless of the
+RTI_GCTRL[15] COS bit.
+Note
+The user must not service the watchdog while in debug mode.
+12.7.2.3.1.2 RTI Low Power Mode Operation
+The operation of the RTI module is guaranteed in run, doze and snooze mode. In sleep or hibernate mode all
+clocks will be switched off and the RTI module will not work.
+In doze and snooze modes all parts of the RTI are active, since it has to be able to wake up the device with
+compare and timebases interrupts. Capturing events generated by the interrupt module is also possible since in
+both modes the peripheral modules are able to generate interrupts, which can trigger capture events. The RTI
+module will generate compare and timebases interrupts. The compare interrupts will periodically wake up the
+device.
+Note
+In the special case of doze mode with DPLL off, RTI_FCLK might have a different period than with
+DPLL enabled, since RTI_FCLK will be derived from the oscillator output. It has to be ensured that the
+RTI_ICLK to RTI_FCLK ratio is at least 3:1.
+The DWD/DWWD remains active when the device enters low power mode as long as the RTI_FCLK is kept
+active.
+Whenever the LPSC that controls an RTI is in any state other than Enable (see , Module States), the RTI cannot
+count or generate interrupts. For more information, see , Power Control Modules.
+During standard SoC warm reset the RTI and the rest of the SoC are reset. In this case, the RTI counters are
+stopped and interrupts are not issued. During reset-isolated warm reset, if an R5FSS is put in reset-isolation,
+then the associated RTI also becomes reset isolated. As such, the R5FSS and the RTI are not reset, but RTI
+stops counting and cannot generate interrupts until R5FSS is taken out of CLKSTOP (brought to Enable state).
+12.7.2.3.2 RTI Digital Watchdog
+Note
+Some of the RTI features described in this section may not be supported on this family of devices. For
+more information, see RTI Not Supported Features.
+Some applications might use a digital watchdog (DWD) integrated in the RTI module. The digital watchdog
+generates resets after a programmable period, if no correct key sequence is written to the RTI_WDKEY register.
+Figure 12-414 shows the digital watchdog functional block.
+=== Page 1768 ===
+DWD
+rti-006
+Down Counter
+0
+24
+=
+Down Counter
+0
+11
+DWD Ctrl
+DWD Preload
+DWD hardwired
+Code
+Suspend
+nTRST
+0
+31
+0
+31
+=0
+RTIWDKEY
+0
+15
+Compare 16 bit
+out of 2
+0
+15
+WD FSM
+KEY[1-0]
+RESET
+to reset logic
+RTI_ CLK
+F
+Figure 12-414. RTI Digital Watchdog Functional Block Diagram
+The digital watchdog functionality is implemented such that it can be enabled by software.
+The DWD starts counting down from the reset value of the RTI_DWDCNTR (DWD Counter Register). The DWD
+preload register can be configured at any time by the application according to the desired time-out period.
+When enabled by software, the digital watchdog is disabled after system reset. If it should be used, it has to
+be enabled by writing A98559DAh to the RTI_DWDCTRL register. The DWD timeout period must be configured
+using the DWD preload register before the DWD is enabled. The DWD cannot be disabled by the application
+once it is enabled.
+Note
+When the DWD is enabled by software, any system reset will disable the DWD. This reset could have
+been generated by the watchdog itself.
+If the correct key sequence is written to the RTI_WDKEY register (E51Ah followed by A35Ch), the 25-bit DWD
+Down Counter is reloaded with the 12-bit preload value stored in RTI_DWDPRLD register. If any incorrect value
+is written to the RTI_WDKEY register, a watchdog reset will occur immediately. A reset will also be generated,
+when the DWD Down Counter is decremented to 0.
+The user has to take into account that the write to the RTI_WDKEY register takes 3 RTI_ICLK cycles. This
+needs to be considered for the DWD expiration calculation.
+The DWD Down Counter will be decremented with RTI_FCLK frequency. If the RTI_FCLK is switched off via
+the disable registers of the Clock management, the DWD counter stops decrementing. The DWD module cannot
+generate a reset under this condition.
+=== Page 1769 ===
+rti-007
+set DWD
+Preloat
+enalble
+DWD
+write E51A
+to WDKEY
+write E51A
+to WDKEY
+write E51A
+to WDKEY
+write A35C
+to WDKEY
+DWD
+configuration
+DWD
+Down Counter
+Reset
+Figure 12-415. RTI Digital Watchdog Operation
+The expiration time of the DWD Down Counter can be determined with following equation:
+texp= (RTI_DWDPRLD + 1) x 213 / RTI_FCLK
+(7)
+where RTI_DWDPRLD = 0...4095
+12.7.2.3.3 RTI Counter Operation
+Note
+Some of the RTI features described in this section may not be supported on this family of devices. For
+more information, see RTI Not Supported Features.
+Figure 12-416 shows the RTI module counter blocks. The RTI module supports two counter blocks.
+=== Page 1770 ===
+rti-004
+Up Counter0
+0
+31
+Compare Up
+Counter
+0
+31
+Free Running
+Counter0
+0
+31
+=
+Capture
+Free Running
+Counter0
+0
+31
+Capture Up
+Counter0
+0
+31
+RTI_ CLK
+F
+Up Counter1
+0
+31
+Capture Up
+Counter1
+0
+31
+Compare Up
+Counter
+0
+31
+=
+Free Running
+Counter1
+0
+31
+Capture
+Free Running
+Counter1
+0
+31
+External
+Control
+compare
+control
+compare
+control
+compare
+control
+compare
+control
+RTI_CAPCTRL source 0
+RTI_CAPCTRL source 1
+to Compare Block0
+to Compare Block1
+to Compare Block2
+to Compare Block3
+Counter block0
+Counter block1
+RTI_ CLK
+F
+Figure 12-416. RTI Counters Block Diagram
+Each block consists of two 32 bit up counters - Up Counter (UC) and Free Running Counter (FRC). The Up
+Counter (RTI_UC0 or RTI_UC1 register) is driven by the RTI_FCLK and counts up until the compare value in
+the Compare Up Counter register (RTI_CPUC0 or RTI_CPUC1) is reached. When the compare matches, the
+second counter (RTI_FRC0 or RTI_FRC1 register), which is a free running counter, is incremented. At the same
+time UCx is reset to zero.
+To ensure the consistency of the counters, when both counter value have to be determined, the Free Running
+Counter has to be read first. This will ensure that at the CPU read cycle, the Up Counter value is stored in the
+counter register. The second read is done on the Up Counter register, which holds then the value of the counter
+cycle of the previous read on the Free Running Counter register.
+Both blocks provide also a capture feature on external events. Two capture sources can trigger the capture
+event. Which event triggers block 0 or block 1 is configurable from the RTI_CAPCTRL register. The sources are
+coming from the interrupt manager, in order to be able to generate a capture event when one of the peripheral
+modules has generated an interrupt. The peripheral, which can generate an event is configured in the interrupt
+manager. When the event is detected, UCx and FRCx are stored in Capture Up Counter (RTI_CAUC0 or
+RTI_CAUC1) and Capture Free Running Counter (RTI_CAFRC0 or RTI_CAFRC1) registers. The read order of
+the captured values has to be like the order of the actual counters. So the CAFRCx has to be read first and the
+CAUCx registers has to be read after the CAFRCx value was determined. While the CAFRCx is read the CAUCx
+=== Page 1771 ===
+value is loaded into a shadow register to ensure data consistency, if during the two reads of the captured data
+another capture event happens. If the application fails to read the two registers before a second capture event
+happens, the previous data will be overwritten.
+Figure 12-417 shows the block diagram for one compare block. The RTI module supports four compare blocks.
+Compare BlockX
+rti-005
+From Counter BlockX
+=
+=
+Update
+CompareX [31-0]
+CompareX
+CLR [31-0]
+CompareX
+SET [31-0]
+Update
+CompareX [31-0]
+Clear
+0
+1
+CLR
+SET
+DMA Request
+RTI_WWD_INT
+INT CLR ENABLE
+(Disable Compare)
+Figure 12-417. RTI Compare Block Diagram
+In order to generate interrupt requests to the interrupt manager, there are four compare registers (RTI_COMP0,
+RTI_COMP1, RTI_COMP2, and RTI_COMP3). Each of the compare registers can be configured to work either
+on FRC0 (Counter block0) or FRC1 (Counter block1). When the counter value matches the compare value,
+an interrupt is generated. This sets an interrupt request line to the interrupt manager. The compare value gets
+updated automatically with the value stored in Update Compare (RTI_UDCP0, RTI_UDCP1, RTI_UDCP2, and
+RTI_UDCP3) registers when the compare matches. This gives the ability to generate periodic interrupts/DMA
+requests without having to update the compare value by software.
+An optional feature allows an application to program another compare value which is then used to clear
+the interrupt request line. This feature is supported by four compare clear registers (RTI_COMP0CLR,
+RTI_COMP1CLR, RTI_COMP2CLR, and RTI_COMP3CLR). When the counter value matches the compare
+clear value, the interrupt line is cleared. This clears the interrupt request line to the interrupt manager. The
+compare clear value gets updated automatically with the value stored in Update Compare (RTI_UDCPx)
+registers when the compare matches.
+12.7.3 Real-Time Clock (RTC)
+12.7.3.1 RTC Overview
+The basic purpose for the RTC is to keep time of day. The other equally important purpose of RTC is for Digital
+Rights management. Some degree of tamper proofing is needed to ensure that simply stopping, resetting, or
+corrupting the RTC does not go unnoticed so that if this occurs, the application can re-acquire the time of day
+from a trusted source. The final purpose of the RTC is to wake the rest of chip up from a power down state.
+12.7.3.1.1 RTC Features
+The real-time clock (RTC) provides the following features:
+=== Page 1772 ===
+•
+With Analog IP block
+•
+2 digital voltage domains with integrated LVL/ISO cells
+•
+CORE or volatile domain, same as core SOC
+•
+RTC or Always ON domain
+•
+Without Analog IP block
+•
+1 digital voltage domain, no lvl.iso
+•
+15 bit 32768Hz counter
+•
+48 bit seconds counter with +/- 1 30uS upto +/- 1 S drift adjustment every 4048 Seconds
+•
+256 bits of Scratch PAD
+•
+1 ON_OFF compare event, 48-bits
+•
+1 OFF_ON compare event, 48-bits
+•
+2 event outputs OFF_ON and ON_OFF to CORE
+•
+Support active external 32768 Hz and inactive/gated 32768 Hz
+•
+This allows HOST PROCESSOR to use some of the counter registers as general purpose
+•
+CORE protection logic which enables loose ISO assertion
+•
+Functional lockout, unlock by special vbusp sequence
+•
+DFT lockout, unlock by special 1500 sequence
+•
+HOST PROCESSOR can issue OFF now cmd
+•
+HOST PROCESSOR can update MMRs without polling, thanks to HW Shadow/Auto Sync
+•
+HOST PROCESSOR can read time without polling, thanks to HW Shadow/Auto Sync
+•
+External IOs (Optional)
+•
+4 wakeup inputs with active high/low including optional debounce
+•
+Async wake up supported
+•
+1 pmic_enable output
+•
+Analog Interface (Optional)
+•
+32 bit Analog Config output
+•
+ISO input
+•
+32KHz input
+12.7.3.1.2 Unsupported Features
+See the Module Integration section for information about unsupported features.
+Note
+Some features may not be available. See Module Integration for more information.
+12.7.3.2 RTC Integration
+This device includes a Real-Time (RTC) module to allow easy tracking of time and date and the generation of
+real time alarms.
+The following tables provide pin level detail for each of the interfaces on this module.
+Table 12-321 describes the 1500 Interface for the DFT unlock circuit.
+Table 12-321. 1500 Interface
+Signal Name
+Direction
+Default Value
+Description
+jtag_wrck
+In
+1'd0
+1500 wrapper clock
+jtag_wrstn_n
+In
+1'd1
+1500 wrapper reset (active low)
+jtag_wsi
+In
+1'd0
+1500 wrapper serial input
+jtag_selectwir
+In
+1'd0
+1500 select wrapper instruction
+register
+jtag_shiftwr
+In
+1'd0
+1500 shift wrapper register
+jtag_updatewr
+In
+1'd0
+1500 update wrapper register
+=== Page 1773 ===
+Table 12-321. 1500 Interface (continued)
+Signal Name
+Direction
+Default Value
+Description
+jtag_capturewr
+In
+1'd0
+1500 capture wrapper register
+jtag_wso
+Out
+1'd0
+1500 wrapper serial out
+Table 12-322 describes the PMIC Control External Wakeup and PMIC ON/OFF Control IOs.
+Table 12-322. PMIC Control IOs
+Signal Name
+Direction
+Default Value
+Description
+pmic_ext_wakeup0_io
+In
+1'd0
+RTC Wakeup0
+pmic_ext_wakeup1_io
+In
+1'd0
+RTC Wakeup1
+pmic_ext_wakeup2_io
+In
+1'd0
+RTC Wakeup2
+pmic_ext_wakeup3_io
+In
+1'd0
+RTC Wakeup3
+pmic_pmic_enable_io
+Out
+1'd1
+RTC PMIC Enable
+1 = ON
+0 = OFF
+Table 12-323. Analog Interface
+Signal Name
+Direction
+Default Value
+Description
+ana_osc32k_clk
+In
+NA
+Analog 32768 buffered
+Crystal clock
+If no analog, provide a near
+32768 clock
+ana_iso
+In
+1'd0
+Analog ISO
+1 = Isolated
+0 = Not Isolated
+If no analog, tie 1’b0
+ana_porz
+In
+NA
+Analog PowerOnReset
+1 = not asserted
+0 = asserted
+This will assert when ON/BAT
+domain is powering up
+If no analog, then you can
+connect same reset which was
+used for rst_mod_g_rst_n
+You can also use por_rst_n class,
+it’s a don’t care
+ana_cfg[31:0]
+Out
+TBD
+Analog config
+If no analog, NC
+Table 12-324. PSC Interface
+Signal
+Direction
+Default Value
+Description
+pwri_clkstop_idle
+Out
+1'd1
+The IP is in IDLE state, output of
+an IP
+pwrs_clkstop_req
+In
+1'd0
+Clock stop request
+pwrs_clkstop_ack
+Out
+1'd0
+Clock stop acknowledge
+=== Page 1774 ===
+Table 12-324. PSC Interface (continued)
+Signal
+Direction
+Default Value
+Description
+pwrw_clkstop_wakeup
+Out
+1'd0
+Wakeup
+It requires clock stop protocol to
+be active and active vclk_clk
+pwr_clk_clk_en
+In
+1'd1
+Clock-gate enable to IP
+pwr_clk_clk_en_ack
+Out
+pwr_clk_clk_en
+Clock-gate enable acknowledge
+from IP
+Table 12-325 describes the Main IP DFT Interface.
+Table 12-325. IP DFT Interface
+Signal Name
+Direction
+Default Value
+Description
+dft_partition_en
+In
+1'd0
+dft_partition_en
+dft_scan_en
+In
+1'd0
+dft_scan_en
+dft_clk_force_en
+In
+1'd0
+dft_clk_force_en
+dft_async_rst_sel
+In
+1'd0
+dft_async_rst_sel
+dft_test_async_rst_n
+In
+1'd1
+dft_test_async_rst_n
+dft_tft_mcp_dis
+In
+1'd0
+Assert High to block MCP path
+dft_local_clk_en
+In
+1'd0
+dft_local_clk_en
+dft_mode_atpg
+In
+1'd0
+ATPG
+The reset shown in Table 12-326 only goes to the core domain.
+Table 12-326. Reset Interface
+Signal Name
+Direction
+Default Value
+Description
+rst_mod_g_rst_n
+In
+1'd1
+Module level main reset
+The clock shown in Table 12-327 is used for all VBUS ports ref pll clock.
+Table 12-327. VBUS Clock Interface
+Signal Name
+Direction
+Default Value
+Description
+vclk_clk
+In
+1'd0
+Single ended clock
+Nom freq 50MHz
+vclk_cs_func_clk_en
+In
+1'd0
+catscan enable on
+kp_ti_ipg_clk_l1
+The clock shown in Table 12-328 is a buffered copy from the crystal oscillator clock.
+Table 12-328. OSC 32768Hz Clock Interface
+Signal Name
+Direction
+Default Value
+Description
+osc_32k_clk
+Out
+1'd0
+Buffered clock out from
+ana_osc32k_clk
+The clock shown in Table 12-329 is for the core domain in DFT mode.
+=== Page 1775 ===
+Table 12-329. DFT Clock Interface
+Signal Name
+Direction
+Default Value
+Description
+dftclk_clk
+In
+1'd0
+Single ended clock
+Table 12-330 describes the RTC Level Event OFF_ON and/or ON_OFF.
+Table 12-330. RTC Level Event
+Signal Name
+Direction
+Default Value
+Description
+rtc_event_pend_intr
+Out
+1'd0
+Interrupt signal active high level
+It has no dependency vclk_clk
+and clock stop protocol
+SOC will use it for wakeup vs
+the wakeup pin which has stop
+protocol requirements
+Table 12-331 describes the RTC pulse event OFF_ON and/or ON_OFF.
+Table 12-331. RTC Pulse Event
+Signal Name
+Direction
+Default Value
+Description
+rtc_event_req_intr
+Out
+1'd0
+Interrupt signal active high pulse
+Table 12-332 describes the Main on only VBUSP target port
+Table 12-332. VBUSP Target Port
+Signal Name
+Direction
+Default Value
+Description
+pr1_slv_req
+In
+1'b0
+Request
+pr1_slv_dir
+In
+1'b0
+Direction
+pr1_slv_address[31:0]
+In
+32'd0
+Address
+pr1_slv_xcnt[2:0]
+In
+3'd4
+Good Byte Count
+pr1_slv_byten[3:0]
+In
+{4{1'b1}}
+Byte Enables
+pr1_slv_wdata[31:0]
+In
+32'd0
+Write Data
+pr1_slv_wready
+Out
+1'b1
+Write Ready
+pr1_slv_rdatap[31:0]
+Out
+32'd0
+Read Data (Pipelined)
+pr1_slv_rready
+Out
+1'b1
+Read Ready
+pr1_slv_emudbg
+In
+1'b0
+Emulation Debug Attribute
+=== Page 1776 ===
+12.7.3.3 RTC Functional Description
+12.7.3.3.1 RTC Block Diagram
+Figure 12-418. RTC Block Diagram
+The RTC is composed of 3 major blocks, DIG_CORE, DIG_ON, and LVL_ISO.
+12.7.3.3.1.1 DIG_CORE uARCH
+The DIG_CORE block is on the CORE power domain which will power OFF/ON when the SOC powers OFF/ON.
+It contains, CORE IF logic, Shadow MMRs and MMR Sync logic.
+The MMR Sync logic has 2 modes of operation
+•
+Refresh/Sync after Core Reset
+•
+Sync after HOST PROCESSOR Updates Shadow MMRs
+Refresh/Sync after Core Reset Deassertion
+After every Core Reset event, the MMR Sync logic we refresh ALL Shadow MMRs by copying the contents of
+ON MMRs into the Shadow MMRs.
+Core Reset DeAssertion
+The internal state machine Reads All MMRs in linear order
+•
+If(GENRAL_CTL..32K_CLK_EN = 1)
+=== Page 1777 ===
+•
+Max delay of 2 32768Hz period delay
+•
+If(GENRAL_CTL..32K_CLK_EN = 0)
+•
+Max delay 1.2uS = 32 * vbus_clk period delay(27MHz)
+•
+It will not wait for high to low 32768 event to read MMRs
+The internal state machine Sets SYNCPEND.RD_DONE bit when the copy from the ON domain is completed.
+The host processor needs to wait for this status bit assertion before it reads the other MMRs
+Sync after HOST PROCESSOR Updates Shadow MMRs
+host processor UNLOCK
+host processor Wrts to MMRs
+The ON domain MMRs will get updated after a finite delay
+•
+If(GENRAL_CTL..32K_CLK_EN = 1)
+•
+Max delay of 2 32768Hz period delay
+•
+If(GENRAL_CTL..32K_CLK_EN = 0)
+•
+Max delay 8uS = 32 * vbus_clk period delay
+•
+It will not wait for high to low 32768 event to read MMRs
+The internal state machine sets SYNCPEND.WR_DONE bit. This needs to get cleared before the next HOST
+PROCESSOR Updates Shadow MMRs
+Note
+The CORE domain has its own copy of the sub-second counter and second counter along with the
+compensation logic. The 2 domains will always be in sync after a reset or after host processor does a
+update to the counters or compensation
+12.7.3.3.1.2 DIG_ON uARCH
+The DIG_ON block is in the always ON domain, the power is provided by the ANALOG Block. It contains the
+always ON MMRs which will preserve state of the Shadow MMRs when the CORE is OFF state.
+The 15 bit 32786Hz counter and the 48 bit second counter maintains count when the CORE is OFF. It has
+2 comparators one for OFF_ON and one for ON_OFF event. It has External Wakeup events which can get
+de-bounced to control the PMIC_ENABLE. It controls the PMIC_ENABLE output which can change state based
+on ON_OFF, OFF_ON, and HOST PROCESSOR OFF now events.
+The functional lockout and the dft lockout (1500) logic resides in this domain.
+12.7.3.3.1.3 ISO_LVL uARCH
+The ISO_LVL module constrains all DIG_CORE <-> DIG_ON Level/Isolation cells between these 2 domains.
+They use tibox to instantiate them. If No Analog support, then SOC integration team will not add in these RTC.
+12.7.3.3.1.4 DIG_CORE to DIG_ON updates uARCH
+Note
+If No Analog support, then DIG_CORE and DIG_ON will be on a common V domain.
+This section defines how the DIG_CORE Shadow MMRs maintain coherences with the DIG_ON Live MMR
+domain. All vbusp transactions terminate in the DIG_CORE block. All vbusp write transaction which require
+DIG_ON updates is completed by the Shadow to Live HW sequencer.
+This HW sequencer has 2 modes of operation.
+•
+Immediate Write Mode
+•
+When GENRAL_CTL.32K_OSC_DEP_EN = 0
+•
+It will start the write updates immediately
+=== Page 1778 ===
+•
+Delayed Write Mode
+•
+When GENRAL_CTL.32K_OSC_DEP_EN = 1
+•
+It will start the write updates after the first 32khz_clk high to low transition
+In Delayed Write Mode
+For example, HOST PROCESSOR updates OFF_ON_S_CNT_LSW and OFF_ON_S_CNT_MSW.
+After the HOST PROCESSOR completes the OFF_ON_S_CNT_MSW, the HW sequencer will start the process
+of updating the DIG_ON domain at the first available 32khz_clk is low cycle.
+Note
+32khz_clk is already low, the circuit will wait next low cycle to insure we have the full low period to do
+all pending updates. The HOST PROCESSOR can observe the SYNCPEND.WR_DONE bit, when set
+the write operations has completed to the DIG_ON domain
+Note
+If GENRAL_CTL..32K_CLK_EN = 0, then the HW sequencer will not wait for 32khz_clk high to low
+event, since this will force 32khz_clk low. This removes the dependency of an active 32768Hz clock
+ALL MMR write transaction require full 4 Bytes writes in order to reduce the logic size of the DIG_ON domain.
+RULE: Require 4 Bytes writes (less logic and iso)
+Note
+ON domain MMRs have a write lock protection circuit to prevent corruption of the DIG_ON domain
+during a power down event since ISO assertion can be late.
+Due to this fact, the HOST PROCESSOR must first unlock write access by performing the unlock sequence, by
+simply writing Kick0 and Kick1 with the correct pattern and sequence. After this is done, the RTC is in an unlock
+date. The HOST PROCESSOR will need to relocking by writing any pattern to Kick1
+12.7.3.3.2 CPU Interrupt Support
+12.7.3.3.2.1 CPU Interrupts
+The RTC can produce one HW event output active high level and active high pulse. This one output will assert
+on 3 internal HW events.
+1.
+Timer ON_OFF event
+2.
+Timer OFF_ON event
+3.
+External Wakeup event
+HOST PROCESSOR can read the Interrupt MMR status to determine which events caused the RTC event
+output to assert. vbus_clk can be on or off, the active high level will assert on either scenario. The 32768Hz
+clock must be active to cause a ON_OFF or OFF_ON event. The External Wakeup event can occur without
+32768Hz clock if debounce is not enabled.
+The Interrupt MMR programing model uses the standard Keystone3 schema which allows HOST PROCESSOR
+to issue debug event. Also, the enabling of the events are backed up in the ON domain, so HOST PROCESSOR
+will not enable to enable events on every power cycle of the CORE domain.
+12.7.3.3.3 Programming Usage Guide
+12.7.3.3.3.1 No Analog Support
+DIG_ON domain MMR Write Rules
+•
+UnLock DIG_CORE (Wrt Kick0 and Wrt Kick1)
+=== Page 1779 ===
+•
+Keep it UnLock
+•
+Write all MMRs in the same address order has MMRs from low to high
+•
+For example . Wrt Scratch Storage 0 through Scratch Storage 7
+•
+HOST PROCESSOR poles until SYNCPEND.WR_PEND is 0
+•
+Max completion is 60 uSeconds when GENRAL_CTL. 32K_OSC_DEP_EN is set
+•
+Max completion is 10 uSeconds when GENRAL_CTL. 32K_OSC_DEP_EN is clr
+•
+HOST PROCESSOR is not allowed to perform new write without waiting for clearing of
+SYNCPEND.WR_PEND
+After every new power up of the SOC
+•
+Unlock RTC by writing correct pattern in Kick0 and Kick1
+•
+Keep it UnLock
+•
+HOST PROCESSOR can verify that 32Khz_osc_clk is toggling by reading SYNCPEND. 32K_CLK_OBS
+•
+Should not be required, since the 32Khz_osc_clk will always will be active
+•
+HOST PROCESSOR sets GENRAL_CTL.32K_OSC_DEP_EN
+•
+Wait for 60 uSec
+•
+Initialize ALL RTC MMRs in the DIG_ON domain in the same order as the address map
+•
+The RTCs MMRs do not have a reset state in general, only a few required MMRs bits have one.
+•
+HOST PROCESSOR must initialize all bits of the MMRs which reside in DIG_ON domain
+•
+Ie wrt <value>@0x00, <value>@0x04, <value>@0x08 ….<value>@0x50
+•
+HOST PROCESSOR poll SYNCPEND.WR_PEND until null
+•
+This means all DIG_ON domain MMRs have been written to
+RTC is now in an operational state and fully configured.
+32768 MHz time adjustment
+•
+HOST PROCESSOR UnLock RTC(required for writes to DIG_ON domain)
+•
+HOST PROCESSOR can readSUB_S_CNT(1st), S_CNT_LSW(2nd), S_CNT_MSW(3rd)
+•
+HOST PROCESSOR can write new time by writing to SUB_S_CNT(1st), S_CNT_LSW(2nd),
+S_CNT_MSW(3rd)
+•
+HOST PROCESSOR ReLock RTC(writing 0x0000_0000 to KICK1)
+•
+HOST PROCESSOR poll SYNCPEND.WR_PEND until null
+32768 MHz time drift adjustment
+•
+HOST PROCESSOR UnLocks RTC(required for writes to DIG_ON domain)
+•
+HOST PROCESSOR can readSUB_S_CNT(1st), S_CNT_LSW(2nd), S_CNT_MSW(3rd)
+•
+SW determines drift rate
+•
+HOST PROCESSOR updates or enables drift adjustment by HOST PROCESSOR write new COMP_LSB
+and COMP_MSB
+•
+HOST PROCESSOR ReLock RTC(writing 0x0000_0000 to KICK1)
+•
+HOST PROCESSOR poll SYNCPEND.WR_PEND until null
+12.7.3.3.3.2 With Analog Support
+DIG_ON domain MMR Write Rules
+•
+UnLock DIG_CORE (Wrt Kick0 and Wrt Kick1)
+•
+Write all MMRs in the same address order has MMRs from low to high
+•
+For example . Wrt Scratch Storage 0 through Scratch Storage 7
+•
+ReLock DIG_CORE (Wrt 0x0000_0000 to Kick1)
+•
+HOST PROCESSOR poles until SYNCPEND.WR_PEND is 0
+•
+Max completion is 60 uSeconds when GENRAL_CTL. 32K_OSC_DEP_EN is set
+•
+Max completion is 10 uSeconds when GENRAL_CTL. 32K_OSC_DEP_EN is clr
+•
+HOST PROCESSOR is not allowed to perform new write without waiting for clearing of
+SYNCPEND.WR_PEND
+First Time Powered ON(DIG_ON)
+=== Page 1780 ===
+•
+Unlock RTC by writing correct pattern in Kick0 and Kick1
+•
+HOST PROCESSOR updates ANALOG_CTRL MMR
+•
+Set the correct parameters
+•
+Enable 32768Hz OSC
+•
+Wait for 3 seconds to allow the 32768Hz OSC to lock
+•
+HOST PROCESSOR can verify that 32Khz_osc_clk is toggling by reading SYNCPEND. 32K_CLK_OBS
+•
+HOST PROCESSOR sets GENRAL_CTL.32K_OSC_DEP_EN
+•
+HOST PROCESSOR ReLock DIG_CORE (Wrt 0x0000_0000 to Kick1)
+Initialize ALL RTC MMRs in the DIG_ON domain in the same order as the address map except for the first 2
+writes which should always be to the 2 KICK0/KICK1 MMRs to unlock write transaction and the last write which
+should relock by writing 0x0 to KICK1
+•
+The RTCs MMRs do not have a reset state in general, only a few required MMRs bits have one.
+•
+HOST PROCESSOR must initialize all bits of the MMRs which reside in DIG_ON domain
+•
+HOST PROCESSOR UnLock
+•
+Ie wrt <value>@0x00, <value>@0x04, <value>@0x08 ….<value>@0x50
+•
+HOST PROCESSOR ReLock RTC(writing 0x0000_0000 to KICK1)
+•
+HOST PROCESSOR poll SYNCPEND.WR_PEND until null
+•
+This means all DIG_ON domain MMRs have been written to
+RTC is now in an operational state and fully configured
+32768 MHz time adjustment
+•
+HOST PROCESSOR UnLock RTC(required for writes to DIG_ON domain)
+•
+HOST PROCESSOR can readSUB_S_CNT(1st), S_CNT_LSW(2nd), S_CNT_MSW(3rd)
+•
+HOST PROCESSOR can write new time by writing to SUB_S_CNT(1st), S_CNT_LSW(2nd),
+S_CNT_MSW(3rd)
+•
+HOST PROCESSOR ReLock RTC(writing 0x0000_0000 to KICK1)
+•
+HOST PROCESSOR poll SYNCPEND.WR_PEND until null
+32768 MHz time drift adjustment
+•
+HOST PROCESSOR UnLocks RTC(required for writes to DIG_ON domain)
+•
+HOST PROCESSOR can readSUB_S_CNT(1st), S_CNT_LSW(2nd), S_CNT_MSW(3rd)
+•
+SW determines drift rate
+•
+HOST PROCESSOR updates or enables drift adjustment by
+•
+HOST PROCESSOR write new COMP_LSB and COMP_MSB
+•
+HOST PROCESSOR ReLock RTC(writing 0x0000_0000 to KICK1)
+•
+HOST PROCESSOR poll SYNCPEND.WR_PEND until null
+Update OFF_ON and/or ON_OFF times
+•
+HOST PROCESSOR poll SYNCPEND.WR_PEND until null (ACTION PRE vs POST)
+•
+HOST PROCESSOR UnLocks RTC(required for writes to DIG_ON domain)
+•
+HOST PROCESSOR update OFF_ON_S_CNT_LSW/MSW and/or ON_FF_S_CNT_LSW/MSW
+•
+HOST PROCESSOR can update SCRATCH0/7
+•
+HOST PROCESSOR update GENRAL_CTL to enable if required
+•
+HOST PROCESSOR ReLock RTC(writing 0x0000_0000 to KICK1)
+•
+HOST PROCESSOR poll SYNCPEND.WR_PEND until null
+Note
+The new OFF time must be at least 2 seconds in the future
+OFF NOW
+•
+HOST PROCESSOR UnLocks RTC(required for writes to DIG_ON domain)
+•
+Optional (HOST PROCESSOR can update SCRATCH0/7)
+=== Page 1781 ===
+•
+HOST PROCESSOR issues a SW_OFF in GENRAL_CTL
+•
+HOST PROCESSOR does a dead loop, wait for power OFF
+Note
+Note any Write to SW_OFF will cause a Auto ReLock
+12.7.3.3.3.2.1 MMR Spurious WRT Protection
+The module also contains a kicker mechanism (Figure 12-419) to prevent any spurious writes from changing
+the register values. This mechanism requires two MMR writes to the Kick0 and Kick1 registers with exact data
+values before the kicker lock mechanism is released. Once released, the MMRs are writeable. The Kick0 data
+is 83E7 0B13h; the Kick1 data is 95A4 F1E0h. Note that it remains in an unlocked state until an OCP reset or
+invalid data pattern is written to one of the Kick0 or Kick1 registers.
+•
+Key0 = 83E7 0B13h
+•
+Key1 = 95A4 F1E0h
+•
+Locked = Write protection enabled
+•
+Unlocked = Write protection disabled
+Figure 12-419. Kick Register State Machine Diagram
+•
+S0 is the Reset/Idle state
+•
+S1 is an wrt cycle of 83E7 0B13h at Kick0 completed state
+•
+S2 is the UNLOCK MMR WRT state
+•
+S0 ĺ S1 when wrt cycle of 83E7 0B13h at Kick0
+•
+S1 ĺ S2 when wrt cycle of 95A4 F1E0h at Kick1
+•
+S1 ĺ S0 when reset event
+•
+S2 ĺ S0 when reset event OR OCP wrt cycle of NOT 83E7 0B13h at Kick0 OR OCP wrt cycle at Kick1
+•
+S2 ĺ S1 when wrt cycle of 83E7 0B13h at Kick0
+=== Page 1782 ===
+12.7.3.3.3.2.2 Crystal Compensation
+In order to compensate for any inaccuracy of the 32768HZ oscillator, the HOST can perform a calibration of
+the oscillator frequency, calculate the drift compensation versus one-hour period and load the compensation
+registers with the drift compensation value. If the COMP_REG value is positive, compensation occurs after
+the second change event. COMP_REG cycles are removed from the next second. If the COMP_REG value is
+negative, compensation occurs before the second change event. -COMP_REG cycles are added to the current
+second. This enables to compensate with a 132 kHz period accuracy each 4096 Seconds. The waveform below
+summarizes positive and negative compensation effect.
+=== Page 1783 ===
+Figure 12-420. Compensation Illustration
+12.7.3.3.4 Scratch Registers
+The RTC provides eight general-purpose registers (SCRATCHx_REG) that can be used to store 32-bit words
+-- these registers have no functional purpose for the RTC. Software using the RTC may find the SCRATCHx
+registers to be useful in indicating RTC states. For example, the SCRATCHx_REG registers may be used to
+indicate write-protection lock status or unintentional power downs. To indicate write-protection, the software
+=== Page 1784 ===
+should write a unique value to one of the SCRATCHx_REG registers when write-protection is disabled and
+another unique value when write-protection is enabled again. In this way, the lock-status of the registers can
+be determined quickly by reading the SCRATCH register. To indicate unintentional power downs, the software
+should write a unique value to one of the SCRATCHx_REG registers when RTC is configured and enabled.
+If the RTC is unintentionally powered down, the value written to the SCRATCH register is cleared. For more
+information, see RTCSS Registers.
+12.7.3.3.5 KS3 Clock Stop Protocol
+The IP is complaint to KS3 Clock Stop Protocol, please refer to its spec.
+For this IP
+•
+pwri_clkstop_idle = !( RD_PEND or WR_PEND or EVENT_OFF_ON or EVENT_ON_OFF)
+•
+If any of these MMRs are set, pwri_clkstop_idle = 0 or busy
+•
+pwrs_clkstop_ack will not assert per spec unless pwrs_clkstop_req == 1 and pwri_clkstop_idle == 1
+•
+pwrw_clkstop_wakeup will not assert unless pwrs_clkstop_ack == 1 AND vclk_clk is active
+It will assert rtc_event_pend_intr asserts
+•
+The integration guideline is to always use rtc_event_pend_intr for wakeup event since it has NO
+dependencies on clock stop protocol nor active vclk_clk is required, just 32k_clk needs to be active
+=== Page 1785 ===
+12.7.4 Timers
+This section describes the Timer modules for the device.
+12.7.4.1 Timers Overview
+All timers include specific functions to generate accurate tick interrupts to the operating system.
+Each timer can be clocked from several different independent clocks. The selection of clock source is made from
+registers in the MCU_CTRL_MMR0/CTRL_MMR0.
+In the MCU domain the device provides 4 timer pins, one for each instance, to be used as MCU Timer Capture
+inputs or as MCU Timer PWM outputs.
+In the MAIN domain the device provides 11 timer pins, one for each instance, to be used as Timer Capture
+inputs or as Timer PWM outputs.
+Each odd numbered timer instance from each of the domains may be optionally cascaded with the previous
+even numbered timer instance from the same domain to form up to a 64-bit timer. For example, TIMER1 may be
+cascaded to TIMER0, MCU_TIMER1 may be cascaded to MCU_TIMER0, etc.
+When cascaded, TIMERi acts as a 32-bit prescaler to TIMERi+1, as well as MCU_TIMERn acts as a 32-bit
+prescaler to MCU_TIMERn+1. TIMERi / MCU_TIMERn must be configured to generate a PWM output edge at
+the desired rate to increment the TIMERi+1/ MCU_TIMERn+1 counter.
+Figure 12-421 is an overview of the timers.
+=== Page 1786 ===
+Device
+timers_001
+Clocks
+Interrupts
+Reset signals
+TIMERx
+Interrupt Controllers
+0
+1
+Clocks
+Interrupts
+Reset signals
+TIMERy
+TIMER_IOb
+TIMER_IOb
+Clocks
+Interrupts
+MCU_TIMERm
+0
+1
+Clocks
+Interrupts
+Reset signals
+MCU_TIMERn
+Inputs/Outputs
+Inputs/Outputs
+Inputs/Outputs
+Inputs/Outputs
+Interrupt Controllers
+PLL Controller
+PLL Controller
+Control Module
+Reset Controllers
+Reset signals
+Reset Controller
+CBASS0
+Control Module
+MCU_CBASS0
+MCU_TIMER_IOa
+MCU_TIMER_IOa
+8
+8
+16
+16
+TIMERCLKx
+MUX
+TIMERCLKy
+MUX
+MCU_TIMERCLKm
+MUX
+MCU_TIMERCLKn
+MUX
+m = even instances of MCU Timer.
+x = even instances of Timer.
+Note
+n = odd instances of MCU Timer.
+Note
+y = odd instances of Timer.
+Figure 12-421. Timers Overview
+=== Page 1787 ===
+12.7.4.1.1 Timers Features
+The following are the main features of the timer controllers:
+•
+Target interface supports:
+•
+32-bit data bus width
+•
+32-bit access supported
+•
+10-bit address bus width
+•
+Write nonposted transaction mode supported
+•
+Interrupts generated on overflow, compare, and capture
+•
+Free-running 32-bit upward counter
+•
+Compare and capture modes
+•
+Autoreload mode
+•
+Start/stop mode
+•
+Programmable divider clock source (2n, where n = [0-8])
+•
+Dedicated input trigger for capture mode and dedicated output trigger/PWM signal
+•
+On-the-fly read/write register (while counting)
+•
+Generates a 1-ms tick clock with a 32.768 kHz functional clock sourced from the LFOSC
+12.7.4.1.2 Unsupported Features
+See the Module Integration section for information about unsupported features.
+Note
+Some features may not be available. See Module Integration for more information.
+=== Page 1788 ===
+12.7.4.2 Timers Environment
+The MCU_TIMER[3-0] and TIMER[11-0] modules are hereinafter referred to as timer module.
+This section describes the timers external connections (environment).
+12.7.4.2.1 Timer External System Interface
+Each timer can send or receive stimulus to/from the external (off-chip) system. In the device all timers are
+configured to output a PWM pulse or receive an external event signal used as a trigger to capture the current
+timer count.
+Figure 12-422 shows the external system interface for the timers, and Table 12-333 describes the timer inputs
+and outputs.
+Note
+i represents a TIMER instance. See the device datasheet for available domains and TIMER instances.
+Figure 12-422. Timers External System Interface
+Table 12-333. Timer I/O Signals
+Module Pin
+Device Level Signal
+I/O(1)
+Description
+Module Pin
+Reset Value(2)
+MCU_TIMERi(2)
+MCU_TIMER_IOi(2)
+MCU_TIMERi(2)_PIEVENTCAPT
+I/O
+MCU_TIMERi(2) trigger input or
+0
+MCU_TIMERi(2)_POTIMERPWM
+MCU_TIMERi(2) output
+TIMERi(2)
+TIMER_IOi(2)
+TIMERi(2)_PIEVENTCAPT
+I/O
+TIMERi(2) trigger input or
+0
+TIMERi(2)_POTIMERPWM
+TIMERi(2) PWM output
+(1)
+When configured for that function; I = Input, O = Output
+(2)
+i represents a TIMER instance. See the device datasheet for available domains and TIMER instances.
+Note
+Each MCU_TIMER_PO_GPOCFG and TIMER_PO_GPOCFG signals are used as an output enable
+to control the function of the MCU_TIMER_IO[3-0], and respectively TIMER_IO[11-0], as the PWM
+output (PO_GPOCFG = 0) or capture input (PO_GPOCFG = 1).
+=== Page 1789 ===
+Note
+For more information about device level signals (pull-up/down resistors, buffer type, and others), see
+tables Pin Attributes in the device-specific Datasheet.
+12.7.4.3 Integration
+See the Module Integration section for information about clocks, resets and hardware requests.
+=== Page 1790 ===
+12.7.4.4 Timers Functional Description
+Each timer contains a free-running upward counter with autoreload capability on overflow. The timer counter can
+be read and written on-the-fly (while counting). Each timer includes compare logic to allow an interrupt event
+on a programmable counter matching value. A dedicated output signal can be pulsed or toggled on either an
+overflow or a match event. This offers time-stamp trigger signaling or PWM signal sources. A dedicated input
+signal can be used to trigger an automatic timer counter capture or an interrupt event on a programmable input
+signal transition. A programmable clock divider (prescaler) allows reduction of the timer input clock frequency. All
+internal timer interrupt sources are merged into one module interrupt line and one wake-up line.
+Each internal interrupt source can be independently enabled and disabled by a dedicated bit in the
+TIMER_IRQSTATUS_SET and TIMER_IRQSTATUS_CLR register for the interrupt features, and a dedicated
+bit of the TIMER_IRQWAKEEN register for a wake-up. In addition, timers have a mechanism implemented to
+generate an accurate tick interrupt.
+For each timer implemented in the device, there are two possible clock sources:
+•
+32-kHz clock (sourced from the LFOSC)
+•
+System clock
+For more information of the selection of the input clock source, see Clocking.
+Each timer supports three functional modes:
+•
+Timer mode
+•
+Capture mode
+•
+Compare mode
+The capture and compare modes are disabled by default after core reset.
+12.7.4.4.1 Timer Block Diagram
+Figure 12-423 is a block diagram of the timers.
+=== Page 1791 ===
+timers-005
+TSICR
+TWPS
+TIOCP_CFG
+Interconnect
+TCLR
+TTGR
+TLDR
+TCRR
+TMAR
++
+TPIR
+TNIR
+TCVR
+TOCR
+TOWR
+Comp
+Timer
+counter
+TCAR1
+TCAR2
+Edge detection
+logic
+Prescaler
+IRQSTATUS_SET
+IRQSTATUS_CLR
+IRQWAKEEN
+IRQSTATUS
+Pulse PWM
+logic
+Interrupt
+logic
+Wake-up
+logic
+Full
+24-bit counter
+OVF
+Filtered overflow
+1-ms tick module
+Interconnect Interface
+General-purpose timer module
+TIMER_INTERRUPT
+GPT_SWAKEUP
+TIMER_PO_GPOCFG
+CLK_TIMER
+EVENT_CAPTURE
+PWM_OUT
+Figure 12-423. Timer Block Diagram
+12.7.4.4.2 Timer Power Management
+Note
+Some of the timers features described in this section may not be supported on this family of devices.
+For more information, see Module Integration for specifics..
+The way the timer acknowledges the LPSC clock stop request is configurable through the
+TIMER_TIOCP_CFG[3-2] IDLEMODE bit field.
+Table 12-334 lists the IDLEMODE settings and the related acknowledgment modes.
+Table 12-334. IDLEMODE Settings
+IDLEMODE Value
+Selected Mode
+Description
+00
+Force-idle
+The clock stop request is unconditionally acknowledged from the timer, regardless of its
+internal operations. This mode must be used carefully, because it does not prevent the
+loss of data when the clock is switched off.
+=== Page 1792 ===
+Table 12-334. IDLEMODE Settings (continued)
+IDLEMODE Value
+Selected Mode
+Description
+01
+No-idle
+The clock stop request is never acknowledged from the timer. This mode is safe from
+a module point of view but is not efficient from a power-saving perspective because the
+clocks remain active.
+10
+Smart-idle
+The timer acknowledges the clock stop request, basing its decision on its internal activity.
+The =acknowledge =signal =is =asserted =only =when =all =pending =transactions =and =interrupt
+requests are treated. This is the best approach to efficient system power management.
+11
+Smart-idleWakeup
+The =module =behaves =like =in =Smart-idle =mode, =with =the =exception, =that =it =can =issue =a
+wake-up request in sleep mode, if the functional clock is not cut off.
+12.7.4.4.2.1 Wake-Up Capability
+Note
+Some of the timers features described in this section may not be supported on this family of devices.
+For more information, see Timers Not Supported Features.
+If the TIMER_TIOCP_CFG[3-2] IDLEMODE bit field sets the smart-idle mode or smart-idle with wake-up
+mode, the timer evaluates its internal capability to have the interface clock switched off. When there is no
+further internal activity (no pending interrupt sources: match, overflow, or timer capture events), the clock stop
+acknowledge signal is asserted and the timer enters sleep mode, ready to issue a wake-up request if configured
+in smart-idle with wake-up mode.
+Figure 12-424 shows the wake-up request generation.
+timers-006
+IRQSTATUS
+IRQWAKEEN
+MAT_WUP_ENA
+OVF_WUP_ENA
+TCAR_WUP_ENA
+MAT_IT_FLAG
+OVF_IT_FLAG
+TCAR_IT_FLAG
+Interrupt
+sources
+Timer wake-up
+Figure 12-424. Wake-Up Request Generation
+The timer wake-up-enable register allows masking of the expected source of the wake-up event that
+generates a wake-up request. The register is synchronously programmed with the interface clock before
+the Clock magagemet sends a clock stop request. The expected source of the wake-up event is an
+overflow (TIMER_TCRR), a timer match (the compare result of TIMER_TCRR and TIMER_TMAR matches
+the counter value), and a timer capture (detection of an external pulse transition of the correct polarity on the
+TIMER_PIEVENTCAPT).
+When the wake-up event is issued, the associated interrupt status bit is set in the timer status register
+(TIMER_IRQSTATUS). The pending wake-up event is reset when the set status bit is overwritten with 1.
+=== Page 1793 ===
+Note
+The status bit must be reset to re-enter idle mode.
+12.7.4.4.3 Timer Software Reset
+TIMER_TIOCP_CFG[0] SOFTRESET bit can initiate a software reset of the timer. This bit is autocleared to 0
+when the reset is complete.
+Before accessing or using the timer, the local host must ensure that internal reset is released by reading the
+TIMER_TIOCP_CFG[0] SOFTRESET bit. This bit monitors the internal reset status.
+12.7.4.4.4 Timer Interrupts
+The timer can issue an overflow interrupt, a timer match interrupt, and a timer capture interrupt. Each
+internal interrupt source can be independently enabled and disabled in the interrupt-enable register
+(TIMER_IRQSTATUS_SET) and disabled in the interrupt-disable register (TIMER_IRQSTATUS_CLR). When
+the interrupt event is issued, the associated interrupt status bit is set in the timer status register
+(TIMER_IRQSTATUS).
+12.7.4.4.5 Timer Mode Functionality
+The timer is an upward counter that can be started and stopped at any time through the timer control register
+(the TIMER_TCLR[0] ST bit). The timer counter register (TIMER_TCRR) can be loaded when stopped or
+on-the-fly (while counting). TIMER_TCRR can be loaded directly by a TIMER_TCRR write access with a new
+timer value. TIMER_TCRR can also be loaded with the value held in the timer load register (TIMER_TLDR) by
+a trigger register (TIMER_TTGR) write access. The loading of TIMER_TCRR is done regardless of the written
+value of TIMER_TTGR. The value of TIMER_TCRR can be read when stopped or captured on-the-fly by a
+TIMER_TCRR read access. The timer is stopped and the counter value is set to 0 when the module reset is
+asserted. The timer is maintained at stop after the reset is released.
+In one-shot mode (the TIMER_TCLR[1] AR bit is set to 0), the counter is stopped after counting overflow occurs
+(the counter value remains at 0).
+When the autoreload mode is enabled (the TIMER_TCLR[1] AR bit is set to 1), TIMER_TCRR is reloaded with
+the value of TIMER_TLDR after a counting overflow occurs.
+CAUTION
+Do not put the overflow value (0xFFFF FFFF) in the TIMER_TLDR register because it can lead to
+undesirable results.
+An interrupt can be issued on overflow if the overflow interrupt-enable bit is set in the timer interrupt-
+enable register (the TIMER_IRQSTATUS_SET[1] OVF_EN_FLAG bit is set to 1). A dedicated output pin
+(POTIMERPWM) can be programmed in the TIMER_TCLR[12] PT bit through the TIMER_TCLR[11-10] (PT and
+TRG bits) to generate one positive pulse (prescaler duration) or to invert the current value (toggle mode) when
+an overflow occurs. The TIMER_TCLR[12] PT bit selects pulse/toggle modulation (the TIMER_TCLR[11-10]
+TRG bit field selects trigger mode).
+Figure 12-425 shows the TIMER_TCRR timing value.
+=== Page 1794 ===
+Load register
+(TLDR)
+Counter register
+(TCRR)
+0xFFFF FFFF
+Overflow
+reset pulse is
+generated.
+Trigger register
+(TTGR)
+0x0000 0000
+timers-008
+Figure 12-425. TIMER_TCRR Timing Value
+12.7.4.4.5.1 1-ms Tick Generation
+The interrupt period is not exactly 1 ms, because the timer input clock is 32.768 kHz. If the clock counts up to 32,
+it obtains a 0.977-ms period; if it counts up to 33, it obtains a 1.007-ms period. For large granularity, the error is
+cumulative and can generate important deviations from the standard value.
+To minimize the error between a true 1-ms tick and the tick generated by the 32.768-kHz timer, the sequencing
+of periods less than 1 ms and periods greater than 1 ms must be shuffled. An additional 1-ms block is used to
+correct this error. See Figure 12-426.
+Note
+The only available source for a 32.768-kHz clock is the LFOSC. The HFOSC is not capable of
+generating a true 32.788-kHz frequency.
+In this implementation, the increment sequencing is automatically managed by the timer to minimize the
+error. The user must define only the value of the timer positive increment register (the TIMER_TPIR[31-0]
+POSITIVE_INC_VALUE bit field) and the timer negative increment register (the TIMER_TNIR[31-0]
+NEGATIVE_INC_VALUE bit field). An automatic adaptation mechanism is used to simplify the programming
+model.
+=== Page 1795 ===
+timers-009
+TLDR
+TPIR
+TNIR
+TCVR
+TOCR
+TOWR
+Timer
+counter
+TISR
+24-bit counter
+OVF
+Filtered
+overflow
+Add
+1
+Add
+3
+Add
+2
+MSB
+MSB
+MSB
+1
+0
+Conversion
+1 -> 0xFFFF FFFF
+0 -> 0x0000 0000
+Add
+4
+Full
+32
+32
+24
+24
+Figure 12-426. Block Diagram of the 1-ms Tick Module
+The TIMER_TPIR, TIMER_TNIR, and TIMER_TCVR registers and adders Add1, Add2, and Add3 are used to
+define whether the next value loaded in the timer counter register (the TIMER_TCRR[31-0] TIMER_COUNTER
+bit field) is the value of the TIMER_TLDR[31-0] LOAD_VALUE bit field (period less than 1 ms) or the value of
+TIMER_TLDR[31-0] LOAD_VALUE ±1 (period greater than 1 ms).
+Table 12-335 lists the value loaded in the TIMER_TCRR according to the sign of the result of Add1, Add2, and
+Add3.
+MSB = 0: Positive value; MSB = 1: Negative value
+Table 12-335. Value Loaded in TIMER_TCRR to Generate 1-ms Tick
+Add1 MSB
+Add2 MSB
+Add3 MSB
+Value of TIMER_TCRR Register
+0
+0
+0
+TIMER_TLDR[31-0] LOAD_VALUE bit field
+0
+0
+1
+TIMER_TLDR[31-0] LOAD_VALUE bit field
+0
+1
+0
+TIMER_TLDR[31-0] LOAD_VALUE bit field
+0
+1
+1
+TIMER_TLDR[31-0] LOAD_VALUE ±1
+1
+0
+0
+N/A
+1
+0
+1
+N/A
+1
+1
+0
+TIMER_TLDR[31-0] LOAD_VALUE ±1
+1
+1
+1
+TIMER_TLDR[31-0] LOAD_VALUE ±1
+=== Page 1796 ===
+The values of the TIMER_TPIR and TIMER_TNIR registers are calculated using the following formulas:
+•
+Positive increment value = (INTEGER[Fclk × Ttick] + 1) × 1e6) ± (Fclk × Ttick × 1e6)
+•
+Negative increment value = (INTEGER[Fclk × Ttick] × 1e6) ± (Fclk × Ttick × 1e6)
+Note
+Fclk clock frequency (kHz)
+Ttick tick period (ms)
+The timer overflow counter register (TIMER_TOCR) and the timer overflow wrapping register (TIMER_TOWR)
+are used to filter interrupts. When the timer overflows, it increments the 24-bit TIMER_TOCR. When the values
+in the 24-bit TIMER_TOCR match the values in the 24-bit TIMER_TOWR and the timer overflow is asserted, the
+TIMER_TOCR is reset and an interrupt is generated to the TIMER_IRQSTATUS register.
+Note
+TIMER_TOWR has to be set to requested value. For example, if no interrupt needs to be masked
+TIMER_TOWR must be set to 0, if one interrupt needs to be masked TIMER_TOWR must be set to 1,
+if two interrupts need to be masked TIMER_TOWR must be set to 2 and so on.
+It is important to have in mind that the case when FFFFFF interrupts need to be masked is not
+possible.
+With the conversion block in reset state (the positive increment register, negative increment register, and counter
+value register are zeroed), the programming model and the behavior of timers remain unchanged.
+For 1-ms tick with a 32.768-kHz clock:
+•
+TIMER_TPIR[31-0] POSITIVE_INC_VALUE = 232,000
+•
+TIMER_TNIR[31-0] NEGATIVE_INC_VALUE = ±768,000
+•
+TIMER_TLDR[31-0] LOAD_VALUE = 0xFFFF FFE0
+Note
+Any value of the tick period can be generated with the appropriate value of the TIMER_TPIR,
+TIMER_TNIR, and TIMER_TLDR.
+By default, the TIMER_TPIR, TIMER_TNIR, TIMER_TCVR, TIMER_TOCR, and TIMER_TOWR and
+the associated logic are in reset mode (all 0s) and have no effect on the programming model.
+12.7.4.4.6 Timer Capture Mode Functionality
+When a transition is detected on the module input pin (PIEVENTCAPT), the timer value in the TIMER_TCRR
+can be captured and saved in the TIMER_TCAR1 or TIMER_TCAR2 register function of the mode selected
+in the TIMER_TCLR[13] CAPT_MODE bit. The edge detection circuitry monitors transitions on the input pin
+(PIEVENTCAPT).
+The rising edge, falling edge, or both, can be selected in the TIMER_TCLR[9-8] TCM bit field to trigger
+the timer counter capture. The module sets the TIMER_IRQSTATUS[2] TCAR_IT_FLAG bit when an active
+edge is detected, and at the same time, the counter value TIMER_TCRR is stored in timer capture register
+TIMER_TCAR1 or TIMER_TCAR2, as follows:
+•
+If the TIMER_TCLR[13] CAPT_MODE bit is 0, on the first enabled capture event, the value of the
+counter register is saved in the TIMER_TCAR1 register, and the next events are ignored (no update
+on the TIMER_TCAR1 register and no interrupt triggering) until the detection logic is reset or the
+TIMER_IRQSTATUS[2] TCAR_IT_FLAG is cleared by writing 1 to it.
+•
+If the TIMER_TCLR[13] CAPT_MODE bit is 1, on the first enabled capture event, the value of the counter
+register is saved in the TIMER_TCAR1 register, and on the second enabled capture event, the value of the
+=== Page 1797 ===
+counter register is saved in the TIMER_TCAR2 register. If a capture interrupt is enabled, the interrupt triggers
+on the second event capture. All other events are ignored (no update on TIMER_TCAR1/TIMER_TCAR2 and
+no interrupt triggering) until the detection logic is reset or the TIMER_IRQSTATUS[2] TCAR_IT_FLAG bit is
+cleared by writing 1 to it. This mechanism is useful for period calculation of a clock, if that clock is connected
+to the PIEVENTCAPT input pin.
+The edge detection logic is reset (a new capture is enabled) when the active capture interrupt is served. The
+TIMER_IRQSTATUS[2] TCAR_IT_FLAG bit is cleared by writing 1 to it or when the edge detection mode bits
+(the TIMER_TCLR[9-8] TCM bit field) are changed from no-capture mode detection to any other mode. The
+timer functional clock (input to prescaler) is used to sample the input pin (PIEVENTCAPT). A negative or positive
+pulse input can be detected when the pulse time is greater than the functional clock period. An interrupt is issued
+on edge detection if the capture interrupt-enable bit is set in the TIMER_IRQSTATUS_SET[2] TCAR_EN_FLAG
+bit. See the examples in Figure 12-427 and Figure 12-428.
+In Figure 12-427, the value of the TIMER_TCLR[9-8] TCM bit field is 1h, and the TIMER_TCLR[13]
+CAPT_MODE bit is 0. Only the rising edge of PIEVENTCAPT triggers a capture in the TIMER_TCAR1 and
+TIMER_TCAR2 registers, and only the TIMER_TCAR1 register updates.
+timers-010
+PIEVENTCAPT
+PIEVENTCAPT
+resynchronized
+Captured pulse
+TCAR1 enable
+TCRR
+TCAR1
+Capture ignored
+CLK_TIMER
+TCAR2
+Capture ignored
+NO CHANGE
+NEW VALUE
+NEW VALUE
+Figure 12-427. Capture Wave Example for TIMER_TCLR[13] CAPT_MODE = 0
+In Figure 12-428, the value of the TIMER_TCLR[9-8] TCM bit field is 1h, and the TIMER_TCLR[13]
+CAPT_MODE bit is 1. Only the rising edge of PIEVENTCAPT triggers a capture in the TIMER_TCAR1 register
+on the first enabled event, and the TIMER_TCAR2 register updates on the second enabled event.
+=== Page 1798 ===
+timers-011
+PIEVENTCAPT
+PIEVENTCAPT
+resynchronized
+Captured pulse
+TCAR1 enable
+TCRR
+TCAR1
+Capture ignored
+CLK_TIMER
+TCAR2
+Capture ignored
+NEW VALUE
+TCAR2 enable
+NEW VALUE
+Capture ignored
+Figure 12-428. Capture Wave Example for TIMER_TCLR[13] CAPT_MODE = 1
+12.7.4.4.7 Timer Compare Mode Functionality
+When the compare-enable register TIMER_TCLR[6] CE bit is set to 1, the timer value (the TIMER_TCRR[31-0]
+TIMER_COUNTER bit field) is continuously compared to the value held in the timer match register
+(TIMER_TMAR). The value of the TIMER_TMAR[31-0] COMPARE_VALUE bit field can be loaded at any time
+(timer counting or stopped). When the TIMER_TCRR and the TIMER_TMAR values match, an interrupt is
+issued, if the TIMER_IRQSTATUS_SET[0] MAT_EN_FLAG bit is set.
+To prevent any unwanted interrupts due to reset value matching effect, write a compare value to the
+TIMER_TMAR before setting the TIMER_TCLR[6] CE bit.
+The dedicated output pin (POTIMERPWM) can be programmed in the TIMER_TCLR[12] PT bit through the
+TIMER_TCLR[11-10] TRG bit field to generate one positive pulse (timer clock duration) or to invert the current
+value (toggle mode) when an overflow or a match occurs.
+12.7.4.4.8 Timer Prescaler Functionality
+A prescaler can be used to divide the timer counter input clock frequency. The prescaler is enabled when the
+TIMER_TCLR[5] PRE bit is set. The TIMER_TCLR[4-2] PTV bit field sets the 2n division ratio (prescaler value is
+2(PTV + 1). The prescaler counter is reset when the timer counter is stopped or reloaded on-the-fly.
+Table 12-336 lists the prescaler/timer reload values versus contexts.
+Table 12-336. Prescaler/Timer Reload Values Versus Contexts
+Context
+Prescaler
+Timer Counter
+Overflow (when autoreload is on)
+Reset
+TIMER_TLDR[31-0]
+TIMER_TCRR write
+Reset
+TIMER_TCRR[31-0]
+TIMER_TTGR write
+Reset
+TIMER_TLDR[31-0]
+Stop
+Reset
+Frozen
+12.7.4.4.9 Timer Pulse-Width Modulation
+The timer can be configured to provide a programmable PWM output. The timer PWM (POTIMERPWM) output
+pin can be configured to toggle on an event. The TIMER_TCLR[11-10] TRG bit field determines on which
+register value the PWM pin toggles. Either overflow or both overflow and match can be selected to toggle the
+timer PWM pin when a compare condition occurs.
+=== Page 1799 ===
+Note
+In toggle mode, when TIMER_TCLR[11-10] TRG = 0x2 (overflow and match), the first event that
+toggles the PWM line is an overflow event.
+The TIMER_TCLR[7] SCPWM bit can be programmed to set or clear the timer PWM output signal only while
+the counter is stopped or the trigger is off. This allows setting the output pin to a known state before modulation
+starts. Modulation synchronously stops when the TIMER_TCLR[11-10] TRG bit field is cleared and overflow
+occurs. This allows fixing a deterministic state of the output pin when modulation stops.
+In Figure 12-429, the internal overflow pulse is set each time the (0xFFFF FFFF ± TIMER_TLDR[31-0]
+LOAD_VALUE + 1) value is reached, and the internal match pulse is set when the counter reaches the value of
+TIMER_TMAR. Depending on the value of the TIMER_TCLR[12] PT bit and TIMER_TCLR[11-10] TRG bit field,
+the timer provides pulse or PWM event on the output pin (POTIMERPWM).
+The TIMER_TLDR and TIMER_TMAR must keep values below the overflow value (0xFFFF FFFF) by at least
+two units. If the PWM trigger events are both overflow and match, the difference between the values kept in the
+TIMER_TMAR and the value in the TIMER_TLDR must be at least two units. When match event is used, the
+compare mode TIMER_TCLR[6] CE bit must be set.
+In Figure 12-429, the TIMER_TCLR[7] SCPWM bit is set to 0. In Figure 12-430, the TIMER_TCLR[7] SCPWM
+bit is set to 1. To obtain the desired wave form, start the counter at 0xFFFF FFFE value (to ensure an overflow
+first) or adjust the line polarity (TIMER_TCLR[7] SCPWM bit).
+timers-012
+Timer clock
+Internal overflow pulse
+Internal match pulse
+Timer PWM (TRG = 0x1 and PT = 0)
+Timer PWM (TRG = 0x2 and PT = 0)
+Timer PWM (TRG = 0x2 and PT = 1)
+Timer PWM (TRG = 0x1 and PT = 1)
+Figure 12-429. Timing Diagram of PWM With TIMER_TCLR[7] SCPWM Bit = 0
+=== Page 1800 ===
+timers-013
+Timer clock
+Internal overflow pulse
+Internal match pulse
+Timer PWM
+(TRG = 0x1 and PT = 0)
+Timer PWM
+(TRG = 0x2 and PT = 0)
+Timer PWM
+(TRG = 0x2 and PT = 1)
+Timer PWM
+(TRG = 0x1 and PT = 1)
+Set-up mode sequence
+Figure 12-430. Timing Diagram of PWM With TIMER_TCLR[7] SCPWM Bit = 1
+12.7.4.4.10 Timer Counting Rate
+The timer rate is defined by the following values:
+•
+Value of the prescaler fields (the TIMER_TCLR[5] PRE bit and TIMER_TCLR[4-2] PTV bit field)
+•
+Value loaded into the TIMER_TLDR
+Table 12-337 lists the prescaler clock ratio values.
+Table 12-337. Prescaler Clock Ratio Values
+TIMER_TCLR[5] PRE
+TIMER_TCLR[4-2] PTV
+Divisor (PS)
+0
+X
+1
+1
+0
+2
+1
+1
+4
+1
+2
+8
+1
+3
+16
+1
+4
+32
+1
+5
+64
+1
+6
+128
+1
+7
+256
+Thus, the timer overflow rate is expressed as:
+OVF_Rate = (0xFFFF FFFF ± TIMER_TLDR + 1) × (timer-functional clock period) × PS
+With (timer-functional clock period) = 1/(timer-functional clock frequency) and PS = 2(PTV + 1) if prescaler is
+enabled, or PS = 1 if prescaler is disabled.
+CAUTION
+Internal resynchronization causes any write to the TIMER_TCLR[1] ST bit to have some latency
+before the register is updated:
+2.5 × functional clock cycles write_TIMER_TCLR_latency 3.5 × functional clock cycles
+Remember to consider this latency whenever the timer must be started or stopped by a software
+change to the TIMER_TCLR[1] ST bit.
+=== Page 1801 ===
+CAUTION
+•
+In non-PWM mode, TIMER_TLDR must be maintained at less than or equal to 0xFFFF FFFE.
+•
+In PWM mode, TIMER_TLDR must be maintained at less than or equal to 0xFFFF FFFD.
+For example, with a timer clock input of 32 kHz and the TIMER_TCLR[5] PRE bit set to 0, the timer output period
+is as listed in Table 12-338.
+Table 12-338. Value and Corresponding Interrupt Period
+TIMER_TLDR[31-0] LOAD_VALUE
+Interrupt Period
+0x0000 0000
+37 h
+0xFFFF 0000
+2 s
+0xFFFF FFF0
+500 µs
+0xFFFF FFFE
+62.5 µs
+12.7.4.4.11 Timer Under Emulation
+During emulation mode, the timer continues to run according to the value of the TIMER_TIOCP_CFG[1]
+EMUFREE bit.
+If the TIMER_TIOCP_CFG[1] EMUFREE bit is set to 1, timer execution is not stopped in emulation mode and
+the interrupt is still generated when overflow or match is reached.
+If the TIMER_TIOCP_CFG[1] EMUFREE bit is set to 0, the prescaler and timer are frozen and both resume
+on exit from emulation mode. The asynchronous external input pin (MCU_TIMER_IO[9-0] or TIMER_IO[7-0]) is
+internally synchronized on two timer-clock rising edges.
+12.7.4.4.12 Accessing Timer Registers
+All accesses are posted mode, under the assumption that freq(timer clock) < freq(interface clock)/4, until
+software reconfiguration. In addition, it is not recommended to access the timer registers prior to the PLLs
+generating the timer and interface clocks have been configured and the clocks have stabilized. All registers are
+32 bits wide, accessible through the configuration interface with 32-bit access (read/write).
+Write operations to the following functional registers must be complete (the MSB must be written even if the
+MSB data is not used):
+•
+TIMER_TCLR
+•
+TIMER_TCRR
+•
+TIMER_TLDR
+•
+TIMER_TTGR
+•
+TIMER_TMAR
+•
+TIMER_TPIR
+•
+TIMER_TNIR
+•
+TIMER_TCVR
+•
+TIMER_TOCR
+•
+TIMER_TOWR
+The following registers are not affected by the posted/nonposted mode selection; the write/read operation is
+effective and acknowledged (command accepted) after one interface clock cycle from command assertion:
+•
+TIMER_TIDR
+•
+TIMER_TIOCP_CFG
+•
+TIMER_IRQSTATUS
+•
+TIMER_IRQSTATUS_RAW
+•
+TIMER_IRQSTATUS_SET
+•
+TIMER_IRQSTATUS_CLR
+•
+TIMER_IRQWAKEEN
+•
+TIMER_TWPS
+=== Page 1802 ===
+•
+TIMER_TSICR
+12.7.4.4.12.1 Writing to Timer Registers
+The host uses the configuration interface to write to the following registers synchronously with the timer interface
+clock:
+•
+TIMER_TLDR
+•
+TIMER_TCRR
+•
+TIMER_TCLR
+•
+TIMER_TIOCP_CFG
+•
+TIMER_IRQSTATUS
+•
+TIMER_IRQSTATUS_SET
+•
+TIMER_IRQSTATUS_CLR
+•
+TIMER_IRQWAKEEN
+•
+TIMER_TTGR
+•
+TIMER_TSICR
+•
+TIMER_TMAR
+•
+TIMER_TPIR
+•
+TIMER_TNIR
+•
+TIMER_TCVR
+•
+TIMER_TOCR
+•
+TIMER_TOWR
+12.7.4.4.12.1.1 Write Posting Synchronization Mode
+This mode is used if the TIMER_TSICR[2] POSTED bit is set to 1 (default value).
+This mode uses a posted write scheme to update any internal register (TIMER_TCLR, TIMER_TCRR,
+TIMER_TLDR, TIMER_TTGR, TIMER_TMAR, TIMER_TPIR, TIMER_TNIR, TIMER_TCVR, TIMER_TOCR, and
+TIMER_TOWR). Therefore, the write transaction is immediately acknowledged on the configuration interface,
+although the effective write operation occurs later because of a resynchronization in the timer clock domain. The
+advantage is that neither the interconnect, nor the device that requested the write transaction is stalled.
+For each register, a status bit is provided in the timer write-posted status (TIMER_TWPS) register. In this mode,
+it is mandatory that software check this status bit before any write access. If a write is attempted to a register
+with a previous access pending, the previous access is discarded without notice.
+The timer module updates the value of the timer counter register synchronously with the interface clock.
+Consequently, any read access to TIMER_TCRR does not add any resynchronization latency; the current value
+is always available.
+Note
+Because the overflow IRQ is generated when the value of TIMER_TCRR reaches 0xFFFF FFFF, and
+not when it changes its value to the value after overflow, it is necessary to wait a delay of (1 × PS ×
+timer functional clock period) before any read access to TIMER_TCRR to ensure a correct reading of
+its content.
+Note
+If TIMER_TTGR register is written during a posted write to TIMER_TCRR, the value to be written to
+TIMER_TCRR will be discarded.
+If a posted write to TIMER_TCVR is started, the user must not write to TIMER_TPIR or TIMER_TNIR
+before the TIMER_TCVR write is finished, because the value of TIMER_TCVR is re-evaluated, so
+both the value to be written, and the recalculated value will be discarded.
+=== Page 1803 ===
+If a write access is pending for a register, reading from this register does not yield a correct result. Software
+synchronization must be used to avoid incorrect results.
+Functional frequency range: freq(timer clock) < freq(interface clock)/4.
+12.7.4.4.12.1.2 Write Nonposting Synchronization Mode
+This mode is used if the TIMER_TSICR[2] POSTED bit is set to 0. It uses a nonposted write scheme to update
+any internal register. Therefore, the write transaction is not acknowledged on the configuration interface until the
+effective write operation occurs after the resynchronization in the timer functional clock domain. The drawback is
+that the interconnect and the device that requested the write transaction are stalled during this period.
+The same full resynchronization scheme is used for a read transaction, and the same stall period applies. A
+register read following a write to the same register is always coherent.
+This mode is functional regardless of the ratio between the configuration interface frequency and the timer clock
+frequency.
+12.7.4.4.12.2 Reading From Timer Counter Registers
+Note
+LSB/MSB accesses cannot be interleaved (that is, the sequence LSB register 1, LSB register 2, MSB
+register 1, MSB register 2 is not supported).
+The TIMER_TCRR is a 32-bit „atomic datum“ and its 16-bit capture is done on the 16-bit LSB first to
+allow atomic LSB16 + MSB16 capture. This capture scheme is also performed for the TIMER_TCAR1 and
+TIMER_TCAR2 registers as they can be changed due to internal processes too.
+12.7.4.4.12.2.1 Read Posted
+This mode is functional regardless of the ratio between the configuration interface frequency and the functional
+clock frequency. The recommended functional frequency range is freq(timer) < freq(interface clock)/4.
+Read posted mode is used if TIMER_TSICR[2] POSTED = 0x1 or TIMER_TSICR[3] READ_MODE is set
+to 0. This mode uses a posted-read scheme for reading any internal timer register. The read transaction is
+immediately acknowledged on the configuration interface, prior to the value to be read has been resynchronized.
+With this method, neither the interconnect nor the device that requested the read transaction are stalled.
+Read posted mode applies to TIMER_TCRR, TIMER_TCAR1, TIMER_TCAR2, TIMER_TCVR, and
+TIMER_TOWR, which needs resynchronization from functional to interface clock domains.
+Note that in Posted mode, if the TIMER_TCRR is read immediately after wake-up and the interface clock is off
+during idle state, then it is possible to get an old value from just before going to idle state due to the fact the
+interface clock is needed for synchronization.
+In order to avoid this situation, another synchronization mechanism is used for the first read operation after idle
+state. The TIMER_TSICR[4] READ_AFTER_IDLE bit is used to enable/disable the mechanism.
+When the synchronization mechanism is disabled (READ_AFTER_IDLE bit is set to 1), first read transaction
+takes only 2 interface clock cycles, but the read value of TIMER_TCRR could be wrong.
+When the synchronization mechanism is enabled (READ_AFTER_IDLE bit is set to 0), first read value of
+TIMER_TCRR is correct, but the read transaction takes more than 2 interface clock cycles.
+12.7.4.4.12.2.2 Read Non-Posted
+This mode is functional regardless of the ratio between the configuration interface frequency and the functional
+clock frequency. Recommended functional frequency range is freq(timer) >= freq(interface clock)/4.
+Read non-posted mode is used if TIMER_TSICR[2] POSTED = 0x0 and TIMER_TSICR[3] READ_MODE = 0x1.
+This mode uses a non-posted read scheme for reading internal timer registers. The read transaction is not
+acknowledged on the configuration interface until the effective read operation occurs, after the resynchronization
+=== Page 1804 ===
+in the timer clock domain. The result is that both the interconnect and the device that requested the read
+transaction are stalled during this period.
+This mode applies to TIMER_TCRR, TIMER_TCAR1, TIMER_TCAR2, TIMER_TCVR, and TIMER_TOWR,
+which need resynchronization from functional to interface clock domains.
+12.7.4.4.13 Timer Posted Mode Selection
+A choice between two synchronization modes is made taking into account the frequency ratio and the stall
+periods that can be supported by the system, without impacting the global performance.
+The posted mode selection applies only to registers that require synchronization on or from the timer clock
+domain. For write operation, the registers affected by posted and non-posted selection are TIMER_TCLR,
+TIMER_TLDR, TIMER_TCRR, TIMER_TTGR, TIMER_TMAR, TIMER_TPIR, TIMER_TNIR, TIMER_TCVR,
+TIMER_TOCR, and TIMER_TOWR. For read operation, the registers affected by this selection are:
+TIMER_TCRR, TIMER_TCAR1, TIMER_TCAR2, TIMER_TCVR, and TIMER_TOWR.
+The interface clock domain synchronous registers TIMER_TIDR, TIMER_TIOCP_CFG, TIMER_IRQSTATUS,
+TIMER_IRQSTATUS_SET, TIMER_IRQWAKEEN, TIMER_TWPS, and TIMER_TSICR are not affected by
+posted and non-posted mode selection. The operation (read or write) is effective and acknowledged after one
+interface clock cycle from the command assertion.
+The configuration of posted or non-posted mode can be changed (overwritten) by software by writing
+in TIMER_TSICR[2] POSTED bit. The TIMER_TSICR[3] READ_MODE defines how the read operation is
+performed when the module is configured in non-posted mode (see TIMER_TSICR). The following cases are
+possible:
+•
+TIMER_TSICR[2] POSTED = 0x1 and TIMER_TSICR[3] READ_MODE = x (don’t care): read and write
+operations are expected in posted mode.
+•
+TIMER_TSICR[2] POSTED = 0x0 and TIMER_TSICR[3] READ_MODE = 0x0: the write operation is executed
+in non-posted mode and read is executed in posted mode.
+•
+TIMER_TSICR[2]POSTED = 0x0 and TIMER_TSICR[3] READ_MODE = 0x1: write is executed in non-posted
+mode and read is executed in non-posted mode.
+=== Page 1805 ===
+12.7.4.5 Timers Low-Level Programming Models
+This section describes the low-level hardware programming sequences for the configuration and use of the
+module.
+12.7.4.5.1 Timer Global Initialization
+12.7.4.5.1.1 Main Sequence ± Timer Module Global Initialization
+Table 12-339 identifies the main steps for initializing the timer module when the module is to be used for the first
+time.
+Table 12-339. Timer Module Global Initialization
+Step
+Register/Bit Field/Programming Model
+Value
+Execute software reset.
+TIMER_TIOCP_CFG[0] SOFTRESET
+0x1
+Wait until reset release?
+TIMER_TIOCP_CFG[0] SOFTRESET
+0x0
+Configure idle mode.
+TIMER_TIOCP_CFG[3-2] IDLEMODE
+0x-
+Enable wake-up interrupt events.
+TIMER_IRQWAKEEN[2-0]
+0x-
+Select posted mode.
+TIMER_TSICR[2] POSTED
+0x-
+12.7.4.5.2 Timer Operational Mode Configuration
+12.7.4.5.2.1 Timer Mode
+12.7.4.5.2.1.1 Main Sequence ± Timer Mode Configuration
+Table 12-340 lists the steps in the timer mode configuration.
+Table 12-340. Timer Mode Configuration
+Step
+Register/Bit Field/Programming Model
+Value
+Select autoreload mode.
+TIMER_TCLR[1] AR
+0x-
+Set prescale timer value.
+TIMER_TCLR[4-2] PTV
+0x-
+Enable prescaler.
+TIMER_TCLR[5] PRE
+0x1
+Enable overflow interrupt.
+TIMER_IRQSTATUS_SET[1] OVF_EN_FLAG
+0x1
+Load timer counter value.
+TIMER_TCRR
+0x-
+Load timer load value.
+TIMER_TLDR
+0x-
+Start the timer.
+TIMER_TCLR[0] ST
+0x1
+12.7.4.5.2.2 Timer Compare Mode
+12.7.4.5.2.2.1 Main Sequence ± Timer Compare Mode Configuration
+Table 12-341 lists the steps in the timer compare mode configuration.
+Table 12-341. Timer Compare Mode Configuration
+Step
+Register/Bit Field/Programming Model
+Value
+Select autoreload mode.
+TIMER_TCLR[1] AR
+0x-
+Set prescale timer value.
+TIMER_TCLR[4-2] PTV
+0x-
+Enable prescaler.
+TIMER_TCLR[5] PRE
+0x1
+Enable match interrupt.
+TIMER_IRQSTATUS_SET[0] MAT_EN_FLAG
+0x1
+Load timer counter value.
+TIMER_TCRR
+0x-
+Load timer compare value.
+TIMER_TMAR
+0x-
+Enable compare mode.
+TIMER_TCLR[6] CE
+0x1
+Start the timer.
+TIMER_TCLR[0] ST
+0x1
+=== Page 1806 ===
+12.7.4.5.2.3 Timer Capture Mode
+12.7.4.5.2.3.1 Main Sequence ± Timer Capture Mode Configuration
+Table 12-342 lists the steps in the timer capture mode configuration.
+Table 12-342. Timer Capture Mode Configuration
+Step
+Register/Bit Field/Programming Model
+Value
+Initialize capture mode.
+See Section 12.7.4.5.2.3.2.
+Enable capture interrupt.
+TIMER_IRQSTATUS_SET[2] TCAR_EN_FLAG
+0x1
+Start the timer.
+TIMER_TCLR[0] ST
+0x1
+Detect event.
+See Section 12.7.4.5.2.3.3.
+12.7.4.5.2.3.2 Subsequence ± Initialize Capture Mode
+Table 12-343 lists the steps to initialize capture mode.
+Table 12-343. Initialize Capture Mode
+Step
+Register/Bit Field/Programming Model
+Value
+Select autoreload mode.
+TIMER_TCLR[1] AR
+0x-
+Set prescale timer value.
+TIMER_TCLR[4-2] PTV
+0x-
+Enable prescaler.
+TIMER_TCLR[5] PRE
+0x1
+Select TIMER[11-0] or MCU_TIMER[3-0]
+Capture input at device pins
+TIMER_IO[11-0] for TIMER[11-0] or at pins
+MCU_TIMER_IO[3-0] for MCU_TIMER[3-0].
+TIMER_TCLR[14] GPO_CFG
+0x1
+Select single or second event capture.
+TIMER_TCLR[13] CAPT_MODE
+0x-
+Select transition capture mode.
+TIMER_TCLR[9-8] TCM
+0x-
+12.7.4.5.2.3.3 Subsequence ± Detect Event
+Table 12-344 lists the steps in detecting an event.
+Table 12-344. Detect Event
+Step
+Register/Bit Field/Programming Model
+Value
+Wait until event detected?
+TIMER_IRQSTATUS[2] TCAR_IT_FLAG
+= 0x1
+Read timer capture value.
+TIMER_TCAR1 and/or
+TIMER_TCAR2
+Clear capture interrupt request.
+TIMER_IRQSTATUS[2] TCAR_IT_FLAG
+0x1
+12.7.4.5.2.4 Timer PWM Mode
+12.7.4.5.2.4.1 Main Sequence ± Timer PWM Mode Configuration
+Table 12-345 lists the steps in the timer PWM mode configuration.
+Table 12-345. Timer PWM Mode Configuration
+Step
+Register/Bit Field/Programming Model
+Value
+Select autoreload mode.
+TIMER_TCLR[1] AR
+0x-
+Set prescale timer value.
+TIMER_TCLR[4-2] PTV
+0x-
+Enable prescaler.
+TIMER_TCLR[5] PRE
+0x1
+Select trigger output mode.
+TIMER_TCLR[11-10] TRG
+0x-
+Select pulse or toggle modulation PWM mode.
+TIMER_TCLR[12] PT
+0x-
+Select TIMER[11-0] or MCU_TIMER[3-0]
+PWM output at device pins
+TIMER_IO[11-0] for TIMER[11-0] or at pins
+MCU_TIMER_IO[3-0] for MCU_TIMER[3-0].
+TIMER_TCLR[14] GPO_CFG
+0x0
+Configure PWM output pin default value.
+TIMER_TCLR[7] SCPWM
+0x-
+=== Page 1807 ===
+Table 12-345. Timer PWM Mode Configuration (continued)
+Step
+Register/Bit Field/Programming Model
+Value
+Load timer load value.
+TIMER_TLDR
+0x-
+Load timer compare value.
+TIMER_TMAR
+0x-
+Enable compare.
+TIMER_TCLR[6] CE
+0x1
+Start the timer.
+TIMER_TCLR[0] ST
+0x1
+=== Page 1808 ===

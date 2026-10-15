@@ -1,0 +1,3231 @@
+Chapter 6 Raster Graphic Acceleration(RGA2)
+6.1 Overview
+
+RGA2 is a separate 2D raster graphic accelerator, use to accelerate basic 2D graphics
+operations, including: image scaling, rotation, BitBLT, alpha blending.
+
+6.1.1 Features
+⚫
+
+⚫
+
+⚫
+
+⚫
+
+⚫
+
+⚫
+⚫
+
+Data format
+◼ Input data:
+◆ ARGB/RGB888/RGB565/RGB4444/RGB5551
+◆ YUV420/YUV422/YVYU422/YVYU420/YUV422SP10bit/YUV420SP10bit
+◼ Output data:
+◆
+ARGB/RGB888/RGB565/RGB4444/RGB5551
+◆
+YUV420/YUV422/YUV400/Y4/YVYU422/YVYU420
+◼ Pixel Format conversion, BT.601/BT.709
+◼ Dither operation
+◼ Max resolution: 8192x8192 source, 4096x4096 destination
+Scaling
+◼ Down-scaling: Average filter
+◼ Up-scaling: Bi-cubic filter(source>2048 would use Bi-linear)
+◼ Arbitrary non-integer scaling ratio, from 1/16 to 16
+Rotation
+◼ 0, 90, 180, 270 degree rotation
+◼ x-mirror, y-mirror & rotation operation
+BitBLT
+◼ Block transfer
+◼ Color palette/Color fill, support with alpha
+◼ Transparency mode (color keying/stencil test, specified value/value range)
+◼ Two source BitBLT
+◼ A+B=B only BitBLT, A support rotate & scale when B fixed
+◼ A+B=C second source (B) has same attribute with (C) plus rotation function
+Alpha Blending
+◼ Comprehensive per-pixel alpha(color/alpha channel separately)
+◼ Fading
+◼ Support SRC1(R2Y)+SRC0(YUV) -> DST(YUV)
+◼ Support DST Full CSC convert for YUV2YUV
+Others
+◼ Support NN quantize (CLIP((source + offset) * scale) for RGB channel)
+MMU
+◼ 4k/64k page size
+◼ Four channel: SRC/SRC1/DST/CMD, individual base address and enable control bit
+◼ TLB pre-fetch
+
+6.1.2 The Constraints
+⚫
+⚫
+⚫
+⚫
+⚫
+⚫
+
+YUV420/422-8bit virtual stride need 8byte align, xoff/yoff need 2byte align
+YUV420/422-10bit virtual stride need 16byte align, not support xoff/yoff
+Vertical scale down or bypass && Horizontal bi-cubic scale up src0 width<=2048
+Vertical scale up && Horizontal bi-cubic scale up src0 width<=1928
+Vertical scale down or bypass Horizontal BI-linear scale up src0 width<=4096
+Vertical scale up && Horizontal BI-linear scale up src0 width<=3856
+
+6.2 Block Diagram
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+754
+
+RK3588 TRM-Part2
+Register file
+AHB
+slave
+
+CMD decode
+Color palette/
+Color fill
+BUS
+INF
+
+AXI
+master
+
+DMA
+(read)
+
+Src Bitmap process
+
+Alpha/
+ROP
+
+Format
+convert
+
+ALPHA
+/ROP
+
+DMA
+Write
+
+MMU
+Dst Bitmap Process
+
+DMA
+(write)
+
+SRC
+Data
+Buffer
+
+SRC Pixel
+Translation
+Rotation
+
+Scaling
+
+Out buffer
+
+DMA
+Read
+DST
+Data
+Buffer
+
+DST Pixel
+Translation
+Rotation
+
+Fig. 6-1 RGA2 Block Diagram
+
+CPU
+DDR
+controller
+
+AHB Bus
+
+Interrupt
+controller
+
+AXI Bus
+
+AXI master
+
+MMU
+
+AHB slave
+
+RGA2
+
+RGA_intr
+
+Fig. 6-2 RGA2 in SOC
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+755
+
+RK3588 TRM-Part2
+
+6.3 Function Description
+6.3.1 Data Format
+
+5
+
+11
+
+15
+
+RGB_565
+
+R
+15
+
+ARGB_4444
+
+G
+12
+
+A
+15
+
+RGBA_4444
+15
+
+ARGB_1555
+
+31
+
+24
+
+ARGB_8888
+XRGB_8888
+31
+
+G
+
+14
+
+10
+
+24
+
+R
+
+G
+
+15
+
+11
+
+6
+
+31
+
+24
+
+RGBA_8888
+RGBX_8888
+31
+
+24
+
+RGB_888
+packed
+
+YCbCr422-SP
+YCbCr420-SP
+
+24
+
+0
+
+8
+
+0
+A/X
+
+8
+
+0
+
+G
+
+R
+8
+
+0
+
+B
+
+A/X
+8
+
+16
+
+0
+
+R1
+
+B0
+
+G0
+
+R0
+
+G2
+
+R2
+
+B1
+
+G1
+
+B3
+
+G3
+
+R3
+
+B2
+
+16
+
+8
+
+0
+
+Y03
+
+Y02
+
+Y01
+
+Y00
+
+Y07
+
+Y06
+
+Y05
+
+Y04
+
+Cr01
+
+Cb01
+
+Cr00
+
+Cb00
+
+YCbCr422-P
+YCbCr420-P
+
+A
+
+B
+
+31
+
+31
+
+B
+
+R
+
+G
+
+0
+
+8
+
+16
+
+R
+
+0
+
+1
+
+G
+
+B
+
+A
+
+B
+
+G
+
+16
+
+A/X
+
+0
+
+5
+
+A
+
+G
+
+31
+
+ABGR_8888
+XBGR_8888
+
+4
+B
+
+16
+
+B
+
+B
+
+8
+
+R
+
+0
+
+G
+
+12
+
+R
+24
+
+BGRA_8888
+BGRX_8888
+
+4
+
+R
+
+16
+
+A/X
+
+B
+
+8
+
+R
+
+RGBA_5551
+
+0
+
+24
+
+16
+
+8
+
+0
+
+Y03
+
+Y02
+
+Y01
+
+Y00
+
+Y07
+
+Y06
+
+Y05
+
+Y04
+
+Cb03
+
+Cb02
+
+Cb01
+
+Cb00
+
+Cr03
+
+Cr02
+
+Cr1
+
+Cr00
+
+Fig. 6-3 RGA Input Data Format
+All input data (defined by SRC_IN_FMT/DST_IN_FMT) are converted to
+ABGR8888/AUYV8888. The results are converted to the output data format (defined by
+DST_OUT_FMT).
+
+6.3.2 Dithering
+
+There could have dithering operation for source image when the source image format is not
+RGB565 and the destination format is RGB565.
+The down-dithering is done using Dither Allegro.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+756
+
+RK3588 TRM-Part2
+
+Fig. 6-4 RGA Dither effect
+
+6.3.3 Alpha Mode
+(SrcPer-pixelAlphaValue)
+
+(DstPer-pixelAlphaValue)
+
+As0
+
+Ad0
+
+SrcAlphaMode0:
+1'b0: As
+1'b1: 255-As (SrcGlobalAlphaValue)
+
+DstAlphaMode0:
+1'b0: Ad
+1'b1: 255-Ad (DstGlobalAlphaValue)
+
+Ags
+
+As0’
+
+Agd
+
+Ad0’
+
+SrcGlobalAlphaMode0:
+2'b00: Ags
+2'b01: As0'
+2'b10: (As0'*Ags)>>8
+
+DstGlobalAlphaMode0:
+2'b00: Agd
+2'b01: Ad0'
+2'b10: (Ad0'*Agd)>>8
+
+As0_’’
+
+Ad0_’’
+
+SrcAlphaSelectMode0:
+1'b0: As0_" + (As0_">>7)
+1'b1: As0_"
+
+As0’’
+DstFactorMode0:
+3'b000: 0
+3'b001: 256
+3'b010: As0''
+3'b011: (256-As0'')
+3'b100: Ad0''
+
+Fd0
+Cd = Fs0 * Cs'+ Fd0 * Cd'
+
+DstAlphaSelectMode0:
+1'b0: Ad0_" + (Ad0_">>7)
+1'b1: Ad0_"
+
+Cs
+
+SrcColorMode:
+1'b0: Cs
+1'b1: Cs*As0''
+
+Cs’
+
+Ad0’’
+SrcFactorMode0:
+3'b00: 0
+3'b01: 256
+3'b10: Ad0''
+3'b11: (256-Ad0'')
+3'b100: As0''
+
+Fs0
+
+Cd
+DstColorMode0:
+1'b0: Cd
+1'b1: Cd*Ad0''
+
+Cd’
+
+(1)
+
+(Cd – dst color, Fs0 – color src factor0, Cs’ – src color’, Fd0 – color dst factor0, Cd’ – dst color’)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+757
+
+RK3588 TRM-Part2
+
+(DstPer-pixelAlphaValue)
+
+(SrcPer-pixelAlphaValue)
+
+Ad1
+
+As1
+SrcAlphaMode1:
+1'b0: As
+1'b1: 255-As (SrcGlobalAlphaValue)
+
+Agd
+
+Ad1’
+
+Ags
+
+As1’
+
+DstAlphaMode1:
+1'b0: Ad
+1'b1: 255-Ad (DstGlobalAlphaValue)
+
+SrcGlobalAlphaMode1:
+2'b00: Ags
+2'b01: As1'
+2'b10: (As1'*Ags)>>8
+
+DstGlobalAlphaMode1:
+2'b00: Agd
+2'b01: Ad1'
+2'b10: (Ad1'*Agd)>>8
+
+Ad1_’’
+
+As1_’’
+SrcAlphaSelectMode1:
+1'b0: As1_" + (As1_">>7)
+1'b1: As_"
+
+DstAlphaSelectMode:
+1'b0: Ad_" + (Ad_">>7)
+1'b1: Ad_"
+
+Ad1’’
+
+As1’’
+
+SrcFactorMode1:
+3'b000: 0
+3'b001: 256
+3'b010: Ad1''
+3'b011: (256-Ad1'')
+3'b100: As1''
+
+DstFactorMode1:
+3'b000: 0
+3'b001: 256
+3'b010: As1''
+3'b011: (256-As1'')
+3'b100: Ad1''
+
+Fs1
+
+Fd1
+Ad = Fs 1 * As 1"+Fd 1 * Ad 1"
+
+(2)
+
+(Ad – dst alpha, Fs1 – alpha src factor1, As1’’ – src alpha’’, Fd1 – alpha dst factor1, Ad1’ – dst alpha’’)
+
+Fig. 6-5 alpha mode configure description
+
+6.3.4 Color Fill
+
+Two modes of color fill can be done by RGA: solid fill and gradient fill.
+
+Fig. 6-6 RGA Gradient Fill
+Gradient fill using following equations for ARGB calculation of every pixel in different
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+758
+
+RK3588 TRM-Part2
+coordinate.
+A_cur = (A_start + x*x_A_gradient) +y*y_A_gradient;
+R_cur = (R_start + x*x_R_gradient) +y*y_R_gradient;
+G_cur = (G_start + x*x_G_gradient) +y*y_G_gradient;
+B_cur = (B_start + x*x_B_gradient) +y*y_B_gradient;
+A_start, R_start, G_start, B_start is the ARGB value of start point. There are four pairs of
+values for horizontal and vertical gradient. Saturation operation could be enabled or disabled
+if the color overflows 255 or underflows 0.
+
+6.3.5 Scaling
+
+The scaling operation is the image reshaping processing of source image. Scaling is done
+base on ARGB8888 format.
+There are three sampling modes: scale down (Average); scale up(Bi-cubic).
+
+6.3.6 NN Quantize
+
+The NN quantize is for NN pre_process using. The function is CLIP((source + offset) * scale)
+for R G B channel. When use this function, the signal sw_dst_nn_quantize_en and reg
+NN_QUANTIZE_SCALE, NN_QUANTIZE_OFFSET need be configured.
+
+6.4 Register description
+6.4.1 Register Summary
+
+Slave address can be divided into different length for different usage, which is shown as
+follows.
+Name
+
+Offset
+
+Size
+
+RGA2_SYS_CTRL
+RGA2_CMD_CTRL
+
+0x0000
+0x0004
+
+W
+W
+
+RGA2_CMD_BASE
+
+0x0008
+
+W
+
+RGA2_STATUS1
+RGA2_INT
+RGA2_MMU_CTRL0
+RGA2_MMU_CMD_BASE
+RGA2_STATUS2
+RGA2_WORK_CNT
+
+0x000C
+0x0010
+0x0014
+0x0018
+0x001C
+0x0020
+
+W
+W
+W
+W
+W
+W
+
+RGA2_VERSION_INFO
+
+0x0028
+
+W
+
+RGA2_PERF_LATENCY_CT
+0x0040
+RL0
+RGA2_PERF_LATENCY_CT
+0x0044
+RL1
+RGA2_PERF_RD_MAX_LAT
+0x0048
+ENCY_NUM
+RGA2_PERF_RD_LATENCY
+0x004C
+_SAMP_NUM
+RGA2_PERF_RD_LATENCY
+0x0050
+_ACC_SUM
+RGA2_PERF_RD_AXI_TOT
+0x0054
+AL_BYTE
+RGA2_PERF_WR_AXI_TOT
+0x0058
+AL_BYTE
+RGA2_PERF_WORKING_C
+0x005C
+NT
+
+W
+W
+W
+W
+W
+W
+W
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Reset
+Description
+Value
+0x00000044 RGA system control register
+0x00000000 RGA command control register
+RGA command codes base
+0x00000000
+address register
+0x00000000 RGA status register
+0x00000000 RGA interrupt register
+0x00000000 RGA MMU control 0 register
+0x00000000 MMU CMD channel base address
+0x00000000 RGA status register
+0x00000000 RGA work counter
+RTL version and FPGA version
+0x00000000
+information
+Only exist when this IP has
+0x00000000
+axi_performance monitor feature
+Only exist when this IP has
+0x00000000
+axi_performance monitor feature
+Only exist when this IP has
+0x00000000
+axi_performance monitor feature
+Only exist when this IP has
+0x00000000
+axi_performance monitor feature
+Only exist when this IP has
+0x00000000
+axi_performance monitor feature
+Only exist when this IP has
+0x00000000
+axi_performance monitor feature
+Only exist when this IP has
+0x00000000
+axi_performance monitor feature
+Only exist when this IP has
+0x00000000
+axi_performance monitor feature
+
+759
+
+RK3588 TRM-Part2
+Name
+
+Offset
+
+Size
+
+Reset
+Value
+0x000000BC
+
+RGA2_DST_CSC_00
+
+0x0060
+
+W
+
+RGA2_DST_CSC_01
+
+0x0064
+
+W
+
+RGA2_DST_CSC_02
+
+0x0068
+
+W
+
+RGA2_DST_CSC_OFF0
+
+0x006C
+
+W
+
+RGA2_DST_CSC_10
+
+0x0070
+
+W
+
+RGA2_DST_CSC_11
+
+0x0074
+
+W
+
+RGA2_DST_CSC_12
+
+0x0078
+
+W
+
+RGA2_DST_CSC_OFF1
+
+0x007C
+
+W
+
+RGA2_DST_CSC_20
+
+0x0080
+
+W
+
+RGA2_DST_CSC_21
+
+0x0084
+
+W
+
+RGA2_DST_CSC_22
+
+0x0088
+
+W
+
+RGA2_DST_CSC_OFF2
+
+0x008C
+
+W
+
+RGA2_MODE_CTRL
+RGA2_SRC_INFO
+
+0x0100
+0x0104
+
+W
+W
+
+RGA2_SRC_BASE0
+
+0x0108
+
+W
+
+RGA2_SRC_BASE1
+
+0x010C
+
+W
+
+RGA2_SRC_BASE2
+
+0x0110
+
+W
+
+RGA2_SRC_BASE3
+
+0x0114
+
+W
+
+RGA2_SRC_VIR_INFO
+
+0x0118
+
+W
+
+RGA2_SRC_ACT_INFO
+
+0x011C
+
+W
+
+RGA2_SRC_X_FACTOR
+
+0x0120
+
+W
+
+RGA2_SRC_Y_FACTOR
+
+0x0124
+
+W
+
+RGA2_SRC_BG_COLOR
+
+0x0128
+
+W
+
+RGA2_SRC_FG_COLOR
+
+0x012C
+
+W
+
+RGA2_SRC_TR_COLOR0
+
+0x0130
+
+W
+
+RGA2_CP_GR_A
+
+0x0130
+
+W
+
+RGA2_SRC_TR_COLOR1
+
+0x0134
+
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+sw_dst_csc_mode[2]=1'b1 used
+csc factor
+sw_dst_csc_mode[2]=1'b1 used
+0x00000274
+csc factor
+sw_dst_csc_mode[2]=1'b1 used
+0x00000040
+csc factor
+sw_dst_csc_mode[2]=1'b1 used
+0x00004200
+csc factor
+sw_dst_csc_mode[2]=1'b1 used
+0x00000798
+csc factor
+sw_dst_csc_mode[2]=1'b1 used
+0x000006A4
+csc factor
+sw_dst_csc_mode[2]=1'b1 used
+0x000001C0
+csc factor
+sw_dst_csc_mode[2]=1'b1 used
+0x00020200
+csc factor
+sw_dst_csc_mode[2]=1'b1 used
+0x000001C0
+csc factor
+sw_dst_csc_mode[2]=1'b1 used
+0x00000668
+csc factor
+sw_dst_csc_mode[2]=1'b1 used
+0x000007D8
+csc factor
+sw_dst_csc_mode[2]=1'b1 used
+0x00020200
+csc factor
+0x00000000 RGA mode control register
+0x00000000 RGA source information register
+RGA source image Y/RGB base
+0x00000000
+address register
+RGA source image Cb/Cbr base
+0x00000000
+address register
+RGA source image Cr base
+0x00000000
+address register
+RGA source image 1 base address
+0x00000000
+register
+RGA source image virtual stride /
+0x00000000 RGA source image tile number
+register
+RGA source image active
+0x00000000
+width/height register
+RGA source image horizontal
+0x00000000
+scaling factor
+RGA source image vertical scaling
+0x00000000
+factor
+RGA source image background
+0x00000000
+color
+RGA source image foreground
+0x00000000
+color
+RGA source image transparency
+0x00000000
+color min value
+RGA color gradient fill step
+0x00000000
+register (color fill mode)
+RGA source image transparency
+0x00000000
+color max value
+
+760
+
+RK3588 TRM-Part2
+Name
+
+Offset
+
+Size
+
+Reset
+Value
+0x00000000
+
+RGA2_CP_GR_B
+
+0x0134
+
+W
+
+RGA2_DST_INFO
+
+0x0138
+
+W
+
+RGA2_DST_BASE0
+
+0x013C
+
+W
+
+RGA2_DST_BASE1
+
+0x0140
+
+W
+
+RGA2_DST_BASE2
+
+0x0144
+
+W
+
+RGA2_DST_VIR_INFO
+
+0x0148
+
+W
+
+RGA2_DST_ACT_INFO
+
+0x014C
+
+W
+
+RGA2_ALPHA_CTRL0
+RGA2_ALPHA_CTRL1
+RGA2_FADING_CTRL
+RGA2_PAT_CON
+RGA2_ROP_CON0
+
+0x0150
+0x0154
+0x0158
+0x015C
+0x0160
+
+W
+W
+W
+W
+W
+
+RGA2_CP_GR_G
+
+0x0160
+
+W
+
+RGA2_DST_Y4MAP_LUT0 0x0160
+RGA2_NN_QUANTIZE_SC
+0x0160
+ALE
+RGA2_NN_QUANTIZE_OF
+0x0164
+FSET
+
+W
+
+RGA2_CP_GR_R
+
+0x0164
+
+W
+
+RGA2_DST_Y4MAP_LUT1
+
+0x0164
+
+W
+
+RGA2_ROP_CON1
+RGA2_MASK_BASE
+RGA2_MMU_CTRL1
+
+0x0164
+0x0168
+0x016C
+
+W
+W
+W
+
+RGA2_MMU_SRC_BASE
+
+0x0170
+
+W
+
+RGA2_MMU_SRC1_BASE
+
+0x0174
+
+W
+
+RGA2_MMU_DST_BASE
+
+0x0178
+
+W
+
+RGA2_MMU_ELS_BASE
+
+0x017C
+
+W
+
+W
+W
+
+Description
+
+RGA color gradient fill step
+register (color fill mode)
+0x00000000 RGA destination format register
+RGA destination image base
+0x00000000
+address 0 register
+RGA destination image base
+0x00000000
+address 1 register
+RGA destination image base
+0x00000000
+address 2 register
+RGA destination image virtual
+0x00000000
+width/height register
+RGA destination image active
+0x00000000
+width/height register
+0x00000000 Alpha control register 0
+0x00000000 Register0000 Description
+0x00000000 Fading control register
+0x00000000 Pattern size/offset register
+0x00000000 ROP code 0 control register
+RGA color gradient fill step
+0x00000000
+register (color fill mode)
+0x76543210 Y4MAP LUT REGS from lut0 to lut7
+Quantize scale of RGB (2bit
+0x00000000
+integer+8bit fraction, 0~3.99)
+Quantize offset of RGB (1bit
+0x00000000
+signed + 8bit integer)
+RGA color gradient fill step
+0x00000000
+register (color fill mode)
+Y4MAP LUT REGS from lut8 to
+0xFEDCBA98
+lut15
+0x00000000 ROP code 1 control register
+0x00000000 RGA mask base address register
+0x00000000 RGA MMU control register 1
+RGA source MMU TLB base
+0x00000000
+address
+RGA source1 MMU TLB base
+0x00000000
+address
+RGA destination MMU TLB base
+0x00000000
+address
+RGA else channel MMU TLB base
+0x00000000
+address
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+6.4.2 Detail Registers Description
+RGA2_SYS_CTRL
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+sw_rst_handsave_p
+7
+RW 0x0
+It would save protect-rstn into initial status if long time dead in
+protect-rstn status(auto clear into '0').
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+761
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+6
+
+RW 0x1
+
+5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+3
+
+WO 0x0
+
+2
+
+WO 0x1
+
+1
+
+WO 0x0
+
+0
+
+W1
+C
+
+0x0
+
+Description
+sw_rst_protect_e
+Protect-rstn mode enable.
+It would be ensure all AXI write/read operation into completion
+status when sw_cclk_sreset_p or sw_aclk_sreset_p valid.
+sw_auto_rst
+It would auto-resetn after one frame finish.
+1'b0: Disable
+1'b1: Enable
+sw_cclk_sreset_p
+RGA core clk domain Soft reset, write '1' to this would reset the
+RGA engine except configure registers.
+sw_aclk_sreset_p
+RGA aclk domain Soft reset, write '1' to this would reset the RGA
+engine except configure registers.
+sw_auto_ckg
+RGA auto clock gating enable bit
+1'b0: Disable
+1'b1: Enable
+sw_cmd_mode
+RGA command mode
+1'b0: Slave mode
+1'b1: Master mode
+sw_cmd_op_st_p
+Only used in passive (slave) control mode
+
+RGA2_CMD_CTRL
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+31:13 RO 0x00000
+reserved
+sw_cmd_incr_num
+12:3 RW 0x000
+RGA command increment number
+sw_cmd_stop
+2
+WO 0x0
+RGA command stop mode. Command execution would stop after
+the current graphic operation finish if set this bit to 1.
+sw_cmd_incr_valid_p
+RGA command increment valid (Auto cleared)
+When setting this bit,
+1
+WO 0x0
+1. The total command number would increase by the
+RGA_INCR_CMD_NUM.
+2. RGA would continue running if idle.
+sw_cmd_line_st_p
+RGA command line fetch start (command line reset) (Auto
+0
+RW 0x0
+cleared)
+When fetch start, the total command number would reset to
+RGA_INCR_CMD_NUM.
+RGA2_CMD_BASE
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+Description
+sw_cmd_base
+31:0 RW 0x00000000
+RGA command codes base address
+RGA2_STATUS1
+Address: Operational Base + offset (0x000C)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+762
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+31:20 RO
+
+0x000
+
+19:8
+
+RO
+
+0x000
+
+7:1
+
+RO
+
+0x00
+
+0
+
+RO
+
+0x0
+
+Description
+sw_cmd_total_num
+RGA command total number
+sw_cmd_cur_num
+RGA command current number
+reserved
+sw_rga_sta
+RGA engine status
+1'b0: Idle
+1'b1: Working
+
+RGA2_INT
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+Description
+31:11 RO 0x000000
+reserved
+sw_intr_af_e
+10
+RW 0x0
+All command finished interrupt enable
+sw_intr_mmu_e
+9
+RW 0x0
+MMU interrupt enable
+sw_intr_err_e
+8
+RW 0x0
+Error interrupt enable
+sw_intr_cf_clr
+7
+WO 0x0
+Current command finished interrupt clear
+sw_intr_af_clr
+6
+WO 0x0
+All command finished interrupt clear
+sw_intr_mmu_clr
+5
+WO 0x0
+MMU interrupt clear
+sw_intr_err_clr
+4
+WO 0x0
+Error interrupt clear
+sw_intr_cf
+3
+RO 0x0
+Current command finished interrupt flag
+sw_intr_af
+2
+RO 0x0
+All command finished interrupt flag
+sw_intr_mmu
+1
+RO 0x0
+MMU interrupt
+sw_intr_err
+0
+RO 0x0
+Error interrupt flag
+RGA2_MMU_CTRL0
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+Description
+31:11 RO 0x000000
+reserved
+sw_els_ch_priority
+10:9 RW 0x0
+The priority of this channel
+sw_dst_ch_priority
+8:7
+RW 0x0
+The priority of this channel
+sw_src1_ch_priority
+6:5
+RW 0x0
+The priority of this channel
+sw_src_ch_priority
+4:3
+RW 0x0
+The priority of this channel
+sw_cmd_mmu_flush
+2
+RW 0x0
+RGA CMD channel MMU TLB flush. Set 1 to this bit to flush MMU
+TLB, and auto clear.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+763
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+sw_cmd_mmu_en
+RGA CMD channel MMU enable
+1'b0: Disable
+1'b1: Enable
+sw_mmu_page_size
+RGA MMU Page table size
+1'b0: 4KB page
+1'b1: 64KB page
+
+RGA2_MMU_CMD_BASE
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+Description
+31:28 RO 0x0
+reserved
+sw_mmu_cmd_base
+27:0 RW 0x0000000
+RGA command MMU TLB base address (word)
+RGA2_STATUS2
+Address: Operational Base + offset (0x001C)
+Bit Attr Reset Value
+31:13 RO 0x00000
+reserved
+rpp_mkram_rready
+12:11 RO 0x0
+Rpp mkram rready
+dstrpp_outbuf_rready
+10:6 RO 0x00
+Dstrpp outbuf rready
+srcrpp_outbuf_rready
+5:2
+RO 0x0
+Srcrpp outbuf rready
+bus_error
+1
+RO 0x0
+Bus error status
+rpp_error
+0
+RO 0x0
+RPP error status
+
+Description
+
+RGA2_WORK_CNT
+Address: Operational Base + offset (0x0020)
+Bit Attr Reset Value
+Description
+31:27 RO 0x00
+reserved
+sw_work_cnt
+26:0 RO 0x0000000
+RGA total working counter
+RGA2_VERSION_INFO
+Address: Operational Base + offset (0x0028)
+Bit Attr Reset Value
+Description
+major
+31:24 RW 0x00
+Used for IP structure version information
+minor
+23:16 RW 0x00
+Big feature change under same structure
+svnbuild
+15:0 RW 0x0000
+RTL current SVN number
+RGA2_PERF_LATENCY_CTRL0
+Address: Operational Base + offset (0x0040)
+Bit Attr Reset Value
+Description
+31:20 RO 0x000
+reserved
+sw_rd_latency_thr
+19:8 RW 0x000
+AXI Read latency threshold
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+764
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+7:4
+
+RW 0x0
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+sw_rd_latency_id
+AXI read channel id for latency AXI_PERF test
+sw_axi_cnt_type
+1'b0: AXI transfer test
+1'b1: DDR align transfer test
+sw_axi_perf_frm_type
+1'b0: Clear by software configuration
+1'b1: Clear by frame end or by software configuration
+sw_axi_perf_clr_e
+1'b0: Software clear disable
+1'b1: Software clear enable
+note: user need write 1 to this bit and then write 0 to generate a
+clear pulse
+sw_axi_perf_work_e
+1'b0: Disable
+1'b1: Enable
+
+RGA2_PERF_LATENCY_CTRL1
+Address: Operational Base + offset (0x0044)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+sw_aw_count_id
+11:8 RW 0x0
+When sw_aw_cnt_id_type=1, only count the id designated by
+sw_aw_count_id
+sw_ar_count_id
+7:4
+RW 0x0
+When sw_ar_cnt_id_type=1, only count the id designated by
+sw_ar_count_id
+sw_aw_cnt_id_type
+3
+RW 0x0
+1'b0: Count all write channels
+1'b1: Count sw_aw_count_id write channel only
+sw_ar_cnt_id_type
+2
+RW 0x0
+1'b0: Count all read channels
+1'b1: Count sw_ar_count_id read channel only
+sw_addr_align_type
+2'b00: 16-Byte align
+1:0
+RW 0x0
+2'b01: 32-Byte align
+2'b10: 64-Byte align
+2'b11: 128-Byte align
+RGA2_PERF_RD_MAX_LATENCY_NUM
+Address: Operational Base + offset (0x0048)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+rd_max_latency_num
+15:0 RO 0x0000
+AXI max read latency(unit: cycles)
+RGA2_PERF_RD_LATENCY_SAMP_NUM
+Address: Operational Base + offset (0x004C)
+Bit Attr Reset Value
+Description
+rd_latency_thr_num
+31:0 RO 0x00000000
+AXI read latency total sample number
+RGA2_PERF_RD_LATENCY_ACC_SUM
+Address: Operational Base + offset (0x0050)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+765
+
+RK3588 TRM-Part2
+Bit
+31:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+rd_latency_acc_sum
+AXI read latency (>sw_rd_latency_thr) total number
+
+RGA2_PERF_RD_AXI_TOTAL_BYTE
+Address: Operational Base + offset (0x0054)
+Bit Attr Reset Value
+Description
+perf_rd_axi_total_byte
+31:0 RO 0x00000000
+AXI active total read bytes/DDR align read bytes
+RGA2_PERF_WR_AXI_TOTAL_BYTE
+Address: Operational Base + offset (0x0058)
+Bit Attr Reset Value
+Description
+perf_wr_axi_total_byte
+31:0 RO 0x00000000
+AXI active total write bytes/DDR align write bytes
+RGA2_PERF_WORKING_CNT
+Address: Operational Base + offset (0x005C)
+Bit Attr Reset Value
+perf_working_cnt
+31:0 RO 0x00000000
+RKIP working counter
+
+Description
+
+RGA2_DST_CSC_00
+Address: Operational Base + offset (0x0060)
+Bit Attr Reset Value
+Description
+31:11 RO 0x000000
+reserved
+sw_dst_coe_00
+1bit signed+10bit factor
+10:0 RW 0x0bc
+Y: sw_dst_coe_00*R + sw_dst_coe_01*G + sw_dst_coe_02*B +
+sw_dst_coe_off0
+RGA2_DST_CSC_01
+Address: Operational Base + offset (0x0064)
+Bit Attr Reset Value
+Description
+31:11 RO 0x000000
+reserved
+sw_dst_coe_01
+1bit signed+10bit factor
+10:0 RW 0x274
+Y: sw_dst_coe_00*R + sw_dst_coe_01*G + sw_dst_coe_02*B +
+sw_dst_coe_off0
+RGA2_DST_CSC_02
+Address: Operational Base + offset (0x0068)
+Bit Attr Reset Value
+Description
+31:11 RO 0x000000
+reserved
+sw_dst_coe_02
+1bit signed+10bit factor
+10:0 RW 0x040
+Y: sw_dst_coe_00*R + sw_dst_coe_01*G + sw_dst_coe_02*B +
+sw_dst_coe_off0
+RGA2_DST_CSC_OFF0
+Address: Operational Base + offset (0x006C)
+Bit Attr Reset Value
+31:19 RO 0x0000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+766
+
+RK3588 TRM-Part2
+Bit
+18:0
+
+Attr Reset Value
+RW 0x04200
+
+Description
+sw_dst_coe_off0
+1bit signed+8bit integer+10bit factor
+Y: sw_dst_coe_00*R + sw_dst_coe_01*G + sw_dst_coe_02*B +
+sw_dst_coe_off0
+
+RGA2_DST_CSC_10
+Address: Operational Base + offset (0x0070)
+Bit Attr Reset Value
+Description
+31:11 RO 0x000000
+reserved
+sw_dst_coe_10
+1bit signed+10bit factor
+10:0 RW 0x798
+U: sw_dst_coe_10*R + sw_dst_coe_11*G + sw_dst_coe_12*B +
+sw_dst_coe_off1
+RGA2_DST_CSC_11
+Address: Operational Base + offset (0x0074)
+Bit Attr Reset Value
+Description
+31:11 RO 0x000000
+reserved
+sw_dst_coe_11
+1bit signed+10bit factor
+10:0 RW 0x6a4
+U: sw_dst_coe_10*R + sw_dst_coe_11*G + sw_dst_coe_12*B +
+sw_dst_coe_off1
+RGA2_DST_CSC_12
+Address: Operational Base + offset (0x0078)
+Bit Attr Reset Value
+Description
+31:11 RO 0x000000
+reserved
+sw_dst_coe_12
+1bit signed+10bit factor
+10:0 RW 0x1c0
+U: sw_dst_coe_10*R + sw_dst_coe_11*G + sw_dst_coe_12*B +
+sw_dst_coe_off1
+RGA2_DST_CSC_OFF1
+Address: Operational Base + offset (0x007C)
+Bit Attr Reset Value
+Description
+31:19 RO 0x0000
+reserved
+sw_dst_coe_off1
+1bit signed+8bit integer+10bit factor
+18:0 RW 0x20200
+U: sw_dst_coe_10*R + sw_dst_coe_11*G + sw_dst_coe_12*B +
+sw_dst_coe_off1
+RGA2_DST_CSC_20
+Address: Operational Base + offset (0x0080)
+Bit Attr Reset Value
+Description
+31:11 RO 0x000000
+reserved
+sw_dst_coe_20
+1bit signed+10bit factor
+10:0 RW 0x1c0
+V: sw_dst_coe_20*R + sw_dst_coe_21*G + sw_dst_coe_22*B +
+sw_dst_coe_off2
+RGA2_DST_CSC_21
+Address: Operational Base + offset (0x0084)
+Bit Attr Reset Value
+31:11 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+767
+
+RK3588 TRM-Part2
+Bit
+10:0
+
+Attr Reset Value
+RW 0x668
+
+Description
+sw_dst_coe_21
+1bit signed+10bit factorr
+V: sw_dst_coe_20*R + sw_dst_coe_21*G + sw_dst_coe_22*B +
+sw_dst_coe_off2
+
+RGA2_DST_CSC_22
+Address: Operational Base + offset (0x0088)
+Bit Attr Reset Value
+Description
+31:11 RO 0x000000
+reserved
+sw_dst_coe_22
+1bit signed+10bit factor
+10:0 RW 0x7d8
+V: sw_dst_coe_20*R + sw_dst_coe_21*G + sw_dst_coe_22*B +
+sw_dst_coe_off2
+RGA2_DST_CSC_OFF2
+Address: Operational Base + offset (0x008C)
+Bit Attr Reset Value
+Description
+31:19 RO 0x0000
+reserved
+sw_dst_coe_off2
+1bit signed+8bit integer+10bit factor
+18:0 RW 0x20200
+V: sw_dst_coe_20*R + sw_dst_coe_21*G + sw_dst_coe_22*B +
+sw_dst_coe_off2
+RGA2_MODE_CTRL
+Address: Operational Base + offset (0x0100)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+sw_intr_cf_e
+7
+RW 0x0
+Current command finished interrupt enable
+sw_gradient_sat
+Gradient saturation calculation mode
+6
+RW 0x0
+1'b0:Clip
+1'b1:Not-clip
+sw_alpha_zero_key
+ARGB888 alpha zero key mode
+0x000000 would be changed to
+5
+RW 0x0
+0x000100(RGB888)/0x0020(RGB565)for ARGB888 to
+RGBX/RGB565 color key.
+1'b0: Disable
+1'b1: Enable
+sw_cf_rop4_pat
+Color fill/ROP4 pattern
+4
+RW 0x0
+1'b0: Solid color
+1'b1: Pattern color
+sw_bb_mode
+Bitblt mode
+3
+RW 0x0
+1'b0: SRC + DST => DST
+1'b1: SRC + SRC1 => DST
+sw_render_mode
+RGA 2D render mode
+3'b000: Bitblt
+2:0
+RW 0x0
+3'b001: Color palette
+3'b010: Rectangle fill
+3'b011: Update palette LUT/pattern ram
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+768
+
+RK3588 TRM-Part2
+RGA2_SRC_INFO
+Address: Operational Base + offset (0x0104)
+Bit Attr Reset Value
+Description
+31:29 RO 0x0
+reserved
+sw_src_yuv10_round_e
+This bit valid when RGA2E/2L support YUV 10bit picture input
+28
+RW 0x0
+1'b0: YUV 10bit to 8bit round disable
+1'b1: YUV 10bit to 8bit round enable
+sw_src_yuv10_e
+This bit valid when RGA2E/2L support YUV 10bit picture input.
+27
+RW 0x0
+1'b0: YUV 10bit disable
+1'b1: YUV 10bit enable
+sw_vsp_mode
+26
+RW 0x0
+1'b0:By-cubic
+1'b1:Bi-linear
+sw_bic_coe_sel
+SRC BI-cubic scaling coefficient select
+2'b00: CATROM
+25:24 RW 0x0
+2'b01: MITCHELL
+2'b10: HERMITE
+2'b11: B-SPLINE
+sw_src_dither_up
+SRC dither up enable
+23
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+sw_src_trans_e
+Source transparency enable bits
+[3]: A value stencil test enable bit
+22:19 RW 0x0
+[2]: B value stencil test enable bit
+[1]: G value stencil test enable bit
+[0]: R value stencil test enable bit
+sw_src_trans_mode
+Source transparency mode
+18
+RW 0x0
+1'b0: Normal stencil test (color key)
+1'b1: Inverted stencil test
+sw_src_vscl_mode
+SRC vertical scaling mode
+17:16 RW 0x0
+2'b00No scaling
+2'b01: Down-scaling
+2'b10: Up-scaling
+sw_src_hscl_mode
+SRC horizontal scaling mode
+15:14 RW 0x0
+2'b00No scaling
+2'b01: Down-scaling
+2'b10: Up-scaling
+sw_src_mir_mode
+SRC mirror mode
+2'b00: No mirror
+13:12 RW 0x0
+2'b01: X mirror
+2'b10: Y mirror
+2'b11: X mirror + y mirror
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+769
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+11:10 RW 0x0
+
+9:8
+
+RW 0x0
+
+7
+
+RW 0x0
+
+6
+
+RW 0x0
+
+5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+3:0
+
+RW 0x0
+
+Description
+sw_src_rot_mode
+SRC rotation mode
+2'b00: 0 degree
+2'b01: 90 degree
+2'b10: 180 degree
+2'b11: 270 degree
+sw_src_csc_mode
+Source bitmap YUV2RGB conversion mode
+2'b00: Bypass
+2'b01: BT.601-range0(limit range)
+2'b10: BT.601-range1(full range)
+2'b11: BT.709-range0(limit range)
+sw_cp_endian
+Source Color palette endian swap
+1'b0: Big endian
+1'b1: Little endian
+sw_src_uvswap
+Source Cb-Cr swap
+1'b0: CrCb
+1'b1: CbCr
+For YVYU422 mode, UV swap
+1'b0: YVYU422(U LSB)
+1'b1: YUYV422(V LSB)
+sw_src_alpha_swap
+Source bitmap data alpha swap
+1'b0: ABGR
+1'b1: BGRA
+sw_src_rbswap
+Source bitmap data RB swap
+1'b0: BGR
+1'b1: RGB
+For YVYU422 mode, YC swap
+1'b0: YVYU422(U LSB)
+1'b1: VYUY422(Y LSB)
+sw_src_fmt
+Source bitmap data format
+4'b0000: ABGR888
+4'b0001: XBGR888
+4'b0010: BGR packed
+4'b0100: RGB565
+4'b0101: ARGB1555
+4'b0110: ARGB4444
+4'b0111: YVYU422(U LSB)
+4'b1000: YUV422SP
+4'b1001: YUV422P
+4'b1010: YUV420SP
+4'b1011: YUV420P
+4'b1100: 1BPP (color palette)
+4'b1101: 2BPP (color palette)
+4'b1110: 4BPP (color palette)
+4'b1111: 8BPP (color palette)
+
+RGA2_SRC_BASE0
+Address: Operational Base + offset (0x0108)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+770
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+sw_src_base0
+Source image Y/RGB base address
+
+RGA2_SRC_BASE1
+Address: Operational Base + offset (0x010C)
+Bit Attr Reset Value
+Description
+sw_src_base1
+31:0 RW 0x00000000 Source image Cb base address (YUV422/420-P)
+Source image Cb/Cr base address (YU,V422/420-SP)
+RGA2_SRC_BASE2
+Address: Operational Base + offset (0x0110)
+Bit Attr Reset Value
+Description
+sw_src_base2
+31:0 RW 0x00000000
+Source image Cr base address (YUV422/420-P)
+RGA2_SRC_BASE3
+Address: Operational Base + offset (0x0114)
+Bit Attr Reset Value
+Description
+sw_src_base3
+31:0 RW 0x00000000
+Source image 1 RGB base address(source bitblt mode1)
+RGA2_SRC_VIR_INFO
+Address: Operational Base + offset (0x0118)
+Bit Attr Reset Value
+Description
+31:26 RO 0x00
+reserved
+sw_mask_vir_stride
+25:16 RW 0x000
+Mask image virtual stride (words)
+15
+RO 0x0
+reserved
+sw_src_vir_stride
+14:0 RW 0x0000
+SRC image virtual stride (words)
+RGA2_SRC_ACT_INFO
+Address: Operational Base + offset (0x011C)
+Bit Attr Reset Value
+Description
+31:29 RO 0x0
+reserved
+sw_src_act_height
+28:16 RW 0x0000
+Source image active height
+15:13 RO 0x0
+reserved
+sw_src_act_width
+12:0 RW 0x0000
+Source image active width
+RGA2_SRC_X_FACTOR
+Address: Operational Base + offset (0x0120)
+Bit Attr Reset Value
+Description
+sw_src_hsp_factor
+31:16 RW 0x0000
+Source image horizontal up-scaling factor
+=((SRC_ACT_WIDTH-1)/(DST_ACT_WIDTH-1)) * 65536
+sw_src_hsd_factor
+15:0 RW 0x0000
+Source image horizontal down-scaling factor
+=(DST_ACT_WIDTH/(SRC_ACT_WIDTH) * 65536 + 1
+RGA2_SRC_Y_FACTOR
+Address: Operational Base + offset (0x0124)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+771
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+31:16 RW 0x0000
+15:0
+
+RW 0x0000
+
+Description
+sw_src_vsp_factor
+Source image vertical up-scaling factor
+=((SRC_ACT_ HEIGHT -1)/(DST_ACT_ HEIGHT -1)) * 65536
+sw_src_vsd_factor
+Source image vertical down-scaling factor
+=(DST_ACT_ HEIGHT /(SRC_ACT_ HEIGHT) * 65536 + 1
+
+RGA2_SRC_BG_COLOR
+Address: Operational Base + offset (0x0128)
+Bit Attr Reset Value
+Description
+sw_src_bg_color
+31:0 RW 0x00000000 Source image background color
+("0" bit color for mono expansion.)
+RGA2_SRC_FG_COLOR
+Address: Operational Base + offset (0x012C)
+Bit Attr Reset Value
+Description
+sw_src_fg_color
+Source image foreground color
+31:0 RW 0x00000000
+("1" bit color for mono expansion.)
+Color fill color, Pan color
+RGA2_SRC_TR_COLOR0
+Address: Operational Base + offset (0x0130)
+Bit Attr Reset Value
+Description
+sw_src_trans_amin
+31:24 RW 0x00
+Source image transparency color A min value
+sw_src_trans_bmin
+23:16 RW 0x00
+Source image transparency color B min value
+sw_src_trans_gmin
+15:8 RW 0x00
+Source image transparency color G min value
+sw_src_trans_rmin
+7:0
+RW 0x00
+Source image transparency color R min value
+RGA2_CP_GR_A
+Address: Operational Base + offset (0x0130)
+Bit Attr Reset Value
+Description
+sw_gradient_y_a
+31:16 RW 0x0000
+Y gradient value of Alpha (signed 8.8)
+sw_gradient_x_a
+15:0 RW 0x0000
+X gradient value of Alpha (signed 8.8)
+RGA2_SRC_TR_COLOR1
+Address: Operational Base + offset (0x0134)
+Bit Attr Reset Value
+Description
+sw_src_trans_amax
+31:24 RW 0x00
+Source image transparency color A max value
+sw_src_trans_bmax
+23:16 RW 0x00
+Source image transparency color B max value
+sw_src_trans_gmax
+15:8 RW 0x00
+Source image transparency color G max value
+sw_src_trans_rmax
+7:0
+RW 0x00
+Source image transparency color R max value
+RGA2_CP_GR_B
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+772
+
+RK3588 TRM-Part2
+Address: Operational Base + offset (0x0134)
+Bit Attr Reset Value
+Description
+sw_gradient_y_b
+31:16 RW 0x0000
+Y gradient value of Blue (signed 8.8)
+sw_gradient_x_b
+15:0 RW 0x0000
+X gradient value of Blue (signed 8.8)
+RGA2_DST_INFO
+Address: Operational Base + offset (0x0138)
+Bit Attr Reset Value
+Description
+31:27 RO 0x00
+reserved
+sw_dst_nn_quantize_en
+Destination output RGB quantize calculate
+26
+RW 0x0
+1'b0: Quantize calculate disable
+1'b1: Quantize calculate enable
+sw_dst_fmt_y4_en
+Destination output Y channel 4bit and UV 0bit
+25
+RW 0x0
+1'b0: Y4 out disable
+1'b1: Y4 out enable
+sw_dst_fmt_yuv400_en
+Destination Cb-Cr output disable (valid for YUV420/2 P/SP
+24
+RW 0x0
+format)
+1'b0: CbCr output normal
+1'b1: CbCr output disable
+23
+RO 0x0
+reserved
+sw_src1_csc_clip
+Src1 read BGR2YUV Clip mode(RGB from 0~255 clip to 36~235)
+22
+RW 0x0
+1'b0: Clip disable
+1'b1: Clip enable
+sw_src1_csc_mode
+SRC1 read bitmap RGB2YUV conversion mode
+2'b00: Bypass
+21:20 RW 0x0
+2'b01: BT.601-range0,BT601_l, Y{00,255}, UV{00,255}
+2'b10: BT.601-range1,BT601_f, Y{16,235}, UV{19,237}
+2'b11: BT.709-range0,BT709_l, Y{16,255}, UV{16,237}
+sw_dst_csc_mode_2
+sw_dst_csc_mode[2]+sw_dst_csc_mode[1:0];
+DST read bitmap CSC(r2y/y2y) conversion mode under
+sw_dst_csc_mode[2]=1'b0:
+3'b10x:
+Y: sw_dst_coe_00*R + sw_dst_coe_01*G + sw_dst_coe_02*B +
+19
+RW 0x0
+sw_dst_coe_off0
+U: sw_dst_coe_10*R + sw_dst_coe_11*G + sw_dst_coe_12*B +
+sw_dst_coe_off1
+V: sw_dst_coe_20*R + sw_dst_coe_21*G + sw_dst_coe_22*B +
+sw_dst_coe_off2 without clip
+3'b110: BT.709-range1,BT601_f,Y{16,235},UV{16,240} clip
+3'b111: BT.709-range1,BT601_f,Y{16,235},UV{16,237} clip
+sw_dst_csc_clip
+Dst write RGB2YUV Clip mode(RGB from 0~255 clip to 16~235)
+18
+RW 0x0
+1'b1: Clip enable
+1'b0: Clip disable
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+773
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+17:16 RW 0x0
+
+15:14 RW 0x0
+
+13
+
+RW 0x0
+
+12
+
+RW 0x0
+
+11
+
+RW 0x0
+
+10
+
+RW 0x0
+
+9:7
+
+RW 0x0
+
+6
+
+RW 0x0
+
+5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+Description
+sw_dst_csc_mode_01
+sw_dst_csc_mode[1:0] under sw_dst_csc_mode[2]=1'b0:
+DST read bitmap RGB2YUV conversion mode
+3'b000: Bypass
+3'b001: BT.601-range0,BT601_l,Y{00,255},UV{00,255}
+3'b010: BT.601-range1,BT601_f,Y{16,235},UV{19,237}
+3'b011: BT.709-range0,BT709_l,Y{16,255},UV{16,237}
+sw_dither_mode
+DST dither down bit mode
+2'b00: 888 to 666
+2'b01: 888 to 565
+2'b10: 888 to 555
+2'b11: 888 to 444
+DST YUV dither down bit mode
+2'b00: Y8 to Y4
+others:Y8 to Y1
+sw_dither_down
+DST dither down enable
+1'b0: Disable
+1'b1: Enable
+sw_src1_dither_up
+DST/SRC1 dither up enable
+1'b0: Disable
+1'b1: Enable
+sw_src1_alpha_swap
+Source 1 bitmap data alpha swap
+1'b0: ABGR
+1'b1: BGRA
+sw_src1_rbswap
+Source 1 bitmap data RB swap
+1'b0: BGR
+1'b1: RGB
+sw_src1_fmt
+Source 1 bitmap data format
+3'b000: ABGR888
+3'b001: XBGR888
+3'b010: BGR packed
+3'b100: RGB565
+3'b101: ARGB1555
+3'b110: ARGB4444
+sw_dst_uvswap
+Destination Cb-Cr swap
+1'b0: CrCb
+1'b1: CbCr
+sw_dst_alpha_swap
+Destination bitmap data alpha swap
+1'b0: ABGR
+1'b1: BGRA
+sw_dst_rbswap
+Destination bitmap data RB swap
+1'b0: BGR
+1'b1: RGB
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+774
+
+RK3588 TRM-Part2
+Bit
+
+3:0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+sw_dst_fmt
+Destination bitmap data format
+4'b0000: ABGR888
+4'b0001: XBGR888
+4'b0010: BGR packed
+4'b0100: RGB565
+4'b0101: ARGB1555
+4'b0110: ARGB4444
+when sw_dst_fmt_yuv400_en=1, YUV420/2 P/SP format will
+change to YUV400:
+4'b1000: YUV422SP
+4'b1001: YUV422P
+4'b1010: YUV420SP
+4'b1011: YUV420P
+only RGA2E has yuyv output format feature:
+4'b1100: YVYU422(U, LSB)
+4'b1101: YVYU420(U, LSB)
+4'b1110: VYUY422(Y, LSB)
+4'b1111: VYUY420(Y, LSB)
+
+RGA2_DST_BASE0
+Address: Operational Base + offset (0x013C)
+Bit Attr Reset Value
+Description
+sw_dst_base0
+31:0 RW 0x00000000
+Destination image Y/RGB base address
+RGA2_DST_BASE1
+Address: Operational Base + offset (0x0140)
+Bit Attr Reset Value
+Description
+sw_dst_base1
+31:0 RW 0x00000000
+Destination image Cb/CbCr base address
+RGA2_DST_BASE2
+Address: Operational Base + offset (0x0144)
+Bit Attr Reset Value
+Description
+sw_dst_base2
+31:0 RW 0x00000000
+Destination image Cr base address
+RGA2_DST_VIR_INFO
+Address: Operational Base + offset (0x0148)
+Bit Attr Reset Value
+Description
+31
+RO 0x0
+reserved
+sw_src1_vir_stride
+30:16 RW 0x0000
+Source image 1 virtual stride (words)
+15
+RO 0x0
+reserved
+sw_dst_vir_stride
+14:0 RW 0x0000
+Destination image virtual stride(words)
+RGA2_DST_ACT_INFO
+Address: Operational Base + offset (0x014C)
+Bit Attr Reset Value
+Description
+31:28 RO 0x0
+reserved
+sw_dst_act_height
+27:16 RW 0x000
+Destination image active height
+15:12 RO 0x0
+reserved
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+775
+
+RK3588 TRM-Part2
+Bit
+11:0
+
+Attr Reset Value
+RW 0x000
+
+Description
+sw_dst_act_width
+Destination image active width
+
+RGA2_ALPHA_CTRL0
+Address: Operational Base + offset (0x0150)
+Bit Attr Reset Value
+Description
+Reserved
+31:21 RW 0x000
+Reserved
+sw_mask_endian
+ROP4 mask endian swap
+20
+RW 0x0
+1'b0: Big endian
+1'b1: Little endian
+sw_dst_global_alpha
+19:12 RW 0x00
+Global alpha value of DST(Agd)
+sw_src_global_alpha
+11:4 RW 0x00
+Global alpha value of SRC(Ags)
+Fading value in fading mod
+sw_rop_mode
+ROP mode select
+3:2
+RW 0x0
+2'b00: ROP 2
+2'b01: ROP 3
+2'b10: ROP 4
+sw_alpha_rop_sel
+Alpha or ROP select
+1
+RW 0x0
+1'b0: Alpha
+1'b1: ROP
+sw_alpha_rop_e
+Alpha or ROP enable
+0
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+RGA2_ALPHA_CTRL1
+Address: Operational Base + offset (0x0154)
+Bit Attr Reset Value
+Description
+Reserved
+31:30 RW 0x0
+Reserved
+sw_src_alpha_m1
+SRC Transparent/opaque of alpha channel (As1)
+29
+RW 0x0
+1'b0: As
+1'b1: 255-As
+sw_dst_alpha_m1
+DST Transparent/opaque of alpha channel (Ad1)
+28
+RW 0x0
+1'b0: Ad
+1'b1: 255-Ad
+sw_src_blend_m1
+Alpha SRC blend mode select of alpha channel (As1_)
+2'b00: Ags
+27:26 RW 0x0
+2'b01: As1
+2'b10: (As1*Ags)>>8
+2'b11: reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+776
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+25:24 RW 0x0
+
+23
+
+RW 0x0
+
+22
+
+RW 0x0
+
+21:19 RW 0x0
+
+18:16 RW 0x0
+
+15
+
+RW 0x0
+
+14
+
+RW 0x0
+
+13:12 RW 0x0
+
+11:10 RW 0x0
+
+9
+
+RW 0x0
+
+Description
+sw_dst_blend_m1
+Alpha DST blend mode select of alpha channel(Ad1_)
+2'b00: Agd
+2'b01: Ad1
+2'b10: (Ad1*Agd)>>8
+2'b11: reserved
+sw_src_alpha_cal_m1
+Alpha SRC calculate mode of alpha channel(As1)
+1'b0: As1= As1_ + (As1_ >>7)
+1'b1: As1= As1 _
+sw_dst_alpha_cal_m1
+Alpha DST calculate mode of alpha channel(Ad1)
+1'b0: Ad1= Ad1_ + (Ad1_ >>7)
+1'b1: Ad1= Ad1_
+w_src_factor_m1
+SRC factormode of alpha channel(Fs1)
+3'b000: 0
+3'b001: 256
+3'b010: Ad1
+3'b011: 256-Ad1
+3'b100: As1
+sw_dst_factor_m1
+DST factormode of alpha channel(Fd1)
+3'b000: 0
+3'b001: 256
+3'b010: As1
+3'b011: 256-As1
+3'b100: Ad1
+sw_src_alpha_m0
+SRC Transparent/opaque of color channel (As0)
+1'b0: As
+1'b1: 255-As
+sw_dst_alpha_m0
+DST Transparent/opaque of color channel (Ad0)
+1'b0: Ad
+1'b1: 255-Ad
+sw_src_blend_m0
+Alpha SRC blend mode select of color channel (As0_)
+2'b00: Ags
+2'b01: As0
+2'b10: (As0*Ags)>>8
+2'b11: Reserved
+sw_dst_blend_m0
+Alpha DST blend mode select of color channel(Ad0_)
+2'b00: Agd
+2'b01: Ad0
+2'b10: (Ad0*Agd)>>8
+2'b11: Reserved
+sw_src_alpha_cal_m0
+Alpha src calculate mode of color channel(As0)
+1'b0: As0= As0_ + (As0_ >>7)
+1'b1: As0= As0 _
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+777
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+8
+
+RW 0x0
+
+7:5
+
+RW 0x0
+
+4:2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+sw_dst_alpha_cal_m0
+Alpha dst calculate mode of color channel(Ad0)
+1'b0: Ad0= Ad0_ + (Ad0_ >>7)
+1'b1: Ad0= Ad0_
+sw_src_factor_m0
+Src factormode of color channel(Fs0)
+3'b000: 0
+3'b001: 256
+3'b010: Ad0
+3'b011: 256-Ad0
+3'b100: As0
+sw_dst_factor_m0
+Dst factor mode of color channel(Fd0)
+3'b000: 0
+3'b001: 256
+3'b010: As0
+3'b011: 256-As0
+3'b100: Ad0
+sw_src_color_m0
+SRC color select(Cs)
+1'b0: Cs
+1'b1: Cs * As0
+sw_dst_color_m0
+SRC color select(Cd)
+1'b0: Cd
+1'b1: Cd * Ad0
+
+RGA2_FADING_CTRL
+Address: Operational Base + offset (0x0158)
+Bit Attr Reset Value
+Description
+31:25 RO 0x00
+reserved
+sw_fading_en
+24
+RW 0x0
+Fading enable
+sw_fading_offset_b
+23:16 RW 0x00
+Fading offset B value
+sw_fading_offset_g
+15:8 RW 0x00
+Fading offset G value
+(Pattern total number when pattern loading)
+sw_fading_offset_r
+7:0
+RW 0x00
+Fading offset R value
+(Start point of pattern ram in pattern mode)
+RGA2_PAT_CON
+Address: Operational Base + offset (0x015C)
+Bit Attr Reset Value
+sw_pat_offset_y
+31:24 RW 0x00
+Pattern y offset
+sw_pat_offset_x
+23:16 RW 0x00
+Pattern x offset
+sw_pat_height
+15:8 RW 0x00
+Pattern height
+sw_pat_width
+7:0
+RW 0x00
+Pattern width
+
+Description
+
+RGA2_ROP_CON0
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+778
+
+RK3588 TRM-Part2
+Address: Operational Base + offset (0x0160)
+Bit Attr Reset Value
+31:25 RO 0x00
+reserved
+sw_rop3_code0
+24:0 RW 0x0000000
+Rop3 code 0 control bits
+
+Description
+
+RGA2_CP_GR_G
+Address: Operational Base + offset (0x0160)
+Bit Attr Reset Value
+Description
+sw_gradient_y_g
+31:16 RW 0x0000
+Y gradient value of Green (signed 8.8)
+sw_gradient_x_g
+15:0 RW 0x0000
+X gradient value of Green (signed 8.8)
+RGA2_DST_Y4MAP_LUT0
+Address: Operational Base + offset (0x0160)
+Bit Attr Reset Value
+sw_dst_y4map_lut0
+31:0 RW 0x76543210
+Y4 lut from lut0 to lut7
+
+Description
+
+RGA2_NN_QUANTIZE_SCALE
+Address: Operational Base + offset (0x0160)
+Bit Attr Reset Value
+Description
+31:30 RO 0x0
+reserved
+sw_nn_quantize_scale_b
+29:20 RW 0x000
+Quantize scale of Blue (2bit integer+8bit fraction, 0--3.99)
+sw_nn_quantize_scale_g
+19:10 RW 0x000
+Quantize scale of Green (2bit integer+8bit fraction, 0--3.99)
+sw_nn_quantize_scale_r
+9:0
+RW 0x000
+Quantize scale of Red (2bit integer+8bit fraction, 0--3.99)
+RGA2_NN_QUANTIZE_OFFSET
+Address: Operational Base + offset (0x0164)
+Bit Attr Reset Value
+Description
+31:29 RO 0x0
+reserved
+sw_nn_quantize_offset_b
+28:20 RW 0x000
+Quantize offset of Blue(1bit signed + 8bit integer)
+19
+RO 0x0
+reserved
+sw_nn_quantize_offset_g
+18:10 RW 0x000
+Quantize offset of Green (1bit signed + 8bit integer)
+9
+RO 0x0
+reserved
+sw_nn_quantize_offset_r
+8:0
+RW 0x000
+Quantize offset of Red(1bit signed + 8bit integer)
+RGA2_CP_GR_R
+Address: Operational Base + offset (0x0164)
+Bit Attr Reset Value
+Description
+sw_gradient_y_r
+31:16 RW 0x0000
+Y gradient value of Red(signed 8.8)
+sw_gradient_x_r
+15:0 RW 0x0000
+X gradient value of Red(signed 8.8)
+RGA2_DST_Y4MAP_LUT1
+Address: Operational Base + offset (0x0164)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+779
+
+RK3588 TRM-Part2
+Bit
+31:0
+
+Attr Reset Value
+RW 0xfedcba98
+
+Description
+sw_dst_y4map_lut1
+Y4 lut from lut8 to lut15
+
+RGA2_ROP_CON1
+Address: Operational Base + offset (0x0164)
+Bit Attr Reset Value
+31:25 RO 0x00
+reserved
+sw_rop3_code1
+24:0 RW 0x0000000
+Rop3 code 1 control bits
+
+Description
+
+RGA2_MASK_BASE
+Address: Operational Base + offset (0x0168)
+Bit Attr Reset Value
+Description
+sw_mask_base
+31:0 RW 0x00000000 Mask base address in ROP4 mode. LUT/ pattern load base
+address
+RGA2_MMU_CTRL1
+Address: Operational Base + offset (0x016C)
+Bit Attr Reset Value
+Description
+31:14 RO 0x00000
+reserved
+sw_els_mmu_flush
+13
+RW 0x0
+RGA ELSE channel MMU TLB flush. Set 1 to this bit to flush MMU
+TLB, and auto clear.
+sw_els_mmu_en
+RGA ELSE channel MMU enable
+12
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+sw_dst_mmu_prefetch_dir
+11
+RW 0x0
+1'b0: Forward
+1'b1: Backward
+sw_dst_mmu_prefetch_en
+10
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+sw_dst_mmu_flush
+9
+RW 0x0
+RGA DST channel MMU TLB flush
+Set 1 to this bit to flush MMU TLB, auto clear.
+sw_dst_mmu_en
+RGA DST channel MMU enable
+8
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+sw_src1_mmu_prefetch_dir
+7
+RW 0x0
+1'b0: Forward
+1'b1: Backward
+sw_src1_mmu_prefetch_en
+6
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+sw_src1_mmu_flush
+5
+RW 0x0
+RGA SRC1 channel MMU TLB flush
+Set 1 to this bit to flush MMU TLB, auto clear.
+sw_src1_mmu_en
+RGA SRC1 channel MMU enable
+4
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+780
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+sw_src_mmu_prefetch_dir
+1'b0: Forward
+1'b1: Backward
+sw_src_mmu_prefetch_en
+1'b0: Disable
+1'b1: Enable
+sw_src_mmu_flush
+RGA SRC channel MMU TLB flush
+Set 1 to this bit to flush MMU TLB, auto clear.
+sw_src_mmu_en
+RGA SRC channel MMU enable
+1'b0: Disable
+1'b1: Enable
+
+RGA2_MMU_SRC_BASE
+Address: Operational Base + offset (0x0170)
+Bit Attr Reset Value
+Description
+31:28 RO 0x0
+reserved
+sw_mmu_src_base
+27:0 RW 0x0000000
+RGA source MMU TLB base address
+RGA2_MMU_SRC1_BASE
+Address: Operational Base + offset (0x0174)
+Bit Attr Reset Value
+Description
+31:28 RO 0x0
+reserved
+sw_mmu_src1_base
+27:0 RW 0x0000000
+RGA source1 MMU TLB base address
+RGA2_MMU_DST_BASE
+Address: Operational Base + offset (0x0178)
+Bit Attr Reset Value
+Description
+31:28 RO 0x0
+reserved
+sw_mmu_dst_base
+27:0 RW 0x0000000
+RGA destination MMU TLB base address
+RGA2_MMU_ELS_BASE
+Address: Operational Base + offset (0x017C)
+Bit Attr Reset Value
+Description
+31:28 RO 0x0
+reserved
+sw_mmu_els_base
+27:0 RW 0x0000000
+RGA destination MMU TLB base address
+
+6.5 Application Notes
+6.5.1 Register Partition
+
+There are two types of register in RGA. The first part registers (0x0 - 0xFC) are general
+registers for system configuration including command mode, command parameter, RGA
+status, general interrupts. The other registers (from 0x100) are command registers for
+command codes.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+781
+
+RK3588 TRM-Part2
+0x000
+...
+
+Sys_reg
+
+0x0FC
+0x100
+...
+Op_reg
+0x17C
+
+Fig. 6-7 RGA software main register-region
+
+6.5.2 Command Modes
+
+RGA has two command modes: slave mode and master mode. In salve mode
+(RGA_SYS_CTRL[1] = 1’b0), 2D graphic command only could be run one by one. CPU set all
+the command registers in RGA and then start RGA running by setting RGA_SYS_CTRL[0] to
+1. In master mode (RGA_SYS_CTRL[1] = 1’b1), 2D graphic commands could be run
+sequentially. After setting command’s number to RGA_CMD_CTRL[12:3], writing 1 to
+RGA_CMD_CTRL[0] will start the command fetch, then Internal command DMA fetch
+commands from external command line.
+Command line is a collection of several command codes with continuous address. At the first
+start, the command start address (RGA_CMD_ADDR) and command number
+(RGA_CMD_CTRL[12:3]) should be set, then write 1 to cmd_line_st (RGA_CMD_CTRL[0]) to
+start the command line fetch. Incremental command is supported by setting cmd_incr_num
+(RGA_CMD_CTRL[12:3]) and cmd_incr_valid (RGA_CMD_CTRL[1]=1’b1).
+Task 1
+Command
+line 1
+
+Command 1
+
+...
+
+Command
+counter
+
+Command
+m+1
+
+Command m
+
+Command start addr
+Command incr number = m
+Command
+total number
+
+Task 2
+
+Command incr number = n
+m
+
+0
+
+...
+
+Task 3
+Command
+m+n
+
+Command
+m+n+1
+
+...
+
+m
+
+Command
+m+n+k
+
+Command incr number = k
+m+n
+
+1
+
+...
+
+m+1
+
+m+n+k
+
+...
+
+m+n
+
+m+n+1
+
+...
+
+Fig. 6-8 RGA command line and command counter
+
+6.5.3 Command Sync
+
+In slave command mode, command sync is controlled by CPU.
+In master command mode, user can enable the current_cmd_int (sw_intr_cf), command by
+command to generate a interrupt at the end point of target command operation.
+Command 1
+
+Run time
+
+Command 2
+(Intr enable)
+
+Run time
+
+Command 3
+(Intr disable)
+
+Run time
+
+Command 4
+(Intr enable)
+
+Run time
+
+Command 5
+
+Run time
+
+Interrupt
+sync
+Fig. 6-9 RGA command sync generation
+
+sync
+
+6.5.4 Color Palette Application Notes
+
+1. Palette/LUT Load into special RAM in ELS_BUF_CTRL.
+2. Color Palette/Pattern interval operations no need to initial LUT/pattern ram if LUT/pattern
+content no update.
+
+6.5.5 Some Special Application Constraints
+
+1. The algorithm of vertical scale up: must select BI-cubic algorithm when source picture is
+smaller or equal to 2k and must select BI-linear when bigger than 2k.
+2. The effects that The output’s definition is near 2k or 4k may not very well when at the
+scenario that the vertical side is scale up and the horizontal is scale down within range of
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+782
+
+RK3588 TRM-Part2
+2%(such as:2048x32→2008x64).
+3. At the scenario A+B->C(A means SRC0, B means DST, C means SRC1), the size among
+the A B C has some constraints:
+A’s size after scale must be equal to C. C’s size must equal to B when A+C is no rotation. C’s
+rotation (90degree )size must equal to B1 when A+C is rotation 90 degree.
+
+A
+
+OR
+
+B1
+
+B
+C
+Fig. 6-10 The size constraint among A B C
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+783
+
+RK3588 TRM-Part2
+

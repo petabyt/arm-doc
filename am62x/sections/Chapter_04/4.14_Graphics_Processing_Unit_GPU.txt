@@ -1,0 +1,92 @@
+4.14 Graphics Processing Unit (GPU)
+This section contains the integration details for the GPU module on this device. For Further information, see the
+Graphics Processing Unit (GPU) section of the Peripherals chapter
+4.14.1 GPU Unsupported Features
+The following features are not supported on this family of devices:
+•
+There are no unsupported features
+4.14.2 Module Allocations
+Table 4-229. GPU Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+GPU0
+✓
+4.14.3 Resets, Interrupts, and Clocks
+Table 4-230. GPU Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+GPU0
+PSC0_PSC_0
+PD_GPU
+LPSC_GPU
+49
+OFF
+YES
+LPSC_MAIN_IP
+Table 4-231. GPU Resets
+Module Instance
+Source
+Description
+GPU0
+PSC0_PSC_0
+GPU0 reset
+Table 4-232. GPU Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+GPU0
+GPU0_gpu_os_irq_0
+GICSS0_spi_IN_118
+GICSS0
+GPU0 interrupt
+request
+level
+GPU0
+GPU0_gpu_os_irq_0
+GICSS0_spi_IN_119
+GICSS0
+GPU0 interrupt
+request
+level
+GPU0
+GPU0_gpu_os_irq_1
+GICSS0_spi_IN_118
+GICSS0
+GPU0 interrupt
+request
+level
+GPU0
+GPU0_gpu_os_irq_1
+GICSS0_spi_IN_119
+GICSS0
+GPU0 interrupt
+request
+level
+Table 4-233. GPU Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+GPU0
+GPU_CLK
+MAIN_PLL2_HSDIV4_CL
+KOUT
+=== Page 467 ===

@@ -1,0 +1,1170 @@
+Chapter 35 DECOM
+35
+
+35.1 Overview
+DECOM can decompress compressed files in GZIP, LZ4, DEFALTE and ZLIB formats. DECOM
+controller supports the following features:
+⚫ Support for decompressing GZIP files
+⚫ Support for decompressing LZ4 files, including the General Structure of LZ4 Frame
+format and the Legacy Frame format
+⚫ Support for decompressing data in DEFLATE format
+⚫ Support for decompressing data in ZLIB format
+⚫ There is a 32bit APB slave interface for configuring decompression parameters and
+querying register status
+⚫ There is a 128-bit AXI master interface for reading compressed data and outputting
+decompressed data. The AXI master interface supports burst 4/8/16 and single
+transmissions
+⚫ Support one internal 128-bit wide and 64-location deep FIFO(RX_FIFO) for caching
+source compressed data
+⚫ Support one internal 24-bit wide and 64-location deep FIFO(HF_FIFO) for caching
+intermediate data during decompression
+⚫ Built-in a 32KB two-port RAM for storing decompressed data
+⚫ Support complete interrupt and error interrupt output
+⚫ Support Hash32 check in LZ4 decompression process
+⚫ Support the limit_size function of the decompressed data to prevent the memory from
+being maliciously destroyed during the decompression process
+⚫ Support software to stop the decompression process
+
+35.2 Block Diagram
+
+APB BUS
+
+AXI BUS
+
+pclk
+aclk
+dclk
+
+HASH32
+
+RX FIFO
+
+APB
+SLAVE
+
+REGISTER
+BLOCK
+
+AXI
+MASTER
+
+DATA
+BAG
+
+DECOM
+GZIP_ZLIB
+
+DECOM
+UNLZ4
+
+32K RAM
+
+DECOM
+UNLZ77
+
+HF FIFO
+
+DECOM
+INFLATE
+
+intr
+
+Fig. 35-1 DECOM Block Diagram
+
+35.3 Function Description
+35.3.1 Module Introduction
+35.3.1.1 APB INTERFACE
+The APB slave interface is used for registers configuration, decompression file parameter
+reading and interrupt status query, etc.
+35.3.1.2 AXI MASTER INTERFACE
+The AXI master interface is used to read compressed file data from external storage into the
+RX_FIFO and output the decompressed data to external storage. When decompressing the
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1972
+
+RKRK3588 TRM-Part1
+LZ4 file, it is also used to read back data with a matching distance of more than 32 KB from
+the external storage.
+35.3.1.3 RX_FIFO
+The RX_FIFO is used to buffer the source compressed file data read back through the AXI
+master interface. The RX_FIFO is an asynchronous FIFO, the write interface uses aclk, and
+the read interface uses dclk.
+35.3.1.4 Data Bag
+The Data Bag reads and bites the data in the RX_FIFO, and extracts the corresponding number
+of bits according to the needs of the decompression module.
+35.3.1.5 UNLZ4 Module
+The UNLZ4 module performs file header parsing on the compressed file of LZ4 format, and
+decompresses the data into LZ77 format (match length-matching distance) data pair or
+character data, and stores it in HF_FIFO.
+35.3.1.6 GZIP_ZLIB
+The GZIP_ZLIB module is used to perform file header and file end parsing for compressed files
+in GZIP format and compressed data in ZLIB format, and the compressed data portion is
+decompressed by the INFLATE module. The GZIP or ZLIB decompression mode can be
+configured by configuring the CTRL register.
+35.3.1.7 INFLATE Module
+INFLATE Module is used to decompress compressed files in DEFLATE format, implement
+static/dynamic huffman decoding, decompress compressed data in DEFLATE format into LZ77
+format (match length-match distance) data pairs or character data, and store them in HF_FIFO.
+35.3.1.8 HF_FIFO
+The HF_FIFO is used to buffer the LZ77 format (match length-match distance) data pair or
+character data decompressed by the UNLZ4 module and the INFLATE module, and wait for the
+UNLZ77 module to further decompress the intermediate data. The HF_FIFO is an
+asynchronous FIFO, the write interface uses dclk, and the read interface uses aclk.
+35.3.1.9 UNLZ77 Module
+UNLZ77 is used to implement LZ77 decoding and store the decompressed data in 32K RAM.
+When the matching distance is less than 32k byte, matching replication is performed in 32K
+RAM. When the matching distance is greater than 32k byte, the AXI master interface is
+controlled to perform matching replication in the external storage.
+35.3.1.10
+32K-RAM
+The 32K RAM is used to buffer the decompressed data. During the decompression process,
+the UNLZ77 module also performs read access to the RAM to complete the data matching.
+35.3.1.11
+HASH32 Module
+In the process of decompressing the LZ4 compressed file, the HASH32 module is used to
+calculate the hash32 check value of the file header, data block and decompressed data.
+35.3.1.12
+Interface and Clock
+The 32-bit APB Slave interface in DECOM is used for register configuration and interrupt status
+query interface, using pclk as the interface clock.
+DECOM uses 128bit AXI master interface to realize the functions of reading the data to be
+compressed, decompressing the data output and decompressing LZ4 external matching data;
+it should be noted that the AXI master interface supports Single and Burst transmission, which
+only supports incr4, incr8 and Incr16 three transmission types, does not support Wrap
+transmission. DECOM automatically configures the burst type according to the length of the
+transmitted data and the starting address. The software configuration is not supported to
+select the burst type.
+DECOM has three sets of clock and reset inputs, pclk and presetn, dclk and drstn, aclk and
+aresetn. Among them pclk and aclk are APB and AXI bus clocks respectively, and dclk is
+decompression clock.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1973
+
+RKRK3588 TRM-Part1
+
+35.3.2 Data Flow
+aclk domain
+
+dclk domain
+RX FIFO
+
+GZIP_ZLIB
+
+DECOM
+INFLATE
+
+UNLZ4
+
+HEAD
+HASH32
+
+BLK
+HASH32
+AXI BUS
+
+HF_FIFO
+AXI
+MASTER
+
+CONT
+HASH32
+
+32K RAM
+
+UNLZ77
+
+UNLZ4
+DEFLATE
+
+Fig. 35-2 DECOM Data Flow
+
+35.4 Register Description
+35.4.1 Internal Address Mapping
+
+Slave address can be divided into different length for different usage, which is shown as
+follows.
+
+35.4.2 Registers Summary
+Name
+
+Offset
+
+Size
+
+DECOM_CTRL
+DECOM_ENR
+DECOM_RADDR
+DECOM_WADDR
+DECOM_UDDSL
+DECOM_UDDSH
+DECOM_TXTHR
+DECOM_SLEN
+DECOM_STAT
+DECOM_ISR
+DECOM_IEN
+DECOM_AXI_STAT
+
+0x0000
+0x0004
+0x0008
+0x000C
+0x0010
+0x0014
+0x0018
+0x0020
+0x0024
+0x0028
+0x002C
+0x0030
+
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+
+DECOM_TSIZEL
+
+0x0034
+
+W
+
+DECOM_TSIZEH
+
+0x0038
+
+W
+
+DECOM_MGNUM
+DECOM_FRAME
+DECOM_DICTID
+
+0x003C
+0x0040
+0x0044
+
+W
+W
+W
+
+DECOM_CSL
+
+0x0048
+
+W
+
+DECOM_CSH
+
+0x004C
+
+W
+
+DECOM_LMTSL
+DECOM_LMTSH
+
+0x0050
+0x0054
+
+W
+W
+
+DECOM_GZFHD
+
+0x0058
+
+W
+
+DECOM_VERSION
+
+0x00F0
+
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Reset
+Description
+Value
+0x00000000 Control Register
+0x00000000 Enable Register
+0x00000000 Read Address
+0x00000000 Write Address
+0xFFFFFFFF Undecompressed Data Size
+0xFFFFFFFF Undecompressed Data Size
+0x00000100 Transmit Threshold Level
+0x00000000 INFLATE Store Length
+0x00000000 DECOM Status Register
+0x00000000 Interrupt Status Register
+0x00000000 Interrupt Enable Register
+0x00000010 AXI Master Interface State
+Decompressed Data Total Size
+0x00000000
+Lower 32bit
+Decompressed Data Total Size
+0x00000000
+Upper 32bit
+0x00000000 LZ4 File Magic Number
+0x00000000 LZ4 File Frame Descriptor
+0x00000000 Dictionary ID
+LZ4 Content Size(CS) Lower 320x00000000
+bits
+LZ4 Content Size(CS) Upper 320x00000000
+bits
+0xFFFFFFFF Limit Size of Decompressed Data
+0xFFFFFFFF Limit Size of Decompressed Data
+GZIP/ZLIB File Header
+0x00000000
+Information
+0x00000926 DECOM Version Number
+
+1974
+
+RKRK3588 TRM-Part1
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+35.4.3 Detail Registers Description
+DECOM_CTRL
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+ZLIBM
+ZLIB mode.
+1'b0: Disable
+5
+RW 0x0
+1'b1: Enable
+When decompressing ZLIB compressed data, ZLIBM must be
+enabled and DEM should be set to 1.
+GZIPM
+GZIP mode.
+1'b0: Disable
+4
+RW 0x0
+1'b1: Enable
+When decompressing GZIP files, GZIPM must be enabled and
+DEM should be set to 1.
+CCEN
+LZ4 content checksum check enable.
+1'b0: Disable
+1'b1: Enable
+3
+RW 0x0
+In LZ4 files, a 32-bits content checksum will be appended at the
+end of the file. When CCEN is enabled, DECOM will verify the
+content checksum to check if the decompressed data is correct.
+Only valid when decompressing LZ4 files.
+BCEN
+LZ4 block checksum check enable.
+1'b0: Disable
+1'b1: Enable
+In LZ4 files, each data block will be followed by a 4-bytes
+2
+RW 0x0
+checksum, calculated by using the xxHash-32 algorithm on the
+compressed data block. The intention is to detect data
+corruption(storage or transmission errors) immediately, before
+decoding. When BCEN is enabled, DECOM will check the block
+checksum to determine if the block to be decompressed is
+correct. Only valid when decompressing LZ4 files.
+HCEN
+LZ4 header checksum check enable.
+1'b0: Disable
+1
+RW 0x0
+1'b1: Enable
+The LZ4 header contains a 1-byte xxh32 checksum value(HC).
+When HCEN is enabled, DECOM will check the HC to check if the
+header is correct. Only valid when decompressing LZ4 files.
+DEM
+DECOM mode select.
+0
+RW 0x0
+1'b0: UNLZ4 mode. Decompress the file in LZ4 format.
+1'b1: INFLATE mode. Decompress the file in INFLATE format. If
+GZIPM=1'b1 or GZLIBM=1'b1, DEM must be set 1.
+DECOM_ENR
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+31:1 RO 0x00000000 reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1975
+
+RKRK3588 TRM-Part1
+Bit
+
+0
+
+Attr Reset Value
+
+R/W
+0x0
+SC
+
+Description
+ENR
+Enables and disables all decompress operations.
+1'b0: Disable decompressor
+1'b1: Enable decompressor to work
+All FIFO buffers and aclk/dclk domain work registers are cleared
+when the device is disabled. Self clear when decompression is
+complete.
+The ENR should be enabled after the other registers are
+configured.
+
+DECOM_RADDR
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+Description
+RADDR
+Read address.
+31:0 RW 0x00000000
+This register is used to configure the starting address of the file
+to be decompressed.
+DECOM_WADDR
+Address: Operational Base + offset (0x000C)
+Bit Attr Reset Value
+Description
+WADDR
+Write address.
+This register is used to configure the starting address of the
+31:0 RW 0x00000000
+location where the decompressed data is written.
+Note: WADDR[31:0] must be configured with a 128bit aligned
+address (WADDR[3:0]==4'b0).
+DECOM_UDDSL
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+Description
+UDDSL
+Undecompressed data size lower 32bits. (Unit:byte)
+UDDS[63:0] is the total size of undecompressed file. DECOM will
+read the compressed file data according to the value of
+31:0 RW 0xffffffff
+UDDS[63:0], but the configuration of this register is optional. If
+this register is not configured, DECOM will use the default value
+of 64'hffff_ffff_ffff_ffff, and DECOM will keep reading data until
+the current decompression process ends.
+DECOM_UDDSH
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+Description
+UDDSH
+31:0 RW 0xffffffff
+Undecompressed data size higher 32bits.
+DECOM_TXTHR
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+Description
+TXTHR
+When the number of 32K_MEM entries is greater than or equal to
+31:0 RW 0x00000100 this value, the DECOM will automatically transfer the data in the
+32K_MEM to the external via the AXI Master interface. The value
+ranges is 0~32256.(Unit:byte)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1976
+
+RKRK3588 TRM-Part1
+DECOM_SLEN
+Address: Operational Base + offset (0x0020)
+Bit Attr Reset Value
+Description
+SLEN
+INFLATE store block size. (Unit:byte)
+31:0 RO 0x00000000
+Indicate the block size when decompressing the store block of
+INFALTE file. For debugging SLC_ERR.
+DECOM_STAT
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+LAST
+Used to indicate whether the currently processed compressed
+1
+RO 0x0
+data block is the last one.
+1'b0: Not last block
+1'b1: Last block
+COMPLETE
+DECOM complete flag.
+1'b0: Not complete
+0
+RO 0x0
+1'b1: Decompress is complete with no error
+Only decompress total complete with no error, this flag is set to
+1.
+DECOM_ISR
+Address: Operational Base + offset (0x0028)
+Bit Attr Reset Value
+Description
+31:20 RO 0x000
+reserved
+DSOLI
+W1
+Decompressed data size over limit_size interrupt.
+19
+0x0
+C
+1'b0: Interrupt is not active
+1'b1: Interrupt is active
+ZDICTEI
+W1
+ZLIB dictionary error interrupt.
+18
+0x0
+C
+1'b0: Interrupt is not active
+1'b1: Interrupt is active
+GCMEI
+W1
+GZIP/ZLIB compression method check error interrupt.
+17
+0x0
+C
+1'b0: Interrupt is not active
+1'b1: Interrupt is active
+GIDEI
+W1
+GZIP ID error interrupt.
+16
+0x0
+C
+1'b0: Interrupt is not active
+1'b1: Interrupt is active
+CCCEI
+W1
+UNLZ4 content checksum check error interrupt.
+15
+0x0
+C
+1'b0: ccc_err interrupt is not active
+1'b1: ccc_err interrupt is active
+BCCEI
+W1
+UNLZ4 block checksum check error interrupt.
+14
+0x0
+C
+1'b0: bcc_err interrupt is not active
+1'b1: bcc_err interrupt is active
+HCCEI
+W1
+UNLZ4 header checksum check error interrupt.
+13
+0x0
+C
+1'b0: hcc_err interrupt is not active
+1'b1: hcc_err interrupt is active
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1977
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+12
+
+W1
+C
+
+0x0
+
+11
+
+W1
+C
+
+0x0
+
+10
+
+W1
+C
+
+0x0
+
+9
+
+W1
+C
+
+0x0
+
+8
+
+W1
+C
+
+0x0
+
+7
+
+W1
+C
+
+0x0
+
+6
+
+W1
+C
+
+0x0
+
+5
+
+W1
+C
+
+0x0
+
+4
+
+W1
+C
+
+0x0
+
+3
+
+W1
+C
+
+0x0
+
+2
+
+W1
+C
+
+0x0
+
+1
+
+W1
+C
+
+0x0
+
+0
+
+W1
+C
+
+0x0
+
+Description
+CSEI
+UNLZ4 content size (or GZIP isize) error interrupt.
+1'b0: cs_err interrupt is not active
+1'b1: cs_err interrupt is active
+DICTEI
+UNLZ4 dictionary error interrupt.
+1'b0: Interrupt is not active
+1'b1: Interrupt is active
+VNEI
+UNLZ4 version number error interrupt.
+1'b0: vn_err interrupt is not active
+1'b1: vn_err interrupt is active
+MNEI
+UNLZ4 magic number error interrupt.
+1'b0: mn_err interrupt is not active
+1'b1: mn_err interrupt is active
+RDCEI
+AXI read channel error interrupt.
+1'b0: INFLATE AXI RDC_ERR interrupt is not active
+1'b1: INFLATE AXI RDC_ERR interrupt is active
+WRCEI
+AXI write channel error interrupt.
+1'b0: INFLATE AXI WRC_ERR interrupt is not active
+1'b1: INFLATE AXI WRC_ERR interrupt is active
+DISEI
+INFLATE huffman distance error interrupt.
+1'b0: INFLATE HFDIS_ERR interrupt is not active
+1'b1: INFLATE HFDIS_ERR interrupt is active
+LENEI
+INFLATE huffman length error interrupt.
+1'b0: INFLATE HFLEN_ERR interrupt is not active
+1'b1: INFLATE HFLEN_ERR interrupt is active
+LITEI
+INFLATE huffman literal error interrupt.
+1'b0: INFLATE HFLIT_ERR interrupt is not active
+1'b1: INFLATE HFLIT_ERR interrupt is active
+SQMEI
+INFLATE SQ match error interrupt.
+1'b0: INFLATE SQM_ERR interrupt is not active
+1'b1: INFLATE SQM_ERR interrupt is active
+SLCEI
+INFLATE store block length check error interrupt.
+1'b0: INFLATE SLC_ERR interrupt is not active
+1'b1: INFLATE SLC_ERR interrupt is active
+HDEI
+INFLATE file header error interrupt.
+1'b0: INFLATE header error interrupt is not active
+1'b1: INFLATE header error interrupt is active
+DSI
+DECOM stop interrupt.
+1'b0: Decompression stop interrupt is not active
+1'b1: Decompression stop interrupt is active
+This interrupt indicates that DECOM has stopped working.
+Including decompression completion or decompression
+encountered an error.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1978
+
+RKRK3588 TRM-Part1
+
+DECOM_IEN
+Address: Operational Base + offset (0x002C)
+Bit Attr Reset Value
+Description
+31:20 RO 0x000
+reserved
+DSOLIEN
+Decompressed data size over limit_size interrupt enable.
+19
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+ZDICTEIEN
+ZLIB dictionary error interrupt enable.
+18
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+GCMEIEN
+GZIP/ZLIB compression method error interrupt enable.
+17
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+GIDEIEN
+GZIP ID error interrupt enable.
+16
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+CCCEIEN
+UNLZ4 content checksum check error interrupt enable.
+15
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+BCCEIEN
+UNLZ4 block checksum check error interrupt enable.
+14
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+HCCEIEN
+UNLZ4 header checksum check error interrupt enable.
+13
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+CSEIEN
+UNLZ4 content size (or GZIP isize) error interrupt enable.
+12
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+DICTEIEN
+UNLZ4 dictionary error interrupt enable.
+11
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+VNEIEN
+UNLZ4 version number error interrupt enable.
+10
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+WNEIEN
+UNLZ4 magic number error interrupt enable.
+9
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+RDCEIEN
+AXI read channel error interrupt enable.
+8
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1979
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+7
+
+RW 0x0
+
+6
+
+RW 0x0
+
+5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+WRCEIEN
+AXI write channel error interrupt enable.
+1'b0: Disable
+1'b1: Enable
+DISEIEN
+INFLATE huffman distance error interrupt enable.
+1'b0: Disable
+1'b1: Enable
+LENEIEN
+INFLATE huffman length error interrupt enable.
+1'b0: Disable
+1'b1: Enable
+LITEIEN
+INFLATE huffman literal error interrupt enable.
+1'b0: Disable
+1'b1: Enable
+SQMEIEN
+INFLATE SQ match error interrupt enable.
+1'b0: Disable
+1'b1: Enable
+SLCIEN
+INFLATE store block length check error interrupt enable.
+1'b0: Disable
+1'b1: Enable
+HDEIEN
+INFLATE file header error interrupt enable.
+1'b0: Disable
+1'b1: Enable
+DSIEN
+DECOM stop interrupt enable.
+1'b0: Disable
+1'b1: Enable
+
+DECOM_AXI_STAT
+Address: Operational Base + offset (0x0030)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+AXI_IDLE
+AXI master idle state register.
+1'b0: AXI master is busy
+1'b1: AXI master is idle
+When the decompression is aborted, DECOM will wait for AXI
+4
+RO 0x1
+master's current read/write transfer to complete, that is, wait for
+AXI_IDLE=1, then reset DECOM, otherwise the uncompleted AXI
+transmission will cause AXI bus exception.
+It should be noted that after the decompression is abnormal, the
+AXI master's unfinished write operation will continue, but the
+output value of wstrb[15:0] will become 16'b0.
+RRESP
+3:2
+RO 0x0
+AXI read channel response state.
+BRESP
+1:0
+RO 0x0
+AXI write channel response state.
+DECOM_TSIZEL
+Address: Operational Base + offset (0x0034)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1980
+
+RKRK3588 TRM-Part1
+Bit
+31:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+TSIZEL
+The total size of the data after decompression.
+TSIZE[63:0]. (Unit:byte)
+
+DECOM_TSIZEH
+Address: Operational Base + offset (0x0038)
+Bit Attr Reset Value
+Description
+TSIZEH
+31:0 RO 0x00000000
+The total size of the data after decompression.
+DECOM_MGNUM
+Address: Operational Base + offset (0x003C)
+Bit Attr Reset Value
+Description
+MGNUM
+Magic number of LZ4 is 0x184D2204.
+31:0 RO 0x00000000
+If the MGNUM is not 0x184D2204, a magic number error(mn_err)
+will be generated. And DECOM will stop decompressing.
+DECOM_FRAME
+Address: Operational Base + offset (0x0040)
+Bit Attr Reset Value
+Description
+31:24 RO 0x00
+reserved
+HCC
+Header checksum byte.
+One-byte checksum of combined descriptor fields, including
+optional ones. The value is the second byte of xxh32() using zero
+as a see, and the full frame descriptor as an input (including
+optional fields when they are present). A wrong checksum
+indicates an error in the descriptor. Header checksum is
+23:16 RO 0x00
+informational and can be skipped.
+The header checksum check function can be enabled by
+controlling the HCEN enable signal in the CTRL register. After
+being turned on, DECOM calculates the hash32 check value based
+on the data of the frame descriptor part of the LZ4 compressed
+file, and performs the header checksum byte in the file. In
+contrast, if they are not equal, an HCC error will be generated
+and an interrupt will be generated.
+BD
+BD byte.
+15:8 RO 0x00
+Including Block Maximum Size information. This information is
+useful to help the decoder allocate memory. Size here refers to
+the original(uncompressed) data size.
+VN_NUM
+Version number.
+7:6
+RO 0x0
+2-bits field, must be set to 2'b01. Any other value cannot be
+decoded by this version of the specification. If the version
+number is error, Version number error(VNE) will be generated.
+BCC_FLG
+Block checksum flag.
+If this flag is set, each data block will be followed by a 4-bytes
+5
+RO 0x0
+checksum, calculated by using the xxHash-32 algorithm on the
+raw (compressed) data block. The intention is to detect data
+corruption (storage or transmission errors) immediately, before
+decoding. Block checksum usage is optional.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1981
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+4
+
+RO
+
+0x0
+
+3
+
+RO
+
+0x0
+
+2
+
+RO
+
+0x0
+
+1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+BIND_FLG
+Block independence flag.
+If this flag is set to "1", blocks are independent. If this flag is set
+to "0", each block depends on previous ones (up to LZ4 window
+size, which is 64 KB). In such case, it's necessary to decode all
+blocks in sequence. Block dependency improves compression
+ratio, especially for small blocks. On the other hand, it makes
+random access or multi-threaded decoding impossible. For
+debugging.
+CS_FLG
+Content size flag.
+If this flag is set, the uncompressed size of data included within
+the frame will be present as an 8 bytes unsigned little endian
+value, after the flags. Content size usage is optional.
+CCC_FLG
+Content checksum flag.
+If this flag is set, a 32-bits content checksum will be appended
+after the EndMark.
+reserved
+DICT_FLG
+Dictionary ID flag.
+If this flag is set, a 4-bytes Dict-ID field will be present, after the
+descriptor flags and the Content Size. If this flag is set, Dictionary
+ID error will be generated. DECOM will stop decompressing.
+
+DECOM_DICTID
+Address: Operational Base + offset (0x0044)
+Bit Attr Reset Value
+Description
+DICTID
+Dictionary ID in the compressed file header.
+31:0 RO 0x00000000 Dictionary ID is only present if the DID_FLG is set. It works as a
+kind of "known prefix" which is used by both the compressor and
+the decompressor to "warm-up" reference tables.
+DECOM_CSL
+Address: Operational Base + offset (0x0048)
+Bit Attr Reset Value
+Description
+CSL
+Content size(CS) lower 32-bits. (Unit:byte)
+31:0 RO 0x00000000 CS[63:0] is the original(uncompressed) size. This information is
+optional in LZ4 file header, and only present if CS_FLG is set.
+CS[63:0]={CSH, CSL};
+DECOM_CSH
+Address: Operational Base + offset (0x004C)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+CSH
+0
+RO 0x0
+Content size(CS) upper 32-bits.
+DECOM_LMTSL
+Address: Operational Base + offset (0x0050)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1982
+
+RKRK3588 TRM-Part1
+Bit
+31:0
+
+Attr Reset Value
+RW 0xffffffff
+
+Description
+LMTSL
+Limit size of decompressed data lower 32bits. (Unit:byte)
+When the amount of decompressed data is greater than the
+LMTS, DSOLI interrupt is generated and the decompression
+process is stopped.
+
+DECOM_LMTSH
+Address: Operational Base + offset (0x0054)
+Bit Attr Reset Value
+Description
+LMTSH
+31:0 RW 0xffffffff
+Limit size of decompressed data higher 32bits.
+DECOM_GZFHD
+Address: Operational Base + offset (0x0058)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+GZFHD
+GZIP/ZLIB file header information.
+0
+RO 0x0
+When GZIPM = 1, GZFHD is GZIP file header information.
+When ZLIBM = 1, GZFHD is ZLIB file header information.
+DECOM_VERSION
+Address: Operational Base + offset (0x00F0)
+Bit Attr Reset Value
+Description
+VERSION
+31:0 RO 0x00000926
+Version number = 32'h0000_0926.
+
+35.5 Application Notes
+⚫
+⚫
+⚫
+⚫
+⚫
+⚫
+
+After configuring the decompression mode and other decompression parameters,
+configure the decompression enable register ENR
+When the decompression is not completed, setting ENR from 1 to 0 will force the
+decompression process to stop and DECOM will return to the IDLE state. Need to
+reconfigure and enable DECOM to start the next decompression
+When an error is encountered in the decompression, DECOM will immediately stop the
+decompression process, set the relevant status register, and generate the corresponding
+interrupt
+After the decompression process is stopped, ENR will automatically change to 0
+After the decompression process is stopped, DSI will be set to 1. If DSIEN is 1, an
+interrupt will be generated; if DSIEN is 0, no interrupt will be generated
+After the decompression process is stopped, COMPLETE (STAT[0]) is not set to 1 if there
+is an error in the decompression process; COMPLETE is set to 1 only when the
+decompression is complete and there are no errors
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1983
+
+RKRK3588 TRM-Part1
+

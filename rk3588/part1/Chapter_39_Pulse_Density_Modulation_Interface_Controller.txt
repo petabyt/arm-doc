@@ -1,0 +1,1211 @@
+Chapter 39 Pulse Density Modulation Interface Controller
+39
+
+39.1 Overview
+The PDM interface controller and decoder support mono PDM format. It integrates a clock
+generator driving the PDM microphone and embeds filters which decimate the incoming bit
+stream to obtain most common audio rates.
+There are two PDM controllers in the SOC. PDM0/PDM1 both support the following features:
+⚫ Support one internal 32-bit wide and 128-location deep FIFOs for receiving audio data
+⚫ Support receive FIFO full, overflow interrupt and all interrupts can be masked
+⚫ Support configurable water level of receive FIFO full interrupt
+⚫ Support combined interrupt output
+⚫ Support AHB bus slave interface
+⚫ Support DMA handshaking interface and configurable DMA water level
+⚫ Support PDM master receive mode
+⚫ Support 4 paths. Each path is composed of two digital microphone channels. It can be
+used with four stereo or eight mono microphones. Each path is enabled or disabled
+independently
+⚫ Support 16~24-bit sample resolution
+⚫ Support sample rate:
+8kHz,16kHz,32kHz,64kHz,128kHz,11.025kHz,22.05kHz,44.1kHz,88.2kHz,176.4kHz,12k
+Hz,24kHz,48kHz,96kHz,192kHz
+⚫ Support two 16-bit audio data store together in one 32-bit wide location
+⚫ Support 16 to 31-bit audio data left or right justified in 32-bit wide FIFO
+⚫ Support programmable left and right channel exchange
+
+39.2 Block Diagram
+pdm_receiver
+
+pdm_filter
+
+pdm_filter
+
+PDM_IF
+
+AHB_BUS
+pdm_sys_if
+
+pdm_if
+pdm_filter
+
+DMA_IF
+pdm_filter
+
+pdm_fifo
+
+pdm_receiver_ctrl
+
+pdm_clk_gen
+
+Fig. 39-1 PDM Block Diagram
+System Interface
+The system interface implements the APB slave operation. It contains not only control registers
+of receiver inside but also interrupt and DMA handshaking interface.
+Clock Generator
+The Clock Generator implements clock generation function. The input source clock to the
+module is MCLK, and by the divider of the module, the clock generator generates CLK_PDM
+to receiver.
+Receiver
+The receiver can act as a decimation filter of PDM. And export PCM format data.
+Receive FIFO
+The Receive FIFO is the buffer to store received audio data. The size of the FIFO is 32bits x
+128.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2276
+
+RKRK3588 TRM-Part1
+
+39.3 Function Description
+39.3.1 AHB Interface
+
+There is an AHB slave interface in PDM. It is responsible for accessing registers.
+
+39.3.2 PDM Interface
+
+The PDM interface is a 5-wire interface. The PDM module can support up to four external
+stereo and eight digital microphones.
+Following shows two cases of usage of the PDM, but all configurations are possible with stereo
+and mono digital microphones.
+Left mono mic
+
+PDM_DATA0
+
+right mono mic
+Left mono mic
+
+PDM_DATA1
+
+right mono mic
+Left mono mic
+
+PDM
+PDM_DATA2
+
+right mono mic
+Left mono mic
+
+PDM_DATA3
+
+right mono mic
+
+PDM_CLK
+
+Fig. 39-2 PDM with Eight Mono MIC
+
+Stereo mic
+PDM_DATA0
+
+Stereo mic
+PDM_DATA1
+
+PDM
+
+Stereo mic
+PDM_DATA2
+
+Stereo mic
+PDM_DATA3
+
+PDM_CLK
+
+Fig. 39-3 PDM with Four Stereo MIC
+The PDM interface consists of a serial-data shift clock output (PDM_CLK) and a serial data
+input (PDM_DATA). The clock is fanned out to both digital MICs, and both digital MICs’ data
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2277
+
+RKRK3588 TRM-Part1
+(left channel and right channel) outputs share a single signal line. To share a single line, the
+digital MICs tri-state their output during one phase of the clock (high or low part of cycle,
+depending on how they are configured via their L/R input).
+PDM_CLK
+
+t dv
+
+t dz
+
+39.3.3 Digital Filter
+
+Left
+data
+
+Left
+data
+
+Data(L)
+Right
+data
+
+PDM_DATA
+
+Right
+data
+
+Right
+data
+
+Right
+data
+
+Data(R)
+
+Left
+data
+
+Right
+data
+
+Left
+data
+
+Right
+data
+
+Fig. 39-4 PDM interface diagram with external MIC
+
+The external PDM MIC generates a PDM stream of bits and transfers it in one period or one
+half-period of the clock provided by the PDM. The aim of the PDM is to process data from the
+PDM interface, decimate and filter the data, and store the processed data in the FIFO.
+The four paths are identical. Each path is composed of a left and a right channel. The PDM
+interface delivers eight parallel data of 1bit. Each bit goes to a filter. The aim of the filter is to
+limit the noise and export PCM format audio data.
+
+39.3.4 Frequency Configuration
+
+MCLK is the source clock signal. PDM_CLK is the output clocks generated in the PDM and is
+fed to the external microphones. They are also the internal clock of the external microphones.
+User must take care about the frequency of PDM_CLK when selecting the source clock (MCLK).
+scan_clk
+pdm_clk
+
+mclk
+
+Frac_
+clkdiv
+
+0
+
+Int_
+clkdiv
+
+1
+
+1
+
+o_pdm_clk
+
+0
+
+O_asp_clk
+
+o_fifo_clk
+scan_clk
+o_pdm_clk20x
+Int_
+clkdiv
+
+gating
+
+Fig. 39-5 PDM Clock Structure
+PDM_CLK
+3.072MHz
+2.8224MHz
+2.048MHz
+
+Table 39-1 Relation between PDM_CLK and Sample Rate
+Sample Rate
+12kHz,24kHz,48kHz,96kHz,192kHz
+11.025kHz,22.05kHz,44.1kHz,88.2kHz,176.4kHz
+8kHz,16kHz,32kHz,64kHz,128kHz
+
+39.4 Register Description
+39.4.1 Internal Address Mapping
+
+Slave address can be divided into different length for different usage, which is shown as follows.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2278
+
+RKRK3588 TRM-Part1
+
+39.4.2 Registers Summary
+Name
+
+Offset
+
+Size
+
+PDM_SYSCONFIG
+PDM_CTRL0
+PDM_CTRL1
+PDM_CLK_CTRL
+
+0x0000
+0x0004
+0x0008
+0x000c
+
+W
+W
+W
+W
+
+PDM_HPF_CTRL
+
+0x0010
+
+W
+
+PDM_FIFO_CTRL
+PDM_DMA_CTRL
+PDM_INT_EN
+PDM_INT_CLR
+PDM_INT_ST
+PDM_RXFIFO_DATA_REG
+
+0x0014
+0x0018
+0x001c
+0x0020
+0x0024
+0x0030
+
+W
+W
+W
+W
+W
+W
+
+PDM_DATA0R_REG
+
+0x0034
+
+W
+
+PDM_DATA0L_REG
+
+0x0038
+
+W
+
+PDM_DATA1R_REG
+
+0x003c
+
+W
+
+PDM_DATA1L_REG
+
+0x0040
+
+W
+
+PDM_DATA2R_REG
+
+0x0044
+
+W
+
+PDM_DATA2L_REG
+
+0x0048
+
+W
+
+PDM_DATA3R_REG
+
+0x004c
+
+W
+
+PDM_DATA3L_REG
+
+0x0050
+
+W
+
+PDM_DATA_VALID
+PDM_VERSION
+
+0x0054
+0x0058
+
+W
+W
+
+PDM_INCR_RXDR
+
+0x0400
+
+W
+
+Reset
+Description
+Value
+0x00000000 PDM System Configure Register
+0x78000377 PDM Control Register 0
+0x0bb8ea60 PDM Control Register 1
+0x0000e401 PDM Clock Control Register
+PDM High-pass Filter Control
+0x00000000
+Register
+0x00000000 PDM FIFO Control Register
+0x0000001f PDM DMA Control Register
+0x00000000 PDM Interrupt Enable Register
+0x00000000 PDM Interrupt Clear Register
+0x00000000 PDM Interrupt Status Register
+0x00000000 PDM Receive FIFO Data Register
+PDM Path0 Right Channel Data
+0x00000000
+Register
+PDM Path0 Left Channel Data
+0x00000000
+Register
+PDM Path1 Right Channel Data
+0x00000000
+Register
+PDM Path1 Left Channel Data
+0x00000000
+Register
+PDM Path2 Right Channel Data
+0x00000000
+Register
+PDM Path2 Left Channel Data
+0x00000000
+Register
+PDM Path3 Right Channel Data
+0x00000000
+Register
+PDM Path3 Left Channel Data
+0x00000000
+Register
+0x00000000 PDM Path Data Valid Register
+0x59313031 PDM Version Register
+Increment Address Receive FIFO
+0x00000000
+Data Register
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access
+
+39.4.3 Detail Registers Description
+
+PDM_SYSCONFIG
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+31:3 RO 0x00000000 reserved
+rx_start
+RX transfer start bit
+2
+RW 0x0
+1'b0: Stop RX transfer
+1'b1: Start RX transfer
+1
+RO 0x0
+reserved
+rx_clr
+PDM RX logic clear
+This is a self-cleared bit. High active.
+0
+RW 0x0
+Write 1'b1: Clear RX logic
+Write 1'b0: No action
+Read 1'b1: Clear ongoing
+Read 1'b0: Clear done
+PDM_CTRL0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2279
+
+RKRK3588 TRM-Part1
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+sjm_sel
+Store justified mode
+Can be written only when SYSCONFIG[2] is 0.
+16bit~31bit DATA stored in 32 bits width FIFO.
+31
+RW 0x0
+If VDW select 16bit data, this bit is valid only when HWT select
+1. Because if HWT is 0, every FIFO unit contains two 16bit data
+and 32 bit space is full, it is impossible to choose justified mode.
+1'b0: Right justified
+1'b1: Left justified
+path3_en
+Path 3 enable
+30
+RW 0x1
+1'b1: Enable
+1'b0: Disable
+path2_en
+Path 2 enable
+29
+RW 0x1
+1'b1: Enable
+1'b0: Disable
+path1_en
+Path 1 enable
+28
+RW 0x1
+1'b1: Enable
+1'b0: Disable
+path0_en
+Path 0 enable
+27
+RW 0x1
+1'b1: Enable
+1'b0: Disable
+hwt_en
+Halfword word transform
+Only valid when VDW select 16bit data.
+26
+RW 0x0
+1'b0: 32 bit data valid to AHB/APB bus. Low 16 bit for left
+channel and high 16 bit for right channel.
+1'b1: Low 16bit data valid to AHB/APB bus, high 16 bit data
+invalid
+filter_gate_en
+Filter gate enable
+25
+RW 0x0
+If some filters not work, the filter and its corresponding memory
+clock will be gated if filter_gate_en is 1'b1, otherwise the clock
+will be still active.
+sig_scale_mode
+Signal scale mode select
+24
+RW 0x0
+1'b0: CIC outputs the normal latitude.
+1'b1: Scale the CIC outputs to half of the normal latitude and
+scale 2 times after hpf-filter.
+int_div_20x_con
+Integer divider for PDM filter operation.
+This divider is used to generate internal logic operation clock
+23:16 RW 0x00
+from PDM input clock(mclk).
+Int_div_20x_con=(mclk/(frequency of internal logic operation
+clock))-1. Int_div_20x_con can be any value from 0 to 255.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2280
+
+RKRK3588 TRM-Part1
+Bit Attr Reset Value
+
+15:8 RW 0x03
+
+7:5
+
+RW 0x3
+
+4:0
+
+RW 0x17
+
+Description
+int_div_con
+Integer divider
+This divider is used to generate sample clock from PDM input
+clock(mclk).
+Int_div_con=(mclk/(frequency of sample clock))-1. Int_div_con
+can be any value from 0 to 255.
+Can be written only when SYSCONFIG[2] is 0.
+sample_rate_sel
+Selects which kind of sample rate.
+3'b000: 12kHz/11.024kHz/8kHz
+3'b001: 24kHz/22.05kHz/16kHz
+3'b010: 32kHz
+3'b011: 48kHz/44.1kHz
+3'b100: 96kHz/88.2kHz/64kHz
+3'b101~3'b111: 192kHz/176.4kHz/128kHz
+data_vld_width
+Can be written only when SYSCONFIG[2] is 0.
+Valid Data width
+0~14: Reserved
+15: 16bit
+16: 17bit
+17: 18bit
+18: 19bit
+......
+n: (n+1)bit
+......
+23: 24bit
+
+PDM_CTRL1
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+Description
+frac_div_numerator
+31:16 RW 0x0bb8
+Fraction divider numerator
+Can be written only when SYSCONFIG[2] is 0.
+frac_div_denomonator
+15:0 RW 0xea60
+Fraction divider denominator
+Can be written only when SYSCONFIG[2] is 0.
+PDM_CLK_CTRL
+Address: Operational Base + offset (0x000c)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+rx_path_select3
+RX Path Select
+2'b00: Path3 data from PDM data0
+15:14 RW 0x3
+2'b01: Path3 data from PDM data1
+2'b10: Path3 data from PDM data2
+2'b11: Path3 data from PDM data3
+rx_path_select2
+RX Path Select
+2'b00: Path2 data from PDM data0
+13:12 RW 0x2
+2'b01: Path2 data from PDM data1
+2'b10: Path2 data from PDM data2
+2'b11: Path2 data from PDM data3
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2281
+
+RKRK3588 TRM-Part1
+Bit Attr Reset Value
+
+11:10 RW
+
+0x1
+
+9:8
+
+RW
+
+0x0
+
+7:6
+
+RO
+
+0x0
+
+5
+
+RW
+
+0x0
+
+4
+
+RW
+
+0x0
+
+3
+
+RW
+
+0x0
+
+2
+
+RW
+
+0x0
+
+1:0
+
+RW
+
+0x0
+
+Description
+rx_path_select1
+RX Path Select
+2'b00: Path1 data from PDM data0
+2'b01: Path1 data from PDM data1
+2'b10: Path1 data from PDM data2
+2'b11: Path1 data from PDM data3
+rx_path_select0
+RX Path Select
+2'b00: Path0 data from PDM data0
+2'b01: Path0 data from PDM data1
+2'b10: Path0 data from PDM data2
+2'b11: Path0 data from PDM data3
+reserved
+pdm_clk_en
+PDM clk enable, working at PDM mode.
+Can be written only when SYSCONFIG[2] is 0.
+1'b0: PDM clk disable
+1'b1: PDM clk enable
+div_type_sel
+Divider type select signal
+Can be written only when SYSCONFIG[2] is 0.
+1'b0: Fraction divider
+1'b1: Integer divider
+lr_ch_ex
+Left and right channel data exchange
+1'b0: Not inverted
+1'b1: Inverted
+fir_com_bps
+Fir compensate filter bypass
+1'b0: Not bypass
+1'b1: Bypass
+cic_ds_ratio
+CIC filter decimation ratio
+2'b00: 16 times decimation
+2'b01: 8 times decimation
+2'b10: 4 times decimation
+other: 8 times decimation
+
+PDM_HPF_CTRL
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+hpfle
+High-pass filter enable for left channel
+3
+RW 0x0
+1'b0: High pass filter for right channel is disabled.
+1'b1: High pass filter for right channel is enabled.
+hpfre
+High-pass filter enable for right channel
+2
+RW 0x0
+1'b0: High pass filter for right channel is disabled.
+1'b1: High pass filter for right channel is enabled.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2282
+
+RKRK3588 TRM-Part1
+Bit Attr Reset Value
+
+1:0
+
+RW 0x0
+
+Description
+hpf_cf
+High-pass filter configure
+2'b00: 3.79Hz
+2'b01: 60Hz
+2'b10: 243Hz
+2'b11: 493Hz
+
+PDM_FIFO_CTRL
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+Description
+31:15 RO 0x00000
+reserved
+rft
+Receive FIFO threshold
+14:8 RW 0x00
+When the number of receive FIFO entries is more than or equal
+to this threshold plus 1, the receive FIFO threshold interrupt is
+triggered.
+rfl
+7:0
+RO 0x00
+Receive FIFO level
+Contains the number of valid data entries in the receive FIFO.
+PDM_DMA_CTRL
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+Description
+31:9 RO 0x000000
+reserved
+rde
+Receive DMA enable
+8
+RW 0x0
+1'b0: Receive DMA disabled
+1'b1: Receive DMA enabled
+7
+RO 0x0
+reserved
+rdl
+Receive data level
+This bit field controls the level at which a DMA request is made
+6:0
+RW 0x1f
+by the receive logic. The watermark level = DMARDL+1; that is,
+dma_rx_req is generated when the number of valid data entries
+in the receive FIFO is equal to or above this field value + 1.
+PDM_INT_EN
+Address: Operational Base + offset (0x001c)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+rxoie
+RX overflow interrupt enable
+1
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+rxftie
+RX full threshold interrupt enable
+0
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+PDM_INT_CLR
+Address: Operational Base + offset (0x0020)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+rxoic
+1
+RW 0x0
+RX overflow interrupt clear (high active and auto cleared).
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2283
+
+RKRK3588 TRM-Part1
+
+PDM_INT_ST
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+31:2 RO 0x00000000 reserved
+rxoi
+RX overflow interrupt
+1
+RO 0x0
+1'b0: Inactive
+1'b1: Active
+rxfi
+RX full interrupt
+0
+RO 0x0
+1'b0: Inactive
+1'b1: Active
+
+Description
+
+PDM_RXFIFO_DATA_REG
+Address: Operational Base + offset (0x0030)
+Bit Attr Reset Value
+Description
+rxdr
+31:0 RO 0x00000000 Receive FIFO shadow register
+When the register is read, data in the receive FIFO is accessed.
+PDM_DATA0R_REG
+Address: Operational Base + offset (0x0034)
+Bit Attr Reset Value
+Description
+data0r
+31:0 RO 0x00000000
+Data of the path 0 right channel
+PDM_DATA0L_REG
+Address: Operational Base + offset (0x0038)
+Bit Attr Reset Value
+Description
+data0l
+31:0 RO 0x00000000
+Data of the path 0 left channel
+PDM_DATA1R_REG
+Address: Operational Base + offset (0x003c)
+Bit Attr Reset Value
+Description
+data1r
+31:0 RO 0x00000000
+Data of the path 1 right channel
+PDM_DATA1L_REG
+Address: Operational Base + offset (0x0040)
+Bit Attr Reset Value
+Description
+data1l
+31:0 RO 0x00000000
+Data of the path 1 left channel
+PDM_DATA2R_REG
+Address: Operational Base + offset (0x0044)
+Bit Attr Reset Value
+Description
+data2r
+31:0 RO 0x00000000
+Data of the path 2 right channel
+PDM_DATA2L_REG
+Address: Operational Base + offset (0x0048)
+Bit Attr Reset Value
+Description
+data2l
+31:0 RO 0x00000000
+Data of the path 2 left channel
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2284
+
+RKRK3588 TRM-Part1
+
+PDM_DATA3R_REG
+Address: Operational Base + offset (0x004c)
+Bit Attr Reset Value
+Description
+data3r
+31:0 RO 0x00000000
+Data of the path 3 right channel
+PDM_DATA3L_REG
+Address: Operational Base + offset (0x0050)
+Bit Attr Reset Value
+Description
+data3l
+31:0 RO 0x00000000
+Data of the path 3 left channel
+PDM_DATA_VALID
+Address: Operational Base + offset (0x0054)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+path0_vld
+3
+WO 0x0
+1'b0: DATA0R_REG, DATA0L_REG value is invalid.
+1'b1: DATA0R_REG, DATA0L_REG value is valid.
+path1_vld
+2
+WO 0x0
+1'b0: DATA1R_REG, DATA1L_REG value is invalid.
+1'b1: DATA1R_REG, DATA1L_REG value is valid.
+path2_vld
+1
+WO 0x0
+1'b0: DATA2R_REG, DATA2L_REG value is invalid.
+1'b1: DATA2R_REG, DATA2L_REG value is valid.
+path3_vld
+0
+WO 0x0
+1'b0: DATA3R_REG, DATA3L_REG value is invalid.
+1'b1: DATA3R_REG, DATA3L_REG value is valid.
+PDM_VERSION
+Address: Operational Base + offset (0x0058)
+Bit Attr Reset Value
+version
+31:0 RW 0x59313031
+PDM version
+
+Description
+
+PDM_INCR_RXDR
+Address: Operational Base + offset (0x0400)
+Bit Attr Reset Value
+Description
+receive_fifo_data
+31:0 RO 0x00000000 FIFO data can be read from these registers. This register is used
+when the access address is increment.
+
+39.5 Interface Description
+There are two groups of IO interfaces embedded in the chip for each PDM. Following tables
+show the group 0 and group 1 of PDM0 IO interface respectively.
+Table 39-2 Group 0 PDM0 IO Interface Description
+Module Pin
+
+Direction
+
+o_pdm_clk0
+
+O
+
+o_pdm_clk1
+
+O
+
+i_pdm_data0
+
+I
+
+i_pdm_data1
+
+I
+
+Pin Name
+PDM0_CLK0_M0/I2C4_SDA_M4/PWM15_I
+R_M2/GPIO1_C6_d
+PDM0_CLK1_M0/I2C2_SDA_M3/PWM11_I
+R_M2/SPI4_CS1_M0/GPIO1_C4_d
+PDM0_SDI0_M0/SPI1_CS1_M2/GPIO1_D
+5_d
+I2S0_SDO2/I2S0_SDI3/PDM0_SDI1_M0/I
+2C7_SDA_M0/UART6_RX_M2/SPI1_MOSI
+_M2/GPIO1_D1_d
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+IOMUX Setting
+BUS_IOC_GPIO1C_IOMU
+X_SEL_H[11:8]=4’h3
+BUS_IOC_GPIO1C_IOMU
+X_SEL_H[3:0]=4’h3
+BUS_IOC_GPIO1D_IOMU
+X_SEL_H[7:4]=4’h3
+BUS_IOC_GPIO1D_IOMU
+X_SEL_L[7:4]=4’h3
+
+2285
+
+RKRK3588 TRM-Part1
+
+i_pdm_data2
+
+I
+
+i_pdm_data3
+
+I
+
+I2S0_SDO3/I2S0_SDI2/PDM0_SDI2_M0/I
+2C1_SCL_M4/UART4_TX_M0/PWM0_M1/S
+PI1_CLK_M2/GPIO1_D2_d
+I2S0_SDI1/PDM0_SDI3_M0/I2C1_SDA_M
+4/UART4_RX_M0/PWM1_M1/SPI1_CS0_M
+2/GPIO1_D3_d
+
+BUS_IOC_GPIO1D_IOMU
+X_SEL_L[11:8]=4’h3
+BUS_IOC_GPIO1D_IOMU
+X_SEL_L[15:12]=4’h3
+
+Table 39-3 Group 1 PDM0 IO Interface Description
+Module Pin
+
+Direction
+
+Pin Name
+PDM0_CLK0_M1/PWM1_M0/I2C2_SDA_M
+o_pdm_clk0
+O
+0/CAN0_RX_M0/SPI0_MOSI_M0/PCIE30X
+1_0_CLKREQN_M0/GPIO0_C0_d
+PDM0_CLK1_M1/PWM2_M0/UART0_RX_M
+o_pdm_clk1
+O
+0/I2C4_SDA_M2/DP0_HPDIN_M1/PCIE30
+X1_0_WAKEN_M0/GPIO0_C4_d
+I2S1_SDI2_M1/PDM0_SDI0_M1/I2C6_SD
+A_M0/UART1_RTSN_M2/PWM6_M0/SPI0_
+i_pdm_data0
+I
+MISO_M0/PCIE30X4_WAKEN_M0/GPIO0_
+C7_d
+I2S1_SDI3_M1/PDM0_SDI1_M1/I2C6_SC
+L_M0/UART1_CTSN_M2/PWM7_IR_M0/SP
+i_pdm_data1
+I
+I3_MISO_M2/PCIE30X4_PERSTN_M0/GPI
+O0_D0_d
+I2S1_SDO2_M1/PDM0_SDI2_M1/PWM3_I
+R_M0/I2C1_SCL_M2/CAN2_RX_M1/HDMI
+i_pdm_data2
+I
+_TX0_SDA_M1/SPI3_CS0_M2/PCIE30X2_
+PERSTN_M0/SATA_CPDET/GPIO0_D4_u
+PMIC_SLEEP6/PDM0_SDI3_M1/GPIO0_D6
+i_pdm_data3
+I
+_d
+Notes: I=input, O=output, I/O=input/output, bidirectional
+
+IOMUX Setting
+PMU2_IOC_GPIO0C_IOM
+UX_SEL_L[3:0]=4’h2
+PMU2_IOC_GPIO0C_IOM
+UX_SEL_H[3:0]=4’h2
+PMU2_IOC_GPIO0C_IOM
+UX_SEL_H[15:12]=4’h2
+PMU2_IOC_GPIO0D_IOM
+UX_SEL_L[3:0]=4’h2
+PMU2_IOC_GPIO0D_IOM
+UX_SEL_H[3:0]=4’h2
+PMU2_IOC_GPIO0D_IOM
+UX_SEL_H[11:8]=4’h2
+
+Following tables show the group 0 and group 1 of PDM1 IO interface respectively.
+Table 39-4 Group 0 PDM1 IO Interface Description
+Module Pin
+
+Direction
+
+o_pdm_clk0
+
+O
+
+o_pdm_clk1
+
+O
+
+i_pdm_data0
+
+I
+
+i_pdm_data1
+
+I
+
+i_pdm_data2
+
+I
+
+i_pdm_data3
+
+I
+
+Pin Name
+SDMMC_CLK/PDM1_CLK0_M0/TEST_CLK
+OUT_M0/MCU_JTAG_TMS_M0/CAN0_RX_
+M1/UART5_TX_M0/GPIO4_D5_d
+SDMMC_CMD/PDM1_CLK1_M0/MCU_JTAG
+_TCK_M0/CAN0_TX_M1/UART5_RX_M0/P
+WM7_IR_M1/GPIO4_D4_u
+SDMMC_D3/PDM1_SDI0_M0/JTAG_TMS_
+M0/I2C8_SDA_M0/UART5_RTSN_M0/PW
+M10_M1/GPIO4_D3_u
+SDMMC_D2/PDM1_SDI1_M0/JTAG_TCK_
+M0/I2C8_SCL_M0/UART5_CTSN_M0/GPIO
+4_D2_u
+SDMMC_D1/PDM1_SDI2_M0/JTAG_TMS_
+M1/I2C3_SDA_M4/UART2_RX_M1/PWM9_
+M1/GPIO4_D1_u
+SDMMC_D0/PDM1_SDI3_M0/JTAG_TCK_
+M1/I2C3_SCL_M4/UART2_TX_M1/PWM8_
+M1/GPIO4_D0_u
+
+IOMUX Setting
+BUS_IOC_GPIO4D_IOMU
+X_SEL_H[7:4]=4’h2
+BUS_IOC_GPIO4D_IOMU
+X_SEL_H[3:0]=4’h2
+BUS_IOC_GPIO4D_IOMU
+X_SEL_L[15:12]=4’h2
+BUS_IOC_GPIO4D_IOMU
+X_SEL_L[11:8]=4’h2
+BUS_IOC_GPIO4D_IOMU
+X_SEL_L[7:4]=4’h2
+BUS_IOC_GPIO4D_IOMU
+X_SEL_L[3:0]=4’h2
+
+Table 39-5 Group 1 PDM1 IO Interface Description
+Module Pin
+
+Direction
+
+o_pdm_clk0
+
+O
+
+o_pdm_clk1
+
+O
+
+i_pdm_data0
+
+I
+
+i_pdm_data1
+
+I
+
+Pin Name
+PDM1_CLK0_M1/PCIE30X1_0_PERSTN_M
+2/UART7_RX_M2/SPI0_CS0_M2/GPIO1_B
+4_u
+PDM1_CLK1_M1/PCIE30X1_0_WAKEN_M2
+/SATA0_ACT_LED_M1/UART4_TX_M2/SPI
+0_CLK_M2/GPIO1_B3_d
+PDM1_SDI0_M1/PCIE30X1_1_PERSTN_M
+2/PWM3_IR_M3/SPI2_CS0_M0/GPIO1_A7
+_u
+PDM1_SDI1_M1/PCIE30X4_CLKREQN_M3
+/SPI2_CS1_M0/GPIO1_B0_u
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+IOMUX Setting
+BUS_IOC_GPIO1B_IOMU
+X_SEL_H[3:0]=4’h2
+BUS_IOC_GPIO1B_IOMU
+X_SEL_L[15:12]=4’h2
+BUS_IOC_GPIO1A_IOMU
+X_SEL_H[15:12]=4’h2
+BUS_IOC_GPIO1B_IOMU
+X_SEL_L[3:0]=4’h2
+
+2286
+
+RKRK3588 TRM-Part1
+PDM1_SDI2_M1/PCIE30X4_WAKEN_M3/S
+PI0_MISO_M2/GPIO1_B1_d
+PDM1_SDI3_M1/PCIE30X4_PERSTN_M3/
+i_pdm_data3
+I
+UART4_RX_M2/SPI0_MOSI_M2/GPIO1_B
+2_d
+Notes: I=input, O=output, I/O=input/output, bidirectional
+i_pdm_data2
+
+I
+
+BUS_IOC_GPIO1B_IOMU
+X_SEL_L[7:4]=4’h2
+BUS_IOC_GPIO1B_IOMU
+X_SEL_L[11:8]=4’h2
+
+39.6 Application Notes
+PDM usage flow is shown as following figure.
+Disable PDM receiver
+by writin g 0x0 to PDM_SYSCONFIG[2]
+
+Select work mode
+by writin g 0x0 to PDM_CTRL0[31]
+
+Enable audio path, Select sample resolution
+by writin g PDM_CTRL0
+
+Con figure PDM clo ck
+by writin g PDM_CLK_CTRL
+
+Con figure PDM DMA
+by writin g PDM_DMA_CTRL
+
+Con figure PDM FIFO
+by writin g PDM_FIFO_CTRL
+
+Execute a clear operation
+by writin g 0x1 to PDM_SYSCONFIG[0]
+
+PDM_SYSCONFIG[0]=1
+
+Read PDM_SYSCONFIG[0]
+
+Enable PDM receiver
+by writin g 0x1 to PDM_SYSCONFIG[2]
+
+Fig. 39-6 PDM Operation Flow
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2287
+
+

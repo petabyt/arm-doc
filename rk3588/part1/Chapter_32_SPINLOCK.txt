@@ -1,0 +1,72 @@
+Chapter 32 SPINLOCK
+32
+
+32.1 Overview
+The hardware spinlock used for spinlock status storage. All the CPU can access spinlock to
+get the lock status.
+
+32.2 Block Diagram
+CPU
+
+bus_matrix
+
+spinlock
+
+Fig. 32-1 Spinlock in System
+
+32.3 Register Description
+32.3.1 Internal Address Mapping
+
+Slave address can be divided into different length for different usage, which is shown as
+follows.
+
+32.3.2 Registers Summary
+Name
+SPINLOCK_STATUS_N
+(range of n is 0~63)
+
+Offset
+0x0+4*n
+
+Size
+W
+
+Reset
+Value
+0x00000000
+
+Description
+spinlock status controller
+register_n
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access
+
+32.3.3 Detail Register Description
+
+SPINLOCK_STATUS_N
+Address: Operational Base + offset (0x0000+4*n)
+Bit Attr Reset Value
+31:4
+
+3:0
+
+RO
+
+0x000000
+
+RW 0x0
+
+Description
+
+reserved
+spinlock_status
+when 4bits is 0, 4bits can be written with new value.
+when 4bits is not 0, 4bits cannot be written.
+when write data is 0x0000, 4bits clean to 0.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1948
+
+RKRK3588 TRM-Part1
+

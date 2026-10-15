@@ -1,0 +1,2976 @@
+Chapter 18 Pulse Width Modulation (PWM)
+18
+
+18.1 Overview
+The pulse-width modulator (PWM) feature is very common in embedded systems. It
+provides a way to generate a pulse periodic waveform for motor control or can act as a
+digital-to-analog converter with some external components.
+The PWM module supports the following features:
+⚫ 4-built-in PWM channels
+⚫ Support capture mode
+◼ Measures the high/low polarity effective cycles of the input waveform
+◼ Generates a single interrupt at the transition of input waveform polarity
+◼ 32-bit high polarity capture register
+◼ 32-bit low polarity capture register
+◼ 32-bit current value register
+◼ The capture result can be stored in a FIFO, and the depth of FIFO is 8. The data of
+FIFO can be read by CPU or DMA
+◼ Channel 3 support 32-bits power key capture mode
+◼ Support switch channel IO between channel 3 and channel0/1/2
+◼ Support a input filter to remove glitch
+⚫ Support continuous mode or one-shot mode
+◼ 32-bit period counter
+◼ 32-bit duty register
+◼ 32-bit current value register
+◼ PWM output polarity in inactive state and duty cycle polarity can be configured
+◼ Period and duty cycle are shadow buffered. Change takes effect when the end of the
+effective period is reached or when the channel is disabled
+◼ Programmable center or left aligned outputs, and change takes effect when the end
+of the effective period is reached or when the channel is disabled
+◼ 8-bit repeat counter for one-shot operation. One-shot operation will produce N + 1
+periods of the waveform, where N is the repeat counter value, and generates a
+single interrupt at the end of operation
+◼ Continuous mode generates the waveform continuously, and does not generates any
+interrupts
+⚫ Support 2 main clock input, one is from crystal oscillator and the frequency is fixed, the
+other one is from PLL and the frequency can be configured. Each channel can select one
+of the clocks according to requirement.
+⚫ Support two-level frequency division.
+⚫ Available low-power mode to reduce power consumption when the channel is inactive.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1408
+
+RK3588 TRM-Part1
+
+18.2 Block Diagram
+dma_req/ack
+
+pwm_in[3:0]
+
+PWM
+APB Slave
+Interface
+
+oe_n[3:0]
+
+PWM Channel*4
+
+pwm_out[3:0]
+
+pwm_int
+
+Fig. 18-1 PWM Block Diagram
+The host processor gets access to PWM Register Block through the APB slave interface with
+32-bit bus width, and asserts the active-high level interrupt. PWM only supports one
+interrupt output, please refer to interrupt register to know the raw interrupt status when an
+interrupt is asserted.
+PWM Channel is the control logic of PWM module, and controls the operation of PWM module
+according to the configured working mode.
+
+18.3 Function Description
+The PWM supports three operation modes: capture mode, one-shot mode and continuous
+mode. For the one-shot mode and the continuous mode, the PWM output can be configured
+as the left-aligned mode or the center-aligned mode.
+
+18.3.1 Capture mode
+
+The capture mode is used to measure the PWM channel input waveform high/low effective
+cycles with the PWM channel clock, and asserts an interrupt when the polarity of the input
+waveform changes. The number of the high effective cycles is recorded in the
+PWMx_PERIOD_HPC register, while the number of the low effective cycles is recorded in the
+PWMx_DUTY_LPC register.
+Notes: the PWM input waveform is doubled buffered when the PWM channel is working in order to filter
+unexpected shot-time polarity transition, and therefore the interrupt is asserted several cycles after the
+input waveform polarity changes, and so does the change of the values of PWMx_PERIOD_HPC and
+PWMx_DUTY_LPC.
+clk_pwm
+
+pwm_in
+
+pwm_int
+
+Fig. 18-2 PWM Capture Mode
+The capture result can also be stored in a FIFO. The FIFO has an almost full indicator. The
+indicator can chose to use as an interrupt or DMA request. When it is used as an interrupt,
+the data in FIFO can be read by CPU. When it is used as a DMA request, the data in FIFO
+can be read through DMA. It also supports timeout interrupt when the data in FIFO has not
+been read in a time threshold.
+The PWM (only channel 3) support 32-bits power key capture mode. User can configure 10
+power key to match, user can poll the status to judge whether a power key access.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1409
+
+RK3588 TRM-Part1
+
+18.3.2 Continuous mode
+
+The PWM channel generates a series of the pulses continuously as expected once the
+channel is enabled with continuous mode.
+In the continuous mode, the PWM output waveforms can be in one form of the two output
+mode: left-aligned mode or center-aligned mode.
+For the left-aligned output mode, the PWM channel firstly starts the duty cycle with the
+configured duty polarity (PWMx_CTRL.duty_pol). Once duty cycle number
+(PWMx_DUTY_LPC) is reached, the output is switched to the opposite polarity. After the
+period number (PWMx_PERIOD_HPC) is reached, the output is again switched to the
+opposite polarity to start another period of desired pulse.
+clk_pwm
+Duty
+pwm_out
+Period
+
+Fig. 18-3 PWM Continuous Left-aligned Output Mode
+For the center-aligned output mode, the PWM channel firstly starts the duty cycle with the
+configured duty polarity (PWMx_CTRL.duty_pol). Once one half of duty cycle number
+(PWMx_DUTY_LPC) is reached, the output is switched to the opposite polarity. Then if there
+is one half of duty cycle left for the whole period, the output is again switched to the
+opposite polarity. Finally after the period number (PWMx_PERIOD_HPC) is reached, the
+output starts another period of desired pulse.
+clk_pwm
+½ Duty
+
+½ Duty
+pwm_out
+Period
+
+Fig. 18-4 PWM Continuous Center-aligned Output Mode
+Once disable the PWM channel, the channel stops generating the output waveforms and
+output polarity is fixed as the configured inactive polarity (PWMx_CTRL.inactive_pol).
+
+18.3.3 One-shot mode
+
+Unlike the continuous mode, the PWM channel generates the output waveforms within the
+configured periods (PWM_CTRL.rpt + 1), and then stops. At the same times, an interrupt is
+asserted to inform that the operation has been finished.
+There are also two output modes for the one-shot mode: the left-aligned mode and the
+center-aligned mode.
+clk_pwm
+end
+
+½ Duty
+
+½ Duty
+pwm_out
+Period
+pwm_int
+
+Start
+
+Fig. 18-5 PWM One-shot Center-aligned Output Mode
+
+18.4 Register Description
+18.4.1 Registers Summary
+Name
+PWM_PWM0_CNT
+
+Offset
+0x0000
+
+PWM_PWM0_PERIOD_HPR 0x0004
+
+Size
+
+Reset
+Value
+
+Description
+
+W
+
+0x00000000 PWM Channel 0 Counter Register
+
+W
+
+PWM Channel 0 Period
+0x00000000 Register/High Polarity Capture
+Register
+
+PWM_PWM0_DUTY_LPR
+
+0x0008
+
+W
+
+PWM Channel 0 Duty
+0x00000000 Register/Low Polarity Capture
+Register
+
+PWM_PWM0_CTRL
+
+0x000C
+
+W
+
+0x00000000 PWM Channel 0 Control Register
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1410
+
+RK3588 TRM-Part1
+Name
+PWM_PWM1_CNT
+
+Offset
+0x0010
+
+PWM_PWM1_PERIOD_HPR 0x0014
+
+Size
+
+Reset
+Value
+
+Description
+
+W
+
+0x00000000 PWM Channel 1 Counter Register
+
+W
+
+PWM Channel 1 Period
+0x00000000 Register/High Polarity Capture
+Register
+
+PWM_PWM1_DUTY_LPR
+
+0x0018
+
+W
+
+PWM Channel 1 Duty
+0x00000000 Register/Low Polarity Capture
+Register
+
+PWM_PWM1_CTRL
+
+0x001C
+
+W
+
+0x00000000 PWM Channel 1 Control Register
+
+PWM_PWM2_CNT
+
+0x0020
+
+W
+
+0x00000000 PWM Channel 2 Counter Register
+
+W
+
+PWM Channel 2 Period
+0x00000000 Register/High Polarity Capture
+Register
+
+PWM_PWM2_PERIOD_HPR 0x0024
+
+PWM_PWM2_DUTY_LPR
+
+0x0028
+
+W
+
+PWM Channel 2 Duty
+0x00000000 Register/Low Polarity Capture
+Register
+
+PWM_PWM2_CTRL
+
+0x002C
+
+W
+
+0x00000000 PWM Channel 2 Control Register
+
+PWM_PWM3_CNT
+
+0x0030
+
+W
+
+0x00000000 PWM Channel 3 Counter Register
+
+W
+
+PWM Channel 3 Period
+0x00000000 Register/High Polarity Capture
+Register
+
+PWM_PWM3_PERIOD_HPR 0x0034
+
+PWM_PWM3_DUTY_LPR
+
+0x0038
+
+W
+
+PWM Channel 3 Duty
+0x00000000 Register/Low Polarity Capture
+Register
+
+PWM_PWM3_CTRL
+
+0x003C
+
+W
+
+0x00000000 PWM Channel 3 Control Register
+
+PWM_INTSTS
+
+0x0040
+
+W
+
+0x00000000 Interrupt Status Register
+
+PWM_INT_EN
+
+0x0044
+
+W
+
+0x00000000 Interrupt Enable Register
+
+PWM_FIFO_CTRL
+
+0x0050
+
+W
+
+0x00000000
+
+PWM_FIFO_INTSTS
+
+0x0054
+
+W
+
+0x00000010 FIFO Interrupts Status Register
+
+PWM_FIFO_TOUTTHR
+
+0x0058
+
+W
+
+0x00000000 FIFO Timeout Threshold Register
+
+PWM_VERSION_ID
+
+0x005C
+
+W
+
+0x02120B34 PWM Version ID Register
+
+PWM_FIFO
+
+0x0060
+
+W
+
+0x00000000 FIFO Register
+
+PWM_PWRMATCH_CTRL
+
+0x0080
+
+W
+
+0x00000000 Power Key Match Control Register
+
+PWM_PWRMATCH_LPRE
+
+0x0084
+
+W
+
+0x238C22C4
+
+Power Key Match Of Low Preload
+Register
+
+PWM_PWRMATCH_HPRE
+
+0x0088
+
+W
+
+0x11F81130
+
+Power Key Match Of High Preload
+Register
+
+PWM_PWRMATCH_LD
+
+0x008C
+
+W
+
+0x029401CC
+
+Power Key Match Of Low Data
+Register
+
+PWM_PWRMATCH_HD_ZE
+0x0090
+RO
+
+W
+
+0x029401CC
+
+Power Key Match Of High Data For
+Zero Register
+
+PWM_PWRMATCH_HD_ON
+0x0094
+E
+
+W
+
+0x06FE0636
+
+Power Key Match Of High Data For
+One Register
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+PWM Channel 3 FIFO Mode
+Control Register
+
+1411
+
+RK3588 TRM-Part1
+Name
+
+Offset
+
+Reset
+Value
+
+Size
+
+Description
+
+PWM_PWRMATCH_VALUE
+0x0098
+0
+
+W
+
+0x00000000 Power Key Match Value 0 Register
+
+PWM_PWRMATCH_VALUE
+0x009C
+1
+
+W
+
+0x00000000 Power Key Match Value 1 Register
+
+PWM_PWRMATCH_VALUE
+0x00A0
+2
+
+W
+
+0x00000000 Power Key Match Value 2 Register
+
+PWM_PWRMATCH_VALUE
+0x00A4
+3
+
+W
+
+0x00000000 Power Key Match Value 3 Register
+
+PWM_PWRMATCH_VALUE
+0x00A8
+4
+
+W
+
+0x00000000 Power Key Match Value 4 Register
+
+PWM_PWRMATCH_VALUE
+0x00AC
+5
+
+W
+
+0x00000000 Power Key Match Value 5 Register
+
+PWM_PWRMATCH_VALUE
+0x00B0
+6
+
+W
+
+0x00000000 Power Key Match Value 6 Register
+
+PWM_PWRMATCH_VALUE
+0x00B4
+7
+
+W
+
+0x00000000 Power Key Match Value 7 Register
+
+PWM_PWRMATCH_VALUE
+0x00B8
+8
+
+W
+
+0x00000000 Power Key Match Value 8 Register
+
+PWM_PWRMATCH_VALUE
+0x00BC
+9
+
+W
+
+0x00000000 Power Key Match Value 9 Register
+
+PWM_PWM3_PWRCAPTUR
+0x00CC
+E_VALUE
+
+W
+
+0x00000000
+
+PWM_CHANNEL_IO_CTRL 0x00D0
+
+W
+
+0x00000000 Channel IO Control Register
+
+Channel 3 Power Key Capture
+Value Register
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+18.4.2 Detail Registers Description
+PWM_PWM0_CNT
+Address: Operational Base + offset (0x0000)
+Bit
+
+31:0
+
+Attr Reset Value
+
+RO
+
+0x00000000
+
+Description
+cnt
+The 32-bit indicates current value of PWM Channel 0 counter. The
+counter runs at the rate of PWM clock.
+The value ranges from 0 to (2^32-1).
+
+PWM_PWM0_PERIOD_HPR
+Address: Operational Base + offset (0x0004)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1412
+
+RK3588 TRM-Part1
+Bit
+
+31:0
+
+Attr Reset Value
+
+Description
+
+RW 0x00000000
+
+period_hpr
+If PWM is operated at the continuous mode or one-shot mode,
+this value defines the period of the output waveform. Note that, if
+the PWM is operated at the center-aligned mode, the period
+should be an even one, and therefore only the bit [31:1] is taken
+into account and bit [0] always considered as 0.
+If PWM is operated at the capture mode, this value indicates the
+effective high polarity cycles of input waveform. This value is
+based on the PWM clock.
+The value ranges from 0 to (2^32-1).
+
+PWM_PWM0_DUTY_LPR
+Address: Operational Base + offset (0x0008)
+Bit
+
+31:0
+
+Attr Reset Value
+
+Description
+
+RW 0x00000000
+
+duty_lpr
+If PWM is operated at the continuous mode or one-shot mode,
+this value defines the duty cycle of the output waveform. The
+PWM starts the output waveform with duty cycle. Note that, if the
+PWM is operated at the center-aligned mode, the period should
+be an even one, and therefore only the [31:1] is taken into
+account.
+If PWM is operated at the capture mode, this value indicates the
+effective low polarity cycles of input waveform.
+This value is based on the PWM clock. The value ranges from 0 to
+(2^32-1).
+
+PWM_PWM0_CTRL
+Address: Operational Base + offset (0x000C)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:24 RW 0x00
+
+rpt
+This field defines the repeated effective periods of output
+waveform in one-shot mode. The value N means N+1 repeated
+effective periods.
+
+23:16 RW 0x00
+
+scale
+This field defines the scale factor applied to prescaled clock. The
+value N means the clock is divided by 2*N. If N is 0, it means
+that the clock is divided by 512(2*256).
+
+15
+
+reserved
+
+RO
+
+0x0
+
+14:12 RW 0x0
+
+prescale
+This field defines the prescale factor applied to input clock. The
+value N means that the input clock is divided by 2^N.
+
+11
+
+reserved
+
+RO
+
+0x0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1413
+
+RK3588 TRM-Part1
+Bit
+
+10
+
+9
+
+8
+
+7
+
+6
+
+5
+
+4
+
+3
+
+2:1
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+clk_src_sel
+1'b0: Select clk_pwm as root clock source. Clock is from PLL and
+the frequency can be configured.
+1'b1: Select clk_pwm_capture as root clock source. Clock is from
+crystal oscillator and the frequency is fixed.
+
+RW 0x0
+
+clk_sel
+1'b0: Non-scaled clock is selected as PWM clock source. It means
+that the prescaled clock is directly used as the PWM clock source.
+1'b1: Scaled clock is selected as PWM clock source.
+
+RW 0x0
+
+force_clk_en
+1'b0: Disabled. When PWM channel is inactive state, the clk_pwm
+to PWM clock prescale module is blocked to reduce power
+consumption.
+1'b1: Enabled. The clk_pwm to PWM Clock prescale module is
+always enabled.
+
+RW 0x0
+
+ch_cnt_en
+1'b0: Disabled
+1'b1: Enabled
+
+RW 0x0
+
+conlock
+PWM period and duty lock to previous configuration
+1'b0: Disable lock
+1'b1: Enable lock
+
+RW 0x0
+
+output_mode
+1'b0: Left aligned mode
+1'b1: Center aligned mode
+
+RW 0x0
+
+inactive_pol
+This defines the output waveform polarity when PWM channel is
+in inactive state. The inactive state means that PWM finishes the
+complete waveform in one-shot mode or PWM channel is
+disabled.
+1'b0: Negative
+1'b1: Positive
+
+RW 0x0
+
+duty_pol
+This defines the polarity for duty cycle. PWM starts the output
+waveform with duty cycle.
+1'b0: Negative
+1'b1: Positive
+
+RW 0x0
+
+pwm_mode
+2'b00: One shot mode. PWM produces the waveform within the
+repeated times defined by PWM0_CTRL.rpt.
+2'b01: Continuous mode. PWM produces the waveform
+continuously.
+2'b10: Capture mode. PWM measures the cycles of high/low
+polarity of input waveform.
+2'b11: Reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1414
+
+RK3588 TRM-Part1
+Bit
+
+0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+pwm_en
+1'b0: Disabled
+1'b1: Enabled
+If the PWM is worked in the one-shot mode, this bit will be
+cleared at the end of operation.
+
+PWM_PWM1_CNT
+Address: Operational Base + offset (0x0010)
+Bit
+
+31:0
+
+Attr Reset Value
+
+RO
+
+0x00000000
+
+Description
+cnt
+The 32-bit indicates current value of PWM Channel 1 counter. The
+counter runs at the rate of PWM clock.
+The value ranges from 0 to (2^32-1).
+
+PWM_PWM1_PERIOD_HPR
+Address: Operational Base + offset (0x0014)
+Bit
+
+31:0
+
+Attr Reset Value
+
+Description
+
+RW 0x00000000
+
+period_hpr
+If PWM is operated at the continuous mode or one-shot mode,
+this value defines the period of the output waveform. Note that, if
+the PWM is operated at the center-aligned mode, the period
+should be an even one, and therefore only the bit [31:1] is taken
+into account and bit [0] always considered as 0.
+If PWM is operated at the capture mode, this value indicates the
+effective high polarity cycles of input waveform. This value is
+based on the PWM clock.
+The value ranges from 0 to (2^32-1).
+
+PWM_PWM1_DUTY_LPR
+Address: Operational Base + offset (0x0018)
+Bit
+
+31:0
+
+Attr Reset Value
+
+Description
+
+RW 0x00000000
+
+duty_lpr
+If PWM is operated at the continuous mode or one-shot mode,
+this value defines the duty cycle of the output waveform. The
+PWM starts the output waveform with duty cycle. Note that, if the
+PWM is operated at the center-aligned mode, the period should
+be an even one, and therefore only the [31:1] is taken into
+account.
+If PWM is operated at the capture mode, this value indicates the
+effective low polarity cycles of input waveform.
+This value is based on the PWM clock. The value ranges from 0 to
+(2^32-1).
+
+PWM_PWM1_CTRL
+Address: Operational Base + offset (0x001C)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1415
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+31:24 RW 0x00
+
+rpt
+This field defines the repeated effective periods of output
+waveform in one-shot mode. The value N means N+1 repeated
+effective periods.
+
+23:16 RW 0x00
+
+scale
+This field defines the scale factor applied to prescaled clock. The
+value N means the clock is divided by 2*N. If N is 0, it means
+that the clock is divided by 512(2*256).
+
+15
+
+reserved
+
+RO
+
+0x0
+
+14:12 RW 0x0
+
+prescale
+This field defines the prescale factor applied to input clock. The
+value N means that the input clock is divided by 2^N.
+
+11
+
+reserved
+
+10
+
+9
+
+8
+
+7
+
+6
+
+5
+
+4
+
+RO
+
+0x0
+
+RW 0x0
+
+clk_src_sel
+1'b0: Select clk_pwm as root clock source. Clock is from PLL and
+the frequency can be configured.
+1'b1: Select clk_pwm_capture as root clock source. Clock is from
+crystal oscillator and the frequency is fixed.
+
+RW 0x0
+
+clk_sel
+1'b0: Non-scaled clock is selected as PWM clock source. It means
+that the prescaled clock is directly used as the PWM clock source.
+1'b1: Scaled clock is selected as PWM clock source.
+
+RW 0x0
+
+force_clk_en
+1'b0: Disabled. When PWM channel is inactive state, the clk_pwm
+to PWM clock prescale module is blocked to reduce power
+consumption.
+1'b1: Enabled. The clk_pwm to PWM Clock prescale module is
+always enabled.
+
+RW 0x0
+
+ch_cnt_en
+1'b0: Disabled
+1'b1: Enabled
+
+RW 0x0
+
+conlock
+PWM period and duty lock to previous configuration
+1'b0: Disable lock
+1'b1: Enable lock
+
+RW 0x0
+
+output_mode
+1'b0: Left aligned mode
+1'b1: Center aligned mode
+
+RW 0x0
+
+inactive_pol
+This defines the output waveform polarity when PWM channel is
+in inactive state. The inactive state means that PWM finishes the
+complete waveform in one-shot mode or PWM channel is
+disabled.
+1'b0: Negative
+1'b1: Positive
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1416
+
+RK3588 TRM-Part1
+Bit
+
+3
+
+2:1
+
+0
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+duty_pol
+This defines the polarity for duty cycle. PWM starts the output
+waveform with duty cycle.
+1'b0: Negative
+1'b1: Positive
+
+RW 0x0
+
+pwm_mode
+2'b00: One shot mode. PWM produces the waveform within the
+repeated times defined by PWM1_CTRL.rpt.
+2'b01: Continuous mode. PWM produces the waveform
+continuously.
+2'b10: Capture mode. PWM measures the cycles of high/low
+polarity of input waveform.
+2'b11: Reserved
+
+RW 0x0
+
+pwm_en
+1'b0: Disabled
+1'b1: Enabled
+If the PWM is worked in the one-shot mode, this bit will be
+cleared at the end of operation.
+
+PWM_PWM2_CNT
+Address: Operational Base + offset (0x0020)
+Bit
+
+31:0
+
+Attr Reset Value
+
+RO
+
+0x00000000
+
+Description
+cnt
+The 32-bit indicates current value of PWM Channel 2 counter. The
+counter runs at the rate of PWM clock.
+The value ranges from 0 to (2^32-1).
+
+PWM_PWM2_PERIOD_HPR
+Address: Operational Base + offset (0x0024)
+Bit
+
+31:0
+
+Attr Reset Value
+
+Description
+
+RW 0x00000000
+
+period_hpr
+If PWM is operated at the continuous mode or one-shot mode,
+this value defines the period of the output waveform. Note that, if
+the PWM is operated at the center-aligned mode, the period
+should be an even one, and therefore only the bit [31:1] is taken
+into account and bit [0] always considered as 0.
+If PWM is operated at the capture mode, this value indicates the
+effective high polarity cycles of input waveform. This value is
+based on the PWM clock.
+The value ranges from 0 to (2^32-1).
+
+PWM_PWM2_DUTY_LPR
+Address: Operational Base + offset (0x0028)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1417
+
+RK3588 TRM-Part1
+Bit
+
+31:0
+
+Attr Reset Value
+
+Description
+
+RW 0x00000000
+
+duty_lpr
+If PWM is operated at the continuous mode or one-shot mode,
+this value defines the duty cycle of the output waveform. The
+PWM starts the output waveform with duty cycle. Note that, if the
+PWM is operated at the center-aligned mode, the period should
+be an even one, and therefore only the [31:1] is taken into
+account.
+If PWM is operated at the capture mode, this value indicates the
+effective low polarity cycles of input waveform.
+This value is based on the PWM clock. The value ranges from 0 to
+(2^32-1).
+
+PWM_PWM2_CTRL
+Address: Operational Base + offset (0x002C)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:24 RW 0x00
+
+rpt
+This field defines the repeated effective periods of output
+waveform in one-shot mode. The value N means N+1 repeated
+effective periods.
+
+23:16 RW 0x00
+
+scale
+This field defines the scale factor applied to prescaled clock. The
+value N means the clock is divided by 2*N. If N is 0, it means
+that the clock is divided by 512(2*256).
+
+15
+
+reserved
+
+RO
+
+0x0
+
+14:12 RW 0x0
+
+prescale
+This field defines the prescale factor applied to input clock. The
+value N means that the input clock is divided by 2^N.
+
+11
+
+reserved
+
+10
+
+9
+
+8
+
+RO
+
+0x0
+
+RW 0x0
+
+clk_src_sel
+1'b0: Select clk_pwm as root clock source. Clock is from PLL and
+the frequency can be configured.
+1'b1: Select clk_pwm_capture as root clock source. Clock is from
+crystal oscillator and the frequency is fixed.
+
+RW 0x0
+
+clk_sel
+1'b0: Non-scaled clock is selected as PWM clock source. It means
+that the prescaled clock is directly used as the PWM clock source.
+1'b1: Scaled clock is selected as PWM clock source.
+
+RW 0x0
+
+force_clk_en
+1'b0: Disabled. When PWM channel is inactive state, the clk_pwm
+to PWM clock prescale module is blocked to reduce power
+consumption.
+1'b1: Enabled. The clk_pwm to PWM Clock prescale module is
+always enabled.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1418
+
+RK3588 TRM-Part1
+Bit
+7
+
+6
+
+5
+
+4
+
+3
+
+2:1
+
+0
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+ch_cnt_en
+1'b0: Disabled
+1'b1: Enabled
+
+RW 0x0
+
+conlock
+PWM period and duty lock to previous configuration
+1'b0: Disable lock
+1'b1: Enable lock
+
+RW 0x0
+
+output_mode
+1'b0: Left aligned mode
+1'b1: Center aligned mode
+
+RW 0x0
+
+inactive_pol
+This defines the output waveform polarity when PWM channel is
+in inactive state. The inactive state means that PWM finishes the
+complete waveform in one-shot mode or PWM channel is
+disabled.
+1'b0: Negative
+1'b1: Positive
+
+RW 0x0
+
+duty_pol
+This defines the polarity for duty cycle. PWM starts the output
+waveform with duty cycle.
+1'b0: Negative
+1'b1: Positive
+
+RW 0x0
+
+pwm_mode
+2'b00: One shot mode. PWM produces the waveform within the
+repeated times defined by PWM2_CTRL.rpt.
+2'b01: Continuous mode. PWM produces the waveform
+continuously.
+2'b10: Capture mode. PWM measures the cycles of high/low
+polarity of input waveform.
+2'b11: Reserved
+
+RW 0x0
+
+pwm_en
+1'b0: Disabled
+1'b1: Enabled
+If the PWM is worked in the one-shot mode, this bit will be
+cleared at the end of operation.
+
+PWM_PWM3_CNT
+Address: Operational Base + offset (0x0030)
+Bit
+
+31:0
+
+Attr Reset Value
+
+RO
+
+0x00000000
+
+Description
+cnt
+The 32-bit indicates current value of PWM Channel 3 counter. The
+counter runs at the rate of PWM clock.
+The value ranges from 0 to (2^32-1).
+
+PWM_PWM3_PERIOD_HPR
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1419
+
+RK3588 TRM-Part1
+Address: Operational Base + offset (0x0034)
+Bit
+
+31:0
+
+Attr Reset Value
+
+Description
+
+RW 0x00000000
+
+period_hpr
+If PWM is operated at the continuous mode or one-shot mode,
+this value defines the period of the output waveform. Note that, if
+the PWM is operated at the center-aligned mode, the period
+should be an even one, and therefore only the bit [31:1] is taken
+into account and bit [0] always considered as 0.
+If PWM is operated at the capture mode, this value indicates the
+effective high polarity cycles of input waveform. This value is
+based on the PWM clock.
+The value ranges from 0 to (2^32-1).
+
+PWM_PWM3_DUTY_LPR
+Address: Operational Base + offset (0x0038)
+Bit
+
+31:0
+
+Attr Reset Value
+
+Description
+
+RW 0x00000000
+
+duty_lpr
+If PWM is operated at the continuous mode or one-shot mode,
+this value defines the duty cycle of the output waveform. The
+PWM starts the output waveform with duty cycle. Note that, if the
+PWM is operated at the center-aligned mode, the period should
+be an even one, and therefore only the [31:1] is taken into
+account.
+If PWM is operated at the capture mode, this value indicates the
+effective low polarity cycles of input waveform.
+This value is based on the PWM clock. The value ranges from 0 to
+(2^32-1).
+
+PWM_PWM3_CTRL
+Address: Operational Base + offset (0x003C)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:24 RW 0x00
+
+rpt
+This field defines the repeated effective periods of output
+waveform in one-shot mode. The value N means N+1 repeated
+effective periods.
+
+23:16 RW 0x00
+
+scale
+This field defines the scale factor applied to prescaled clock. The
+value N means the clock is divided by 2*N. If N is 0, it means
+that the clock is divided by 512(2*256).
+
+15
+
+reserved
+
+RO
+
+0x0
+
+14:12 RW 0x0
+
+prescale
+This field defines the prescale factor applied to input clock. The
+value N means that the input clock is divided by 2^N.
+
+11
+
+reserved
+
+RO
+
+0x0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1420
+
+RK3588 TRM-Part1
+Bit
+
+10
+
+9
+
+8
+
+7
+
+6
+
+5
+
+4
+
+3
+
+2:1
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+clk_src_sel
+1'b0: Select clk_pwm as root clock source. Clock is from PLL and
+the frequency can be configured.
+1'b1: Select clk_pwm_capture as root clock source. Clock is from
+crystal oscillator and the frequency is fixed.
+
+RW 0x0
+
+clk_sel
+1'b0: Non-scaled clock is selected as PWM clock source. It means
+that the prescaled clock is directly used as the PWM clock source.
+1'b1: Scaled clock is selected as PWM clock source.
+
+RW 0x0
+
+force_clk_en
+1'b0: Disabled. When PWM channel is inactive state, the clk_pwm
+to PWM clock prescale module is blocked to reduce power
+consumption.
+1'b1: Enabled. The clk_pwm to PWM Clock prescale module is
+always enabled.
+
+RW 0x0
+
+ch_cnt_en
+1'b0: Disabled
+1'b1: Enabled
+
+RW 0x0
+
+conlock
+PWM period and duty lock to previous configuration
+1'b0: Disable lock
+1'b1: Enable lock
+
+RW 0x0
+
+output_mode
+1'b0: Left aligned mode
+1'b1: Center aligned mode
+
+RW 0x0
+
+inactive_pol
+This defines the output waveform polarity when PWM channel is
+in inactive state. The inactive state means that PWM finishes the
+complete waveform in one-shot mode or PWM channel is
+disabled.
+1'b0: Negative
+1'b1: Positive
+
+RW 0x0
+
+duty_pol
+This defines the polarity for duty cycle. PWM starts the output
+waveform with duty cycle.
+1'b0: Negative
+1'b1: Positive
+
+RW 0x0
+
+pwm_mode
+2'b00: One shot mode. PWM produces the waveform within the
+repeated times defined by PWM3_CTRL.rpt.
+2'b01: Continuous mode. PWM produces the waveform
+continuously.
+2'b10: Capture mode. PWM measures the cycles of high/low
+polarity of input waveform.
+2'b11: Reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1421
+
+RK3588 TRM-Part1
+Bit
+
+0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+pwm_en
+1'b0: Disabled
+1'b1: Enabled
+If the PWM is worked in the one-shot mode, this bit will be
+cleared at the end of operation.
+
+PWM_INTSTS
+Address: Operational Base + offset (0x0040)
+Bit
+
+Attr Reset Value
+
+31:12 RO
+
+11
+
+10
+
+9
+
+RO
+
+RO
+
+RO
+
+Description
+
+0x00000
+
+reserved
+
+0x0
+
+CH3_Pol
+This bit is used in capture mode in order to identify the transition
+of the input waveform when interrupt is generated. When bit is
+1, please refer to PWM3_PERIOD_HPR to know the effective high
+cycle of Channel 3 input waveform. Otherwise, please refer to
+PWM3_PERIOD_LPR to know the effective low cycle of Channel 3
+input waveform. Write 1 to CH3_IntSts will clear this bit.
+
+0x0
+
+CH2_Pol
+This bit is used in capture mode in order to identify the transition
+of the input waveform when interrupt is generated. When bit is
+1, please refer to PWM2_PERIOD_HPR to know the effective high
+cycle of Channel 2 input waveform. Otherwise, please refer to
+PWM2_PERIOD_LPR to know the effective low cycle of Channel 2
+input waveform. Write 1 to CH2_IntSts will clear this bit.
+
+0x0
+
+CH1_Pol
+This bit is used in capture mode in order to identify the transition
+of the input waveform when interrupt is generated. When bit is
+1, please refer to PWM1_PERIOD_HPR to know the effective high
+cycle of Channel 1 input waveform. Otherwise, please refer to
+PWM1_PERIOD_LPR to know the effective low cycle of Channel 1
+input waveform. Write 1 to CH1_IntSts will clear this bit.
+
+0x0
+
+CH0_Pol
+This bit is used in capture mode in order to identify the transition
+of the input waveform when interrupt is generated. When bit is
+1, please refer to PWM0_PERIOD_HPR to know the effective high
+cycle of Channel 0 input waveform. Otherwise, please refer to
+PWM0_PERIOD_LPR to know the effective low cycle of Channel 0
+input waveform. Write 1 to CH0_IntSts will clear this bit.
+
+8
+
+RO
+
+7
+
+W1
+C
+
+0x0
+
+CH3_pwr_IntSts
+1'b0: Channel 3 power key Interrupt not generated
+1'b1: Channel 3 power key Interrupt generated
+
+6:4
+
+RO
+
+0x0
+
+reserved
+
+3
+
+W1
+C
+
+0x0
+
+CH3_IntSts
+1'b0: Channel 3 Interrupt not generated
+1'b1: Channel 3 Interrupt generated
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1422
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+2
+
+W1
+C
+
+1
+
+W1
+C
+
+0
+
+W1
+C
+
+Description
+
+0x0
+
+CH2_IntSts
+1'b0: Channel 2 Interrupt not generated
+1'b1: Channel 2 Interrupt generated
+
+0x0
+
+CH1_IntSts
+1'b0: Channel 1 Interrupt not generated
+1'b1: Channel 1 Interrupt generated
+
+0x0
+
+CH0_IntSts
+1'b0: Channel 0 Interrupt not generated
+1'b1: Channel 0 Interrupt generated
+
+PWM_INT_EN
+Address: Operational Base + offset (0x0044)
+Bit
+31:8
+
+Attr Reset Value
+RO
+
+0x000000
+
+Description
+reserved
+
+7
+
+RW 0x0
+
+CH3_pwr_Int_en
+1'b0: Channel 3 power key Interrupt disabled
+1'b1: Channel 3 power key Interrupt enabled
+
+6:4
+
+RO
+
+reserved
+
+3
+
+2
+
+1
+
+0
+
+0x0
+
+RW 0x0
+
+CH3_Int_en
+1'b0: Channel 3 Interrupt disabled
+1'b1: Channel 3 Interrupt enabled
+
+RW 0x0
+
+CH2_Int_en
+1'b0: Channel 2 Interrupt disabled
+1'b1: Channel 2 Interrupt enabled
+
+RW 0x0
+
+CH1_Int_en
+1'b0: Channel 1 Interrupt disabled
+1'b1: Channel 1 Interrupt enabled
+
+RW 0x0
+
+CH0_Int_en
+1'b0: Channel 0 Interrupt disabled
+1'b1: Channel 0 Interrupt enabled
+
+PWM_FIFO_CTRL
+Address: Operational Base + offset (0x0050)
+Bit
+
+Attr Reset Value
+
+31:14 RO
+
+0x00000
+
+Description
+reserved
+
+13:12 RW 0x0
+
+dma_ch_sel
+2'b00: Select PWM0
+2'b01: Select PWM1
+2'b10: Select PWM2
+2'b11: Select PWM3
+
+11
+
+reserved
+
+RO
+
+0x0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1423
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+10
+
+RW 0x0
+
+dma_ch_sel_en
+1'b0: Disabled. Select the channel PWM3 to FIFO mode and DMA
+mode.
+1'b1: Enabled. Use dma_ch_sel to select the channel to FIFO
+mode and DMA mode.
+
+9
+
+RW 0x0
+
+timeout_en
+FIFO timeout enable.
+
+8
+
+RW 0x0
+
+dma_mode_en
+1'b1: Enabled
+1'b0: Disabled
+
+7
+
+RO
+
+reserved
+
+6:4
+
+RW 0x0
+
+almost_full_watermark
+Almost full Watermark level.
+
+3
+
+RW 0x0
+
+watermark_int_en
+Watermark full interrupt.
+
+2
+
+RW 0x0
+
+overflow_int_en
+When high, an interrupt asserts when the FIFO overflow.
+
+1
+
+RW 0x0
+
+full_int_en
+When high, an interrupt asserts when the FIFO is full.
+
+0
+
+RW 0x0
+
+fifo_mode_sel
+When high, PWM FIFO mode is activated.
+
+0x0
+
+PWM_FIFO_INTSTS
+Address: Operational Base + offset (0x0054)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:5
+
+RO
+
+0x0000000
+
+reserved
+
+4
+
+RO
+
+0x1
+
+fifo_empty_status
+This bit indicates the FIFO is empty.
+
+3
+
+W1
+C
+
+0x0
+
+timieout_intsts
+Timeout interrupt.
+
+2
+
+W1
+C
+
+0x0
+
+fifo_watermark_full_intsts
+This bit indicates the FIFO is Watermark full.
+
+1
+
+W1
+C
+
+0x0
+
+fifo_overflow_intsts
+This bit indicates the FIFO is overflow.
+
+0
+
+W1
+C
+
+0x0
+
+fifo_full_intsts
+This bit indicates the FIFO is full.
+
+PWM_FIFO_TOUTTHR
+Address: Operational Base + offset (0x0058)
+Bit
+
+Attr Reset Value
+
+31:20 RO
+19:0
+
+0x000
+
+RW 0x00000
+
+Description
+reserved
+timeout_threshold
+FIFO timeout value (Unit: pwm clock).
+
+PWM_VERSION_ID
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1424
+
+RK3588 TRM-Part1
+Address: Operational Base + offset (0x005C)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:24 RW 0x02
+
+main_version
+Main version
+8'h0: Base version
+8'h1: Support DMA mode
+8'h2: Support DMA mode and Power key mode
+
+23:16 RW 0x13
+
+minor_version
+Minor version
+
+15:0
+
+RW 0x11B6
+
+svn_version
+SVN version
+
+PWM_FIFO
+Address: Operational Base + offset (0x0060)
+Bit
+
+Attr Reset Value
+
+Description
+
+31
+
+RO
+
+0x0
+
+pol
+This bit indicates the polarity of the lower 31-bit counter.
+1'b0: Low
+1'b1: High
+
+30:0
+
+RO
+
+0x00000000
+
+cycle_cnt
+This 31-bit counter indicates the effective cycles of high/low
+waveform.
+
+PWM_PWRMATCH_CTRL
+Address: Operational Base + offset (0x0080)
+Bit
+
+Attr Reset Value
+
+31:16 RO
+15
+
+0x0000
+
+RW 0x0
+
+14:12 RO
+
+0x0
+
+Description
+reserved
+CH3_pwrkey_int_ctrl
+1'b0: Assert interrupt after key capture with power key match
+1'b1: Assert interrupt after key capture without power key match
+reserved
+
+11
+
+RW 0x0
+
+CH3_pwrkey_capture_ctrl
+1'b0: Capture the value after interrupt
+1'b1: Capture the value directly
+
+10:8
+
+RO
+
+reserved
+
+0x0
+
+7
+
+RW 0x0
+
+CH3_pwrkey_polarity
+1'b0: PWM in polarity is positive
+1'b1: PWM in polarity is negative
+
+6:4
+
+RO
+
+reserved
+
+0x0
+
+3
+
+RW 0x0
+
+CH3_pwrkey_enable
+1'b0: Disabled
+1'b1: Enabled
+
+2:0
+
+RO
+
+reserved
+
+0x0
+
+PWM_PWRMATCH_LPRE
+Address: Operational Base + offset (0x0084)
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1425
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RW 0x238c
+
+cnt_max
+The maximum counter value.
+
+15:0
+
+cnt_min
+The minimum counter value.
+
+RW 0x22c4
+
+PWM_PWRMATCH_HPRE
+Address: Operational Base + offset (0x0088)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RW 0x11f8
+
+cnt_max
+The maximum counter value.
+
+15:0
+
+cnt_min
+The minimum counter value.
+
+RW 0x1130
+
+PWM_PWRMATCH_LD
+Address: Operational Base + offset (0x008C)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RW 0x0294
+
+cnt_max
+The maximum counter value.
+
+15:0
+
+cnt_min
+The minimum counter value.
+
+RW 0x01cc
+
+PWM_PWRMATCH_HD_ZERO
+Address: Operational Base + offset (0x0090)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RW 0x0294
+
+cnt_max
+The maximum counter value.
+
+15:0
+
+cnt_min
+The minimum counter value.
+
+RW 0x01cc
+
+PWM_PWRMATCH_HD_ONE
+Address: Operational Base + offset (0x0094)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RW 0x06fe
+
+cnt_max
+The maximum counter value.
+
+15:0
+
+cnt_min
+The minimum counter value.
+
+RW 0x0636
+
+PWM_PWRMATCH_VALUE0
+Address: Operational Base + offset (0x0098)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+pwrkey_match_value
+Power key match value 0.
+
+PWM_PWRMATCH_VALUE1
+Address: Operational Base + offset (0x009C)
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1426
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+pwrkey_match_value
+Power key match value 1.
+
+PWM_PWRMATCH_VALUE2
+Address: Operational Base + offset (0x00A0)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+pwrkey_match_value
+Power key match value 2.
+
+PWM_PWRMATCH_VALUE3
+Address: Operational Base + offset (0x00A4)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+pwrkey_match_value
+Power key match value 3.
+
+PWM_PWRMATCH_VALUE4
+Address: Operational Base + offset (0x00A8)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+pwrkey_match_value
+Power key match value 4.
+
+PWM_PWRMATCH_VALUE5
+Address: Operational Base + offset (0x00AC)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+pwrkey_match_value
+Power key match value 5.
+
+PWM_PWRMATCH_VALUE6
+Address: Operational Base + offset (0x00B0)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+pwrkey_match_value
+Power key match value 6.
+
+PWM_PWRMATCH_VALUE7
+Address: Operational Base + offset (0x00B4)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+pwrkey_match_value
+Power key match value 7.
+
+PWM_PWRMATCH_VALUE8
+Address: Operational Base + offset (0x00B8)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+pwrkey_match_value
+Power key match value 8.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1427
+
+RK3588 TRM-Part1
+PWM_PWRMATCH_VALUE9
+Address: Operational Base + offset (0x00BC)
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+pwrkey_match_value
+Power key match value 9.
+
+PWM_PWM3_PWRCAPTURE_VALUE
+Address: Operational Base + offset (0x00CC)
+Bit
+31:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+pwrkey_capture_value
+Power key capture value.
+
+PWM_CHANNEL_IO_CTRL
+Address: Operational Base + offset (0x00D0)
+Bit
+
+Attr Reset Value
+
+31:19 RO
+18
+
+17
+
+16
+
+0x0000
+
+Description
+reserved
+
+RW 0x0
+
+CH2_and_CH3_switch_en
+1'b0: Disabled
+1'b1: Enabled
+
+RW 0x0
+
+CH1_and_CH3_switch_en
+1'b0: Disabled
+1'b1: Enabled
+
+RW 0x0
+
+CH0_and_CH3_switch_en
+1'b0: Disabled
+1'b1: Enabled
+
+15:13 RO
+
+0x0
+
+reserved
+
+RW 0x000
+
+filter_number
+Filter window number
+
+RW 0x0
+
+CH3_input_filter_enable
+1'b0: Disabled
+1'b1: Enabled
+
+2
+
+RW 0x0
+
+CH2_input_filter_enable
+1'b0: Disabled
+1'b1: Enabled
+
+1
+
+RW 0x0
+
+CH1_input_filter_enable
+1'b0: Disabled
+1'b1: Enabled
+
+RW 0x0
+
+CH0_input_filter_enable
+1'b0: Disabled
+1'b1: Enabled
+
+12:4
+
+3
+
+0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1428
+
+RK3588 TRM-Part1
+
+18.5 Interface Description
+Table 18-1 PWM Interface Description
+Module
+
+Direction
+
+Pad Name
+
+IOMUX Setting
+
+I2S1_LRCK_M1/PWM0_M0/I2C2_SCL_M0
+/CAN0_TX_M0/SPI0_CS1_M0/PCIE30X1_
+1_PERSTN_M0/GPIO0_B7_d
+
+PMU2_IOC_GPIO0B_IO
+MUX_SEL_H[15:12]=4’
+h3
+
+I2S0_SDO3/I2S0_SDI2/PDM0_SDI2_M0/
+I2C1_SCL_M4/UART4_TX_M0/PWM0_M1
+/SPI1_CLK_M2/GPIO1_D2_d
+
+BUS_BUS_IOC_GPIO1D
+_IOMUX_SEL_l[11:8]=4
+’hb
+
+VOP_POST_EMPTY/I2C4_SDA_M3/UART6
+_RTSN_M1/PWM0_M2/SPI4_CLK_M2/GPI
+O1_A2_d
+
+BUS_IOC_GPIO1A_IOM
+UX_SEL_L[11:8]=4’hb
+
+PDM0_CLK0_M1/PWM1_M0/I2C2_SDA_M
+0/CAN0_RX_M0/SPI0_MOSI_M0/PCIE30X
+1_0_CLKREQN_M0/GPIO0_C0_d
+
+PMU2_IOC_GPIO0C_IO
+MUX_SEL_L[3:0]=4’h3
+
+I2S0_SDI1/PDM0_SDI3_M0/I2C1_SDA_
+M4/UART4_RX_M0/PWM1_M1/SPI1_CS0
+_M2/GPIO1_D3_d
+
+BUS_IOC_GPIO1D_IOM
+UX_SEL_L[15:12]=4’hb
+
+HDMI_TX1_SDA_M2/I2C4_SCL_M3/UART
+6_CTSN_M1/PWM1_M2/SPI4_CS0_M2/G
+PIO1_A3_d
+
+BUS_IOC_GPIO1A_IOM
+UX_SEL_L[15:12]=4’hb
+
+PDM0_CLK1_M1/PWM2_M0/UART0_RX_
+M0/I2C4_SDA_M2/DP0_HPDIN_M1/PCIE
+30X1_0_WAKEN_M0/GPIO0_C4_d
+
+PMU2_IOC_GPIO0C_IO
+MUX_SEL_H[3:0]=4’h3
+
+GMAC1_RXDV_CRS/MIPI_CAMERA4_CLK
+_M1/UART2_TX_M2/PWM2_M1/GPIO3_B
+1_d
+
+BUS_IOC_GPIO3B_IOM
+UX_SEL_L[7:4]=4’hb
+
+GMAC0_MDC/I2C7_SDA_M1/UART9_RTS
+N_M0/PWM5_M2/SPI3_MISO_M0/GPIO4
+_C4_d
+
+BUS_IOC_GPIO4C_IOM
+UX_SEL_L[11:8]=4’hb
+
+I2S1_SDO2_M1/PDM0_SDI2_M1/PWM3_
+IR_M0/I2C1_SCL_M2/CAN2_RX_M1/HDM
+I_TX0_SDA_M1/SPI3_CS0_M2/PCIE30X2
+_PERSTN_M0/SATA_CPDET/GPIO0_D4_u
+
+PMU2_IOC_GPIO0D_IO
+MUX_SEL_H[3:0]=4’h3
+
+GMAC1_RXDV_CRS/MIPI_CAMERA4_CLK
+_M1/UART2_TX_M2/PWM2_M1/GPIO3_B
+1_d
+
+BUS_IOC_GPIO3B_IOM
+UX_SEL_L[11:8]=4’hb
+
+I2S0_MCLK/I2C6_SDA_M1/UART3_RTSN
+/PWM3_IR_M2/SPI4_CLK_M0/GPIO1_C2
+_d
+
+BUS_IOC_GPIO1C_IOM
+UX_SEL_L[11:8]=4’hb
+
+PDM1_SDI0_M1/PCIE30X1_1_PERSTN_M
+2/PWM3_IR_M3/SPI2_CS0_M0/GPIO1_A
+7_u
+
+BUS_IOC_GPIO1A_IOM
+UX_SEL_H=[15:12]=4’
+hb
+
+Pin
+
+PWM0CH0
+
+PWM0CH1
+
+PWM0CH2
+
+PWM0CH3
+
+I/O
+
+I/O
+
+I/O
+
+I/O
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1429
+
+RK3588 TRM-Part1
+Module
+
+Direction
+
+Pad Name
+
+IOMUX Setting
+
+I2S1_SDI0_M1/GPU_AVS/UART0_TX_M0
+/I2C4_SCL_M2/DP1_HPDIN_M1/PWM4_
+M0/PCIE30X1_0_PERSTN_M0/GPIO0_C5
+_u
+
+BUS_BUS_IOC_GPIO0C
+_IOMUX_SEL_H[7:4]=4
+’hb
+
+GMAC0_MCLKINOUT/I2S2_SDO_M0/I2C7
+_SCL_M1/PWM4_M1/SPI3_CS1_M0/GPIO
+4_C3_d
+
+BUS_IOC_GPIO4C_IOM
+UX_SEL_L[15:12]=4’hb
+
+SPI2_CS0_M2/I2C1_SDA_M1/PWM5_M0/
+UART0_TX_M1/GPIO0_B1_z
+
+PMU1_IOC_GPIO0B_IO
+MUX_SEL_L[7:4]=4’h3
+
+I2S1_SDI1_M1/NPU_AVS/UART0_RTSN/
+PWM5_M1/SPI0_CLK_M0/PCIE30X4_CLK
+REQN_M0/SATA_CP_POD/GPIO0_C6_u
+
+BUS_BUS_IOC_GPIO0C
+_IOMUX_SEL_H[11:8]=
+4’hb
+
+GMAC0_MDC/I2C7_SDA_M1/UART9_RTS
+N_M0/PWM5_M2/SPI3_MISO_M0/GPIO4
+_C4_d
+
+BUS_IOC_GPIO4C_IOM
+UX_SEL_H[3:0]=4’hb
+
+I2S1_SDI2_M1/PDM0_SDI0_M1/I2C6_S
+DA_M0/UART1_RTSN_M2/PWM6_M0/SPI
+0_MISO_M0/PCIE30X4_WAKEN_M0/GPI
+O0_C7_d
+
+BUS_BUS_IOC_GPIO0C
+_IOMUX_SEL_H[15:12]
+=4’hb
+
+BT1120_D15/SPDIF1_TX_M2/PCIE20X1_
+2_PERSTN_M1/HDMI_TX0_CEC_M0/I2C8
+_SDA_M3/PWM6_M1/SPI3_CS1_M1/GPI
+O4_C1_d
+
+BUS_IOC_GPIO4C_IOM
+UX_SEL_L[7:4]=4’hb
+
+GMAC0_MDIO/I2C0_SCL_M1/UART9_CT
+SN_M0/PWM6_M2/SPI3_MOSI_M0/GPIO
+4_C5_d
+
+BUS_IOC_GPIO4C_IOM
+UX_SEL_H[7:4]=4’hb
+
+I2S1_SDI3_M1/PDM0_SDI1_M1/I2C6_S
+CL_M0/UART1_CTSN_M2/PWM7_IR_M0/
+SPI3_MISO_M2/PCIE30X4_PERSTN_M0/
+GPIO0_D0_d
+
+BUS_BUS_IOC_GPIO0D
+_IOMUX_SEL_L[3:0]=4’
+hb
+
+SDMMC_CMD/PDM1_CLK1_M0/MCU_JTA
+G_TCK_M0/CAN0_TX_M1/UART5_RX_M0
+/PWM7_IR_M1/GPIO4_D4_u
+
+BUS_IOC_GPIO4D_IOM
+UX_SEL_H[3:0]=4’hb
+
+I2S0_SCLK/I2C6_SCL_M1/UART3_CTSN/
+PWM7_IR_M2/SPI4_CS0_M0/GPIO1_C3_
+d
+
+BUS_IOC_GPIO1C_IOM
+UX_SEL_L[15:12]=4’hb
+
+GMAC0_TXER/I2C0_SDA_M1/UART7_CT
+SN_M0/PWM7_IR_M3/SPI3_CLK_M0/GPI
+O4_C6_d
+
+BUS_IOC_GPIO4C_IOM
+UX_SEL_H[11:8]=4’hb
+
+GMAC1_RXD0/MIPI_CAMERA2_CLK_M1/
+PWM8_M0/GPIO3_A7_u
+
+BUS_IOC_GPIO3A_IOM
+UX_SEL_H[15:12]=4’hb
+
+SDMMC_D0/PDM1_SDI3_M0/JTAG_TCK_
+M1/I2C3_SCL_M4/UART2_TX_M1/PWM8
+_M1/GPIO4_D0_u
+
+BUS_IOC_GPIO3D_IOM
+UX_SEL_L[3:0]=4’hb
+
+Pin
+
+PWM1CH0
+
+PWM1CH1
+
+PWM1CH2
+
+PWM1CH3
+
+PWM2CH0
+
+I/O
+
+I/O
+
+I/O
+
+I/O
+
+I/O
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1430
+
+RK3588 TRM-Part1
+Module
+
+Direction
+
+Pad Name
+
+IOMUX Setting
+
+CIF_D12/PCIE20X1_2_WAKEN_M0/HDMI
+_TX0_SDA_M2/I2C5_SDA_M0/UART4_RX
+_M1/PWM8_M2/SPI3_CLK_M3/GPIO3_D0
+_u
+
+BUS_IOC_GPIO3D_IOM
+UX_SEL_L[3:0]=4’hb
+
+GMAC1_RXD1/MIPI_CAMERA3_CLK_M1/
+PWM9_M0/GPIO3_B0_u
+
+BUS_IOC_GPIO3B_IOM
+UX_SEL_L[3:0]=4’hb
+
+SDMMC_D1/PDM1_SDI2_M0/JTAG_TMS_
+M1/I2C3_SDA_M4/UART2_RX_M1/PWM9
+_M1/GPIO4_D1_u
+
+BUS_IOC_GPIO4D_IOM
+UX_SEL_L[7:4]=4’hb
+
+CIF_D13/PCIE20X1_2_PERSTN_M0/HDMI
+_RX_CEC_M1/UART4_TX_M1/PWM9_M2/
+SPI0_MISO_M3/GPIO3_D1_d
+
+BUS_IOC_GPIO3D_IOM
+UX_SEL_L[7:4]=4’hb
+
+GMAC1_TXD2/SDIO_D0_M1/I2S3_MCLK/
+FSPI_D0_M2/I2C6_SDA_M4/PWM10_M0/
+SPI4_MISO_M1/GPIO3_A0_u
+
+BUS_IOC_GPIO3A_IOM
+UX_SEL_L[3:0]=4’hb
+
+SDMMC_D3/PDM1_SDI0_M0/JTAG_TMS_
+M0/I2C8_SDA_M0/UART5_RTSN_M0/PW
+M10_M1/GPIO4_D3_u
+
+BUS_IOC_GPIO4D_IOM
+UX_SEL_L[15:12]=4’hb
+
+CIF_D15/PCIE30X2_WAKEN_M2/HDMI_R
+X_SDA_M1/I2C7_SDA_M2/UART9_CTSN
+_M2/PWM10_M2/SPI0_CLK_M3/GPIO3_D
+3_d
+
+BUS_IOC_GPIO3D_IOM
+UX_SEL_L[15:12]=4’hb
+
+GMAC1_TXD3/SDIO_D1_M1/I2S3_SCLK/
+AUDDSM_LN/FSPI_D1_M2/I2C6_SCL_M4
+/PWM11_IR_M0/SPI4_MOSI_M1/GPIO3_
+A1_u
+
+BUS_IOC_GPIO3A_IOM
+UX_SEL_L[7:4]=4’hb
+
+CIF_CLKOUT/BT1120_D10/I2S1_SDO3_
+M0/PCIE30X4_CLKREQN_M1/DP0_HPDIN
+_M0/SPDIF0_TX_M1/UART9_TX_M1/PW
+M11_IR_M1/GPIO4_B4_u
+
+BUS_IOC_GPIO4B_IOM
+UX_SEL_H[3:0]=4’hb
+
+PDM0_CLK1_M0/I2C2_SDA_M3/PWM11_
+IR_M2/SPI4_CS1_M0/GPIO1_C4_d
+
+BUS_IOC_GPIO1C_IOM
+UX_SEL_H[3:0]=4’hb
+
+PCIE30X4_BUTTON_RSTN/DP1_HPDIN_M
+0/MCU_JTAG_TMS_M1/UART9_TX_M2/P
+WM11_IR_M3/SPI0_CS1_M3/GPIO3_D5_
+d
+
+BUS_IOC_GPIO3D_IOM
+UX_SEL_H[7:4]=4’hb
+
+GMAC1_TXEN/I2S2_SCLK_M1/CAN1_RX
+_M0/UART3_TX_M1/PWM12_M0/GPIO3_
+B5_u
+
+BUS_IOC_GPIO3B_IOM
+UX_SEL_H[7:4]=4’hb
+
+BT1120_D11/PCIE30X4_WAKEN_M1/HD
+MI_RX_CEC_M0/SATA1_ACT_LED_M0/UA
+RT9_RX_M1/PWM12_M1/SPI3_MISO_M1
+/GPIO4_B5_d
+
+BUS_IOC_GPIO4B_IOM
+UX_SEL_H[7:4]=4’hb
+
+Pin
+
+PWM2CH1
+
+PWM2CH2
+
+PWM2CH3
+
+PWM3CH0
+
+I/O
+
+I/O
+
+I/O
+
+I/O
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1431
+
+RK3588 TRM-Part1
+Module
+
+Direction
+
+Pad Name
+
+IOMUX Setting
+
+GMAC1_MCLKINOUT/II2S2_LRCK_M1/CA
+N1_TX_M0/UART3_RX_M1/PWM13_M0/G
+PIO3_B6_d
+
+BUS_IOC_GPIO3B_IOM
+UX_SEL_H[11:8]=4’hb
+
+BT1120_D12/PCIE30X4_PERSTN_M1/HD
+MI_RX_HPDOUT_M0/SATA0_ACT_LED_M
+0/I2C5_SCL_M1/PWM13_M1/SPI3_MOSI
+_M1/GPIO4_B6_d
+
+BUS_IOC_GPIO4B_IOM
+UX_SEL_H[11:8]=4’hb
+
+GMAC0_TXD1/I2S2_SCLK_M0/I2C5_SDA
+_M4/UART1_TX_M0/GPIO2_B7_d
+
+BUS_IOC_GPIO1B_IOM
+UX_SEL_H[15:12]=4’hb
+
+GMAC1_MDC/MIPI_TE0/I2C8_SCL_M4/U
+ART7_RTSN_M1/PWM14_M0/SPI1_CS0_
+M1/GPIO3_C2_d
+
+BUS_IOC_GPIO3C_IOM
+UX_SEL_L[11:8]=4’hb
+
+CIF_HREF/BT1120_D8/I2S1_SDO1_M0/P
+CIE30X1_1_BUTTON_RSTN/I2C7_SCL_M
+3/UART8_RTSN_M0/PWM14_M1/SPI0_C
+S0_M1/CAN1_RX_M1/GPIO4_B2_u
+
+BUS_IOC_GPIO4B_IOM
+UX_SEL_L[11:8]=4’hb
+
+MIPI_CAMERA3_CLK_M0/HDMI_RX_SCL_
+M2/I2C8_SCL_M2/UART1_RTSN_M1/PW
+M14_M2/GPIO1_D6_u
+
+BUS_IOC_GPIO1D_IOM
+UX_SEL_H[11:8]=4’hb
+
+GMAC1_MDIO/MIPI_TE1/I2C8_SDA_M4/
+UART7_CTSN_M1/PWM15_IR_M0/SPI1_C
+S1_M1/GPIO3_C3_d
+
+BUS_IOC_GPIO3C_IOM
+UX_SEL_L[15:12]=4’hb
+
+CIF_VSYNC/BT1120_D9/I2S1_SDO2_M0/
+PCIE20X1_2_BUTTON_RSTN/I2C7_SDA_
+M3/UART8_CTSN_M0/PWM15_IR_M1/CA
+N1_TX_M1/GPIO4_B3_u
+
+BUS_IOC_GPIO4B_IOM
+UX_SEL_L[15:12]=4’hb
+
+PDM0_CLK0_M0/I2C4_SDA_M4/PWM15_
+IR_M2/GPIO1_C6_d
+
+BUS_IOC_GPIO1C_IOM
+UX_SEL_H[11:8]=4’hb
+
+MIPI_CAMERA4_CLK_M0/PCIE30X2_CLK
+REQN_M3/HDMI_RX_SDA_M2/I2C8_SDA
+_M2/UART1_CTSN_M1/PWM15_IR_M3/G
+PIO1_D7_u
+
+BUS_IOC_GPIO1D_IOM
+UX_SEL_H[15:12]=4’hb
+
+Pin
+
+PWM3CH1
+
+PWM3CH2
+
+PWM3CH3
+
+I/O
+
+I/O
+
+I/O
+
+Notes: Unused Module Pin is tied to zero! I=input, O=output, I/O=input/output, bidirectional
+
+18.6 Application Notes
+18.6.1 PWM Capture Mode Standard Usage Flow
+1. Set PWM_PWMx_CTRL.pwm_en to ‘0’ to disable the PWM channel.
+2. Choose the prescale factor and the scale factor for clk_pwm by programming
+PWM_PWMx_CTRL.prescale and PWM_PWMx_CTRL.scale, and select the clock needed by
+setting PWM_PWMx_CTRL.clk_sel and PWM_PWMx_CTRL.clk_src_sel.
+3. Configure the channel to work in the capture mode.
+4. Enable the PWM_INT_EN.chx_int_en to enable the interrupt generation.
+5. Set PWM_CHANNEL_IO_CTRL. filter_number, then Enable the PWM_CHANNEL_IO_CTRL.
+CHx_input_filter_enable(Optional).
+6. Enable the channel by writing ‘1’ to PWM_PWMx_CTRL.pwm_en bit to start the channel.
+7. When an interrupt is asserted, refer to INTSTS register to know the raw interrupt status.
+If the corresponding polarity flag is set, turn to PWM_PWMx_PERIOD_HPC register to know
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1432
+
+RK3588 TRM-Part1
+the effective high cycles of input waveforms, otherwise turn to PWM_PWMx_DUTY_LPC
+register to know the effective low cycles.
+8. Write ‘0’ to PWM_PWMx_CTRL.pwm_en to disable the channel.
+
+18.6.2 PWM Capture DMA Mode Standard Usage Flow
+
+1. Set PWM_PWMx_CTRL.pwm_en to ‘0’ to disable the PWM channel.
+2. Choose the prescale factor and the scale factor for clk_pwm by programming
+PWM_PWMx_CTRL.prescale and PWM_PWMx_CTRL.scale, and select the clock needed by
+setting PWM_PWMx_CTRL.clk_sel and PWM_PWMx_CTRL.clk_src_sel.
+3. Configure the channel 3 to work in the capture mode.
+4. Configure the PWM_FIFO_CTRL.dma_mode_en and PWM_FIFO_CTRL.fifo_mode_sel to
+enable the DMA mode. Configure PWM_FIFO_CTRL.almost_full_watermark at appropriate
+value.
+5. Configure DMAC_BUS to transfer data from PWM to DDR.
+6. Set PWM_CHANNEL_IO_CTRL.filter_number, then Enable the PWM_CHANNEL_IO_CTRL.
+CHx_input_filter_enable(Optional).
+7. Enable the channel by writing ‘1’ to PWM_PWMx_CTRL.pwm_en bit to start the channel.
+8. When a dma_req is asserted, DMAC_BUS transfer the data of effective high cycles and
+low cycles of input waveforms to DDR.
+9. Write ‘0’ to PWM_PWMx_CTRL.pwm_en to disable the channel.
+
+18.6.3 PWM Power key Capture Mode Standard Usage Flow
+
+1. Set PWM_PWM3_CTRL.pwm_en to ‘0’ to disable the PWM channel.
+2. Choose the prescale factor and the scale factor for clk_pwm by programming
+PWM_PWM3_CTRL.prescale and PWM_PWM3_CTRL.scale, and select the clock needed by
+setting PWM_PWM3_CTRL.clk_sel. The clock should be 1 MHz after division.
+3. Configure the channel to work in the capture mode.
+4. Enable the PWM_INT_EN.CH3_int_pwr to enable the interrupt generation.
+5. Set the PWM_PWRMATCH_VALUE0~9 registers for the 10 power key match value.
+6. Set max_cnt and min_cnt of follow register: PWM_PWRMATCH_LPRE,
+PWM_PWRMATCH_HPRE, PWM_PWRMATCH_LD, PWM_PWRMATCH_HD_ZERO,
+PWM_PWRMATCH_HD_ONE. It doesn’t need to set these registers when the default value
+can meet the requirement.
+7.Set PWM_PWRMATCH_CTRL.CH3_pwrkey_polarity for the polarity of power key signal, the
+default value is 0. Enable the PWM_PWRMATCH_CTRL.CH3_pwrkey_enable.
+8. Set PWM_CHANNEL_IO_CTRL.filter_number, then Enable the PWM_CHANNEL_IO_CTRL.
+CH3_input_filter_enable(Optional).
+9. Enable the channel by writing ‘1’ to PWM_PWM3_CTRL.pwm_en bit to start the channel.
+10. Poll INTSTS. CH3_pwr_IntSts ==1, and refer to PWM_PWM3_PWRCAPTURE_VALUE to
+know the power key capture value.
+11. Write ‘0’ to PWM_PWM3_CTRL.pwm_en to disable the channel.
+
+18.6.4 PWM One-shot Mode/Continuous Standard Usage Flow
+
+1. Set PWM_PWMx_CTRL.pwm_en to ‘0’ to disable the PWM channel.
+2. Choose the prescale factor and the scale factor for pclk by programming
+PWM_PWMx_CTRL.prescale and PWM_PWMx_CTRL.scale, and select the clock needed by
+setting PWM_PWMx_CTRL.clk_sel.
+3. Choose the output mode by setting PWM_PWMx_CTRL.output_mode, and set the duty
+polarity and inactive polarity by programming PWM_PWMx_CTRL.duty_pol and
+PWM_PWMx_CTRL.inactive_pol.
+4. Set the PWM_PWMx_CTRL.rpt if the channel is desired to work in the one-shot mode.
+5. Configure the channel to work in the one-shot mode or the continuous mode.
+6. Enable the PWM_INT_EN.chx_int_en to enable the interrupt generation if the channel is
+desired to work in the one-shot mode.
+7. If the channel is working in the one-shot mode, an interrupt is asserted after the end of
+operation, and the PWM_PWMx_CTRL.pwm_en is automatically cleared. Whatever mode the
+channel is working in, write ‘0’ to PWM_PWMx_CTRL.pwm_en bit to disable the PWM
+channel.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1433
+
+RK3588 TRM-Part1
+
+18.6.5 Low-power Usage Flow
+
+The default value of PWM_PWMx_CTRL.force_clk_en is ‘0’ which make the channel enter the
+low-power mode. In low-power mode, When the PWM channel is inactive, the clk_pwm to
+the clock prescale module is gated in order to reduce the power consumption. User can set
+PWM_PWMx_CTRL.force_clk_en to ‘1’ which will make the channel quit the low-power mode.
+After the setting, the clk_pwm to the clock prescale module is always enable.
+
+18.6.6 Other notes
+
+When the channel is active to produce waveforms, it is free to program the
+PWM_PWMx_PERIOD_HPC and PWM_PWMx_DUTY_LPC register. User can use
+PWM_PWMx_CTRL.conlock to take period and duty effect at the same time. The usage flow
+is as follow:
+1. Set PWM_PWMx_CTRL.conlock to ‘1’.
+2. Set PWM_PWMx_PERIOD_HPC and PWM_PWMx_DUTY_LPC.
+3. Set PWM_PWMx_CTRL.conlock to ‘0’, others bits in PWM_PWMx_CTRL should be
+appropriate.
+After above configuration, the change will not take effect immediately until the current
+period ends.
+An active channel can be changed to another operation mode without disable the PWM
+channel. However, during the transition of the operation mode there may be some irregular
+output waveforms. So does changing the clock division factor when the channel is active.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1434
+
+RK3588 TRM-Part1
+

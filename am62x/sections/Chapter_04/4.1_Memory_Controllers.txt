@@ -1,0 +1,26 @@
+4.1 Memory Controllers
+=== Page 99 ===
+4.1.1 DDR16 Subsystem (DDR16SS)
+This section contains the integration details for the 16-bit DDR module on this device. For Further information,
+see the DDR16 Subsystem (DDR16SS) section of the Processors and Accelerators chapter
+4.1.1.1 DDR16SS Not Supported Features
+The following features are not supported on this family of devices:
+•
+DDR3, DDR3L, DDR3U, and LPDDR4x Devices
+•
+ò width (8-bit) mode
+•
+DIMMS
+•
+Data bus obfuscation / data encryption
+•
+Automatic periodic scrubbing of SDRAM for ECC
+•
+Address range of greater than 8GBytes for DDR4
+•
+Address range of greater than 4GBytes for LPDDR4
+•
+memory devices with more than 17 row address bits
+•
+LPDDR4 devices with byte mode die configurations
+=== Page 100 ===

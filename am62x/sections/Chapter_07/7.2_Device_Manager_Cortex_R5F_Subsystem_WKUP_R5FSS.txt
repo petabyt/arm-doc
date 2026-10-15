@@ -1,0 +1,1812 @@
+7.2 Device Manager Cortex R5F Subsystem (WKUP_R5FSS)
+This chapter describes the Arm Cortex R5F real-time microcontroller unit subsystem (WKUP_R5FSS) in the
+device.
+7.2.1 WKUP_R5FSS Overview
+The WKUP_R5FSS is a single-core implementation of the Arm® Cortex®-R5F processor that acts as the
+Device Manager responsible for boot, resource management, and power management functions. It also includes
+accompanying memories (L1 caches and tightly-coupled memories), standard Arm CoreSight™ debug and trace
+architecture, integrated vectored interrupt manager (VIM), ECC aggregators, and various other modules for
+protocol conversion and address translation for easy integration into the SoC.
+Note
+The Cortex-R5F processor is a Cortex-R5 processor that includes the optional floating point unit
+(FPU) extension. In this TRM, all references to the Cortex-R5 processor apply to the Cortex-R5F
+processor by default.
+There is one WKUP_R5FSS subsystem in the device. Table 7-6 shows WKUP_R5FSS allocation across device
+domains.
+Table 7-6. R5FSS Allocation Across Device Domains
+Module Instance
+Domain
+MCU
+MAIN
+WKUP
+WKUP_R5FSS
+•
+•
+✓
+7.2.1.1 WKUP_R5FSS Features
+The WKUP_R5FSS supports the following features:
+•
+Single-core Arm Cortex-R5F
+•
+Core revision: r1p3
+•
+Armv7-R profile
+•
+L1 memory system
+•
+32KB instruction cache
+•
+4x8KB ways
+•
+SECDED ECC protected per 64 bits
+•
+32KB data cache
+•
+4x8KB ways
+•
+SECDED ECC protected per 32 bits
+•
+64KB tightly-coupled memory (TCM)
+•
+SECDED ECC protected per 32 bits
+•
+TCM hard error cache Implemented in CPU
+•
+Readable/writable from system
+•
+TCMs initialized (to 0's) at reset
+•
+Split into A and B banks (with B further splitting into B0 and B1 interleaved banks)
+•
+32KB TCMA (ATCM)
+•
+16KB TCMB0 (B0TCM)
+•
+16KB TCMB1 (B1TCM)
+•
+Low interrupt latency with restartable instructions
+•
+Non-maskable interrupt (NMI)
+•
+Full-precision floating point (VFPv3)
+•
+16 region memory protection unit (MPU)
+•
+8 breakpoints
+=== Page 653 ===
+•
+8 watchpoints
+•
+Dynamic branch prediction with global history buffer and 4-entry return stack
+•
+CoreSight debug access port (DAP)
+•
+CoreSight embedded trace macrocell (ETM-R5) interface
+•
+Performance monitoring unit (PMU)
+•
+Interfaces
+•
+64-bit VBUSM initiator pair (1 read, 1 write) for L3 memory accesses
+•
+64-bit VBUSM target for TCM access
+•
+Also allows access to cache for debug purposes
+•
+32-bit VBUSP initiator for peripheral access
+•
+32-bit VBUSP target configuration port
+•
+32-bit VBUSP target debug port
+•
+Allows access to all WKUP_R5FSS internal debug logic
+•
+ECC/Parity support on all internal SoC bus interfaces
+•
+ECC/Parity support on internal SoC bus bridges
+•
+Synchronous clock domain crossing on all interfaces
+•
+Interfaces can run at an integer multiple of the core frequency
+•
+32-bit to 36-bit region-based address translation (RAT) on memory access initiators
+•
+4 regions
+•
+Base address + size
+•
+Must be size aligned
+•
+Integrated vectored interrupt manager (VIM)
+•
+256 interrupts
+•
+Each interrupt programmable as either IRQ or FIQ
+•
+Each interrupt has a programmable enable mask
+•
+Each interrupt has a programmable 4-bit priority
+•
+Priority interrupt supported
+•
+Vectored interrupt interface
+•
+Compatible with R5F VIC port
+•
+Programmable 32-bit vector address per interrupt
+•
+Address is SECDED error protected
+•
+Default vector addresses provided on DED
+•
+Software interrupt generation
+•
+Integrated ECC aggregators
+•
+Support for error injection to all supported ECC memory blocks to test ECC functionality (add-on function
+from TI)
+•
+One ECC aggregator to cover all RAMs and caches
+•
+Standard Arm CoreSight debug and trace architecture at the R5FSS level
+•
+Cross triggering: Supported by cross trigger interface (CTI) (per CPU) and cross trigger matrix (CTM)
+components
+•
+Processor trace: Supported by embedded trace macrocell (ETM) (per CPU) and advanced trace bus
+(ATB) funnel components
+•
+Boot
+•
+From ROM only
+See Section 7.2.2 for a functional block diagram and more details on the WKUP_R5FSS.
+Note
+Some features may not be available. See Module Integration for more information.
+=== Page 654 ===
+7.2.2 WKUP_R5FSS Functional Description
+7.2.2.1 WKUP_R5FSS Block Diagram
+Figure 7-2 shows the WKUP_R5FSS block diagram.
+Figure 7-2. WKUP_R5FSS Block Diagram
+7.2.2.2 WKUP_R5FSS Cortex-R5F Core
+The Cortex-R5F is a processor from Arm, which is based on the Armv7-R profile.
+For a brief list of features supported by the R5F processor in this device, see Section 7.2.1.1. For more detailed
+description of this processor, see the Arm Cortex-R5 Technical Reference Manual.
+7.2.2.2.1 L1 Caches
+The R5F has a Harvard cache architrecture, which means it has an independent L1 instruction cache (16KB)
+and L1 data cache (16KB). The instruction cache is protected by SECDED ECC per 64 bits. The data cache is
+protected by SECDED ECC per 32 bits.
+7.2.2.2.2 Tightly-Coupled Memories (TCMs)
+The R5F has two tightly-coupled memories (TCMs), ATCM and BTCM. The BTCM is further broken down into
+two interleaved banks, B0TCM and B1TCM.
+TCMs are low-latency, tightly integrated memories for the R5F to use. Either TCM can be used for any
+combination of instruction and/or data. TCM performance is equal to performance on instructions/data that are
+in cache. However, TCMs have some additional advantages over cache. TCMs can be loaded with instructions
+=== Page 655 ===
+that do not cache well (such as ISRs) or preloaded with code by an external source, before that code is needed,
+to save cache miss time. TCMs are also a good place for blocks of data for intense processing. They can be
+loaded (or pre-loaded by an external source) before the data is needed, saving cache miss time. The data can
+then be directly accessed by an external source, instead of needing to do cache evicts.
+As mentioned, TCMs can be accessed (either read or written) by an external source over the TCM VBUSM
+target interface. This allows instructions or data to be preloaded, or for data to be read out after the R5F has
+processed it. The VBUSM target has a lower priority to accessing TCMs than the R5F but care must be taken
+to keep an external source from reading or writing TCM data that the R5F is working on. This handshaking is
+external to any of the R5FSS hardware.
+TCMs are protected by ECC per 32 bits. For this to work, ECC must be enabled before data is written in
+to the TCMs (either externally or from the R5F). ECC is enabled via the following R5F system control bits:
+ACTLR.ATCMPCEN, ACTLR.B0TCMPCEN, and ACTLR.B1TCMPCEN, respectively.
+Whether or not the TCMs are enabled is controlled by the ENABLE bit in the corresponding ATCM/BTCM
+region register. The default (reset) value of this bit is determined by the CPUn_INITRAMA and CPUn_INITRAMB
+bootstraps, respectively. Both ATCM and BTCM are configured for a size of 32KB in this device. Note that the
+BTCM size is the total of both B0TCM and B1TCM (16KB each).
+If a TCM is not enabled, then it does not appear in the R5F’s memory view, but it can be accessed by an
+external source. If a TCM is enabled, then its place in the R5F memory map is determined by a combination
+of bootstrap signal and system register. If the CPUn_LOCZRAMA bootstrap signal is high, then the initial base
+address of ATCM is 0x0000_0000 and the initial address of BTCM is 20’h41010. If the CPUn_LOCZRAMA
+bootstrap signal is low, then the initial base address of BTCM is 0x0000_0000 and the initial base address of
+ATCM is 20’h41010.
+Note
+This base address of 0x41010 for ATCM/BTCM based on the CPUn_LOCZRAMA bootstrap only
+affects the R5F’s memory view. The SoC will see the ATCM/BTCM based on the TCM target interface
+regions, as defined in Section 7.2.2.3.2. The base address of either TCM may be overwritten via the
+ATCM or BTCM region register. Care must be taken not to move the base address of a TCM when it
+may be being accessed.
+It is possible to preload a TCM with instructions and boot from it. See Section 7.2.2.11 for details on TCM
+booting.
+7.2.2.2.3 WKUP_R5FSS Special Signals
+Table 7-7 lists some WKUP_R5FSS features associated with special signals.
+Table 7-7. WKUP_R5FSS Special Features
+Feature
+Comment
+Cluster affinity group ID
+R5F Cluster 0 (ID = 0x0)
+Exception handling state at reset
+0 = Arm
+1 = Thumb
+Controlled via MAIN_SEC_MMR register setting.
+Defaults to Arm mode
+CPUn execution halt when coming out of reset (CPUn_HALT)
+Controlled via MAIN_SEC_MMR register setting.
+Defaults to halted state
+CPUn exception vectors base address
+Controlled via MAIN_SEC_MMR register setting.
+Defaults to Bootvector RAM address 0x0000_0000_0200
+CPUn VIM base address
+0x2FFF_0000
+CPUn RAT base address
+0x2FFE_0000
+CPUn RAT accesses ID
+0x4 (CPU0)
+CPUn ATCM enable at reset (CPUn_INITRAMA)
+Controlled via MAIN_SEC_MMR register setting.
+Defaults to disabled state
+=== Page 656 ===
+Table 7-7. WKUP_R5FSS Special Features (continued)
+Feature
+Comment
+CPUn BTCM enable at reset (CPUn_INITRAMB)
+Controlled via MAIN_SEC_MMR register setting.
+Defaults to enabled state
+CPUn A/BTCM reset base address indicator (CPUn_LOCZRAMA)
+0 = B at 0x0
+1 = A at 0x0
+Controlled via MAIN_SEC_MMR register setting.
+Defaults to 1
+CPUn non-maskable fast interrupts enable
+Controlled via MAIN_SEC_MMR register setting.
+Defaults to disabled state
+CPUn VBUSM peripheral port enabled at reset
+Enabled
+CPUn VBUSP peripheral port enable at reset
+Enabled
+CPUn VBUSP peripheral port base address
+Mapped to 0x0_2000_0000 for low latency MAIN peripherals
+CPUn VBUSP peripheral port size
+64MB for MAIN peripherals (0x0_2000_0000 to 0x0_2FFF_FFFF)
+CPUn VBUSM normal peripheral port base address
+Not used
+CPUn VBUSM normal peripheral port size
+Not used
+CPUn VBUSM virtual peripheral port base address
+Not used
+CPUn VBUSM virtual peripheral port size
+Not used
+CPUn clock stopped indication
+Status logged into MAIN_SEC_MMR register bit
+CPUn WFI state
+Status logged into MAIN_SEC_MMR register bit
+CPUn WFE state
+Status logged into MAIN_SEC_MMR register bit
+CPU clockstop behavior
+0: CPU clocks stopped in standby
+1: CPU clocks not stopped in standby
+Controlled via MAIN_SEC_MMR register setting.
+Defaults to 0
+7.2.2.3 WKUP_R5FSS Interfaces
+7.2.2.3.1 Initiator Interfaces
+The WKUP_R5FSS has several initiator interfaces:
+•
+64-bit VBUSM initiator pair (1 read, 1 write) for L3 memory accesses; this is the main memory interface
+•
+Includes region-based address translation (RAT)
+•
+32-bit VBUSP initiator for peripheral access
+•
+Includes logic that provides the R5F CPU with a private access to VIM and RAT
+•
+Enabled at reset
+7.2.2.3.2 Target Interfaces
+The WKUP_R5FSS has several target interfaces that define its internal memory space:
+•
+32-bit VBUSP configuration target
+•
+Region [0]: ECC aggregator block
+•
+64-bit TCM target
+•
+Region [0]: ATCM
+•
+Region [1]: BTCM
+•
+Region [2]: Instruction cache RAMs
+•
+Region [3]: Data cache RAMs
+•
+32-bit VBUSP debug target
+•
+Provides access to all R5FSS internal debug logic
+Regions [0] and [1] of the TCM target interface provide direct access to the TCM RAMs. Access to the RAMs
+is arbitrated with access from the R5F’s L1 memory system. Excessive access while the R5F is also attempting
+access will degrade performance.
+Regions [2] and [3] of the TCM target interface provide access to the cache RAMs for testing purposes. Access
+to the cache RAMs can only be done while the caches are disabled and should only be done for test purposes.
+=== Page 657 ===
+In addition to the target interfaces, there are peripherals (RAT and VIM) that are only accessible by the R5F. The
+R5F has an access to these modules via the VBUSP peripheral interface.
+7.2.2.4 WKUP_R5FSS Power, Clocking and Reset
+7.2.2.4.1 WKUP_R5FSS Power
+The following WKUP_R5FSS power considerations should be noted:
+•
+WKUP_R5FSS has a single power domain for all its internal logic
+For more details on WKUP_R5FSS power management, including power-up and power-down sequences, see
+Power.
+7.2.2.4.2 WKUP_R5FSS Clocking
+The WKUP_R5FSS has four clock inputs:
+•
+CPU0_CLK: This is the clock for CPU0 logic
+•
+CPU0_ICLK: This is the clock for CPU0 interfaces
+CPU0_CLK is the clock for all of the internal CPU logic, while CPU0_ICLK is the clock for all of the interfaces for
+their associated CPU (for example: VBUSM and VBUSP bridges, exception generation, debug and trace logic).
+The interface clock is an integer ratio of the CPU clock. The exact ratio for this device is 1:1.
+7.2.2.4.3 WKUP_R5FSS Reset
+The R5FSS has two reset inputs:
+•
+CPU0_RST: This is the reset for the non-debug logic of CPU0
+•
+CPU0_DBG_RST: This resets the CPU0 debug logic, excluding the APB interface
+In addition to the reset signals, there is one halt signal:
+•
+CPU0_HALT
+These halt signals keep the CPUs from fetching instructions when they come out of reset. The main use is to
+have the CPUs halted until the TCMs are loaded (when booting from TCM), though halt could be used for any
+other purpose.
+7.2.2.5 WKUP_R5FSS Vectored Interrupt Manager (VIM)
+7.2.2.5.1 VIM Overview
+The VIM aggregates device interrupts and sends them to the R5F CPU. It can be used in either split or
+single-core configuration.
+The VIM module supports the following features:
+•
+256 interrupt inputs for the R5F core
+•
+Each interrupt has its own 4-bit programmable priority
+•
+Defined via the R5FSS_VIM_PRI_INT_j register
+•
+The VIM provides support for priority interruption of interrupts
+•
+Each interrupt has its own enable mask
+•
+Interrupt enable is done via the R5FSS_VIM_INTR_EN_SET_j register
+•
+Interrupt disable is done via the R5FSS_VIM_INTR_EN_CLR_j register
+•
+Each interrupt can be programmed as either an IRQ or FIQ
+•
+Defined via the R5FSS_VIM_INTMAP_j register
+•
+Each interrupt has its own programmable 32-bit vector address associated with it
+•
+Defined via the R5FSS_VIM_VEC_INT_j register
+•
+Protected with SECDED
+•
+One IRQn and one FIQn output per core
+•
+Vectored interrupt interface
+•
+Compatible with R5F VIC port
+=== Page 658 ===
+•
+Default vector provided when a double-bit error is detected
+•
+Software interrupt generation
+7.2.2.5.2 VIM Interrupt Inputs
+The VIM supports 256 interrupt inputs per core. Each interrupt can be either a level or a pulse (both active-high).
+The interrupt mapping for the R5F core can be found in Interrupt Sources.
+7.2.2.5.3 VIM Interrupt Outputs
+The VIM has two interrupt outputs per core:
+•
+CoreN_IRQn: This is a normal interrupt for core N (active-low level). It can be serviced via the VIC interface
+or through the MMR interface. Whenever an interrupt input goes high, if that interrupt is mapped as an IRQ
+(via the R5FSS_VIM_INTMAP_j register) and is enabled (via the R5FSS_VIM_INTR_EN_SET_j register),
+then it will cause an IRQ to assert
+•
+CoreN_FIQn: This is a fast (or non-maskable) interrupt for core N (active-low level). FIQs always have priority
+over IRQs. An FIQ can be serviced through the MMR interface. Whenever an interrupt input goes high, if that
+interrupt is mapped as an FIQ and is enabled, then it will cause an FIQ to assert
+7.2.2.5.4 VIM Interrupt Vector Table (VIM RAM)
+For each VIM interrupt core, there is an associated interrupt vector table (VIM RAM) that is used to store the
+address of ISRs. During register vectored interrupt and hardware vectored interrupt, VIM accesses the interrupt
+vector table using the vector value to fetch the address of the corresponding ISR. Note that both interrupt vector
+tables are identical in their memory organization.
+The VIM RAM is basically comprised of a set of interrupt vector registers (R5FSS_VIM_VEC_INT_j). Hence, the
+interrupt vector table is organized in 256 words of 30 bits, with a base address corresponding to the physical
+address of the first register in the group.
+Note
+The lower two bits of the 32-bit interrupt vector are always 0s.
+Figure 7-3 shows the VIM RAM interrupt vector map.
+Interrupt 0 Vector
+Interrupt 254 Vector
+Interrupt 255 Vector
+Base Address + 3FCh
+Base Address + 3F8h
+Base Address + 8h
+Base Address + 4h
+Base Address + 0h
+Interrupt 1 Vector
+Interrupt 2 Vector
+VIM RAM Entries
+VIM RAM Address Space
+Figure 7-3. VIM RAM Interrupt Vector Map
+=== Page 659 ===
+The interrupt vector table has protection by ECC to indicate corruption due to soft errors. The ECC logic inside
+VIM supports SECDED. See Table 7-10 for the VIM RAM ID in the ECC aggregator map.
+7.2.2.5.5 VIM Interrupt Prioritization
+The VIM supports the interruption of the currently active interrupt by one with a higher priority. FIQs and IRQs
+are completely separate but both use the same mechanism.
+When an interrupt goes from pending to active (FIQ: reading the R5FSS_VIM_FIQVEC register; IRQ: reading
+the R5FSS_VIM_IRQVEC register, or the coreN_IRQACK going high), then the interrupt is loaded into
+the corresponding active register (R5FSS_VIM_ACTFIQ / R5FSS_VIM_ACTIRQ), and all interrupts of an
+equal or lesser priority are masked (discarded). If prior to this interrupt being cleared (by writing to the
+R5FSS_VIM_FIQVEC register, or R5FSS_VIM_IRQVEC register) another interrupt of higher priority arrives,
+then the FIQn/IRQn will be asserted and that interrupt made pending as normal. If the CPU switches this
+interrupt to active (by reading the R5FSS_VIM_FIQVEC / R5FSS_VIM_IRQVEC register), then the currently
+active interrupt will be pushed onto a stack. When an interrupt is cleared by reading the R5FSS_VIM_FIQVEC /
+R5FSS_VIM_IRQVEC register, if there are any interrupts on the stack, the first entry is popped off and put back
+into the R5FSS_VIM_ACTFIQ / R5FSS_VIM_ACTIRQ register, so that software may continue where it left off.
+7.2.2.5.6 VIM ECC Support
+The memory that holds the interrupt vector for each interrupt is protected by SECDED ECC. Single-bit errors are
+corrected and written back. Double-bit errors are not corrected. If a double-bit error occurs while trying to load a
+vector, then the R5FSS_VIM_DEDVEC register is used to provide the default vector for the coreN_IRQADDRV
+signal, the R5FSS_VIM_IRQVEC register, and the R5FSS_VIM_FIQVEC register. The R5FSS_VIM_DEDVEC
+should point to an ISR that handles the fact that there was an uncorrectable error in the interrupt handling.
+Some possible remediating actions would be to:
+1.
+Reconstruct the vector table and re-start the application
+a.
+Potentially switch to a completely software interrupt handler in the mean time
+2.
+Restart the application from scratch
+3.
+Reset the device
+4.
+Sit in a loop (or WFI) while something external (for example, the ESM) responds to the DED interrupt that
+will be generated
+It is up to the user and the application to determine the appropriate action.
+Note
+An interrupt that has an uncorrectable vector error (and thus uses the DED vector) will still have the
+priority of the original interrupt . This makes it possible for a higher priority interrupt to supercede the
+handling of the error.
+Control and reporting are done by the R5FSS ECC aggregator.
+7.2.2.5.7 VIM IDLE State
+The VIM will indicate IDLE when there are no pending unmasked interrupts or MMR accesses. The VIM does
+not have a clock stop interface.
+7.2.2.5.8 VIM Interrupt Handling
+There are multiple ways to service an interrupt depending on how much of the hardware assistance offered by
+the VIM the software wants to take advantage of.
+For IRQs, it is recommended to use the procedure in Section 7.2.2.5.8.1, but the procedures in Section
+7.2.2.5.8.2 or Section 7.2.2.5.8.3 (if a user wants to implement a fully software prioritization scheme) may be
+used as alternatives.
+=== Page 660 ===
+For FIQs, it is recommended to use the procedure in Section 7.2.2.5.8.4, but the procedure in Section 7.2.2.5.8.5
+may be used as an alternative.
+Note
+These descriptions do not include steps such as stack pushes and state retention that software must
+take in order to return from the ISR. It is assumed that the programmer is aware of these steps.
+7.2.2.5.8.1 Servicing IRQ Through Vector Interface
+If the associated CPU has the vector (VIC) interface enabled, then the following method is used for servicing
+IRQs:
+1.
+Hardware handshake
+a.
+CPU asserts coreN_IRQACK high
+b.
+VIM asserts coreN_IRQADDRV to indicate that the coreN_IRQADDR bus is stable with the correct
+vector address
+c.
+CPU reads coreN_IRQADDR, jumps to that address, and de-asserts coreN_IRQACK low
+d.
+VIM de-asserts coreN_IRQn and coreN_IRQADDRV, VIM masks (discards) all IRQs with the same or
+lower priority
+e.
+VIM loads the value from the R5FSS_VIM_PRIIRQ[9:0] NUM bit field (which corresponds to the vector
+address) into the R5FSS_VIM_ACTIRQ[9:0] NUM bit field, which causes the R5FSS_VIM_ACTIRQ[31]
+VALID bit to be set
+2.
+Service the interrupt
+3.
+Depending on whether the original source of the interrupt was a pulse or a level (determined by reading
+the R5FSS_VIM_ACTIRQ[9:0] NUM bit field to determine number, and reading the appropriate bit in the
+R5FSS_VIM_INTTYPE_j register to determine type)
+a.
+Pulse
+i.
+Clear the status by writing a '1' to the appropriate bit in the R5FSS_VIM_IRQSTS_j register, or
+R5FSS_VIM_STS_j register
+ii.
+Clear the interrupt at the source. This way, the source can generate another pulse, if it needs to, and
+the VIM will process this as a new interrupt
+b.
+Level
+i.
+Clear the interrupt at the source
+ii.
+Clear the status by writing a '1' to the appropriate bit in the R5FSS_VIM_IRQSTS_j register, or
+R5FSS_VIM_STS_j register. This way, the level should be gone at the input to the VIM, it will
+avoid falsely re-calling the interrupt. If the source maintains the level, then it means there is another
+interrupt
+4.
+Write any value to the R5FSS_VIM_IRQVEC register
+a.
+This will clear the priority mask and will cause all interrupts to be re-evaluated for the new highest priority
+interrupt
+b.
+This will also clear the R5FSS_VIM_ACTIRQ[31] VALID bit
+7.2.2.5.8.2 Servicing IRQ Through MMR Interface
+When an IRQ interrupt is received, the CPU should follow these steps if not using the vector interface:
+1.
+Read the R5FSS_VIM_IRQVEC register and jump to that address to service the ISR
+a.
+Reading this register will mask (discard) all interrupts of an equal or lower priority and de-assert the
+coreN_IRQn output. If another interrupt of a higher priority becomes available, the coreN_IRQn will
+re-assert, allowing priority interruption of an interrupt
+b.
+Reading this register will cause the value from the R5FSS_VIM_PRIIRQ[9:0] NUM bit field to be loaded
+into the R5FSS_VIM_ACTIRQ[9:0] NUM bit field, and the R5FSS_VIM_ACTIRQ[31] VALID bit to be set
+2.
+Service the interrupt
+3.
+Depending on whether the original source of the interrupt was a pulse or a level
+a.
+Pulse
+=== Page 661 ===
+i.
+Clear the status by writing a '1' to the appropriate bit in the R5FSS_VIM_STS_j register, or
+R5FSS_VIM_IRQSTS_j register
+ii.
+Clear the interrupt at the source
+b.
+Level
+i.
+Clear the interrupt at the source
+ii.
+Clear the status by writing a '1' to the appropriate bit in the R5FSS_VIM_STS_j register, or
+R5FSS_VIM_IRQSTS_j register
+4.
+Write any value to the R5FSS_VIM_IRQVEC register
+a.
+This will clear the priority mask and will cause all interrupts to be re-evaluated for the new highest priority
+interrupt
+b.
+This will also clear the R5FSS_VIM_ACTIRQ[31] VALID bit
+7.2.2.5.8.3 Servicing IRQ Through MMR Interface (Alternative)
+If a user does not want to use the R5FSS_VIM_IRQVEC register, the VIM may be used as a more
+traditional interrupt controller. Note that in this mode, there is no hardware priority masking (because the
+R5FSS_VIM_IRQVEC register is never read). Software would be responsible for doing all priority operations.
+1.
+Determine which interrupt to service
+a.
+Read the R5FSS_VIM_PRIIRQ register to determine which interrupt is the highest priority IRQ currently
+asserted, OR
+b.
+Optionally read the R5FSS_VIM_IRQGSTS register to determine which groups have IRQs pending, then
+read the R5FSS_VIM_IRQSTS_j register and use a software prioritization scheme to determine which
+IRQ to service
+2.
+Service the interrupt
+3.
+Depending on whether the original source of the interrupt was a pulse or a level
+a.
+Pulse
+i.
+Clear the status by writing a '1' to the appropriate bit in the R5FSS_VIM_STS_j register, or
+R5FSS_VIM_IRQSTS_j register
+ii.
+Clear the interrupt at the source.
+b.
+Level
+i.
+Clear the interrupt at the source
+ii.
+Clear the status by writing a '1' to the appropriate bit in the R5FSS_VIM_STS_j register, or
+R5FSS_VIM_IRQSTS_j register
+7.2.2.5.8.4 Servicing FIQ
+When an FIQ interrupt is received, the CPU should follow these steps:
+1.
+Read the R5FSS_VIM_FIQVEC register and jump to that address to service the ISR
+a.
+Reading this register will mask (discard) all interrupts of an equal or lower priority and de-assert the
+coreN_FIQn output. If another interrupt of a higher priority becomes available, the coreN_FIQn will
+re-assert, allowing priority interruption of an interrupt.
+b.
+Reading this register will cause the value from the R5FSS_VIM_PRIFIQ[9:0] NUM bit field to be loaded
+into the R5FSS_VIM_ACTFIQ[9:0] NUM bit field, and the R5FSS_VIM_ACTFIQ[31] VALID bit to be set
+2.
+Service the interrupt
+3.
+Depending on whether the original source of the interrupt was a pulse or a level (determined by reading
+the R5FSS_VIM_ACTFIQ[9:0] NUM bit field to determine number, and reading the appropriate bit in the
+R5FSS_VIM_INTTYPE_j register to determine type)
+a.
+Pulse
+i.
+Clear the status by writing a '1' to the appropriate bit in the R5FSS_VIM_STS_j register, or
+R5FSS_VIM_FIQSTS_j register
+ii.
+Clear the interrupt at the source. This way, the source can generate another pulse, if it needs to, and
+the VIM will process this as a new interrupt
+b.
+Level
+i.
+Clear the interrupt at the source
+=== Page 662 ===
+ii.
+Clear the status by writing a '1' to the appropriate bit in the R5FSS_VIM_STS_j register, or
+R5FSS_VIM_FIQSTS_j register. This way, the level should be gone at the input to the VIM, it will
+avoid falsely re-calling the interrupt. If the source maintains the level, then it means there is another
+interrupt
+4.
+Write any value to the R5FSS_VIM_FIQVEC register
+a.
+This will clear the priority mask and will cause all interrupts to be re-evaluated for the new highest priority
+interrupt
+b.
+This will also clear the R5FSS_VIM_ACTFIQ[31] VALID bit
+7.2.2.5.8.5 Servicing FIQ (Alternative)
+If a user does not want to use the R5FSS_VIM_FIQVEC register, the VIM may be used as a more
+traditional interrupt controller. Note that in this mode, there is no hardware priority masking (because the
+R5FSS_VIM_FIQVEC register is never read). Software would be responsible for doing all priority operations.
+1.
+Determine which interrupt to service
+a.
+Read the R5FSS_VIM_FIQVEC register to determine which interrupt is the highest priority FIQ currently
+asserted, OR
+b.
+Optionally read the R5FSS_VIM_FIQGSTS register to determine which groups have IRQs pending, then
+read the R5FSS_VIM_FIQSTS_j register and use a software prioritization scheme to determine which
+FIQ to service
+2.
+Service the interrupt
+3.
+Depending on whether the original source of the interrupt was a pulse or a level
+a.
+Pulse
+i.
+Clear the status by writing a '1' to the appropriate bit in the R5FSS_VIM_STS_j register, or
+R5FSS_VIM_FIQSTS_j register
+ii.
+Clear the interrupt at the source.
+b.
+Level
+i.
+Clear the interrupt at the source
+ii.
+Clear the status by writing a '1' to the appropriate bit in the R5FSS_VIM_STS_j register, or
+R5FSS_VIM_FIQSTS_j register.
+7.2.2.6 WKUP_R5FSS Region Address Translation (RAT)
+7.2.2.6.1 WKUP R5FSS Usage
+R5 is a micro controller with 32b address, which is only able to access up to 4GB address space. However,
+Sitara SoC supports 36b address and majority of the memory region beyond lower 4GB are implemented.
+Region based address translation block, called RAT, is introduced to allow R5 core to access full 36b SoC
+memory map.
+Each R5 core has its own RAT block, and only R5 core itself is able to program the RAT.
+Figure 7-4 shows the main R5’s default 32b memory map view when main R5 is out of reset.
+The full RAT functionality is described in Section 7.2.2.6.2, RAT Function.
+=== Page 663 ===
+Figure 7-4. R5 Core Default Memory Map View
+=== Page 664 ===
+Figure 7-5. Typical Sitara SoC Memory Map View
+=== Page 665 ===
+RAT block enables R5 core to have full access on the SoC memory map including the memory region at and
+above 0x1_0000_0000.
+Figure 7-6 shows how R5 access various end points, including its own ATCM, BTCM, VIM and SoC memory
+and peripherals. R5’s ATCM is by default at address 0x0, and its BTCM is at address 0x4101_0000. R5 uses
+address 0x2FFF_0000 to access its VIM and 0x2FFE_0000 to access the RAT configuration region and all
+the other transactions between address range 0x2000_0000 to 0x2FFF_FFFF are sent to the 32b peripheral
+interface to access the peripherals in SoC. The transactions with the rest of address are sent to RAT block,
+which could go through address remapping function from original R5’s 32b address to 36b SoC address.
+Figure 7-6. R5 Internal Address Decoding
+7.2.2.6.2 RAT Function
+RAT block is responsible to do a region based address translation. For each region, user can define the starting
+address and size of the region and remapping the transactions to use a new address range.
+The starting address and region size need to be aligned. For example, if the region size is 16KB, the starting
+address for that region needs to be 16KB aligned. And region size should be minimum 4KB or larger to avoid
+transactions cross the region boundaries.
+Each RAT block supports multiple programmable regions. And it is important that those regions are not
+overlapping with each other.
+RAT block is by default disabled, which means RAT block does not do address remapping. The 32b address
+coming from R5 core is directly sent out to the SoC level. The user can program each RAT remapping
+region individually. For the transactions does not hit any remapping region, RAT block just simply forwards
+the transactions to the SoC level with its original address.
+7.2.2.6.3 How to use RAT Block in R5
+Table 7-8 shows the default R5 memory map view. Without enabling RAT function, all the regions beyond 4GB
+address space will not be accessible by R5.
+Sitara SoC memory map is constructed the way to allow R5 and high level application processor such as A53
+have similar memory map as possible. This methodology enables that R5 and ARM A53 core have a common
+memory map for all the SoC level memories and SoC level peripherals except a few exceptions:
+•
+DDR’s data space beyond 32b address, basically upper DDR data space beyond 2GB
+•
+PCIe data space beyond 32b address
+•
+OSPI data space beyond 32b address
+•
+Debug configuration region
+=== Page 666 ===
+Table 7-8. R5 Memory map by Default
+R5 Memory Map(32b)
+SoC Memory Map (36b)
+SoC Level peripheral and on-chip SRAM
+0x0 to 0x7FFF_FFFF
+Same address as SoC memory map
+0x0 to 0x7FFF_FFFF
+2GB DDR region
+Same as SoC memory map:
+0x8000_0000 to 0xFFFF_FFFF
+0x80000_0000 to 0xFFFF_FFFF
+Additional DDR region
+Not accessible
+0x8_8000_0000 (30GB)
+Additional 8GB OSP Space
+Not accessible
+0x4_0000_0000 (4GB)
+0x5_0000_0000 (4GB)
+Additional PCIe data space
+Not accessible
+0x6_000_0000
+Debug configuration region
+Not accessible
+0x7_0000_0000
+Even though all the transactions other than going to ATCM/BTCM and transactions between address range
+0x2000_0000 to 0x2FFF_FFFF could use RAT block to remap to different address, it is recommended that only
+use RAT block to remap the R5 transactions with address between 0x8000_0000 to 0xFFFF_FFFF.
+•
+Any transactions from R5 with address between 0x0 to 0x7FFF_FFFF are sent out to SoC directly (unless it
+is targeted to its internal end points such as A/B TCM, its VIM and RAT configuration)
+•
+Only enable RAT to remap the transactions with address between 0x8000_0000 to 0xFFFF_FFFF if R5
+needs to access the following address space:
+•
+PCIe data space at address 0x6_0000_0000
+•
+OSPI data space address 0x4_0000_0000 and 0x5_0000_0000
+•
+Debug configuration region at address 0x7_0000_0000
+•
+DDR data space at address 0x8_8000_0000
+=== Page 667 ===
+Figure 7-7. Example of Using RAT to Access Full 36b SoC Memory Map
+=== Page 668 ===
+7.2.2.6.4 Example of Using RAT to Access Full 36b SoC Memory Map
+This section shows an example on how to utilize RAT block to allow R5 to access 36 SoC Memory Map. The
+RAT block inside R5 has up to 8 address remapping regions.
+Assuming R5 needs to access the following region:
+•
+All the SoC level on-chip SRAM
+•
+All the SoC level peripherals
+•
+Access 512MB OSPI region at address 0x4_0000_0000
+•
+Access 1GB DDR region at address 0x9_0000_0000
+•
+Access 512MB DDR region at address 0x8000_0000
+First of all, we need to construct 32b R5 memory map as following and how those memory spaces are mapped
+to SoC level, shown in Table 7-9. Users can define where the OSPI and DDR data space placed inside R5’s
+memory map and how they should be mapped to SoC level address map. Table 7-9 just shows one of the many
+possible ways to construct the memory map.
+Table 7-9. Example of R5 Address Mapping
+R5 Memory Map(32b)
+SoC Memory Map (36b)
+RAT Remapping
+SoC Level peripheral and on-chip
+SRAM
+(This is guaranteed by SoC
+Hardware design. No user
+configuration is needed)
+0x0 to 0x7FFF_FFFF
+Same address as SoC memory
+map
+0x0 to 0x7FFF_FFFF
+Not RAT Remapping
+512MB OSPI data region
+(user defined)
+0x8000_0000 to 0x9FFF_FFFF
+0x4_0000_0000 to
+0x4_1FFF_FFFF
+Using RAT remapping region 0
+512MB DDR space
+(user defined)
+0xA000_0000 to 0xBFFF_FFFF
+0x8000_0000 to 0x9FFF_FFFF
+Using RAT remapping region 1
+Additional 1GB DDR Space
+(user defined)
+0xC000_0000 to 0xFFFF_FFFF
+0x9_0000_0000 to
+0x9_3FFF_FFFF
+Using RAT remapping region 2
+In this example, only three RAT regions are needed:
+•
+Region 0 is used to remap R5’s address between 0x8000_0000 to 0x9FFF_FFFF to SoC level address
+0x4_0000_0000 to 0x4_1FFF_FFFF
+•
+Region 1 is used to remap R5’s address between 0xA000_0000 to 0xBFFF_FFFF to 0x8000_0000 to
+0x9FFF_FFFF
+•
+Region 2 is used to remap R5’s address 0xc000_0000 t0 0xFFFF_FFFF to 0x9_0000_0000 to
+0x9_3FFF_FFFF.
+In order achieving those mappings, those are the setting of the RAT configuration registers:
+Region 0
+Region 1
+Region 2
+Other regions
+Region control register
+Enabled, size set to
+512MB
+Enabled, size set to
+512MB
+Enabled, size set to 1GB
+disabled
+Region base(32b)
+0x8000_0000
+0xA000_0000
+0xc000_0000
+Don’t care
+Region translated lower
+address(32b)
+0x0000_0000
+0x8000_0000
+0x0000_0000
+Don’t care
+Region translated upper
+address
+0x4
+0x0
+0x9
+Don’t care
+Figure 7-8 shows how RAT is remapping the address between R5’s 32b address to 36b SoC address.
+=== Page 669 ===
+Figure 7-8. RAT Configuration Example
+=== Page 670 ===
+7.2.2.7 WKUP_R5FSS ECC Support
+The R5F provides native ECC and parity support on all related memories, generating and checking the
+redundancy automatically. The R5F can also monitor any ECC errors on it's SoC buses and bridges through the
+ECC aggregator. The methods for checking and reporting errors are available in the Arm Cortex-R5 Technical
+Reference Manual.
+The R5FSS adds the capability of testing this logic by allowing errors (single and double bit) to be injected
+into memories (for testing purposes) via an ECC aggregator (per core). Note that because the R5FSS ECC
+aggregator is only used in error-injection mode, it only supports a subset of the generic ECC aggregator
+functionality in the device.
+For a detailed description of the generic ECC aggregator functionality, see ECC Aggregator. For register
+descriptions of the WKUP_R5FSS aggregators, see R5FSS_CPU0_ECC_AGGR_CFG_REGS Registers and
+R5FSS_CPU1_ECC_AGGR_CFG_REGS Registers, respectively.
+Table 7-10 provides the RAM ID. This is needed for bit field [10-0] ECC_VECTOR in the corresponding
+R5FSS_CPU0_VECTORR5FSS_CPU0_VECTOR register (part of the ECC aggregator register space).
+Table 7-10. RAM ID Map for ECC Aggregator (Per
+Core)
+RAM ID
+Memory Name
+0
+CPU0 ITAG RAM0
+1
+CPU0 ITAG RAM1
+2
+CPU0 ITAG RAM2
+3
+CPU0 ITAG RAM3
+4
+CPU0 IDATA BANK0
+5
+CPU0 IDATA BANK1
+6
+CPU0 IDATA BANK2
+7
+CPU0 IDATA BANK3
+8
+CPU0 DTAG RAM0
+9
+CPU0 DTAG RAM1
+10
+CPU0 DTAG RAM2
+11
+CPU0 DTAG RAM3
+12
+CPU0 DDIRTY RAM
+13
+CPU0 DDATA RAM0
+14
+CPU0 DDATA RAM1
+15
+CPU0 DDATA RAM2
+16
+CPU0 DDATA RAM3
+17
+CPU0 DDATA RAM4
+18
+CPU0 DDATA RAM5
+19
+CPU0 DDATA RAM6
+20
+CPU0 DDATA RAM7
+21
+CPU0 ATCM BANK0
+22
+CPU0 ATCM BANK1
+23
+CPU0 B0TCM BANK0
+24
+CPU0 B0TCM BANK1
+25
+CPU0 B1TCM BANK0
+26
+CPU0 B1TCM BANK1
+27
+CPU0 VIM RAM
+=== Page 671 ===
+7.2.2.8 WKUP_R5FSS Memory View
+The memory view of the R5F (that is, the memory map as seen by each R5F) is a function of several things:
+•
+Exception vector bootstrap: The R5F exception table (including boot vector) is always 32 bytes at address
+0x00000000 as seen by the R5F. If not booting from a TCM, then boot is done over the main memory
+interface. The exception vector bootstrap is under software control, which allows these 32 bytes at address
+0x00000000 to be remapped somewhere else in the SoC memory map.
+•
+TCM locations: TCMs can be enabled or disabled and located at different places in the memory map,
+depending on bootstrap configuration. For more details, see Section 7.2.2.2.2.
+•
+Peripheral interface locations: The RF5 natively supports three interfaces for peripheral access. Each can
+be enabled/disabled and located based on bootstrap configuration. Note that the VBUSP peripheral interface
+must be enabled in order to use RAT and VIM.
+•
+RAT base address: This is determined by a bootstrap. This address is located within the VBUSP peripheral
+interface address space.
+•
+VIM base address: This is determined by a bootstrap. This address is located within the VBUSP peripheral
+interface address space.
+•
+RAT programming: The RAT can take regions of memory accessible by the main memory interface and map
+them to different addresses.
+The combination of the above determines what the R5F sees where in the memory map, and over what interface
+different transactions come out. Every transaction that does not directly address a TCM or a peripheral interface
+comes over the main memory interface. Transactions on the main memory interface can be further remapped
+with the RAT.
+See Memory Map for the complete R5F memory view for this device.
+7.2.2.9 WKUP_R5FSS Interrupts
+All interrupts that are generated by the WKUP_R5FSS are summarized in Module Integration, along with their
+mapping. They can be divided into the following groups:
+•
+R5F CPU internal interrupts: These are described in Arm Cortex-R5 Technical Reference Manual.
+•
+ECC aggregator interrupts: These are described in the ECC Aggregator chapter.
+•
+RAT exception interrupt: This is described in Section 7.2.2.6.
+7.2.2.10 WKUP_R5FSS Debug and Trace
+The WKUP_R5FSS supports standard Arm CoreSight debug and trace architecture. For more details, see the
+On-chip Debug chapter.
+7.2.2.11 WKUP_R5FSS Boot Options
+There are two methods of booting the R5F, or rather, two methods of placing the exception vectors (of which the
+boot vector is one).
+The first method is to have the exception vectors external to the R5F. The user can place the exception vectors
+at the address indicated by the exception vector bootstrap and then program the boot vector there. When the
+processor exits reset, it will fetch the boot vector from this location.
+The second method is to boot from a TCM. To do this, software should take the following steps:
+1.
+Assert the correct bootstraps
+a.
+To boot from ATCM, set CPUn_INITRAMA (or CPUn_INITRAMB to boot from BTCM)
+b.
+Assert CPUn_LOCZRAMA properly for the desired TCM
+2.
+Assert CPUn_HALT
+3.
+Release the CPU from reset
+4.
+Load the desired code into the TCM via the TCM target port
+a.
+Exception vectors should be located at address 0x00000000 of the TCM
+5.
+De-assert CPUn_HALT
+=== Page 672 ===
+7.2.2.12 WKUP_R5FSS Core Memory ECC Events
+The R5F core generates several events as part of event bus that can be monitored by the PMU for debugging.
+The memory ECC related events from the event bus are exported to ESM for monitoring.
+There are two ECC interrupts to the ESM that aggregate different categories of ECC events ± CPU single error,
+CPU multi error. Each ECC event has a 2-bit event bus counter associated with it. Everytime an event occurs,
+the counter is incremented by 1 till it reaches the max value of 3. The interrupt is asserted if the bus counter of
+any event associated with the interrupt is non-zero.
+Each event bus counter has a MMR decrement control to decrement the counter by 1. So, for example, if a
+counter value is 2, the MMR to decrement the counter would need to be written 2 times to decrement the counter
+to 0. The reason decrement control has been added instead of clear control is if a new error occurs between the
+time the status register is read and the clear MMR is written, the new error would be lost. Write-to-decrement
+ensures that this does not happen.
+When all event bus counters of an associated interrupt are zero, the interrupt is cleared. It takes three clock
+cycles for the event bus counter to be decremented once the write to the decrement control MMR presents itself
+at the WKUP_R5FSS boundary.
+Since each of the four ECC interrupts have single bit control to set the interrupt but multiple bits for clearing
+it, note that once an interrupt is set using the R5FSS_EVNT_BUS_ESM_SET register, it can be cleared by
+setting all the bits of the R5FSS_EVNT_BUS_ESM_CLR register that correspond to that particular interrupt. For
+example, if bit [0] of the R5FSS_EVNT_BUS_ESM_SET register is set, it can be cleared by setting bits [7-0] of
+the R5FSS_EVNT_BUS_ESM_CLR register to clear the interrupt.
+The R5F core event bus only signals event when it is enabled. Non-invasive or invasive debug mode needs to
+be enabled to enable the PMU counters.
+The export of the events to the event bus can be enabled by setting the X bit in the Performance Monitor Control
+Register of the R5F core. For more details, refer to Arm R5 TRM.
+Table 7-11. R5F Event Bus Single-Bit Error Events
+Event Bus
+Bit #
+Description
+Associated Status Register
+22
+Instruction cache tag RAM parity or correctable
+ECC error.
+R5FSS_CPU0_EVNT_BUS_SB_ERR_CNT_STATUS[0] EVNT_BUS0
+R5FSS_CPU1_EVNT_BUS_SB_ERR_CNT_STATUS[0] EVNT_BUS0
+23
+Instruction cache data RAM parity or
+correctable ECC error.
+R5FSS_CPU0_EVNT_BUS_SB_ERR_CNT_STATUS[0] EVNT_BUS1
+R5FSS_CPU1_EVNT_BUS_SB_ERR_CNT_STATUS[0] EVNT_BUS1
+24
+Data cache tag or dirty RAM parity error or
+correctable ECC error, from data-side or ACP.
+R5FSS_CPU0_EVNT_BUS_SB_ERR_CNT_STATUS[0] EVNT_BUS2
+R5FSS_CPU1_EVNT_BUS_SB_ERR_CNT_STATUS[0] EVNT_BUS2
+25
+Data cache data RAM parity error or
+correctable ECC error.
+R5FSS_CPU0_EVNT_BUS_SB_ERR_CNT_STATUS[0] EVNT_BUS3
+R5FSS_CPU1_EVNT_BUS_SB_ERR_CNT_STATUS[0] EVNT_BUS3
+40
+ATCM single-bit ECC error.
+R5FSS_CPU0_EVNT_BUS_SB_ERR_CNT_STATUS[0] EVNT_BUS4
+R5FSS_CPU1_EVNT_BUS_SB_ERR_CNT_STATUS[0] EVNT_BUS4
+41
+B0TCM single-bit ECC error.
+R5FSS_CPU0_EVNT_BUS_SB_ERR_CNT_STATUS[0] EVNT_BUS5
+R5FSS_CPU1_EVNT_BUS_SB_ERR_CNT_STATUS[0] EVNT_BUS5
+42
+B1TCM single-bit ECC error.
+R5FSS_CPU0_EVNT_BUS_SB_ERR_CNT_STATUS[0] EVNT_BUS6
+R5FSS_CPU1_EVNT_BUS_SB_ERR_CNT_STATUS[0] EVNT_BUS6
+43
+TCM correctable ECC error reported by load/
+store unit.
+R5FSS_CPU0_EVNT_BUS_SB_ERR_CNT_STATUS[0] EVNT_BUS7
+R5FSS_CPU1_EVNT_BUS_SB_ERR_CNT_STATUS[0] EVNT_BUS7
+44
+TCM correctable ECC error reported by
+prefetch unit.
+R5FSS_CPU0_EVNT_BUS_SB_ERR_CNT_STATUS[0] EVNT_BUS8
+R5FSS_CPU1_EVNT_BUS_SB_ERR_CNT_STATUS[0] EVNT_BUS8
+Table 7-12. R5F Event Bus Multi-Bit Error Events
+Event Bus
+Bit #
+Description
+Associated Status Register
+26
+TCM fatal ECC error reported from the prefetch
+unit.
+R5FSS_CPU0_EVNT_BUS_MB_ERR_CNT_STATUS[0] EVNT_BUS0
+R5FSS_CPU1_EVNT_BUS_MB_ERR_CNT_STATUS[0] EVNT_BUS0
+=== Page 673 ===
+Table 7-12. R5F Event Bus Multi-Bit Error Events (continued)
+Event Bus
+Bit #
+Description
+Associated Status Register
+27
+TCM fatal ECC error reported from the load/
+store unit.
+R5FSS_CPU0_EVNT_BUS_MB_ERR_CNT_STATUS[0] EVNT_BUS1
+R5FSS_CPU1_EVNT_BUS_MB_ERR_CNT_STATUS[0] EVNT_BUS1
+33
+Data cache data RAM fatal ECC error.
+R5FSS_CPU0_EVNT_BUS_MB_ERR_CNT_STATUS[0] EVNT_BUS2
+R5FSS_CPU1_EVNT_BUS_MB_ERR_CNT_STATUS[0] EVNT_BUS2
+34
+Data caches tag/dirty RAM fatal ECC error,
+from data-side or ACP.
+R5FSS_CPU0_EVNT_BUS_MB_ERR_CNT_STATUS[0] EVNT_BUS3
+R5FSS_CPU1_EVNT_BUS_MB_ERR_CNT_STATUS[0] EVNT_BUS3
+37
+ATCM multi-bit ECC error.
+R5FSS_CPU0_EVNT_BUS_MB_ERR_CNT_STATUS[0] EVNT_BUS4
+R5FSS_CPU1_EVNT_BUS_MB_ERR_CNT_STATUS[0] EVNT_BUS4
+38
+B0TCM multi-bit ECC error.
+R5FSS_CPU0_EVNT_BUS_MB_ERR_CNT_STATUS[0] EVNT_BUS5
+R5FSS_CPU1_EVNT_BUS_MB_ERR_CNT_STATUS[0] EVNT_BUS5
+39
+B1TCM multi-bit ECC error.
+R5FSS_CPU0_EVNT_BUS_MB_ERR_CNT_STATUS[0] EVNT_BUS6
+R5FSS_CPU1_EVNT_BUS_MB_ERR_CNT_STATUS[0] EVNT_BUS6
+7.2.3 Vectored Interrupt Manager (VIM)
+This section describes the VIM module in the device.
+7.2.3.1 VIM Overview
+The Vectored Interrupt Manager (VIM) aggregates interrupts to a CPU. It is intended for use with a Cortex R5
+from ARM. The VIM has up to 1024 interrupt inputs, which may be either level or pulse. Each interrupt has a
+programmable priority (0-highestthrough 15-lowest). Each interrupt may also be mapped as an IRQ or FIQ (FIQ
+is also often denoted as Non-Maskable Interrupt, or NMI).
+7.2.3.1.1 VIM Features
+•
+32-1024 Interrupt inputs
+•
+Configurable by groups of 32
+•
+Each interrupt has its own 4-bit programmable priority
+•
+Supports Priority interruption of interrupts
+•
+Each interrupt has its own enable mask
+•
+Each interrupt can be programmed as either an IRQ or FIQ
+•
+Each interrupt has its own programmable 32-bit Vector address associated with it
+•
+Protected with SECDED
+•
+One IRQn and FIQn output
+•
+Vectored Interrupt Interface
+•
+Compatible with ARM Cortex R5 VIC Port
+•
+Default Vector provided when a Double-Bit error is detected
+•
+Provides clock phase inputs so VIM can run at CPU clock while interface runs at a different, synchronous
+clock
+7.2.3.1.2 Unsupported Features
+See the Module Integration section for information about unsupported features.
+Note
+Some features may not be available. See Module Integration for more information.
+7.2.3.2 VIM Functional Description
+7.2.3.2.1 Block Diagram
+Figure 7-9 shows the Vectored Interrupt Manager block diagram.
+Figure 7-9. VIM Block Diagram
+=== Page 674 ===
+7.2.3.2.2 Interrupt Inputs
+The VIM can have up to 1024 interrupt inputs, build-time configurable by multiples of 32 (num_interrupts
+parameter). Each interrupt can be either a level or a pulse (both active high).
+Level interrupts are synchronized to the VIM clock. This synchronized value is captured in to a flop.
+Pulse interrupts use rising edge detection. Each input has its own edge detection circuit. It is recommended that
+if pulses are pipelined between the source and the VIM, that the pipe stage replicates the pipe flop and ORs the
+output in order to protect against transient errors in the pipeline flop. Once an edge has been detected, the raw
+status is set.
+There is no minimum pulse width, as true edge detection is used. The input signal should, however, be glitch
+free.
+7.2.3.2.3 Interrupt Outputs
+The VIM has two interrupt outputs, coreN_IRQn and coreN_FIQn (active low levels). Each interrupt input for core
+N can be programmed to influence either the coreN_IRQn or coreN_FIQn output via the Group M Interrupt Map
+Register (Base Address + 0x200 + N*0x20 + 0x18).
+7.2.3.2.4 Priority Interrupt / Nested Interrupts
+Each interrupt has a priority number assigned to it (set using the 4.1.20 Interrupt Q Priority Register (Base
+Address + 0x1000 + Q*0x4) register). Legal values are 0 to 15 where 0 is the highest priority and 15 is the
+lowest priority. The highest priority interrupt is the pending interrupt with the smallest priority number. If two
+pending interrupts have the same priority, the interrupt lowest numerically (0 through maximum number of
+interrupts) is prioritized. IRQs and FIQs are prioritized separately.
+The VIM supports the interrupt of the currently active interrupt by one with a higher priority. FIQs and IRQs are
+completely separate, but both use the same mechanism. When an interrupt goes from pending to active (FIQ:
+reading the FIQ Vector Address (Base Address + 0x1C), IRQ: reading the IRQ Vector Address (Base Address
++ 0x18) or the coreN_IRQACK going high), then the interrupt is loaded into the corresponding Active Register,
+and all interrupts of an equal or lesser priority are masked off (see note below). If, before this interrupt is
+cleared (writing the FIQ Vector Address (Base Address + 0x1C) or IRQ Vector Address (Base Address + 0x18))
+another interrupt of higher priority arrives, then the FIQn/IRQn will be asserted and that interrupt made pending
+as normal. The CPU may or may not service the higher priority interrupt. If the CPU switches this interrupt to
+active, by reading the corresponding Vector Address Register (or coreN_IRQACK going high for an IRQ) , then
+the currently active interrupt will be pushed on to a stack. When an interrupt is cleared by writing the Vector
+Address Register, if there are any interrupts on the stack, the first entry is popped off and put back into the Active
+Register, so that software may continue where it left off. Note that the IRQVEC/FIQVEC address registers are
+not repopulated with the old vector as it’s assumed that the ISR is picking back up where it left off. Only the
+=== Page 675 ===
+interrupt number and priority are restored to the ACTIRQ/ACTFIQ registers. If software needs the vector again, it
+will have to read it by using the interrupt number.
+Note
+„Masked off“ means that they are masked off from priority arbitration to interrupt the currently active
+interrupt, it does NOT mean that the status bits in the regsiters are masked off. i.e. this priority
+masking has NO EFFECT on whether the status bits are visible in the masked registers such as the
+Group M Interrupt Enabled Status/Clear Register (Base Address + 0x400 + M*0x20 + 0x04).
+7.2.3.2.5 VIC Port
+The VIM is designed to work with the VIC interface of an ARM Cortex R5.
+7.2.3.2.6 Latency
+There are several factors that go in to the speed of processing an interrupt: the interrupt controller, the
+processor, and the system latency.
+The VIM behaves deterministically (except for synchronizer delay). Table 7-13 shows the latency of the VIM.
+Table 7-13. VIM Latency
+Step
+Cycles
+Note
+Edge Detection
+2-3
+Synchronizing to VIM Clock
+Interrupt Capture
+1
+Prioritization and Vector Read
+1
+IRQ Could be stalled here if an FIQ is reading the Vector RAM
+IRQ/FIQ output asserted
+The next factor is the processor itself
+Table 7-14. Processor Interrupt Latency
+Step
+Cycles(1)
+Note
+Take Exception
+Store State
+Stack system registers etc
+Read Vector
+1
+Through MMR or VIC interface (for IRQ. VIC interface will be faster)
+Jump to Vector
+(1)
+These steps are dependent on the processor. See R5 spec for details.
+The final factor is system latency to access the actually instructions for the ISR. This will be dependent on where
+the instructions are (cache, TCM, system memory etc) and dependent on the system latency to reach those
+memories (1 cycle for cache/TCM, System dependent for external memory)
+7.2.3.2.7 Safety
+The memory that holds the interrupt vector for each interrupt is protected by SECDED ECC. Single-bit errors
+are corrected and written back. Double-bit errors are not corrected. If a double-bit error occurs while trying to
+load a vector, then the DED Vector Address (Base Address + 0x30) is used instead for the coreN_IRQADDRV,
+IRQ Vector Address (Base Address + 0x18), and FIQ Vector Address (Base Address + 0x1C). The DED Vector
+Address should point to an ISR that handles the fact that there was an uncorrectable error in the interrupt
+handling. Some possible remediating actions would be to:
+1.
+Reconstruct the vector table and re-start the application
+a.
+Potentially switch to a completely software interrupt handler in the mean time
+2.
+Restart the application from scratch
+3.
+Reset the device
+4.
+Sit in a loop (or WFI) while something external (say the ESM) responds to the DED interrupt that will be
+generated
+=== Page 676 ===
+It is up to the user and the application to determine the appropriate action.
+An interrupt that has an uncorrectable vector error and thus uses the DED Vector, will still have the priority of the
+original interrupt (i.e. for masking purposes). This makes it possible for a higher priority interrupt to supercede
+the handling of the error.
+Control and reporting are done by an external ECC aggregator through sVbus ports.
+7.2.3.2.8 IDLE
+The VIM will indicate IDLE when there are no pending unmasked interrupts or MMR accesses. The VIM does
+not have a clock stop interface because it does not have a clock IPG. To clock stop the sub-system that includes
+the VIM, disable (mask) all interrupts and wait for the IDLE signal to assert.
+7.2.3.3 Interrupt Conditions
+7.2.3.3.1 CPU Interrupts
+See Table 7-15 for the interrupts generated by the module.
+Table 7-15. Interrupts
+Interrupt
+Description
+core0_IRQn
+IRQ Interrupt (Active Low)
+core0_FIQn
+FIQ Interrupt (Active Low)
+7.2.3.3.2 Interrupt Description
+7.2.3.3.2.1 coreN_IRQn
+This is a normal interrupt, active low level, for Core N. It can be serviced via the VIC interface or through the
+MMR interface.
+7.2.3.3.2.2 coreN_FIQn
+This is a fast (or non-maskable) interrupt, active low level, for Core N. FIQs always have priority over IRQs. An
+FIQ can be serviced through the MMR interface.
+7.2.3.3.3 Interrupt Condition Control
+7.2.3.3.3.1 coreN_IRQn
+Whenever an interrupt input goes high, if that interrupt is mapped as an IRQ (Group N Interrupt Map Register
+(Base Address + 0x200 + N*0x20 + 0x18)) and is enabled (Group N Interrupt Enabled Set Register (Base
+Address + 0x200 + N*0x20 + 0x08)), and its priority is not masked (4.1.11 IRQ Priority Mask Register (Base
+Address + 0x28), and it is not masked because of nested interrupt priority masking (2.2.5 Priority Interrupt /
+Nested Interrupts), then it will cause an IRQ to assert.
+7.2.3.3.3.2 coreN_FIQn
+Whenever an interrupt input goes high, if that interrupt is mapped as an FIQ (Group N Interrupt Map Register
+(Base Address + 0x200 + N*0x20 + 0x18)) and is enabled (Group N Interrupt Enabled Set Register (Base
+Address + 0x200 + N*0x20 + 0x08)), and its priority is not masked (4.1.12 FIQ Priority Mask Register (Base
+Address + 0x2C)), and it is not masked because of nested interrupt priority masking (2.2.5 Priority Interrupt /
+Nested Interrupts), then it will cause an FIQ to assert.
+7.2.3.3.4 Interrupt Handling
+There are multiple ways to service an interrupt depending on how much of the hardware assistance offered by
+the VIM software wants to take advantage of. For IRQs, it is recommended to use 3.4.1 IRQ through the Vector
+Interface, but 3.4.2 or 3.4.3 (if a user wants to implement a fully software prioritization scheme) may be used as
+alternatives. For FIQs, it is recommended to use 3.4.4 FIQ, but 3.4.5 may be used as an alternative.
+=== Page 677 ===
+Note
+These descriptions do not include steps such as stack pushes and state retention that software must
+take in order to return from the ISR. It is assumed that the programmer is aware of these steps.
+7.2.3.3.4.1 IRQ through the Vector Interface
+If the attached CPU has the Vector Interface enabled, then the following method is used for servicing IRQs
+1.
+Hardware handshake
+a.
+CPU asserts coreN_IRQACK signal high
+b.
+VIM asserts coreN_IRQADDRV to indicate that the coreN_IRQADDR bus is stable with the correct
+Vector Address
+c.
+CPU reads the coreN_IRQADDR, jumps to that address, and de-asserts coreN_IRQACK signal low
+d.
+VIM de-asserts coreN_IRQn_intr and coreN_IRQADDRV, VIM masks all IRQs with the same or lower
+priority
+e.
+VIM loads the value from the Prioritized IRQ (Base Address + 0x08) (which corresponds to the vector
+address) to be loaded into the Active IRQ (Base Address + 0x20) and the valid bit to be set
+2.
+Service an interrupt
+3.
+Depending on whether the original source of the interrupt was a pulse or a level (Determined by reading the
+Active IRQ (Base Address + 0x20) to determine number and reading the Group M Type Map Register (Base
+Address + 0x200 + M*0x20 + 0x1C) to determine type)
+a.
+Pulse
+i.
+Clear the status by writing a 1 to the appropriate bit in the Group M Interrupt Enabled Status/Clear
+Register (Base Address + 0x400 + M*0x20 + 0x04) or Group M Interrupt IRQ Enabled Status/Clear
+Register (Base Address + 0x400 + M*0x20 + 0x10)
+ii.
+Clear the interrupt at the source
+1.
+This way, the source can generate another pulse if it needs to and the VIM will process this as a
+new interrupt
+b.
+Level
+i.
+Clear the interrupt at the source
+ii.
+Clear the status by writing a 1 to the appropriate bit in the Group M Interrupt Enabled Status/Clear
+Register (Base Address + 0x400 + M*0x20 + 0x04) or Group M Interrupt IRQ Enabled Status/Clear
+Register (Base Address + 0x400 + M*0x20 + 0x10)
+1.
+This way, the level should be gone at the input to the VIM, it will avoid falsely re-calling the
+interrupt
+2.
+If the source maintains the level, then it means there is another interrupt
+4.
+4. Write any value to the IRQ Vector Address (Base Address + 0x18)
+a.
+This will clear the priority mask and all interrupts to be re-evaluated for the new highest priority interrupt.
+b.
+This will clear the valid bit of the Active IRQ (Base Address + 0x20)
+7.2.3.3.4.2 IRQ through MMR Interface
+When an IRQ interrupt is received, the CPU should follow these steps if not using the Vector Interface.
+1.
+Read the IRQ Vector Address (Base Address + 0x18) and jump to that address to service the ISR
+a.
+Reading this register will mask all interrupts of an equal or lower priority and de-assert the IRQn output.
+If another interrupt of a higher priority becomes available, the IRQn will re-assert, allowing priority
+interruption of an interrupt.
+b.
+Reading this register will cause the value from the Prioritized IRQ (Base Address + 0x08) (which
+corresponds to the vector address) to be loaded into the Active IRQ (Base Address + 0x20) and the valid
+bit to be set
+2.
+Service the interrupt
+3.
+Depending on whether the original source of the interrupt was a pulse or a level (Determined by reading the
+Active IRQ (Base Address + 0x20) to determine number and reading the Group M Type Map Register (Base
+Address + 0x200 + M*0x20 + 0x1C) to determine type)
+=== Page 678 ===
+a.
+Pulse
+i.
+Clear the status by writing a 1 to the appropriate bit in the Group M Interrupt Enabled Status/Clear
+Register (Base Address + 0x400 + M*0x20 + 0x04) or Group M Interrupt IRQ Enabled Status/Clear
+Register (Base Address + 0x400 + M*0x20 + 0x10)
+ii.
+Clear the interrupt at the source
+1.
+This way, the source can generate another pulse if it needs to and the VIM will process this as a
+new interrupt
+b.
+Level
+i.
+Clear the interrupt at the source
+ii.
+Clear the status by writing a 1 to the appropriate bit in the Group M Interrupt Enabled Status/Clear
+Register (Base Address + 0x400 + M*0x20 + 0x04) or Group M Interrupt IRQ Enabled Status/Clear
+Register (Base Address + 0x400 + M*0x20 + 0x10)
+1.
+This way, the level should be gone at the input to the VIM, it will avoid falsely re-calling the
+interrupt
+2.
+If the source maintains the level, then it means there is another interrupt
+4.
+Write any value to the IRQ Vector Address (Base Address + 0x18)
+a.
+This will clear the priority mask and all interrupts to be re-evaluated for the new highest priority interrupt.
+b.
+This will clear the valid bit of the Active IRQ (Base Address + 0x20)
+7.2.3.3.4.3 IRQ through MMR Interface (Alternative)
+If a user does not want to use the Vector Address registers, the VIM may be used as a more traditional interrupt
+controller. Note that in this mode, priority masking will not work if route 1b is used (below) as the hardware
+prioritization may not match the software prioritization scheme. In this case, software would be responsible for
+doing all priority operations
+1.
+Determine which interrupt to service
+a.
+Read the Prioritized IRQ (Base Address + 0x08) to determine which interrupt is the highest priority IRQ
+currently asserted OR
+b.
+Optionally read the IRQ Group Status (Base Address + 0x10) to determine which groups have IRQs
+pending, then read the Group M Interrupt IRQ Enabled Status/Clear Register (Base Address + 0x400 +
+M*0x20 + 0x10) and use a software prioritization scheme to determine which IRQ to service
+2.
+Service the interrupt
+3.
+Read the IRQ Vector Address (Base Address + 0x18)
+a.
+Note, this step can be done any time before step 4
+b.
+Value is ignored
+4.
+Depending on whether the original source of the interrupt was a pulse or a level (Determined by reading the
+Group M Type Map Register (Base Address + 0x200 + M*0x20 + 0x1C) to determine type)
+a.
+Pulse
+i.
+Clear the status by writing a 1 to the appropriate bit in the Group M Interrupt Enabled Status/Clear
+Register (Base Address + 0x400 + M*0x20 + 0x04) or Group M Interrupt IRQ Enabled Status/Clear
+Register (Base Address + 0x400 + M*0x20 + 0x10)
+ii.
+Clear the interrupt at the source
+1.
+This way, the source can generate another pulse if it needs to and the VIM will process this as a
+new interrupt
+b.
+Level
+i.
+Clear the interrupt at the source
+ii.
+Clear the status by writing a 1 to the appropriate bit in the Group M Interrupt Enabled Status/Clear
+Register (Base Address + 0x400 + M*0x20 + 0x04) or Group M Interrupt IRQ Enabled Status/Clear
+Register (Base Address + 0x400 + M*0x20 + 0x10)
+1.
+This way, the level should be gone at the input to the VIM, it will avoid falsely re-calling the
+interrupt
+=== Page 679 ===
+2.
+If the source maintains the level, then it means there is another interrupt
+5.
+Write any value to the IRQ Vector Address (Base Address + 0x18)
+7.2.3.3.4.4 FIQ
+When an FIQ interrupt is received, the CPU should follow these steps.
+1.
+Read the FIQ Vector Address (Base Address + 0x1C) and jump to that address to service the ISR
+a.
+Reading this register will mask all interrupts of an equal or lower priority and de-assert the FIQn output.
+If another interrupt of a higher priority becomes available, the FIQn will re-assert, allowing priority
+interruption of an interrupt.
+b.
+Reading this register will cause the value from the Prioritized FIQ (Base Address + 0x0C) (which
+corresponds to the vector address) to be loaded into the Active FIQ (Base Address + 0x24) and the valid
+bit to be set
+2.
+Service the interrupt
+3.
+Depending on whether the original source of the interrupt was a pulse or a level (Determined by reading the
+Active FIQ (Base Address + 0x24) to determine number and reading the Group M Type Map Register (Base
+Address + 0x200 + M*0x20 + 0x1C) to determine type)
+a.
+Pulse
+i.
+Clear the status by writing a 1 to the appropriate bit in the Group M Interrupt Enabled Status/Clear
+Register (Base Address + 0x400 + M*0x20 + 0x04) or Group M Interrupt FIQ Enabled Status/Clear
+Register (Base Address + 0x400 + M*0x20 + 0x14)
+ii.
+Clear the interrupt at the source
+1.
+This way, the source can generate another pulse if it needs to and the VIM will process this as a
+new interrupt
+b.
+Level
+i.
+Clear the interrupt at the source
+ii.
+Clear the status by writing a 1 to the appropriate bit in the Group M Interrupt Enabled Status/Clear
+Register (Base Address + 0x400 + M*0x20 + 0x04) or Group M Interrupt FIQ Enabled Status/Clear
+Register (Base Address + 0x400 + M*0x20 + 0x14)
+1.
+This way, the level should be gone at the input to the VIM, it will avoid falsely re-calling the
+interrupt
+2.
+If the source maintains the level, then it means there is another interrupt
+4.
+Write any value to the FIQ Vector Address (Base Address + 0x1C)
+a.
+This will clear the priority mask and all interrupts to be re-evaluated for the new highest priority interrupt.
+b.
+This will clear the valid bit of the Active FIQ (Base Address + 0x24)
+7.2.3.3.4.5 FIQ (Alternative)
+If a user does not want to use the Vector Address registers, the VIM may be used as a more traditional interrupt
+controller. Note that in this mode, there is no hardware priority masking (because the FIQ Vector Address (Base
+Address + 0x1C) is never read). Software would be responsible for doing all priority operations
+1.
+Determine which interrupt to service
+a.
+Read the Prioritized FIQ (Base Address + 0x0C) to determine which interrupt is the highest priority FIQ
+currently asserted OR
+b.
+Optionally read the FIQ Group Status (Base Address + 0x14) to determine which groups have IRQs
+pending, then read the Group M Interrupt FIQ Enabled Status/Clear Register (Base Address + 0x400 +
+M*0x20 + 0x14) and use a software prioritization scheme to determine which FIQ to service
+2.
+Service the interrupt
+3.
+Depending on whether the original source of the interrupt was a pulse or a level (Determined by reading the
+Group M Type Map Register (Base Address + 0x200 + M*0x20 + 0x1C) to determine type)
+a.
+Pulse
+=== Page 680 ===
+i.
+Clear the status by writing a 1 to the appropriate bit in the Group M Interrupt Enabled Status/Clear
+Register (Base Address + 0x400 + M*0x20 + 0x04) or Group M Interrupt FIQ Enabled Status/Clear
+Register (Base Address + 0x400 + M*0x20 + 0x14)
+ii.
+Clear the interrupt at the source
+1.
+This way, the source can generate another pulse if it needs to and the VIM will process this as a
+new interrupt
+b.
+Level
+i.
+Clear the interrupt at the source
+ii.
+Clear the status by writing a 1 to the appropriate bit in the Group M Interrupt Enabled Status/Clear
+Register (Base Address + 0x400 + M*0x20 + 0x04) or Group M Interrupt FIQ Enabled Status/Clear
+Register (Base Address + 0x400 + M*0x20 + 0x14)
+1.
+This way, the level should be gone at the input to the VIM, it will avoid falsely re-calling the
+interrupt
+2.
+If the source maintains the level, then it means there is another interrupt
+7.2.3.4 Memory Map
+Each Interrupt Core (N = 0) has its own MMR interface with its own independent memory map
+Table 7-16. Core N Memory Map
+Address Offset
+Register
+0x00
+Revision Register
+0x04
+Info Register
+0x08
+Prioritized IRQ
+0x0C
+Prioritized FIQ
+0x10
+IRQ Group Status
+0x14
+FIQ Group Status
+0x18
+IRQ Vector Address
+0x1C
+FIQ Vector Address
+0x20
+Active IRQ
+0x24
+Active FIQ
+0x28-0x2F
+Reserved
+0x30
+DED Vector Address
+0x34-0x1FF
+Reserved
+0x400 + M*0x20 + 0x00
+Group M Interrupt Raw Status/Set Register
+0x400 + M*0x20 + 0x04
+Group M Interrupt Enabled Status/Clear Register
+0x400 + M*0x20 + 0x08
+Group M Interrupt Enabled Set Register
+0x400 + M*0x20 + 0x0C
+Group M Interrupt Enabled Clear Register
+0x400 + M*0x20 + 0x10
+Group M Interrupt IRQ Enabled Status/Clear Register
+0x400 + M*0x20 + 0x14
+Group M Interrupt FIQ Enabled Status/Clear Register
+0x400 + M*0x20 + 0x18
+Group M Interrupt Map Register
+0x400 + M*0x20 + 0x1C
+Group M Type Map Register
+0x1000 + Q*0x4 ± 00x1FFF
+Interrupt Q Priority Register
+0x2000 + Q*0x4 ± 0x2FFF
+Interrupt Q Vector Register
+There are M interrupt groups (0 through num_groups-1) with 32 interrupts per group.
+There are Q interrupt inputs where Q = M * 32.
+Accesses to the Interrupt Q Vector Register (Base Address + 0x2000 + Q*0x4) must be word-aligned, 32-bit
+accesses. Any write received with no bytes enabled will be ignored. Any writes receive with all bytes enabled will
+be executed. Any other write will not execute and will return an error status of Addressing Error.
+=== Page 681 ===
+7.2.3.5 Module I/O
+7.2.3.5.1 Clocks, Reset, Emulation
+Table 7-17. Clocks, Reset, Emulation
+Pin Name
+Type
+Function
+core0_clk
+In
+Clock for Core 0
+core0_phase
+In
+Phase Indicator for Core 0
+core0_srst_n
+In
+Sync Module Reset for Core 0
+core0_arst_n
+In
+Async Module Reset for Core 0
+core0_clkstop_idle
+Out
+Clock Stop Idle
+7.2.3.5.2 VBUSP Target Interface
+(N=0). Core0 interface is used for interrupt core 0.
+Table 7-18. VBUSP Target Interface
+Pin Name
+Type
+Function
+coreN_cfg_req
+In
+Request
+coreN_cfg_address[13:0]
+In
+Address (byte address)
+coreN_cfg_dir
+In
+Direction (read or write)
+coreN_cfg_xcnt[2:0]
+In
+Transaction Count
+coreN_cfg_byten[3:0]
+In
+Byte enables
+coreN_cfg_wdata[31:0]
+In
+Write data
+coreN_cfg_rdatap[31:0]
+Out
+Read data
+coreN_cfg_rready
+Out
+Read ready
+coreN_cfg_wready
+Out
+Write ready
+coreN_cfg_rstatus[2:0]
+Out
+Read Status
+coreN_cfg_emudbg
+In
+Emulation Debug
+7.2.3.5.3 Interrupt Inputs
+Core0 interface is used for interrupt core 0.
+Table 7-19. Interrupt Inputs
+Pin Name
+Type
+Function
+core0_in_intr[Q-1:0]
+In
+Core 0 Interrupt Inputs
+7.2.3.5.4 Interrupt Outputs
+Table 7-20. Interrupt Outputs
+Pin Name
+Type
+Function
+core0_IRQn_intr
+Out
+IRQ Interrupt for core 0± Active Low Level
+core0_FIQn_intr
+Out
+FIQ Interrupt for core 0 ± Active Low Level
+7.2.3.5.5 VIC Interfaces
+(N=0). Core0 interface is used for interrupt core 0.
+Table 7-21. VIC Interfaces
+Pin Name
+Type
+Function
+coreN_vic_IRQADDRV
+Out
+IRQ Address Valid
+coreN_vic_IRQADDR[31:2]
+Out
+IRQ Address
+=== Page 682 ===
+Table 7-21. VIC Interfaces (continued)
+Pin Name
+Type
+Function
+coreN_vic_IRQACK
+In
+Interrupt Acknowledge
+7.2.3.5.6 Compare Outputs
+These pins will never be on an isolation boundary and therefore their isolation values are don't-care. Y is
+dependent on the configuration
+Table 7-22. Compare Outputs
+Pin Name
+Type
+Function
+core0_compare_bus[Y:0]
+Out
+Comparison Bus for Core0 to CCMR5
+7.2.3.5.7 ECC Control and Status Bus
+(N=0). Core0 interface is used for interrupts for core 0.
+Table 7-23. ECC Control and Status Bus
+Signal Name
+Dir
+Default Val
+Description
+coreN_ramecc_strb
+In
+1'b0
+Strobe to sample the incoming serial data
+coreN_ramecc_txd
+In
+1'b0
+Output serial data
+coreN_ramecc_rxd
+Out
+1'b0
+Input serial data
+coreN_ramecc_pend[1:0]
+Out
+2'd0
+Level Interrupt source
+7.2.3.5.8 DFT
+Table 7-24. DFT
+Signal Name
+Dir
+Default Val
+Description
+dft_clk_force_en
+In
+1'b0
+DFT Clock Force Enable
+dft_partition_enn
+In
+1'b0
+DFT Clock Partition Enable
+dft_scan_en
+In
+1'b0
+DFT Scan Enable
+dft_async_rst_sel
+In
+1’b0
+DFT Async Reset Select
+dft_test_async_rst_n
+In
+1’b0
+DFT Async Test Reset
+dft_tft_mcp_dis
+In
+1’b0
+DFT MCP Disable
+dft_local_clk_en
+In
+1’b0
+DFT Local Clock Enable
+7.2.3.5.9 RAM GPIO
+Table 7-25. RAM GPIO
+Signal Name
+Dir
+Default Val
+Description
+coreN_ramdft_gpi[255:0]
+In
+256’d0
+RAM GPI
+coreN_ramdft_gpo[255:0]
+Out
+256’d0
+RAM GPO
+7.2.3.6 Programmer's Guide
+7.2.3.6.1 Initialization Sequence
+At initialization, the following tasks should be performed:
+1.
+Program the DED Vector Address (Base Address + 0x30)
+2.
+Program Group M Interrupt Map Register (Base Address + 0x200 + M*0x20 + 0x18)
+3.
+Program Group M Type Map Register (Base Address + 0x200 + M*0x20 + 0x1C)
+4.
+Program Interrupt Q Priority Register (Base Address + 0x1000 + Q*0x4)
+5.
+Program Interrupt Q Vector Register (Base Address + 0x2000 + Q*0x4)
+6.
+Enable interrupts via the Group M Interrupt Enabled Set Register (Base Address + 0x400 + M*0x20 + 0x08)
+=== Page 683 ===
+Note that the Interrupt Q Vector Register (Base Address + 0x2000 + Q*0x4) for each interrupt that will be
+enabled must be written before the interrupt is enabled, even if software is not going to use the vector. Whenever
+an interrupt is prioritized, the RAM location for the interrupt is read, and if that location is un-initialized, an ECC
+error will be reported. If the vectors aren’t being used, then the RAM can be initialized by writing 0x0 to every
+location.
+7.2.3.6.2 DED Behavior
+Whenever there is 2-bit error detect on a Vector Address, the DED Vector Address (Base Address + 0x30)
+overrides all other vectors. Software should provide an ISR to handle this scenario at this address.
+7.2.3.6.3 Power Up/Down Sequence
+Before a clean power down, software should check that there are no pending interrupts, disable all interrupts,
+and wait for the clkstop_idle output.
+=== Page 684 ===

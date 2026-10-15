@@ -1,0 +1,5466 @@
+Chapter 1 System Overview
+1
+
+1.1 Address Mapping
+RK3588 boot from internal BootRom, which supports remap function by software
+programming. Remap is controlled by PMU_SGRF_SOC_CON2[1:0]. When remap is set to
+2’b01, the BootRom is un-accessible and PMU_SRAM is mapped to address 0xFFFF0000.
+When remap is set to 2’b10, the BootRom is un-accessible and SYSTEM_SRAM is mapped to
+address 0xFFFF0000.
+Table 1-1 Address Mapping
+Module
+
+Start Address
+
+Size
+
+Module
+
+Start Address
+
+Size
+
+PCIe3_4L_S
+
+F0000000
+
+16MB
+
+SPDIF_RX2
+
+FDE18000
+
+32KB
+
+PCIe3_2L_S
+
+F1000000
+
+16MB
+
+DSI HOST0
+
+FDE20000
+
+64KB
+
+PCIe3_1L0_S
+
+F2000000
+
+16MB
+
+DSI HOST1
+
+FDE30000
+
+64KB
+
+PCIe3_1L1_S
+
+F3000000
+
+16MB
+
+HDCP0
+
+FDE40000
+
+32KB
+
+PCIe3_1L2_S
+
+F4000000
+
+16MB
+
+HDCP0_TRNG
+
+FDE48000
+
+32KB
+
+PCIe3_4L_DBI
+
+F5000000
+
+4MB
+
+DP0
+
+FDE50000
+
+64KB
+
+PCIe3_2L_DBI
+
+F5400000
+
+4MB
+
+DP1
+
+FDE60000
+
+64KB
+
+PCIe3_1L0_DBI
+
+F5800000
+
+4MB
+
+HDCP1
+
+FDE70000
+
+32KB
+
+PCIe3_1L1_DBI
+
+F5C00000
+
+4MB
+
+HDCP1_TRNG
+
+FDE78000
+
+32KB
+
+PCIe3_1L2_DBI
+
+F6000000
+
+4MB
+
+HDMI TX0
+
+FDE80000
+
+128KB
+
+Reserved
+
+F6400000
+
+11MB
+
+HDMI TX1
+
+FDEA0000
+
+128KB
+
+MCU_TCM
+
+F6F00000
+
+64KB
+
+eDP0
+
+FDEC0000
+
+64KB
+
+MCU_CACHE
+
+F6F10000
+
+64KB
+
+eDP1
+
+FDED0000
+
+64KB
+
+MCU_RAM_TEST
+
+F6F20000
+
+64KB
+
+HDMI RX
+
+FDEE0000
+
+64KB
+
+Reserved
+
+F6F30000
+
+832KB
+
+HDCP_KEY 0
+
+FDEF0000
+
+32KB
+
+DDRCTL_0
+
+F7000000
+
+16MB
+
+HDCP_KEY 1
+
+FDEF8000
+
+64KB
+
+DDRCTL_1
+
+F8000000
+
+16MB
+
+Reserved
+
+FDF08000
+
+32KB
+
+DDRCTL_2
+
+F9000000
+
+16MB
+
+HDMIRX_S
+
+FDF10000
+
+16KB
+
+DDRCTL_3
+
+FA000000
+
+16MB
+
+Reserved
+
+FDF14000
+
+16KB
+
+GPU G610
+
+FB000000
+
+16MB
+
+eDP0_S
+
+FDF18000
+
+16KB
+
+USB3_0
+
+FC000000
+
+4MB
+
+eDP1_S
+
+FDF1C000
+
+16KB
+
+USB3_1
+
+FC400000
+
+4MB
+
+Reserved
+
+FDF20000
+
+64KB
+
+USB2HOST_0
+
+FC800000
+
+512KB
+
+INTERCONNECT
+
+FDF30000
+
+896KB
+
+USB2HOST_1
+
+FC880000
+
+512KB
+
+FIREWALL_DSUDDR
+
+FE010000
+
+32KB
+
+MMU600_PCIE
+
+FC900000
+
+2MB
+
+Reserved
+
+FE018000
+
+96KB
+
+MMU600_PHP
+
+FCB00000
+
+2MB
+
+FIREWALL_DDR
+
+FE030000
+
+32KB
+
+USB3_2
+
+FCD00000
+
+4MB
+
+FIREWALL_SYSMEM
+
+FE038000
+
+32KB
+
+DAPLITE2
+
+FD100000
+
+512KB
+
+Reserved
+
+FE040000
+
+64KB
+
+Reserved
+
+FD180000
+
+512KB
+
+DMA2DDR
+
+FE050000
+
+64KB
+
+Reserved
+
+FD200000
+
+64KB
+
+DDR_MON0
+
+FE060000
+
+16KB
+
+Reserved
+
+FD210000
+
+3520KB
+
+DDR_MON1
+
+FE064000
+
+16KB
+
+PMU0_SGRF
+
+FD580000
+
+8KB
+
+DDR_MON2
+
+FE068000
+
+16KB
+
+PMU1_SGRF
+
+FD582000
+
+8KB
+
+DDR_MON3
+
+FE06C000
+
+16KB
+
+Reserved
+
+FD584000
+
+8KB
+
+Reserved
+
+FE070000
+
+320KB
+
+BUS_SGRF
+
+FD586000
+
+4KB
+
+DDRPHY0
+
+FE0C0000
+
+64KB
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+16
+
+RK3588 TRM-Part1
+Module
+
+Start Address
+
+Size
+
+Module
+
+Start Address
+
+Size
+
+DSU_SGRF
+
+FD587000
+
+4KB
+
+DDRPHY1
+
+FE0D0000
+
+64KB
+
+PMU0_GRF
+
+FD588000
+
+8KB
+
+DDRPHY2
+
+FE0E0000
+
+64KB
+
+PMU1_GRF
+
+FD58A000
+
+8KB
+
+DDRPHY3
+
+FE0F0000
+
+64KB
+
+SYS_GRF
+
+FD58C000
+
+16KB
+
+Reserved
+
+FE100000
+
+64KB
+
+BIGCORE0_GRF
+
+FD590000
+
+8KB
+
+WDT_DDR
+
+FE110000
+
+32KB
+
+BIGCORE1_GRF
+
+FD592000
+
+8KB
+
+TIMER_DDR(2CH)
+
+FE118000
+
+32KB
+
+LITCORE_GRF
+
+FD594000
+
+16KB
+
+SHARE_MEM_SLV
+
+FE120000
+
+32KB
+
+DSU_GRF
+
+FD598000
+
+16KB
+
+AHB2APB
+
+FE128000
+
+32KB
+
+DDR01_GRF
+
+FD59C000
+
+4KB
+
+Reserved
+
+FE130000
+
+128KB
+
+DDR23_GRF
+
+FD59D000
+
+4KB
+
+PCIe3_4L_APB
+
+FE150000
+
+64KB
+
+CENTER_GRF
+
+FD59E000
+
+8KB
+
+PCIe3_2L_APB
+
+FE160000
+
+64KB
+
+GPU_GRF
+
+FD5A0000
+
+8KB
+
+PCIe3_1L0_APB
+
+FE170000
+
+64KB
+
+NPU_GRF
+
+FD5A2000
+
+8KB
+
+PCIe3_1L1_APB
+
+FE180000
+
+64KB
+
+VOP_GRF
+
+FD5A4000
+
+8KB
+
+PCIe3_1L2_APB
+
+FE190000
+
+64KB
+
+VO0_GRF
+
+FD5A6000
+
+8KB
+
+Reserved
+
+FE1A0000
+
+64KB
+
+VO1_GRF
+
+FD5A8000
+
+16KB
+
+GMAC0
+
+FE1B0000
+
+64KB
+
+USB_GRF
+
+FD5AC000
+
+16KB
+
+GMAC1
+
+FE1C0000
+
+64KB
+
+PHP_GRF
+
+FD5B0000
+
+16KB
+
+Reserved
+
+FE1D0000
+
+256KB
+
+CSIDPHY0_GRF
+
+FD5B4000
+
+4KB
+
+SATA0
+
+FE210000
+
+64KB
+
+CSIDPHY1_GRF
+
+FD5B5000
+
+4KB
+
+SATA1
+
+FE220000
+
+64KB
+
+Reserved
+
+FD5B6000
+
+8KB
+
+SATA2
+
+FE230000
+
+64KB
+
+PCIe3PHY_GRF
+
+FD5B8000
+
+16KB
+
+Reserved
+
+FE240000
+
+448KB
+
+PIPE_PHY0_GRF
+
+FD5BC000
+
+16KB
+
+FSPI
+
+FE2B0000
+
+64KB
+
+PIPE_PHY1_GRF
+
+FD5C0000
+
+16KB
+
+SDMMC
+
+FE2C0000
+
+64KB
+
+PIPE_PHY2_GRF
+
+FD5C4000
+
+16KB
+
+SDIO
+
+FE2D0000
+
+64KB
+
+USBDPPHY0_GRF
+
+FD5C8000
+
+16KB
+
+EMMC
+
+FE2E0000
+
+64KB
+
+USBDPPHY1_GRF
+
+FD5CC000
+
+16KB
+
+SDMMC_BUF
+
+FE2F0000
+
+64KB
+
+USB2PHY0_GRF
+
+FD5D0000
+
+16KB
+
+Reserved
+
+FE300000
+
+448KB
+
+USB2PHY1_GRF
+
+FD5D4000
+
+16KB
+
+CRYPTO_NS
+
+FE370000
+
+32KB
+
+USB2PHY2_GRF
+
+FD5D8000
+
+16KB
+
+TRNG_NS
+
+FE378000
+
+32KB
+
+USB2PHY3_GRF
+
+FD5DC000
+
+16KB
+
+KEYLADDER_S
+
+FE380000
+
+64KB
+
+HDPTXPHY0_GRF
+
+FD5E0000
+
+16KB
+
+CRYPTO_S(Slave)
+
+FE390000
+
+32KB
+
+HDPTXPHY1_GRF
+
+FD5E4000
+
+16KB
+
+TRNG_S
+
+FE398000
+
+32KB
+
+MIPIDCPHY0_GRF
+
+FD5E8000
+
+16KB
+
+OTP_S
+
+FE3A0000
+
+64KB
+
+MIPIDCPHY1_GRF
+
+FD5EC000
+
+16KB
+
+Reserved
+
+FE3B0000
+
+64KB
+
+PMU1_IOC
+
+FD5F0000
+
+16KB
+
+DCF
+
+FE3C0000
+
+64KB
+
+PMU2_IOC
+
+FD5F4000
+
+16KB
+
+TIMER_S_0(6CH)
+
+FE3D0000
+
+64KB
+
+BUS_IOC
+
+FD5F8000
+
+4KB
+
+WDT_S
+
+FE3E0000
+
+64KB
+
+VCCIO1_4_IOC
+
+FD5F9000
+
+4KB
+
+SEC_TRNG_CHK
+
+FE3F0000
+
+64KB
+
+VCCIO3_5_IOC
+
+FD5FA000
+
+4KB
+
+Reserved
+
+FE400000
+
+128KB
+
+VCCIO2_IOC
+
+FD5FB000
+
+4KB
+
+CRYPTO_S(By Keylad)
+
+FE420000
+
+64KB
+
+VCCIO6_IOC
+
+FD5FC000
+
+4KB
+
+Reserved
+
+FE430000
+
+256KB
+
+EMMC_IOC
+
+FD5FD000
+
+4KB
+
+I2S0_8CH
+
+FE470000
+
+64KB
+
+Reserved
+
+FD5FE000
+
+8KB
+
+I2S1_8CH
+
+FE480000
+
+64KB
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+17
+
+RK3588 TRM-Part1
+Module
+
+Start Address
+
+Size
+
+Module
+
+Start Address
+
+Size
+
+SYSTEM_SRAM
+
+FD600000
+
+1MB
+
+I2S2_2CH
+
+FE490000
+
+64KB
+
+PMU_MEM
+
+FD700000
+
+256KB
+
+I2S3_2CH
+
+FE4A0000
+
+64KB
+
+Reserved
+
+FD740000
+
+512KB
+
+PDM0
+
+FE4B0000
+
+64KB
+
+CRU_NS
+
+FD7C0000
+
+32KB
+
+PDM1
+
+FE4C0000
+
+64KB
+
+PHP_PPLL_CRU
+
+FD7C8000
+
+32KB
+
+VAD
+
+FE4D0000
+
+64KB
+
+SEC_SCRU
+
+FD7D0000
+
+32KB
+
+SPDIF_TX0
+
+FE4E0000
+
+64KB
+
+BUS_SCRU
+
+FD7D8000
+
+32KB
+
+SPDIF_TX1
+
+FE4F0000
+
+64KB
+
+PMU1_SCRU
+
+FD7E0000
+
+64KB
+
+ACDCDIG_DSM
+
+FE500000
+
+64KB
+
+PMU1_CRU
+
+FD7F0000
+
+64KB
+
+Reserved
+
+FE510000
+
+576KB
+
+DDRPHY0_CRU
+
+FD800000
+
+16KB
+
+SPINLOCK
+
+FE5A0000
+
+64KB
+
+DDRPHY1_CRU
+
+FD804000
+
+16KB
+
+Reserved
+
+FE5B0000
+
+320KB
+
+DDRPHY2_CRU
+
+FD808000
+
+16KB
+
+GIC600
+
+FE600000
+
+4MB
+
+DDRPHY3_CRU
+
+FD80C000
+
+16KB
+
+DMAC0_S
+
+FEA00000
+
+64KB
+
+BIGCORE0_CRU
+
+FD810000
+
+8KB
+
+DMAC0_NS
+
+FEA10000
+
+64KB
+
+BIGCORE1_CRU
+
+FD812000
+
+8KB
+
+DMAC1_S
+
+FEA20000
+
+64KB
+
+Reserved
+
+FD814000
+
+16KB
+
+DMAC1_NS
+
+FEA30000
+
+64KB
+
+DSU_CRU
+
+FD818000
+
+16KB
+
+Reserved
+
+FEA40000
+
+64KB
+
+Reserved
+
+FD81C000
+
+400KB
+
+CAN0
+
+FEA50000
+
+64KB
+
+I2C0
+
+FD880000
+
+64KB
+
+CAN1
+
+FEA60000
+
+64KB
+
+UART0
+
+FD890000
+
+64KB
+
+CAN2
+
+FEA70000
+
+64KB
+
+GPIO0
+
+FD8A0000
+
+64KB
+
+DECOM
+
+FEA80000
+
+64KB
+
+PWM0
+
+FD8B0000
+
+64KB
+
+I2C1
+
+FEA90000
+
+64KB
+
+PVTM_PMU
+
+FD8C0000
+
+32KB
+
+I2C2
+
+FEAA0000
+
+64KB
+
+HPTIMER
+
+FD8C8000
+
+16KB
+
+I2C3
+
+FEAB0000
+
+64KB
+
+Reserved
+
+FD8CC000
+
+16KB
+
+I2C4
+
+FEAC0000
+
+64KB
+
+PMU
+
+FD8D0000
+
+64KB
+
+I2C5
+
+FEAD0000
+
+64KB
+
+WDT_PMU
+
+FD8E0000
+
+64KB
+
+TIMER_NS_0(6CH)
+
+FEAE0000
+
+32KB
+
+TIMER_PMU(2CH)
+
+FD8F0000
+
+64KB
+
+TIMER_NS_1(6CH)
+
+FEAE8000
+
+32KB
+
+Reserved
+
+FD900000
+
+704KB
+
+WDT_NS
+
+FEAF0000
+
+64KB
+
+OSC_CHK
+
+FD9B0000
+
+64KB
+
+SPI0
+
+FEB00000
+
+64KB
+
+SCRAMBLE_KEY
+
+FD9C0000
+
+64KB
+
+SPI1
+
+FEB10000
+
+64KB
+
+Reserved
+
+FD9D0000
+
+448KB
+
+SPI2
+
+FEB20000
+
+64KB
+
+PVTM_CORE_B0
+
+FDA40000
+
+32KB
+
+SPI3
+
+FEB30000
+
+64KB
+
+Reserved
+
+FDA48000
+
+32KB
+
+UART1
+
+FEB40000
+
+64KB
+
+PVTM_CORE_B1
+
+FDA50000
+
+32KB
+
+UART2
+
+FEB50000
+
+64KB
+
+Reserved
+
+FDA58000
+
+32KB
+
+UART3
+
+FEB60000
+
+64KB
+
+PVTM_CORE_L
+
+FDA60000
+
+64KB
+
+UART4
+
+FEB70000
+
+64KB
+
+Reserved
+
+FDA70000
+
+256KB
+
+UART5
+
+FEB80000
+
+64KB
+
+RKNN C0
+
+FDAB0000
+
+64KB
+
+UART6
+
+FEB90000
+
+64KB
+
+RKNN C1
+
+FDAC0000
+
+64KB
+
+UART7
+
+FEBA0000
+
+64KB
+
+RKNN C2
+
+FDAD0000
+
+64KB
+
+UART8
+
+FEBB0000
+
+64KB
+
+Reserved
+
+FDAE0000
+
+64KB
+
+UART9
+
+FEBC0000
+
+64KB
+
+PVTM_NPU
+
+FDAF0000
+
+32KB
+
+PWM1
+
+FEBD0000
+
+64KB
+
+WDT_NPU
+
+FDAF8000
+
+32KB
+
+PWM2
+
+FEBE0000
+
+64KB
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+18
+
+RK3588 TRM-Part1
+Module
+
+Start Address
+
+Size
+
+Module
+
+Start Address
+
+Size
+
+TIMER_NPU(2CH)
+
+FDB00000
+
+32KB
+
+PWM3
+
+FEBF0000
+
+64KB
+
+Reserved
+
+FDB08000
+
+160KB
+
+TSADC
+
+FEC00000
+
+64KB
+
+PVTM_GPU
+
+FDB30000
+
+64KB
+
+SARADC
+
+FEC10000
+
+64KB
+
+Reserved
+
+FDB40000
+
+64KB
+
+GPIO1
+
+FEC20000
+
+64KB
+
+VDPU
+
+FDB50000
+
+64KB
+
+GPIO2
+
+FEC30000
+
+64KB
+
+RGA3_0
+
+FDB60000
+
+64KB
+
+GPIO3
+
+FEC40000
+
+64KB
+
+RGA3_1
+
+FDB70000
+
+64KB
+
+GPIO4
+
+FEC50000
+
+64KB
+
+RGA2
+
+FDB80000
+
+64KB
+
+MAILBOX0(MCU_PMU)
+
+FEC60000
+
+64KB
+
+JPEG_DEC
+
+FDB90000
+
+64KB
+
+MAILBOX1(MCU_DDR)
+
+FEC70000
+
+64KB
+
+JPEG_ENC0
+
+FDBA0000
+
+16KB
+
+I2C6
+
+FEC80000
+
+64KB
+
+JPEG_ENC1
+
+FDBA4000
+
+16KB
+
+I2C7
+
+FEC90000
+
+64KB
+
+JPEG_ENC2
+
+FDBA8000
+
+16KB
+
+I2C8
+
+FECA0000
+
+64KB
+
+JPEG_ENC3
+
+FDBAC000
+
+16KB
+
+SPI4
+
+FECB0000
+
+64KB
+
+IEP
+
+FDBB0000
+
+64KB
+
+OTP_NS
+
+FECC0000
+
+64KB
+
+Reserved
+
+FDBC0000
+
+64KB
+
+Reserved
+
+FECD0000
+
+64KB
+
+RKVENC0
+
+FDBD0000
+
+64KB
+
+MAILBOX2(MCU_NPU)
+
+FECE0000
+
+64KB
+
+RKVENC1
+
+FDBE0000
+
+64KB
+
+INTMUX(MCU_PMU)
+
+FECF0000
+
+32KB
+
+Reserved
+
+FDBF0000
+
+256KB
+
+INTMUX(MCU_DDR)
+
+FECF8000
+
+32KB
+
+RKVDEC_CCU
+
+FDC30000
+
+32KB
+
+DMAC2_S
+
+FED00000
+
+64KB
+
+RKVDEC0
+
+FDC38000
+
+32KB
+
+DMAC2_NS
+
+FED10000
+
+64KB
+
+RKVDEC1
+
+FDC40000
+
+64KB
+
+JTAG_LOCK
+
+FED20000
+
+32KB
+
+Reserved
+
+FDC50000
+
+128KB
+
+Reserved
+
+FED28000
+
+32KB
+
+AV1
+
+FDC70000
+
+256KB
+
+TIMER_S_1(6CH)
+
+FED30000
+
+64KB
+
+ISP0
+
+FDCB0000
+
+64KB
+
+Reserved
+
+FED40000
+
+128KB
+
+ISP1
+
+FDCC0000
+
+64KB
+
+HDPTX Combo PHY0
+
+FED60000
+
+64KB
+
+FISHEYE0
+
+FDCD0000
+
+32KB
+
+HDPTX Combo PHY1
+
+FED70000
+
+64KB
+
+FISHEYE1
+
+FDCD8000
+
+32KB
+
+USBDP PHY0
+
+FED80000
+
+64KB
+
+VICAP
+
+FDCE0000
+
+128KB
+
+USBDP PHY1
+
+FED90000
+
+64KB
+
+Reserved
+
+FDD00000
+
+64KB
+
+MIPI CD PHY0
+
+FEDA0000
+
+64KB
+
+CSI HOST0
+
+FDD10000
+
+64KB
+
+MIPI CD PHY1
+
+FEDB0000
+
+64KB
+
+CSI HOST1
+
+FDD20000
+
+64KB
+
+MIPI CSI DPHY0
+
+FEDC0000
+
+32KB
+
+CSI HOST2
+
+FDD30000
+
+64KB
+
+MIPI CSI DPHY1
+
+FEDC8000
+
+32KB
+
+CSI HOST3
+
+FDD40000
+
+64KB
+
+Reserved
+
+FEDD0000
+
+64KB
+
+CSI HOST4
+
+FDD50000
+
+64KB
+
+HDMI RX PHY
+
+FEDE0000
+
+64KB
+
+CSI HOST5
+
+FDD60000
+
+64KB
+
+Reserved
+
+FEDF0000
+
+64KB
+
+Reserved
+
+FDD70000
+
+128KB
+
+Combo PIPE PHY0
+
+FEE00000
+
+64KB
+
+VOP
+
+FDD90000
+
+64KB
+
+Combo PIPE PHY1
+
+FEE10000
+
+64KB
+
+HDCP0_MMU
+
+FDDA0000
+
+64KB
+
+Combo PIPE PHY2
+
+FEE20000
+
+64KB
+
+SPDIF_TX2
+
+FDDB0000
+
+32KB
+
+Reserved
+
+FEE30000
+
+312KB
+
+SPDIF_TX5
+
+FDDB8000
+
+32KB
+
+PCIe3 PHY
+
+FEE80000
+
+512KB
+
+I2S4_8CH
+
+FDDC0000
+
+32KB
+
+Reserved
+
+FEF00000
+
+1MB
+
+I2S8_8CH
+
+FDDC8000
+
+32KB
+
+SYSTEM_SRAM
+
+FF000000
+
+1MB
+
+HDCP1_MMU
+
+FDDD0000
+
+64KB
+
+PMU_MEM
+
+FF100000
+
+256KB
+
+SPDIF_TX3
+
+FDDE0000
+
+32KB
+
+PCIe3_4L_S
+
+900000000
+
+1024MB
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+19
+
+RK3588 TRM-Part1
+Module
+
+Start Address
+
+Size
+
+Module
+
+Start Address
+
+Size
+
+SPDIF_TX4
+
+FDDE8000
+
+32KB
+
+PCIe3_2L_S
+
+940000000
+
+1024MB
+
+I2S5_8CH
+
+FDDF0000
+
+16KB
+
+PCIe3_1L0_S
+
+980000000
+
+1024MB
+
+I2S6_8CH
+
+FDDF4000
+
+16KB
+
+PCIe3_1L1_S
+
+9c0000000
+
+1024MB
+
+I2S7_8CH
+
+FDDF8000
+
+16KB
+
+PCIe3_1L2_S
+
+a00000000
+
+1024MB
+
+I2S9_8CH
+
+FDDFC000
+
+16KB
+
+PCIe3_4L_DBI
+
+a40000000
+
+4MB
+
+I2S10_8CH
+
+FDE00000
+
+16KB
+
+PCIe3_2L_DBI
+
+a40400000
+
+4MB
+
+Reserved
+
+FDE04000
+
+16KB
+
+PCIe3_1L0_DBI
+
+a40800000
+
+4MB
+
+SPDIF_RX0
+
+FDE08000
+
+32KB
+
+PCIe3_1L1_DBI
+
+a40c00000
+
+4MB
+
+SPDIF_RX1
+
+FDE10000
+
+32KB
+
+PCIe3_1L2_DBI
+
+a41000000
+
+4MB
+
+The following table show the boot address when before remap and after remap
+Table 1-2 Address Remapping
+remap[1:0]=2'b00
+
+remap[1:0]=2'b01
+
+remap[1:0]=2'b10
+
+not accessible
+
+BootRom(32KB)
+
+not accessible
+
+BootRom(32KB)
+
+0xFFFF0000
+
+BootRom(32KB)
+
+0xFFFF0000
+
+PMU_SRAM(8KB)
+
+0xFFFF0000
+
+SYSTEM_SRAM
+(256KB)
+
+0xFF100000
+
+PMU_SRAM(8KB)
+
+0xFF100000
+
+PMU_SRAM(8KB)
+
+0xFF100000
+
+PMU_SRAM(8KB)
+
+0xFF000000
+
+SYSTEM_SRAM(1MB)
+
+0xFF000000
+
+SYSTEM_SRAM(1MB)
+
+0xFF000000
+
+SYSTEM_SRAM(1MB)
+
+1.2 System Boot
+RK3588 provides system boot from off-chip devices such as SDMMC card, eMMC memory,
+serial Nand or Nor flash. When boot code is not ready in these devices, also provide system
+code download into them by USB OTG interface. All of the boot code will be stored in
+internal BootRom. The following is the whole boot procedure for boot code, which will be
+stored in BootRom in advance.
+The following features are supported.
+⚫ Support system boot from the following device:
+◼ Serial Nor Flash, 1bit or 4bits data width(device layout in FSPI IO)
+◼ Serial Nand Flash, 1bit data width(device layout in FSPI IO)
+◼ eMMC Interface, 8bits data width
+◼ SDMMC Card, 4bits data width
+◼ RK3588 has two bootwom:
+◼ Normal Bootrom in non-secure world, which CPU_S and CPU_NS both can access
+◼ Secure Bootrom in secure world, only CPU_S can access
+⚫ Support system code download by USB OTG
+
+1.3 System Interrupt Connection
+RK3588 provides an general interrupt controller (GIC) for CPU, which has 512 SPI (shared
+peripheral interrupts) interrupt sources and 12 PPI(Private peripheral interrupt) interrupt
+source. The triggered type for each SPI interrupt is high level sensitive, and triggered type
+for each PPI interrupt is low level sensitive, not programmable. The detailed interrupt
+sources connection is in the following table.
+Table 1-3 RK3588 Interrupt Connection List
+Number
+0-21 PPI
+
+Source
+NA
+
+Polarity
+
+Number
+
+Low level
+
+238
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Source
+irq_fspi
+
+Polarity
+High level
+
+20
+
+RK3588 TRM-Part1
+Number
+
+Source
+
+Polarity
+
+Number
+
+Source
+
+Polarity
+
+22 PPI
+
+cpu_ncommirq
+
+Low level
+
+239
+
+irq_keylad
+
+High level
+
+23 PPI
+
+cpu_npmuirq
+
+Low level
+
+240
+
+irq_crypto_s
+
+High level
+
+24 PPI
+
+cpu_ctiirq
+
+Low level
+
+241
+
+irq_crypto_ns
+
+High level
+
+25 PPI
+
+cpu_nvcpumntirq
+
+Low level
+
+242
+
+irq_otp_s
+
+High level
+
+26 PPI
+
+cpu_ncnthpirq
+
+Low level
+
+243
+
+irq_otp_ns
+
+High level
+
+27 PPI
+
+cpu_ncntvirq
+
+Low level
+
+244
+
+irq_trng_chk
+
+High level
+
+28 PPI
+
+cpu_ncnthvirq
+
+Low level
+
+245
+
+irq_dcf
+
+High level
+
+29 PPI
+
+cpu_ncntpsirq
+
+Low level
+
+246
+
+irq_usb2host0_arb
+
+High level
+
+30 PPI
+
+cpu_ncntpnsirq
+
+Low level
+
+247
+
+irq_usb2host0_ehci
+
+High level
+
+31 PPI
+
+NA
+
+Low level
+
+248
+
+irq_usb2host0_ohci
+
+High level
+
+32
+
+irq_dsu_nfaultirq0
+
+High level
+
+249
+
+irq_usb2host1_arb
+
+High level
+
+33
+
+irq_dsu_nfaultirq1
+
+High level
+
+250
+
+irq_usb2host1_ehci
+
+High level
+
+34
+
+irq_dsu_nfaultirq2
+
+High level
+
+251
+
+irq_usb2host1_ohci
+
+High level
+
+35
+
+irq_dsu_nfaultirq3
+
+High level
+
+252
+
+irq_usb3otg0
+
+High level
+
+36
+
+irq_dsu_nfaultirq4
+
+High level
+
+253
+
+irq_usb3otg1
+
+High level
+
+37
+
+irq_dsu_nfaultirq5
+
+High level
+
+254
+
+irq_usb3otg2
+
+High level
+
+38
+
+irq_dsu_nfaultirq6
+
+High level
+
+255
+
+39
+
+irq_dsu_nfaultirq7
+
+High level
+
+256
+
+40
+
+irq_dsu_nfaultirq8
+
+High level
+
+257
+
+irq_gmac0_lpi
+
+High level
+
+41
+
+irq_dsu_nerrirq0
+
+High level
+
+258
+
+irq_gmac0_pmt
+
+High level
+
+42
+
+irq_dsu_nerrirq1
+
+High level
+
+259
+
+irq_gmac0_sbd
+
+High level
+
+43
+
+irq_dsu_nerrirq2
+
+High level
+
+260
+
+44
+
+irq_dsu_nerrirq3
+
+High level
+
+261
+
+45
+
+irq_dsu_nerrirq4
+
+High level
+
+262
+
+46
+
+irq_dsu_nerrirq5
+
+High level
+
+263
+
+47
+
+irq_dsu_nerrirq6
+
+High level
+
+264
+
+irq_gmac1_lpi
+
+High level
+
+48
+
+irq_dsu_nerrirq7
+
+High level
+
+265
+
+irq_gmac1_pmt
+
+High level
+
+49
+
+irq_dsu_nerrirq8
+
+High level
+
+266
+
+irq_gmac1_sbd
+
+High level
+
+50
+
+irq_dsu_nclusterpmuirq
+
+High level
+
+267
+
+51
+
+irq_ddrctl_sbr_done_ch0
+
+High level
+
+268
+
+52
+
+irq_ddrctl_arpoison_ch0
+
+High level
+
+269
+
+53
+
+irq_ddrctl_awpoison_ch0
+
+High level
+
+270
+
+High level
+
+271
+
+54
+
+irq_ddrctl_ecc_corrected_e
+rr_ch0
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+irq_gmac0_mcgr_dma_r
+eq
+irq_gmac1_mcgr_dma_r
+eq
+
+irq_gmac0_sbd_perch_rx
+_o0
+irq_gmac0_sbd_perch_rx
+_o1
+irq_gmac0_sbd_perch_tx
+_o0
+irq_gmac0_sbd_perch_tx
+_o1
+
+irq_gmac1_sbd_perch_rx
+_o0
+irq_gmac1_sbd_perch_rx
+_o1
+irq_gmac1_sbd_perch_tx
+_o0
+irq_gmac1_sbd_perch_tx
+_o1
+irq_pcie30x1_0_err
+
+High level
+High level
+
+High level
+High level
+High level
+High level
+
+High level
+High level
+High level
+High level
+High level
+
+21
+
+RK3588 TRM-Part1
+Number
+55
+56
+57
+58
+59
+
+Source
+irq_ddrctl_ecc_uncorrected
+_err_ch0
+irq_ddrctl_ecc_ap_err_ch0
+irq_ddrctl_rd_linkecc_unco
+rr_err_ch0
+irq_ddrctl_rd_linkecc_corr_
+err_ch0
+irq_ddrctl_derate_temp_li
+mit_ch0
+
+Polarity
+
+Number
+
+Source
+
+Polarity
+
+High level
+
+272
+
+irq_pcie30x1_0_legacy
+
+High level
+
+High level
+
+273
+
+irq_pcie30x1_0_msg_rx
+
+High level
+
+High level
+
+274
+
+irq_pcie30x1_0_pmc
+
+High level
+
+High level
+
+275
+
+irq_pcie30x1_0_sys
+
+High level
+
+High level
+
+276
+
+irq_pcie30x1_1_err
+
+High level
+
+60
+
+irq_ddrmon_ch0
+
+High level
+
+277
+
+irq_pcie30x1_1_legacy
+
+High level
+
+61
+
+irq_ddrctl_sbr_done_ch1
+
+High level
+
+278
+
+irq_pcie30x1_1_msg_rx
+
+High level
+
+62
+
+irq_ddrctl_arpoison_ch1
+
+High level
+
+279
+
+irq_pcie30x1_1_pmc
+
+High level
+
+63
+
+irq_ddrctl_awpoison_ch1
+
+High level
+
+280
+
+irq_pcie30x1_1_sys
+
+High level
+
+High level
+
+281
+
+irq_pcie30x1_2_err
+
+High level
+
+High level
+
+282
+
+irq_pcie30x1_2_legacy
+
+High level
+
+High level
+
+283
+
+irq_pcie30x1_2_msg_rx
+
+High level
+
+High level
+
+284
+
+irq_pcie30x1_2_pmc
+
+High level
+
+High level
+
+285
+
+irq_pcie30x1_2_sys
+
+High level
+
+High level
+
+286
+
+irq_pcie30x2_err
+
+High level
+
+64
+65
+66
+67
+68
+69
+
+irq_ddrctl_ecc_corrected_e
+rr_ch1
+irq_ddrctl_ecc_uncorrected
+_err_ch1
+irq_ddrctl_ecc_ap_err_ch1
+irq_ddrctl_rd_linkecc_unco
+rr_err_ch1
+irq_ddrctl_rd_linkecc_corr_
+err_ch1
+irq_ddrctl_derate_temp_li
+mit_ch1
+
+70
+
+irq_ddrmon_ch1
+
+High level
+
+287
+
+irq_pcie30x2_legacy
+
+High level
+
+71
+
+irq_ddrctl_sbr_done_ch2
+
+High level
+
+288
+
+irq_pcie30x2_msg_rx
+
+High level
+
+72
+
+irq_ddrctl_arpoison_ch2
+
+High level
+
+289
+
+irq_pcie30x2_pmc
+
+High level
+
+73
+
+irq_ddrctl_awpoison_ch2
+
+High level
+
+290
+
+irq_pcie30x2_sys
+
+High level
+
+High level
+
+291
+
+irq_pcie30x4_err
+
+High level
+
+High level
+
+292
+
+irq_pcie30x4_legacy
+
+High level
+
+High level
+
+293
+
+irq_pcie30x4_msg_rx
+
+High level
+
+High level
+
+294
+
+irq_pcie30x4_pmc
+
+High level
+
+High level
+
+295
+
+irq_pcie30x4_sys
+
+High level
+
+High level
+
+296
+
+74
+75
+76
+77
+78
+79
+
+irq_ddrctl_ecc_corrected_e
+rr_ch2
+irq_ddrctl_ecc_uncorrected
+_err_ch2
+irq_ddrctl_ecc_ap_err_ch2
+irq_ddrctl_rd_linkecc_unco
+rr_err_ch2
+irq_ddrctl_rd_linkecc_corr_
+err_ch2
+irq_ddrctl_derate_temp_li
+mit_ch2
+
+irq_pcie30x1_0_pcie_dti
+m
+irq_pcie30x1_1_pcie_dti
+
+High level
+
+80
+
+irq_ddrmon_ch2
+
+High level
+
+297
+
+81
+
+irq_ddrctl_sbr_done_ch3
+
+High level
+
+298
+
+82
+
+irq_ddrctl_arpoison_ch3
+
+High level
+
+299
+
+irq_pcie30x2_pcie_dtim
+
+High level
+
+83
+
+irq_ddrctl_awpoison_ch3
+
+High level
+
+300
+
+irq_pcie30x4_pcie_dtim
+
+High level
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+m
+irq_pcie30x1_2_pcie_dti
+m
+
+High level
+High level
+
+22
+
+RK3588 TRM-Part1
+Number
+84
+85
+86
+87
+88
+89
+
+Source
+irq_ddrctl_ecc_corrected_e
+rr_ch3
+irq_ddrctl_ecc_uncorrected
+_err_ ch3
+irq_ddrctl_ecc_ap_err_ch3
+irq_ddrctl_rd_linkecc_unco
+rr_err_ch3
+irq_ddrctl_rd_linkecc_corr_
+err_ch3
+irq_ddrctl_derate_temp_li
+mit_ch3
+
+Polarity
+
+Number
+
+Source
+
+High level
+
+301
+
+High level
+
+302
+
+High level
+
+303
+
+High level
+
+304
+
+High level
+
+305
+
+irq_sata0
+
+High level
+
+High level
+
+306
+
+irq_sata1
+
+High level
+
+irq_pcie30x4_pcie_edma
+_rd0
+irq_pcie30x4_pcie_edma
+_rd1
+irq_pcie30x4_pcie_edma
+_wr0
+irq_pcie30x4_pcie_edma
+_wr1
+
+Polarity
+High level
+High level
+High level
+High level
+
+90
+
+irq_ddrmon_ch3
+
+High level
+
+307
+
+irq_sata2
+
+High level
+
+91
+
+irq_ahb2apb
+
+High level
+
+308
+
+irq_grf_sdmmc_detectn
+
+High level
+
+92
+
+irq_dma2ddr
+
+High level
+
+309
+
+irq_gpio0
+
+High level
+
+93
+
+irq_mailbox0_ap0
+
+High level
+
+310
+
+irq_gpio1
+
+High level
+
+94
+
+irq_mailbox0_ap1
+
+High level
+
+311
+
+irq_gpio2
+
+High level
+
+95
+
+irq_mailbox0_ap2
+
+High level
+
+312
+
+irq_gpio3
+
+High level
+
+96
+
+irq_mailbox0_ap3
+
+High level
+
+313
+
+irq_gpio4
+
+High level
+
+97
+
+irq_mailbox0_bb0
+
+High level
+
+314
+
+irq_gpio0_exp
+
+High level
+
+98
+
+irq_mailbox0_bb1
+
+High level
+
+315
+
+irq_gpio1_exp
+
+High level
+
+99
+
+irq_mailbox0_bb2
+
+High level
+
+316
+
+irq_gpio2_exp
+
+High level
+
+100
+
+irq_mailbox0_bb3
+
+High level
+
+317
+
+irq_gpio3_exp
+
+High level
+
+101
+
+irq_mailbox1_ap0
+
+High level
+
+318
+
+irq_gpio4_exp
+
+High level
+
+102
+
+irq_mailbox1_ap1
+
+High level
+
+319
+
+irq_pmutimer0
+
+High level
+
+103
+
+irq_mailbox1_ap2
+
+High level
+
+320
+
+irq_pmutimer1
+
+High level
+
+104
+
+irq_mailbox1_ap3
+
+High level
+
+321
+
+irq_timer0_ns
+
+High level
+
+105
+
+irq_mailbox1_bb0
+
+High level
+
+322
+
+irq_timer1_ns
+
+High level
+
+106
+
+irq_mailbox1_bb1
+
+High level
+
+323
+
+irq_timer2_ns
+
+High level
+
+107
+
+irq_mailbox1_bb2
+
+High level
+
+324
+
+irq_timer3_ns
+
+High level
+
+108
+
+irq_mailbox1_bb3
+
+High level
+
+325
+
+irq_timer4_ns
+
+High level
+
+109
+
+irq_mailbox2_ap0
+
+High level
+
+326
+
+irq_timer5_ns
+
+High level
+
+110
+
+irq_mailbox2_ap1
+
+High level
+
+327
+
+irq_timer6_ns
+
+High level
+
+111
+
+irq_mailbox2_ap2
+
+High level
+
+328
+
+irq_timer7_ns
+
+High level
+
+112
+
+irq_mailbox2_ap3
+
+High level
+
+329
+
+irq_timer8_ns
+
+High level
+
+113
+
+irq_mailbox2_bb0
+
+High level
+
+330
+
+irq_timer9_ns
+
+High level
+
+114
+
+irq_mailbox2_bb1
+
+High level
+
+331
+
+irq_timer10_ns
+
+High level
+
+115
+
+irq_mailbox2_bb2
+
+High level
+
+332
+
+irq_timer11_ns
+
+High level
+
+116
+
+irq_mailbox2_bb3
+
+High level
+
+333
+
+irq_stimer0
+
+High level
+
+117
+
+irq_decom
+
+High level
+
+334
+
+irq_stimer1
+
+High level
+
+118
+
+irq_dmac0
+
+High level
+
+335
+
+irq_stimer2
+
+High level
+
+119
+
+irq_dmac0_abort
+
+High level
+
+336
+
+irq_stimer3
+
+High level
+
+120
+
+irq_dmac1
+
+High level
+
+337
+
+irq_stimer4
+
+High level
+
+121
+
+irq_dmac1_abort
+
+High level
+
+338
+
+irq_stimer5
+
+High level
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+23
+
+RK3588 TRM-Part1
+Number
+
+Source
+
+Polarity
+
+Number
+
+Source
+
+Polarity
+
+122
+
+irq_dmac2
+
+High level
+
+339
+
+irq_stimer6
+
+High level
+
+123
+
+irq_dmac2_abort
+
+High level
+
+340
+
+irq_stimer7
+
+High level
+
+124
+
+irq_gpu_job
+
+High level
+
+341
+
+irq_stimer8
+
+High level
+
+125
+
+irq_gpu_mmu
+
+High level
+
+342
+
+irq_stimer9
+
+High level
+
+126
+
+irq_gpu_gpu
+
+High level
+
+343
+
+irq_stimer10
+
+High level
+
+127
+
+irq_rkvdec0_dec
+
+High level
+
+344
+
+irq_stimer11
+
+High level
+
+128
+
+irq_rkvdec0_mmu
+
+High level
+
+345
+
+irq_hptimer
+
+High level
+
+129
+
+irq_rkvdec1_dec
+
+High level
+
+346
+
+irq_pmuwdt
+
+High level
+
+130
+
+irq_rkvdec1_mmu
+
+High level
+
+347
+
+irq_wdtns
+
+High level
+
+131
+
+irq_rkvenc0_mmu0
+
+High level
+
+348
+
+irq_wdts
+
+High level
+
+132
+
+irq_rkvenc0_mmu2
+
+High level
+
+349
+
+irq_i2c0
+
+High level
+
+133
+
+irq_rkvenc0
+
+High level
+
+350
+
+irq_i2c1
+
+High level
+
+134
+
+irq_rkvenc1_mmu0
+
+High level
+
+351
+
+irq_i2c2
+
+High level
+
+135
+
+irq_rkvenc1_mmu2
+
+High level
+
+352
+
+irq_i2c3
+
+High level
+
+136
+
+irq_rkvenc1
+
+High level
+
+353
+
+irq_i2c4
+
+High level
+
+137
+
+irq_rkvenc0 or irq_rkvenc1
+
+High level
+
+354
+
+irq_i2c5
+
+High level
+
+138
+
+irq_av1_afbc
+
+High level
+
+355
+
+irq_i2c6
+
+High level
+
+139
+
+irq_av1_l2cache
+
+High level
+
+356
+
+irq_i2c7
+
+High level
+
+140
+
+irq_av1_vcd
+
+High level
+
+357
+
+irq_i2c8
+
+High level
+
+141
+
+irq_av1_mmu
+
+High level
+
+358
+
+irq_spi0
+
+High level
+
+142
+
+irq_rknn_c0
+
+High level
+
+359
+
+irq_spi1
+
+High level
+
+143
+
+irq_rknn_c1
+
+High level
+
+360
+
+irq_spi2
+
+High level
+
+144
+
+irq_rknn_c2
+
+High level
+
+361
+
+irq_spi3
+
+High level
+
+145
+
+irq_vicap_mmu
+
+High level
+
+362
+
+irq_spi4
+
+High level
+
+146
+
+irq_rga3_0
+
+High level
+
+363
+
+irq_uart0
+
+High level
+
+147
+
+irq_rga3_1
+
+High level
+
+364
+
+irq_uart1
+
+High level
+
+148
+
+irq_rga2
+
+High level
+
+365
+
+irq_uart2
+
+High level
+
+149
+
+irq_iep
+
+High level
+
+366
+
+irq_uart3
+
+High level
+
+150
+
+irq_vdpu121_mmu
+
+High level
+
+367
+
+irq_uart4
+
+High level
+
+151
+
+irq_vdpu121_xintdec
+
+High level
+
+368
+
+irq_uart5
+
+High level
+
+152
+
+irq_vdpu121_xintenc
+
+High level
+
+369
+
+irq_uart6
+
+High level
+
+153
+
+irq_jpegenc0_mmu
+
+High level
+
+370
+
+irq_uart7
+
+High level
+
+154
+
+irq_jpegenc0_xintdec
+
+High level
+
+371
+
+irq_uart8
+
+High level
+
+155
+
+irq_jpegenc1_mmu
+
+High level
+
+372
+
+irq_uart9
+
+High level
+
+156
+
+irq_jpegenc1_xintdec
+
+High level
+
+373
+
+irq_can0
+
+High level
+
+157
+
+irq_jpegenc2_mmu
+
+High level
+
+374
+
+irq_can1
+
+High level
+
+158
+
+irq_jpegenc2_xintdec
+
+High level
+
+375
+
+irq_can2
+
+High level
+
+159
+
+irq_jpegenc3_mmu
+
+High level
+
+376
+
+irq_pwm0
+
+High level
+
+160
+
+irq_jpegenc3_xintdec
+
+High level
+
+377
+
+irq_pwm0_pwr
+
+High level
+
+161
+
+irq_jpegdec_dec
+
+High level
+
+378
+
+irq_pwm1
+
+High level
+
+162
+
+irq_jpegdec_mmu
+
+High level
+
+379
+
+irq_pwm1_pwr
+
+High level
+
+163
+
+irq_isp0
+
+High level
+
+380
+
+irq_pwm2
+
+High level
+
+164
+
+irq_isp0_mmu
+
+High level
+
+381
+
+irq_pwm2_pwr
+
+High level
+
+165
+
+irq_isp0_mi
+
+High level
+
+382
+
+irq_pwm3
+
+High level
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+24
+
+RK3588 TRM-Part1
+Number
+
+Source
+
+Polarity
+
+Number
+
+Source
+
+Polarity
+
+166
+
+irq_isp0_mipi
+
+High level
+
+383
+
+irq_pwm3_pwr
+
+High level
+
+167
+
+irq_isp1
+
+High level
+
+384
+
+irq_pmu_pvtm
+
+High level
+
+168
+
+irq_isp1_mmu
+
+High level
+
+385
+
+irq_litcore_pvtm
+
+High level
+
+169
+
+irq_isp1_mi
+
+High level
+
+386
+
+irq_bigcore0_pvtm
+
+High level
+
+170
+
+irq_isp1_mipi
+
+High level
+
+387
+
+irq_bigcore1_pvtm
+
+High level
+
+171
+
+irq_fec0
+
+High level
+
+388
+
+irq_npu_pvtm
+
+High level
+
+172
+
+irq_fec0_ispp_mmu1
+
+High level
+
+389
+
+irq_gpu_pvtm
+
+High level
+
+173
+
+irq_fec1
+
+High level
+
+390
+
+irq_npumcu_cache
+
+High level
+
+174
+
+irq_fec1_ispp_mmu1
+
+High level
+
+391
+
+irq_pmumcu_cache
+
+High level
+
+175
+
+irq_csihost0_1
+
+High level
+
+392
+
+irq_hdmitx0_hpd
+
+High level
+
+176
+
+irq_csihost0_2
+
+High level
+
+393
+
+irq_hdmitx1_hpd
+
+High level
+
+177
+
+irq_csihost1_1
+
+High level
+
+394
+
+178
+
+irq_csihost1_2
+
+High level
+
+395
+
+179
+
+irq_csihost2_1
+
+High level
+
+396
+
+180
+
+irq_csihost2_2
+
+High level
+
+397
+
+181
+
+irq_csihost3_1
+
+High level
+
+398
+
+182
+
+irq_csihost3_2
+
+High level
+
+399
+
+183
+
+irq_csihost4_1
+
+High level
+
+400
+
+184
+
+irq_csihost4_2
+
+High level
+
+401
+
+185
+
+irq_csihost5_1
+
+High level
+
+402
+
+186
+
+irq_csihost5_2
+
+High level
+
+403
+
+187
+
+irq_vicap
+
+High level
+
+404
+
+188
+
+irq_vop
+
+High level
+
+405
+
+189
+
+irq_vop_ddr
+
+High level
+
+406
+
+190
+
+irq_vop_lb
+
+High level
+
+407
+
+191
+
+irq_hdcp0
+
+High level
+
+408
+
+192
+
+irq_hdcp1
+
+High level
+
+409
+
+193
+
+irq_dp0
+
+High level
+
+410
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+irq_pcie_mmu600_r2_tb
+u0_pmu_irpt
+irq_pcie_mmu600_r2_tb
+u0_ras_irpt
+irq_pcie_mmu600_r2_tb
+u1_pmu_irpt
+irq_pcie_mmu600_r2_tb
+u1_ras_irpt
+irq_pcie_mmu600_r2_tcu
+_evento
+irq_pcie_mmu600_r2_tcu
+_cmd_sync_irpt_ns
+irq_pcie_mmu600_r2_tcu
+_cmd_sync_irpt_s
+irq_pcie_mmu600_r2_tcu
+_event_q_irpt_ns
+irq_pcie_mmu600_r2_tcu
+_event_q_irpt_s
+irq_pcie_mmu600_r2_tcu
+_global_irpt_ns
+irq_pcie_mmu600_r2_tcu
+_global_irpt_s
+irq_pcie_mmu600_r2_tcu
+_pmu_irpt
+irq_pcie_mmu600_r2_tcu
+_pri_q_irpt_ns
+irq_pcie_mmu600_r2_tcu
+_ras_irpt
+irq_php_mmu600_r2_tbu
+0_pmu_irpt
+irq_php_mmu600_r2_tbu
+0_ras_irpt
+irq_php_mmu600_r2_tcu
+_evento
+
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+
+25
+
+RK3588 TRM-Part1
+Number
+
+Source
+
+Polarity
+
+Number
+
+Source
+irq_php_mmu600_r2_tcu
+
+Polarity
+
+194
+
+irq_dp1
+
+High level
+
+411
+
+195
+
+irq_edp0
+
+High level
+
+412
+
+196
+
+irq_edp1
+
+High level
+
+413
+
+197
+
+irq_vo_trng0
+
+High level
+
+414
+
+198
+
+irq_vo_trng1
+
+High level
+
+415
+
+199
+
+irq_dsihost0
+
+High level
+
+416
+
+200
+
+irq_dsihost1
+
+High level
+
+417
+
+201
+
+irq_hdmitx0_oavp
+
+High level
+
+418
+
+202
+
+irq_hdmitx0_ocec
+
+High level
+
+419
+
+203
+
+irq_hdmitx0_oearcrx
+
+High level
+
+420
+
+irq_gic_fault
+
+High level
+
+204
+
+irq_hdmitx0_omain
+
+High level
+
+421
+
+irq_gic_err
+
+High level
+
+205
+
+irq_hdmitx1_oavp
+
+High level
+
+422
+
+irq_gic_pmu
+
+High level
+
+206
+
+irq_hdmitx1_ocec
+
+High level
+
+423
+
+irq_usb2host0phy_grf
+
+High level
+
+207
+
+irq_hdmitx1_oearcrx
+
+High level
+
+424
+
+irq_usb2host1phy_grf
+
+High level
+
+208
+
+irq_hdmitx1_omain
+
+High level
+
+425
+
+irq_otg0phy_grf
+
+High level
+
+209
+
+irq_hdmirx_cec
+
+High level
+
+426
+
+irq_otg1phy_grf
+
+High level
+
+210
+
+irq_hdmirx_hdmi
+
+High level
+
+427
+
+irq_otg2_lfps_beacon
+
+High level
+
+211
+
+irq_hdmirx_dma
+
+High level
+
+428
+
+irq_pmic
+
+High level
+
+212
+
+irq_i2s0_8ch
+
+High level
+
+429
+
+irq_tsadc
+
+High level
+
+213
+
+irq_i2s1_8ch
+
+High level
+
+430
+
+irq_saradc
+
+High level
+
+214
+
+irq_i2s2_2ch
+
+High level
+
+431
+
+irq_trng_s
+
+High level
+
+215
+
+irq_i2s3_2ch
+
+High level
+
+432
+
+irq_trng_ns
+
+High level
+
+216
+
+irq_i2s4_8ch
+
+High level
+
+433
+
+irq_wdt_ddr
+
+High level
+
+217
+
+irq_i2s5_8ch
+
+High level
+
+434
+
+irq_timer0_ddr
+
+High level
+
+218
+
+irq_i2s6_8ch
+
+High level
+
+435
+
+irq_timer1_ddr
+
+High level
+
+219
+
+irq_i2s7_8ch
+
+High level
+
+436
+
+irq_timer0_npu
+
+High level
+
+220
+
+irq_i2s8_8ch
+
+High level
+
+437
+
+irq_timer1_npu
+
+High level
+
+221
+
+irq_i2s9_8ch
+
+High level
+
+438
+
+irq_wdt_npu
+
+High level
+
+222
+
+irq_i2s10_8ch
+
+High level
+
+439
+
+223
+
+irq_pdm0
+
+High level
+
+440
+
+224
+
+irq_pdm1
+
+High level
+
+441
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+_cmd_sync_irpt_ns
+irq_php_mmu600_r2_tcu
+_cmd_sync_irpt_s
+irq_php_mmu600_r2_tcu
+_event_q_irpt_ns
+irq_php_mmu600_r2_tcu
+_event_q_irpt_s
+irq_php_mmu600_r2_tcu
+_global_irpt_ns
+irq_php_mmu600_r2_tcu
+_global_irpt_s
+irq_php_mmu600_r2_tcu
+_pmu_irpt
+irq_php_mmu600_r2_tcu
+_pri_q_irpt_ns
+irq_php_mmu600_r2_tcu
+_ras_irpt
+
+irq_dsu_probe0_mainstat
+alarm
+irq_dsu_probe1_mainstat
+alarm
+irq_dsu_probe2_mainstat
+alarm
+
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+
+High level
+High level
+High level
+
+26
+
+RK3588 TRM-Part1
+Number
+
+Source
+
+Polarity
+
+Number
+
+225
+
+irq_spdiftx0
+
+High level
+
+442
+
+226
+
+irq_spdiftx1
+
+High level
+
+443
+
+227
+
+irq_spdiftx2
+
+High level
+
+444
+
+228
+
+irq_spdiftx3
+
+High level
+
+445
+
+229
+
+irq_spdiftx4
+
+High level
+
+446
+
+230
+
+irq_spdif5
+
+High level
+
+447
+
+231
+
+irq_spdifrx0
+
+High level
+
+448
+
+232
+
+irq_spdifrx1
+
+High level
+
+449
+
+233
+
+irq_spdifrx2
+
+High level
+
+450
+
+234
+
+irq_vad
+
+High level
+
+451
+
+235
+
+irq_sdmmc
+
+High level
+
+452
+
+236
+
+irq_sdio
+
+High level
+
+453
+
+237
+
+irq_emmc
+
+High level
+
+454~511
+
+Source
+
+Polarity
+
+irq_dsu_probe3_mainstat
+alarm
+irq_center_probep0n0_m
+ainstatalarm
+irq_center_probep0n1_m
+ainstatalarm
+irq_center_probep1n0_m
+ainstatalarm
+irq_center_probep1n1_m
+ainstatalarm
+irq_center_probep2n0_m
+ainstatalarm
+irq_center_probep2n1_m
+ainstatalarm
+irq_center_probep3n0_m
+ainstatalarm
+irq_center_probep3n1_m
+ainstatalarm
+irq_sgrf_crc_chk_rst_req
+irq_dsusgrf_crc_chk_rst_
+req
+irq_pmusgrf_crc_chk_rst
+_req
+Reserved
+
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+
+1.4 System DMA Hardware Request Connection
+RK3588 provides three DMA controller (DMAC) inside the system, the following tables are
+the DMA hardware request list.
+Table 1-4 RK3588 DMAC Hardware Request Connection List
+DMAC0
+Req
+
+DMAC1
+
+Source
+
+Polarity
+
+0
+
+I2S0_8ch_tx
+
+High level
+
+1
+
+I2S0_8ch_rx
+
+2
+
+Req
+
+DMAC2
+
+Source
+
+Polarity
+
+0
+
+I2S2_2ch_tx
+
+High level
+
+High level
+
+1
+
+I2S2_2ch_rx
+
+I2S1_8ch_tx
+
+High level
+
+2
+
+3
+
+I2S1_8ch_rx
+
+High level
+
+4
+
+PDM0
+
+5
+
+Req
+
+Source
+
+Polarity
+
+0
+
+I2S4_8ch_tx
+
+High level
+
+High level
+
+1
+
+Reserved
+
+High level
+
+I2S3_2ch_tx
+
+High level
+
+2
+
+I2S5_8ch_tx
+
+High level
+
+3
+
+I2S3_2ch_rx
+
+High level
+
+3
+
+Reserved
+
+High level
+
+High level
+
+4
+
+PDM1
+
+High level
+
+4
+
+I2S6_8ch_tx
+
+High level
+
+SPDIF_tx0
+
+High level
+
+5
+
+SPDIF_tx1
+
+High level
+
+5
+
+Reserved
+
+High level
+
+6
+
+UART0_tx
+
+High level
+
+6
+
+SPDIF_tx2
+
+High level
+
+6
+
+Reserved
+
+High level
+
+7
+
+UART0_rx
+
+High level
+
+7
+
+SPDIF_tx3
+
+High level
+
+7
+
+UART7_tx
+
+High level
+
+8
+
+UART1_tx
+
+High level
+
+8
+
+SPDIF_tx4
+
+High level
+
+8
+
+UART7_rx
+
+High level
+
+9
+
+UART1_rx
+
+High level
+
+9
+
+UART4_tx
+
+High level
+
+9
+
+UART8_tx
+
+High level
+
+10
+
+UART2_tx
+
+High level
+
+10
+
+UART4_rx
+
+High level
+
+10
+
+UART8_rx
+
+High level
+
+11
+
+UART2_rx
+
+High level
+
+11
+
+UART5_tx
+
+High level
+
+11
+
+UART9_tx
+
+High level
+
+Number
+
+Number
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Number
+
+27
+
+RK3588 TRM-Part1
+DMAC0
+Req
+
+DMAC1
+
+Source
+
+Polarity
+
+12
+
+UART3_tx
+
+High level
+
+13
+
+UART3_rx
+
+14
+
+Req
+
+DMAC2
+Req
+
+Source
+
+Polarity
+
+12
+
+UART5_rx
+
+High level
+
+12
+
+UART9_rx
+
+High level
+
+High level
+
+13
+
+UART6_tx
+
+High level
+
+13
+
+SPI4_tx
+
+High level
+
+SPI0_tx
+
+High level
+
+14
+
+UART6_rx
+
+High level
+
+14
+
+SPI4_rx
+
+High level
+
+15
+
+SPI0_rx
+
+High level
+
+15
+
+SPI2_tx
+
+High level
+
+15
+
+PWM2
+
+High level
+
+16
+
+SPI1_tx
+
+High level
+
+16
+
+SPI2_rx
+
+High level
+
+16
+
+PWM3
+
+High level
+
+17
+
+SPI1_rx
+
+High level
+
+17
+
+SPI3_tx
+
+High level
+
+17
+
+CAN2_tx
+
+High level
+
+18
+
+PWM0
+
+High level
+
+18
+
+SPI3_rx
+
+High level
+
+18
+
+CAN2_rx
+
+High level
+
+19
+
+CAN0_tx
+
+High level
+
+19
+
+PWM1
+
+High level
+
+19
+
+sdmmc_buffer
+
+High level
+
+20
+
+CAN0_rx
+
+High level
+
+20
+
+CAN1_tx
+
+High level
+
+20
+
+Reserved
+
+High level
+
+21
+
+SPDIF_rx0
+
+High level
+
+21
+
+CAN1_rx
+
+High level
+
+21
+
+I2S7_8ch_rx
+
+High level
+
+22
+
+SPDIF_rx1
+
+High level
+
+22
+
+SPDIF_tx5
+
+High level
+
+22
+
+I2S8_8ch_tx
+
+High level
+
+23
+
+SPDIF_rx2
+
+High level
+
+23
+
+Reserved
+
+High level
+
+23
+
+I2S9_8ch_rx
+
+High level
+
+24
+
+Reserved
+
+High level
+
+24
+
+Reserved
+
+High level
+
+24
+
+I2S10_8ch_rx
+
+High level
+
+Number
+
+Number
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Number
+
+Source
+
+Polarity
+
+28
+
+RK3588 TRM-Part1
+

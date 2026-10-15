@@ -1,0 +1,1212 @@
+6.4 Clocking
+This chapter describes the clock architecture of the device.
+6.4.1 Overview
+To satisfy the various subsystems requirements, the device features multiple clock sources and clock
+generators:
+•
+External Crystal Driver
+•
+Internal Oscillator
+•
+Phase-Locked Loop circuits (PLLs)
+•
+Dividers
+Figure 6-32 shows the device top-level clock diagram. The clocking is divided into two clocking domains - MCU
+and MAIN.
+Figure 6-32. Top-Level Clock Diagram
+=== Page 615 ===
+6.4.2 Clock Inputs
+6.4.2.1 Overview
+Various external clock inputs are needed to drive the device. Summary of these input clock signals is as follows:
+•
+High frequency oscillators
+•
+MCU_OSC0_XO/MCU_OSC0_XI — external main crystal interface pins of the internal oscillator which
+sources a reference clock. Provides reference clock to PLLs within MCU and MAIN domain.
+•
+Low frequency oscillators
+•
+LSOSC0_IN/LFOSC0_OUT - external 32.768KHz crystal interface pins of the internal oscillator which
+sources a reference clock. Provides reference clock to RTC and Timers within MCU and MAIN domain.
+•
+General purpose clock inputs
+•
+MCU_EXT_REFCLK0 — optional external system clock input (MCU domain).
+•
+EXT_REFCLK1— optional external system clock input (MAIN domain).
+•
+External CPTS reference clock inputs
+•
+CP_GEMAC_CPTS0_RFT_CLK — CPTS reference clock input for CPSW and Timers in MAIN.
+•
+External audio reference clock inputs/outputs
+•
+AUDIO_EXT_REFCLK[1:0] — optional McASP high-frequency input clocks when configured to operate as
+an input.
+Note
+Other clock inputs that are routed directly to the subsystems are described in the respective
+subsystem chapters.
+=== Page 616 ===
+6.4.3 Clock Outputs
+The device provides several system clock outputs. Summary of these output clock signals is as follows:
+•
+MCU_SYSCLKOUT0
+•
+MCU_OBSCLK0
+•
+SYSCLKOUT0
+•
+OBSCLK0
+•
+WKUP_CLKOUT0
+•
+CLKOUT0
+•
+AUDIO_EXT_REFCLK[1:0]
+Other clock outputs, that are routed directly from subsystems to device pins, are described in the respective
+module chapter.
+Observation clock pins - MCU_OBSCLK0 and OBSCLK0 serve the following purposes:
+•
+During testing, PLLs on the device are configured to output all operating frequencies desired by each module
+to characterize PLL performance.
+•
+System debug: during debug, clocks from various PLLs can be inspected for possible clues. Example clock
+glitches, lock loss etc.
+Note
+Maximum frequency supported on both MCU_OBSCLK0 and OBSCLK0 pins is 200 MHz. Hence the
+divider at the output of each OBSCLK mux must be programmed to meet this limitation.
+Unlike the OBSCLK pins which can select several different clocks for output, system clock pins
+(MCU_SYSCLKOUT0 and SYSCLKOUT0) are hardwired to dedicated clock resources (see Section 6.4.3.2)
+6.4.3.1 Observation Clock Pins
+6.4.3.1.1 MCU_OBSCLK0 Pin
+MCU_OBSCLK0 output is controlled by MCU_CTRL_MMR_CFG0_MCU_OBSCLK_CTRL register in the
+MCU_CTRL_MMR0 module; for more information about control registers, refer to Control Module (CTRL_MMR).
+Two muxes are connected in series - MCU_OBSCLK0_MUX0 and MCU_OBSCLK0_MUX1, see Figure 6-33.
+Figure 6-33. MCU_OBSCLK Muxes Diagram
+How to select the output of MCU_OBSCLK0_MUX1 is described in Table 6-24.
+Table 6-24. MCU_OBSCLK0_MUX1 Output Clock Selection
+MCU_CTRL_MMR_CFG0_MCU_OBSCLK_CTRL(2)[3-0]
+CLK_SEL
+MCU_OBSCLK0_MUX1 Output Clock Selection(1)
+0x0
+CLK_12M_RC
+0x1
+0 (GND)(3)
+0x2
+MCU_PLL0_HSDIV0_CLKOUT
+=== Page 617 ===
+Table 6-24. MCU_OBSCLK0_MUX1 Output Clock Selection (continued)
+MCU_CTRL_MMR_CFG0_MCU_OBSCLK_CTRL(2)[3-0]
+CLK_SEL
+MCU_OBSCLK0_MUX1 Output Clock Selection(1)
+0x3
+MCU_PLL0_HSDIV4_CLKOUT
+0x4
+MCU_PLLCTRL0_PLL_CTRL_OBSCLK_CLK
+0x5
+CLK_32K_RC
+0x6
+HFOSC0_CLKOUT
+0x7
+HFOSC0_CLKOUT_32K
+0x8
+MCU_SYSCLK0
+0x9
+DEVICE_CLKOUT_32K
+0xA-0xF
+RESERVED(3)
+(1)
+Software-controlled 4-bit divider is used to obtain the divided versions of the clocks passed to MCU_OBSCLK1 mux
+(2)
+For more information about control registers, refer to Control Module (CTRL_MMR).
+(3)
+GND - ground
+The value of the software-controlled 4-bit divider is determined by the
+MCU_CTRL_MMR_CFG0_MCU_OBSCLK_CTRL[11-8] CLK _DIV field; for more information about control
+registers, see Control Module (CTRL_MMR).
+Note
+MCU_OBSCLK1_MUX0 is provided as a low jitter output for HFOSC0_CLK. In this configuration,
+MCU_CTRL_MMR_CFG0_MCU_OBSCLK_CTRL[3-0] should be configured as 0x1 (1, selecting a
+logical low signal) and MCU_CTRL_MMR_CFG0_MCU_OBSCLK_CTRL[24] should be configured as
+0x1.
+6.4.3.1.2 OBSCLK0 Pin
+The OBSCLK0 output pin is controlled by MAIN_CTRL_MMR_CFG0_OBSCLK0_CTRL register in the
+CTRL_MMR0 module; for more information about control registers, refer to Control Module (CTRL_MMR).
+Figure 6-34 shows a block diagram of internal OBSCLK0 mux connections.
+Figure 6-34. OBSCLK0 Muxes Diagram
+Table 6-25. OBSCLK0 Clock Selection
+MAIN_CTRL_MMR_CFG0_OBSCLK0_CTRL(2)[4-0] CLK_SEL
+OBSCLK0 Selection (1)
+0x0
+MAIN_PLL0_HSDIV0_CLKOUT
+0x1
+MAIN_PLL1_HSDIV0_CLKOUT
+0x2
+MAIN_PLL2_HSDIV0_CLKOUT
+0x3
+MAIN_PLL8_HSDIV0_CLKOUT
+0x4
+MAIN_PLL12_HSDIV0_CLKOUT
+0x5
+CLK_12M_RC
+0x6
+HFOSC0_CLKOUT_32K
+0x7
+PLLCTRL0_PLL_CTRL_OBSCLK_CLK
+0x8
+HFOSC0_CLKOUT
+0x9
+CLK_32K_RC
+0xA
+CPSW0_CPTS_GENF0
+0xB
+CPSW0_CPTS_GENF1
+0xC
+MCU_PLL0_HSDIV0_CLKOUT
+=== Page 618 ===
+Table 6-25. OBSCLK0 Clock Selection (continued)
+MAIN_CTRL_MMR_CFG0_OBSCLK0_CTRL(2)[4-0] CLK_SEL
+OBSCLK0 Selection (1)
+0xD
+MAIN_PLL15_HSDIV0_CLKOUT
+0xE
+MAIN_PLL16_HSDIV0_CLKOUT
+0xF
+MAIN_PLL17_HSDIV0_CLKOUT
+0x10
+MAIN_SYSCLK0
+0x11
+DEVICE_CLKOUT_32K
+0x12-0xFF 0x16-0x1F
+RESERVED(3)
+(1)
+Software-controlled 8-bit divider is used to obtain the divided versions of the clocks passed to output pins
+(2)
+For more information about control registers, refer to Control Module (CTRL_MMR).
+(3)
+GND - ground
+The value of the software-controlled 8-bit divider is determined by register
+MAIN_CTRL_MMR_CFG0_OBSCLK0_CTRL[15-8] CLK_DIV; for more information about control registers, refer
+to Control Module (CTRL_MMR).
+6.4.3.1.3 AUDIO_EXT_REFCLK
+AUDIO_EXT_REFCLK gives an option of sourcing one of six McASP high-frequency audio reference clocks,
+MAIN_PLL1_HSDIV6_CLKOUT, or MAIN_PLL2_HSDIV8_CLKOUT when configured to operate as an output.
+6.4.3.2 System Clock Pins
+6.4.3.2.1 MCU_SYSCLKOUT0
+MCU_SYSCLK0 is divided by 4 and then send out of the device as a LVCMOS clock signal
+(MCU_SYSCLKOUT0). This signal can be used to test if the specific device clock is functioning or not.
+Note
+MCU_SYSCLKOUT0 cannot be used as a clock source for external devices on the board.
+6.4.3.2.2 SYSCLKOUT0
+SYSCLK0 is divided by 4 and then send out of the device as a LVCMOS clock signal (SYSCLKOUT0). This
+signal can be used to test if the specific device clock is functioning or not.
+Note
+SYSCLKOUT0 cannot be used as a clock source for external devices on the board.
+6.4.3.2.3 WKUP_CLKOUT0
+The WKUP_CLKOUT0 output pin is controlled by the WKUP_CTRL_MMR_CFG0_CLKOUT_CTRL register
+in the WKUP_CTRL_MMR0 module; for more information about control registers, refer Control Module
+(CTRL_MMR). Figure 6-35 shows a block diagram of internal WKUP_CLKOUT0 mux connections.
+Figure 6-35. WKUP_CLKOUT0 Mux Diagram
+Table 6-26. WKUP_CLKOUT0_MUX Output Clock Selection
+WKUP_CTRL_MMR_CFG0_CLKOUT_CTRL(1)[2-0]
+WKUP_CLKOUT_SEL
+WKUP_CLKOUT0_MUX Output Clock Selection
+0x0
+HFOSC0_CLK
+0x1
+LFOSC0_CLKOUT
+0x2
+MAIN_PLL0_HSDIV2_CLKOUT
+=== Page 619 ===
+Table 6-26. WKUP_CLKOUT0_MUX Output Clock Selection (continued)
+WKUP_CTRL_MMR_CFG0_CLKOUT_CTRL(1)[2-0]
+WKUP_CLKOUT_SEL
+WKUP_CLKOUT0_MUX Output Clock Selection
+0x3
+MAIN_PLL1_HSDIV2_CLKOUT
+0x4
+MAIN_PLL2_HSDIV9_CLKOUT
+0x5
+DEVICE_CLKOUT_32K
+0x6
+CLK_12M_RC
+0x7
+HFOSC0_CLKOUT
+(1)
+For more information about control registers, refer Control Module (CTRL_MMR).
+6.4.4 Device Oscillators
+The device has the possibility to source clocks of an external high-frequency oscillator - HFOSC0 and external
+32.768KHz oscillator - LFOSC0. The device has also one internal RC oscillator - CLK_12M_RC.
+6.4.4.1 Device Oscillators Integration
+6.4.4.1.1 High-Frequency Oscillator with External Crystal
+By default, HFOSC0 is enabled after PORz. It supports a bypass mode. In this mode, an external clock can be
+driven on the XI Pin.
+Figure 6-36. HFOSC0 Integration Diagram
+6.4.4.1.2 Low-Frequency Oscillator with External Crystal
+By default, LFOSC0 is disabled after PORz. It supports a bypass mode. In this mode, an external clock can be
+driven on the XI Pin.
+Figure 6-37. LFOSC0 Integration Diagram
+=== Page 620 ===
+6.4.4.1.3 Internal RC Oscillator
+CLK_12M_RC in always oscillate mode.
+The 12.5-MHz RC clock output (CLK_12M_RC) is used by the on-chip Reset Glue logic, Power Reset Generator
+(PRG) circuits, HFOSC0 Loss Circuits, Dual Clock Comparator (DCC) and Timer Modules.
+Note
+An output clock of CLK_12M_RC is further divided down to generate a 32-kHz clock (CLK_32K_RC).
+This clock is used by SMS and Timer Modules.
+The actual value of the derived CLK_32K_RC will vary with PVT variations.
+6.4.4.2 Oscillator Clock Loss Detection
+The device supports HFOSC0 clock loss circuitry to detect when HFOSC0_CLK stops toggling.
+Dedicated hardware logic monitors HFOSC0 clock using CLK_12M_RC clock. When HFOSC0_CLK
+stops toggling for 9 CLK_12M_RC clock periods, a HFOSC0 clock stop loss condition is detected.
+If CTRLMMR_MCU_PLL_CLKSEL[8] CLKLOSS_SWTCH_EN is set , the reference clock is switched
+from HFOSC0_CLKOUT to CLK_12M_RC to allow the device to operate with a slower clock. The
+HFOSC0_CLK clock loss condition is reported as an error to MCU_ESM0 regardless of the value
+of CTRLMMR_MCU_PLL_CLKSEL[8] CLKLOSS_SWTCH_EN. Integration diagram of HFOSC0 clock loss
+detection is presented in Figure 6-38.
+Figure 6-38. HFOSC0 Clock Loss Detection Integration Diagram
+MCU_ESM0 can optionally generate an interrupt to MCU_M4FSS0 and DM_R5FSS0 so they can save some
+critical contents such as error logging to scratch pad memory or external flash. ESM must also be configured to
+report this error on the MCU_ERRORn pin.
+HFOSC0 clock loss is a catastrophic failure since this clock is the most critical system clock. During the clock
+loss condition an external system intervention is required.
+The clock loss mux is not a glitch free mux. The mux control is synchronized to the CLK_12M_RC clock. Since
+HFOSC0_CLK has stopped switching the mux should transition to RC Clock without producing glitches.
+=== Page 621 ===
+During clock-loss condition, the device reports the error to the external device through MCU_ERRORn pin - the
+pin is driven Low. The recovery mechanism is up to the external system (such as a PMIC to take action). For
+example, it can try a full system power cycle to see if the system recovers. If the system does not recover then, it
+has to take some other action such as to check system clocks, external crystal or supply rails.
+Device PLLs will lose lock when clock loss is detected. During this time 12.5-MHz RC clock is output through the
+bypass muxes. The PLL will relock to a new frequency based on 12.5 MHz RC clock.
+In an event of clock glitch which may potentially hang the device, then the SMS watchdog timer will expire and
+will generate an internal reset for the whole device.
+=== Page 622 ===
+6.4.5 PLLs
+Phase-Locked Loop circuits (PLLs) in the device are clock generator PLLs, which multiply the lower-frequency
+reference clock up to the operating frequency of the respective subsystem(s).
+6.4.5.1 MCU Domain PLL Overview
+MCU_PLL0 (MCU PLL) with MCU_PLLCTRL0 are present in the device in MCU domain. An overview is shown
+on Figure 6-39. For more specific information about PLLs see Section 6.4.5.5, PLLs Device-Specific Information.
+Figure 6-39. MCU Domain PLLs Integration
+=== Page 623 ===
+6.4.5.2 MAIN Domain PLLs Overview
+The following are the PLLs in the device in MAIN domain:
+•
+PLL0 (MAIN PLL) with PLLCTRL0
+•
+PLL1 (PER0 PLL)
+•
+PLL2 (PER1 PLL)
+•
+PLL8 (ARM0 PLL)
+•
+PLL12 (DDR PLL)
+•
+PLL15 (SMS PLL)
+•
+PLL16 (DSS0 PLL)
+•
+PLL17 (DSS1 PLL)
+Overview of the device PLLs with their reference clock options in MAIN domain is shown on Figure 6-40. For
+more specific information about PLLs see Section 6.4.5.5, PLLs Device-Specific Information.
+Note
+The external muxes of choosing the reference clocks are glitch-free muxes.
+=== Page 624 ===
+Figure 6-40. MAIN Domain PLLs Integration
+=== Page 625 ===
+6.4.5.3 PLL Reference Clocks
+6.4.5.3.1 PLLs in MCU Domain
+The reference clock MCU_PLL0_REF_CLK for the PLL in MCU domain is chosen between the internal high-
+frequency (HF) oscillator with external crystal (HFOSC0) and 12.5-MHz free-running RC oscillator. The selection
+is made through CTRLMMR_MCU_PLL_CLKSEL[8] CLKLOSS_SWTCH_EN, see Table 6-27.
+Table 6-27. PLL MCU Domain Reference Clock Selection - HFOSC0_CLKOUT Selection
+CTRLMMR_MCU_PLL_CLKSEL(1)[8]
+CLKLOSS_SWTCH_EN
+MCU_PLL0_REF_CLK
+0 (default)
+HFOSC0_CLK
+1
+CLK_12M_RC if clock loss is detected
+or
+HFOSC0_CLK if clock loss is not detected
+(1)
+For more information about control registers, see Control Module (CTRL_MMR).
+6.4.5.3.2 PLLs in MAIN Domain
+Each PLL in MAIN domain has a dedicated register
+(CTRLMMR_MAIN_PLLn_CLKSELCTRLMMR_MAIN_PLLn_CLKSEL, n = 0 to 2, 8, 12,15, 16, 17) in
+CTRL_MMR0 that contains associated control bits.
+6.4.5.4 Generic PLL Overview
+To generate high-frequency clocks, the device supports multiple on-chip PLLs controlled directly by the Top-level
+Clocking. Their type is Fractional PLL with Calibration (PLLTS16FFCLAFRACF2).
+Note
+This chapter discusses only the PLLs that are directly controlled by the Top-level Clocking. The other
+PLLs embedded in and managed by other subsystems are described in their respective subsystems.
+6.4.5.4.1 PLLs Output Clocks Parameters
+Figure 6-41 shows the functional architecture of a generic PLL for PLLTS16FFCLAFRACF2 type.
+=== Page 626 ===
+DESKEWCALOUT[11-0]
+DESKEWCALLOCK
+DESKEWCALLOCKCNT[3-0]
+PFD
+VCO
+and
+Noise Filter
+FEEDBACK
+DIV (12 bit)
+Sigma-Delta
+DAC
+PRE DIV
+(6 bit)
+FRACTIONAL
+DIV (24 bit)
+POSTDIV1
+(3-bit)
+POSTDIV2
+(3-bit)
+1
+0
+LOCK DETECT
+BYPASS
+FREF
+REF_DIV[5-0]
+FB_DIV[11-0]
+FB_FIV_FRAC[23-0]
+DAC_EN
+DSM_EN
+CLK_POSTDIV_EN
+POST_DIV1[2-0]
+POST_DIV2[2-0]
+CLKSSCG
+LOCK
+FOUTP/N
+FOUTPOSTDIV
+Power Down
+Reset
+Controls
+FPFD
+FFB
+PLL_EN
+CALIBRATION
+DSKEWSALEN
+DSKEWFASTCAL
+DSKEWCALCNT[2-0]
+DESKEWCALIN[11-0]
+DSKEWCALBYP
+clocking-
+Figure 6-41. Generic PLL Functional Diagram for PLLTS16FFCLAFRACF2 Type
+6.4.5.4.1.1 PLLs Input Clocks
+As shown in Figure 6-41 the reference clock (FREF) input is used to generate the synthesized clock, but can
+also be used as the bypass clock for some outputs of the PLL whenever the PLL enters bypass mode. It is
+mandatory for the PLL clock synthesis.
+6.4.5.4.1.2 PLL Output Clocks
+6.4.5.4.1.2.1 PLLTS16FFCLAFRACF2 Type Output Clocks
+Table 6-28 describes the output clocks of PLLTS16FFCLAFRACF2.
+Table 6-28. PLLTS16FFCLAFRACF2 Output Clocks
+Output
+Description
+Frequency
+FOUTP
+Positive phase VCO output (no
+post divider)
+(FREF / REF_DIV) * (FB_DIV +
+FB_DIV_FRAC)
+FOUTN
+Negative phase VCO output (no
+post divider)
+(FREF / REF_DIV) * (FB_DIV +
+FB_DIV_FRAC)
+FOUTPOSTDIV
+VCO-divided clock output.
+FOUTP /
+(POST_DIV1*POST_DIV2)
+CLKSSCG
+Clock to SSMOD
+(FREF / REF_DIV)
+Where:
+•
+REF_DIV is the software-configured division ratio binary value.
+•
+FB_DIV is the software-configured division ratio binary value.
+•
+FB_DIV_FRAC is the software-configured fractional division.
+•
+POST_DIV1 is the software-configured division ratio binary value.
+•
+POST_DIV2 is the software-configured division ratio binary value.
+=== Page 627 ===
+Note
+POST_DIV1 and POST_DIV2 valid values are from 1 to 7. To ensure correct operation, POST_DIV1
+must always be programmed to a value equal to or greater than POST_DIV2.
+Note
+For device-specific information about clock output parameters and synthesized clocks, see Table 6-33
+and Table 6-34.
+6.4.5.4.1.2.2 PLL Lock
+PLL module outputs a lock status signal to indicate that the PLL has achieved frequency lock. When the PLL
+detects no cycle slips between the feedback clock (FFB) and reference clock FPFD (FREF/ REF_DIV[5-0]) for
+128 consecutive cycles, it asserts the lock signal high. When the PLL detects any cycle slip, lock signal will
+go low and stays low until it detects no cycle slip for 128 consecutive cycles. This lock signal is captured in
+<PLL_name>_STAT[0] LOCK bit. Software can read this bit to determine if the PLL has achieved frequency lock
+before selecting the PLL clock through external bypass mux.
+When PLL losses lock, there is a hardware mechanism to automatically bypass the PLL clock to the reference
+clock (FREF) using the external glitch free mux. BYP_ON_LOCKLOSS bit in <PLL_name>_CTRL register
+enables this automatic bypass mode on PLL lock loss. When the PLL re-locks, the glitch free mux switches to
+PLL clock out.
+The PLL Lock signal is also routed to ESM module for error reporting. ESM can be configured to generate
+interrupts to MCU_M4FSS0 and R5FSS0/1 and assert Low on MCU_ERRORn pin on PLL Lock loss for further
+action.
+6.4.5.4.1.2.3 HSDIVIDER
+A PLL may contain up to 10 HSDIVIDER modules to produce more clocks with divided ratio based on the PLL
+synthesized clock frequency. HSDIVIDER provides only one output. The HSDIVIDER output clock frequency is
+given by the equations in Table 6-29.
+Table 6-29. HSDIV_CLKOUT Frequency With PLL State
+Equation
+PLL Mode
+HSDIV_CLKOUT = FOUTP / (HSDIV + 1)
+Locked
+HSDIV_CLKOUT = FREF
+Before lock or during relock
+Where:
+•
+FOUTP is the PLL lock frequency.
+•
+HSDIV is the software-configured division ratio binary value.
+Figure 6-42 describes the connection between a HSDIV and a specific type of PLL. Signals related only to this
+connections are shown in both figures.
+=== Page 628 ===
+(1)i = 0 to 4; j = 5 to 9
+Figure 6-42. PLLTS16FFCLAFRACF2 and HSDIV Connection
+6.4.5.4.1.2.4 ICG Module
+ICG module ensures that when a particular HSDIV is not enabled the HSDIV clock output is gated off. This is a
+hardware module with no software control.
+6.4.5.4.1.2.5 PLL Power Down
+PLLTS16FFCLAFRACF2 is disabled with MCU_PLL0_CTRL[15] PLL_EN or PLLn_CTRL[15] PLL_EN.
+6.4.5.4.1.2.6 PLL Calibration
+PLLTS16FFCLAFRACF2 has calibration feature. The calibration settings are done via
+<PLL_Name>_CAL_CTRL register. The calibration status can be monitored by reading
+=== Page 629 ===
+<PLL_Name>_CAL_STAT register. For more information about device-specific information about calibration
+feature, see Table 6-35.
+6.4.5.4.2 PLL Spread Spectrum Modulation Module
+Spread Spectrum Modulation (SSMOD) modules on the device reduces Electro Magnetic Interference (EMI). It
+is a fully-digital circuit, used to modulate the frequency of the selected fractional PLLs. Programming options
+include selection of center spread or down spread, modulation depth, and modulation shape. The default
+modulation profile is triangular.
+All PLLs in this family of device have SSMOD module.
+SSMOD in the PLL is performed by changing the feedback divider (FRAC and FB_DIV) in a triangular pattern.
+This varies the frequency of the output clock in a triangular pattern. The frequency of this pattern is the
+modulation frequency (fm). It is programmed as a ratio of the CLKIN/4.
+Figure 6-43 shows a diagram of the spreading generation block.
+SSC_EN
+SSC_FREQ
+(rate)
+SSC_TYPE
+(
+)
+Triangular
+t
+f
+1/fm
+f
+f
+Spreading generation block
+Clock
+generation
+block
+fc
+prcm-086
+SSC_ACK
+Figure 6-43. Spreading Generation Block Diagram
+Note
+Δf is the deviation from the center frequency. The total spreading deviation is equal to twice Δf. The
+peak (ΔM) or the amplitude of the triangular/square pattern as a percent of M would be equal to the
+percent of the frequency spread (Δf), ΔM/M = Δf/fc.
+fc is the original output clock frequency.
+fm is the spreading frequency.
+This additional block generates the required waveform used to reduce EMI. This waveform is then modulated
+with the initial signal to add some controlled deviation to the clock signal frequency, which spreads the energy
+of the clock and its harmonics into a band of frequencies, and then reduces EMI. SSMOD_DOWNSPREAD can
+control the position of the generated signal. It is controlled by the <PLL_name>_CTRL[4] DOWNSPREAD_EN
+=== Page 630 ===
+bit of the corresponding registers. If the DOWNSPREAD_EN bit is set to 1, the frequency spread on the lower
+side is twice the programmed value. The frequency spread on the higher side is 0.
+The value of SSMOD_FREQ controls the rate of the generated signal. It can be programmed as a ratio of the
+reference clock: fref / 4. The value that must be programmed is calculated as follows:
+ModFreqDivider = fref / (4 × fm), where fm < fref / 70, fref = finp / (1+N), and finp is the input clock for the PLL.
+6.4.5.4.2.1 Definition of SSMOD
+The aim of the SSMOD is to add a variation to the frequency of an original clock, which spreads the generated
+interference over a larger band of frequencies.
+In theory, SSMOD means that the clock signal is varied around the desired frequency. For example, for a 1
+GHz clock, the frequency might be 999.5 MHz at one time and 1.0005 GHz at another. Doing this constantly
+causes the power of the tone to be spread out more over a broader band of tight frequencies (centered at the
+desired tone). To realize this constant variation on the original signal, a modulation with an additional signal
+(called spreading waveform) is realized.
+Creating an SSMOD by spreading the initial clock frequency is done by defining the following parameters:
+•
+The spreading frequency (deviation), which is the ratio of the range of spreading frequency over the original
+clock frequency.
+6.4.5.4.2.2 SSMOD Configuration
+Table 6-30 describes the PLL SSMOD control bitfields. Figure 6-44 describes the connection between a SSMOD
+and a PLL.
+Table 6-30. SSMOD related bitfields
+Parameter
+Register
+Description
+SSMOD enable control
+<PLL_name>n_SS_CTRL[31](1)
+BYPASS_EN
+(For example, MCU_PLL0 -
+MCU_PLL0_SS_CTRL[31]
+BYPASS_EN)
+Enable/disable the PLL SSMOD
+feature.
+Wave table maximum address
+<PLL_name>n_SS_CTRL[25-18](1)
+WV_TBL_MAXADDR
+(For example, MCU_PLL0 -
+MCU_PLL0_SS_CTRL[25-18]
+WV_TBL_MAXADDR)
+Wave table maximum address.
+Indicates the maximum number of
+address bits used to access the
+externalwave table. These bits are not
+used if <PLL_name>n_SS_CTRL[0]
+WAVE_SEL = 0
+Type of spread
+<PLL_name>n_SS_CTRL[4](1)
+DOWNSPREAD_EN
+(For example, MCU_PLL0 -
+MCU_PLL0_SS_CTRL[4]
+DOWNSPREAD_EN)
+Selects center spread or down spread
+clock variance
+Wave table selection
+<PLL_name>n_SS_CTRL[0] (1)
+WAVE_SEL
+(For example, MCU_PLL0 -
+MCU_PLL0_SS_CTRL[0]
+WAVE_SEL)
+Wave pattern select External wave
+table should only be selected
+Modulation dvider
+<PLL_name>n_SS_SPREAD[19-16] (1)
+MOD_DIV
+(For example, MCU_PLL0 -
+MCU_PLL0_SS_SPREAD[19-16]
+MOD_DIV)
+Input clock divider. This divider sets
+the modulation frequency.
+Spread Depth
+<PLL_name>n_SS_SPREAD[4-0] (1)
+SPREAD
+(For example, MCU_PLL0 -
+MCU_PLL0_SS_SPREAD[4-0]
+SPREAD)
+Sets the spread modulation depth.
+(1)
+n = 0 for MCU domain and n = 0 - 2, 8, 12, 15, 16 and 17 for MAIN domain
+=== Page 631 ===
+EXT_MAXADDR[7-0]
+DISABLE_SSCG
+CLKSSCG
+DIVVAL[3-0]
+DOWNSPREAD
+EXT_WAVEVAL[7-0]
+FRACIN[23-0]
+FRACMOD[23-0]
+INTIN[11-0]
+INTMOD[11-0]
+RESET
+SEL_EXTWAVE
+SPREAD[4:0]
+TBLADDR[7-0]
+SSMOD
+FPLL
+(PLLTS16FFCLAFRACF)
+PLL Registers
+FOUTPOSTDIV
+PLL_CONTROLS
+PLL_CONTROLS
+DISABLE_SSCG
+DIVVAL[3-0]
+DOWNSPREAD
+FRACIN[23-0]
+INTIN[11-0]
+SEL_EXTWAVE
+SPREAD[4-0]
+FB_DIV[11-0]
+FB_DIV_FRAC[23-0]
+OPTIONAL LOOK-UP TABLE
+CLKSSCG
+SSMOD_RESET
+EXT_MAXADDR[7-0]
+clocking-
+Figure 6-44. PLL and SSMOD Connection
+=== Page 632 ===
+6.4.5.5 PLLs Device-Specific Information
+Table 6-31 lists the basic information of the MCU PLL.
+Table 6-31. Basic Information of MCU_PLL0
+PLL name
+Type
+SSMOD Available
+HSDIV Available
+Input clock
+Comments
+MCU_PLL0
+PLLTS16FFCLAFRACF2
+Yes, see Table 6-30 for more information
+on SSMOD related bitfields/bits
+HSDIV0, HSDIV1, HSDIV2,
+HSDIV3, HSDIV4
+HFOSC0_CLKOUT
+See (1), (2), and (3)
+(1)
+See Figure 6-41, Generic PLL Functional Diagram for PLLTS16FFCLAFRACF2 type for overview of the PLL.
+(2)
+See Section 6.4.5.5.2 for synthesized clock parameters.
+(3)
+See Section 6.4.5.5.3 for clock output parameters.
+Table 6-32 lists the basic information of each of the MAIN PLLs.
+Table 6-32. Basic Information of MAIN Domain PLLs
+PLL name
+Type
+SSMOD Available
+HSDIV Available
+Input clock
+Comments
+PLL0
+PLLTS16FFCLAFRACF2
+Yes, see Table 6-30 for more information
+on SSMOD related bitfields/bits
+HSDIV0, HSDIV1, HSDIV2,
+HSDIV3, HSDIV4, HSDIV5,
+HSDIV6, HSDIV7, HSDIV8,
+HSDIV9
+MAIN_PLL0_REF_CLK
+PLL1
+PLLTS16FFCLAFRACF2
+Yes, see Table 6-30 for more information
+on SSMOD related bitfields/bits
+HSDIV0, HSDIV1, HSDIV2,
+HSDIV3, HSDIV4, HSDIV5,
+HSDIV6
+MAIN_PLL1_REF_CLK
+PLL2
+PLLTS16FFCLAFRACF2
+Yes, see Table 6-30 for more information
+on SSMOD related bitfields/bits
+HSDIV0, HSDIV1, HSDIV2,
+HSDIV3, HSDIV4, HSDIV5,
+HSDIV6, HSDIV7, HSDIV8,
+HSDIV9
+MAIN_PLL2_REF_CLK
+PLL8
+PLLTS16FFCLAFRACF2
+Yes, see Table 6-30 for more information
+on SSMOD related bitfields/bits
+HSDIV0
+MAIN_PLL8_REF_CLK
+PLL12
+PLLTS16FFCLAFRACF2
+Yes, see Table 6-30 for more information
+on SSMOD related bitfields/bits
+HSDIV0
+MAIN_PLL12_REF_CLK
+PLL15
+PLLTS16FFCLAFRACF2
+Yes, see Table 6-30 for more information
+on SSMOD related bitfields/bits
+HSDIV0, HSDIV1
+MAIN_PLL15_REF_CLK
+PLL16
+PLLTS16FFCLAFRACF2
+Yes, see Table 6-30 for more information
+on SSMOD related bitfields/bits
+HSDIV0
+MAIN_PLL16_REF_CLK
+PLL17
+PLLTS16FFCLAFRACF2
+Yes, see Table 6-30 for more information
+on SSMOD related bitfields/bits
+HSDIV0
+MAIN_PLL17_REF_CLK
+(1)
+See Figure 6-41, Generic PLL Functional Diagram for PLLTS16FFCLAFRACF2 type for overview of the PLL.
+(2)
+See Section 6.4.5.5.2 for synthesized clock parameters.
+(3)
+See Section 6.4.5.5.3 for clock output parameters.
+Device Configuration
+632
+=== Page 633 ===
+6.4.5.5.1 SSMOD Related Bitfields Table
+Table 6-30 lists SSMOD related bitfields for all types of PLLs.
+=== Page 634 ===
+6.4.5.5.2 Clock Synthesis Inputs to the PLLs
+Table 6-33 lists the clock synthesis parameters for PLLTS16FFCLAFRACF2 type.
+Table 6-33. Clock synthesis Parameters for PLLTS16FFCLAFRACF2 Type
+Parameter Name
+Register
+FB_DIV
+<PLL_name>_FREQ_CTRL0[11-0] FB_DIV_INT
+(For example, MCU_PLL0 -
+MCU_PLL0_FREQ_CTRL0[11-0] FB_DIV_INT)
+FB_DIV_FRAC
+<PLL_name>_FREQ_CTRL1[23-0] FB_DIV_FRAC
+(For example, MCU_PLL0 -
+MCU_PLL0_FREQ_CTRL1[23-0] FB_DIV_FRAC)
+POST_DIV2
+<PLL_name>_DIV_CTRL[26-24] POST_DIV2
+(For example, MCU_PLL0 -
+MCU_PLL0_DIV_CTRL[26-24] POST_DIV2)
+POST_DIV1
+<PLL_name>_DIV_CTRL[18-16] POST_DIV1
+(For example, MCU_PLL0 -
+MCU_PLL0_DIV_CTRL[18-16] POST_DIV1)
+REF_DIV
+<PLL_name>_DIV_CTRL[5-0] REF_DIV
+(For example, MCU_PLL0 -
+MCU_PLL0_DIV_CTRL[5-0] REF_DIV)
+Note
+For PLLTS16FFCLAFRACF2 type - POST_DIV1 and POST_DIV2 values are from 1 to 7. To ensure
+correct operation, POST_DIV1 must always be programmed to a value equal to or greater that
+POST_DIV2.
+6.4.5.5.3 Clock Output Parameter
+Table 6-34 lists the control/status bit fields for output clocks.
+Table 6-34. Clock Output Parameter for PLLTS16FFCLAFRACF2 Type
+Clock Output/Divider
+Parameter Name
+Control/Status Bit Field
+<PLL_name>_CLKOUT,
+<PLL_name>_HSDIVj_CLKOUT(1)
+Control
+<PLL_name>_CTRL[31] BYPASS_EN
+(For example, MCU_PLL0 -
+MCU_PLL0_CTRL[31] BYPASS_EN)
+<PLL_name>_HSDIVj_CLKOUT(1)
+Control
+<PLL_name>_HSDIV_CTRLj[15] CLKOUT_EN
+(For example, MCU_PLL0 -
+MCU_PLL0_HSDIV_CTRL0[15] CLKOUT_EN and
+MCU_PLL0_HSDIV_CTRL1[15] CLKOUT_EN)
+<PLL_name>_HSDIVj_CLKOUT(1)
+Divider control
+<PLL_name>_HSDIV_CTRLj[6-0] HSDIV
+(For example, MCU_PLL0 -
+MCU_PLL0_HSDIV_CTRL0[6-0] HSDIV and
+MCU_PLL0_HSDIV_CTRL1[6-0] HSDIV)
+PLL bypass mux
+Control
+<PLL_name>_CTRL[16] BYP_ON_LOCKLOSS
+(For example, MCU_PLL0 -
+MCU_PLL0_CTRL[16] BYP_ON_LOCKLOSS)
+Enable 4-phase clock generator
+Control
+<PLL_name>_CTRL[5] CLK_4PH_EN (ignored if
+<PLL_name>_CTRL[4] CLK_POSTDIV_EN = 0)
+(For example, MCU_PLL0 -
+MCU_PLL0_CTRL[5] CLK_4PH_EN)
+Post divide CLK enable
+Control
+<PLL_name>_CTRL[4] CLK_POSTDIV_EN
+(For example, MCU_PLL0 -
+MCU_PLL0_CTRL[4] CLK_POSTDIV_EN)
+Delta-Sigma modulator enable
+Control
+<PLL_name>_CTRL[1] DSM_EN
+(For example, MCU_PLL0 -
+MCU_PLL0_CTRL[1] DSM_EN)
+=== Page 635 ===
+Table 6-34. Clock Output Parameter for PLLTS16FFCLAFRACF2 Type (continued)
+Clock Output/Divider
+Parameter Name
+Control/Status Bit Field
+Enable fractional noise canceling DAC
+Control
+<PLL_name>_CTRL[0] DAC_EN
+(For example, MCU_PLL0 -
+MCU_PLL0_CTRL[0] DAC_EN)
+(1)
+j is the number of HSDIV for the current PLL.
+6.4.5.5.4 Calibration Related Bitfields
+Table 6-35 lists the calibration related bitfields/bits.
+Table 6-35. Recalibration Feature Parameters
+Recalibration feture
+Parameter Name
+Control/Status Bit Field
+Calibration enable to actively adjust for input
+skew
+Control
+<PLL_name>_CAL_CTRL[31] CAL_EN
+(For example, PLL12 -
+PLL12_CAL_CTRL[31] CAL_EN)
+Fast calibration enabled
+Control
+<PLL_name>_CAL_CTRL[20] FAST_CAL
+(For example, PLL12 -
+PLL12_CAL_CTRL[20] FAST_CAL)
+Calibration loop programmable counter
+Control
+<PLL_name>_CAL_CTRL[18-16] CAL_CNT
+(For example, PLL12 -
+PLL12_CAL_CTRL[18-16] CAL_CNT)
+Calibration bypass
+Control
+<PLL_name>_CAL_CTRL[15] CAL_BYP
+(For example, PLL12 -
+PLL12_CAL_CTRL[15] CAL_BYP)
+Calibration input
+Control
+<PLL_name>_CAL_CTRL[11-0] CAL_IN
+(For example, PLL12 -
+PLL12_CAL_CTRL[11-0] CAL_IN)
+Output of the calibration block
+Status
+<PLL_name>_CAL_STAT[11-0] CAL_OUT
+(For example, PLL12 -
+PLL12_CAL_STAT[11-0] CAL_OUT)
+6.4.5.6 PLL Controller (PLLCTRL)
+The PLLCTRL manages clock alignment of CBASS clocks to the peripherals in Main and MCU domains. In
+addition PLLCTRL is also responsible for controlling reset propagation through the chip and providing DFT
+hooks for testability. Two PLL Controllers are implemented in the device - PLLCTRL0 and MCU_PLLCTRL0.
+They are respectively related to PLL0 and MCU_PLL0.
+PLLOUT
+PLL
+PLL Controller
+SYSCLK0
+/n
+PLLDIV0
+PLLCTRL_POSTDIV
+PLL_REF_CLK
+clocking-0012
+BYP_CLK
+Figure 6-45. PLL Controller
+=== Page 636 ===
+Note
+PLLCTRL_POSTDIV is not supported in this family of devices.
+Note
+The PLL Controllers registers can be accessed by any controller in the device.
+A SYSCLK0 clock out of a PLLCTRL is the only synchronous clock in that domain. That means
+- MCU_SYSCLK0 out of MCU_PLLCTRL is the synchronous CBASS clock in MCU domain and
+SYSCLK0 out of Main PLLCTRL is the synchronous CBASS clock in Main domain.
+6.4.5.7 PLL, PLLCTRL, and HSDIV Controllers Programming Guide
+6.4.5.7.1 PLL Initialization
+6.4.5.7.1.1 Kick Protection Mechanism
+Note
+PLL configuration registers are write-protected at power-up. Software must first un-lock the
+PLLn_LOCKKEY0 and PLLn_LOCKKEY1 registers prior to writing to any chip-level registers.
+The un-lock process shall follow the steps:
+1.
+Write value 0x68EF3490 to PLLn_LOCKKEY0 register.
+2.
+Write value 0xD172BC5A to PLLn_LOCKKEY1 register.
+After these two steps a write access to the PLL registers is allowed. Writing any other data value to either of
+these two registers locks the kicker mechanism and blocks any writes to the PLL registers.
+Note
+In order to ensure that all PLL registers are write protected, software must always re-lock the kicker
+mechanism after completing the register writes.
+6.4.5.7.1.2 PLLCTRL Initialization
+Note
+For validated set of parameters that can be programmed to PLLs, please refer to the device-specific
+Datasheet.
+Initially, the device powers up in PLL bypass mode. The bypass mux is a glitch free mux and is located outside
+the PLL module. BYPASS_EN bit controls the bypass mux section. During Power-up, the bypass mux defaults to
+select FREF clock (PLL clock bypass mode).
+The following shows the PLL initialization sequence.
+1.
+Wait until supplies are stable and PORz is de-asserted. By this time the reference clock source must be up
+and running.
+2.
+Default controls settings:
+•
+By default PLL_EN signal is Low provided by <PLL_name>_CTRL register default state. This signal
+behaves like a reset control to the PLL.
+•
+By default INTL_BYP_EN signal is low provided by <PLL_name>_CTRL register default state.
+•
+By default BYPASS_EN signal is high provided by PLL MMR CTRL default state. PLL clock will be
+bypassed externally by a glitch free mux. The output of the mux will be the reference clock FREF.
+•
+LOCK output of PLL will be Low.
+=== Page 637 ===
+3.
+Program the PLL to a valid setting that runs the VCO within the specified range. The following bits/bitfields
+must be programmed appropriately by software: DSM_EN, DAC_EN, CLK_POSTDIV_EN, CLK_4PH_EN,
+REF_DIV[5-0], FB_DIV[11-0], FB_DIV_FRAC[23-0], POST_DIV1[2-0], POST_DIV2[2-0].
+4.
+Wait for 1 µs to allow the PLL internal reset to complete (PLL powerdown switch pulls the loop filter voltage
+from rail-to-rail, which ensures the PLL will be completely powered down from any state).
+5.
+Assert PLL_EN to a High (by writing a '1' into PLL_EN bit in <PLL_name>_CTRL register).
+6.
+Wait for PLL Lock output to go high. Software can read the LOCK bit in <PLL_name>_STATS register to
+check if PLL has locked.
+7.
+De-assert BYPASS_EN signal to a Low by writing 0 into BYPASS_EN bit in <PLL_name>_CTRL register.
+8.
+Glitch free mux safely switches to the PLL clock output.
+Note
+In the case of brown out (supply dips below datasheet minimum) or loss of the reference clock, the
+state of the PLL will be undetermined. A full reset sequence should be initiated.
+Changing PLL setting: During normal operation, before changing PLL settings, the PLL clock must be
+bypassed by setting BYPASS_EN control to a high. Then follow steps 2 to 8 from the above sequence.
+6.4.5.7.1.3 PLL Programming Requirements
+•
+A PLL VCO frequency must be set to > 1500 MHz
+•
+For best PLL performance, maximize VCO frequency where possible.
+•
+A PLL must always operate in Fractional Mode (DAC_EN and DSM_EN set to µ1’). This is true even when the
+FB_DIV is a integer.
+•
+A PLL Reference clock frequency must be > 10 MHz.
+•
+REF_DIV[5:0] must be set to „000001“.
+•
+Calibration procedures for FRACF PLLs in integer mode or fractional mode:
+•
+Programming FRACF in Integer Mode with calibration (Static or Auto Calibration)
+•
+Set all the common PLL settings (PREDIV, FBDIV, …)
+•
+DACEN: 0
+•
+DSMEN = 0 (INT MODE)
+•
+FASTCAL=1
+•
+CALBYPASS=0
+•
+CALCNT[2:0]=2
+•
+CALIN[11:0]=0
+•
+CAL_EN=1
+•
+SET PLL_EN = 1
+•
+WAIT FOR PLL_LOCK AND CAL_LOCK GO HI
+•
+CAPTURE AND STORE CALCODE WHEN CAL_LOCK GOES HI IF IT WILL BE USED LATER
+•
+IF CAL_LOCK times out ( > 2 ms ) then continue
+•
+CAL_EN=0 (OPTIONAL, THIS WILL FREEZE CALIBRATION & INTERNAL CALCODE)
+•
+Programming FRACF in Fractional Mode (with Static Calcode)
+•
+Set all common PLL settings to nearest integer (PREDIV, FBDIV,...)
+•
+Run calibration as outlined in integer mode
+•
+CAPTURE AND STORE CALCODE WHEN CAL_LOCK GOES HI IF IT WILL BE USED LATER
+•
+IF CAL_LOCK times out ( > 2 ms ) then continue
+•
+CAL_EN=0 (THIS WILL FREEZE CALIBRATION & INTERNAL CALCODE)
+•
+IF CAL_LOCK timed out, keep CALBYPASS=0
+•
+IF CAL_LOCK IS ASSERTED AND CALCODE IS CAPTURED APPLY CALCODE TO CALIN
+•
+CALBYPASS=1 CALCODE IS SET BY CALIN
+•
+ENABLE FRACTIONAL MODE
+•
+Programming FRACF in Fractional Mode (Auto-Calibration Not Allowed)
+•
+Set all the common PLL settings (PREDIV, FBDIV, …)
+•
+DACEN=1
+=== Page 638 ===
+•
+DSMEN=1 (FRAC MODE)
+•
+FASTCAL =X
+•
+CALBYPASS=1 CALCODE IS SET BY CALIN
+•
+CALCNT[2:0]=XX
+•
+CALIN[11:0] = 0 (OR DESIRED CALCODE)
+•
+CAL_EN = 0
+•
+SET PLL_EN = 1
+•
+WAIT FOR PLL_LOCK
+PLL Integer mode with Calibration enabled is recommended for applications sensitive to phase noise or
+jitter: Examples include Refclk for SerDes, PHY, DDR etc. See individual product datasheets for specific SoC
+requirements. Calibration can be bypassed for digital clocks like ARM. If Calibration is bypassed, CALIN needs
+to be set to 0.
+When Calibration is enabled, PLL Lock time will be longer since SOC needs to wait for CAL_LOCK. Applications
+sensitive to phase noise must wait for CAL_LOCK to go high.
+6.4.5.7.2 HSDIV PLL Programming
+<PLL_Name>_HSDIV_CTRLk[15] CLKOUT_EN = 0 cleanly disables the HSDIV output clock
+<PLL_Name>_HSDIV_CTRLk[6-0] HSDIV = <value> for divider
+<PLL_Name>_HSDIV_CTRLk[8] SYNC_DIS = 0 insures that the divider changes occur synchronously to the
+internal divider of the HSDIV block.
+when the clock is required,
+<PLL_Name>_HSDIV_CTRLk[15] CLKOUT_EN = 1 cleanly enables the HSDIV output clock
+6.4.5.7.3 PLL Controllers Programming - Dividers PLLDIVn and GO Operation
+The GO operation is required to change the divider ratios of the PLLDIVn registers. Section 6.4.5.7.3.1, GO
+Operation, discusses the GO operation. Section 6.4.5.7.3.2, Software Steps to Modify PLLDIVn Ratios, provides
+the software steps required to change the divider ratios.
+6.4.5.7.3.1 GO Operation
+The GO operation writes to the RATIO field in the PLLDIVn. Registers do not change the dividers' divide ratios
+immediately. The PLLDIV dividers change to the new RATIO rates only during a GO operation. This section
+discusses the GO operation and alignment of the SYSCLKs.
+The PLL Controller clock align control register (ALNCTL) determines which SYSCLKs must be aligned. Before a
+GO operation, program ALNCTL so that the appropriate clocks are aligned during the GO operation.
+A GO operation is initiated by setting the GOSET bit in PLLCMD to 1. During a GO operation:
+•
+Any SYSCLK n with the corresponding ALN n bit in ALNCTL and SYS n bit in DCHANGE set to 1 is paused
+at the low edge. Then the PLL Controller restarts all these SYSCLKs simultaneously, aligned at the rising
+edge. When the SYSCLKs are restarted, SYSCLK n toggles at the rate programmed in the RATIO field in
+PLLDIVn.
+•
+Any SYSCLK n with the corresponding ALN n bit in ALNCTL cleared and the SYS n bit in DCHANGE set
+immediately changes to the new rate programmed in the RATIO field.
+•
+The GOSTAT bit in PLLSTAT is set throughout the duration of a GO operation.
+CAUTION
+To help prevent errors, all device operation must be stopped before the GO operation.
+6.4.5.7.3.2 Software Steps to Modify PLLDIV Ratios
+Perform the following steps to modify PLLDIV.
+1.
+Check that the GOSTAT bit in PLLSTAT is cleared to show that no GO operation is currently in progress.
+=== Page 639 ===
+2.
+Program the RATIO field in PLLDIVn to the desired new divide-down rate. If the RATIO field changed, the
+PLL Controller will flag the change in the corresponding bit of DCHANGE.
+3.
+Set the respective ALN n bits in ALNCTL to align any SYSCLKs after the GO operation.
+4.
+Set the GOSET bit in PLLCMD to initiate the GO operation to change the divide values and align the
+SYSCLKs as programmed.
+5.
+Read the GOSTAT bit in PLLSTAT to make sure the bit returns to 0 to indicate that the GO operation has
+completed.
+6.4.5.7.4 Entire Sequence for Programming PLLCTRL, HSDIV, and PLL
+Table 6-36 shows the entire sequence of programming PLLCTRL, HSDIV, and PLL from an unknown state to a
+defined non-spread-spectrum state.
+Table 6-36. Programming Sequence of PLLCTRL, HSDIV, and PLL
+Step
+Description
+Unlock PLL registers
+<PLL_Name>_LOCKKEY0 (= 0x68EF3490)
+<PLL_Name>_LOCKKEY1 (= 0xD172BC5A)
+If PLL0
+Configure PLLCTRL block into bypass mode
+PLLCTL[0 ]PLLEN = 0
+PLLCTL[5] PLLENSRC = 0
+Configure external bypass so that no transient
+clock propagates
+<PLL_Name>_CTRL[31] BYPASS_EN = 1
+Delay
+Disable HSDIV(s)
+<PLL_Name>_HSDIV_CTRLk[15] CLKOUT_EN =0
+Delay
+Disable PLL
+<PLL_Name>_CTRL[15] PLL_EN =0
+Delay
+Reset HSDIV(s)
+<PLL_Name>_HSDIV_CTRLk[31] RESET = 1
+If PLL0
+Check PLLSTAT[0] GOSTAT to make sure that divider
+change is not currently in-progress GOSTAT should
+equal 0.
+Clear GOSET bit PLLCMD[0] GOSET = 0
+Configure divider in PLLCTRL to /1
+PLLDIV1 = 0x8000 (enable divider and divide by 1)
+PLLDIV2 = 0x00 (disable divider and divide by 1)
+Set alignment control bits
+ALNCTL = 3
+Set GOSET bit to initiate the divider change
+PLLCMD[0] GOSET = 1
+Check PLLSTAT[0] GOSTAT to make sure that divider
+change has completed
+GOSTAT should equal 0.
+Configure HSDIV(s) divider value
+<PLL_Name>_HSDIV_CTRLk[6-0] HSDIV (=val)
+Clear HSDIV(s) SYNC_DIS
+<PLL_Name>_HSDIV_CTRLk[8] SYNC_DIS = 0
+Delay
+Clear Reset HSDIV(s)
+<PLL_Name>_HSDIV_CTRLk[31] RESET = 0
+Configure PLL multiplier
+Integer portion of divider
+<PLL_Name>_FREQ_CTRL0[11-0] (=val)
+Fractional portion of divider
+<PLL_Name>_FREQ_CTRL1[23-0] (=val)
+Configure PLL dividers
+Reference clock divider
+<PLL_Name>_DIV_CTRL[5-0] REF_DIV = 1
+Post divider 1 <PLL_Name>_DIV_CTRL[18-16]
+POST_DIV1 = 1
+=== Page 640 ===
+Table 6-36. Programming Sequence of PLLCTRL, HSDIV, and PLL (continued)
+Step
+Description
+Post divider 2 <PLL_Name>_DIV_CTRL[26-24]
+POST_DIV2 = 1
+Configure „random“ PLL controls
+<PLL_Name>_CTRL[8] INTL_BYP_EN = 0
+<PLL_Name>_CTRL[5] CLK_4PH_EN = 0
+<PLL_Name>_DIV_CTRL[26-24] POST_DIV2 = 1
+<PLL_Name>_DIV_CTRL[18-16] POST_DIV1 = 1
+<PLL_Name>_DIV_CTRL[5-0] REF_DIV = 1
+<PLL_Name>_CTRL[1] DSM_EN = 1
+<PLL_Name>_CTRL[0] DAC_EN = 1
+<PLL_Name>_SS_CTRL[31]
+BYPASS_EN  (SSMOD) = 1
+<PLL_Name>_CTRL[4] CLK_POSTDIV_EN ± if PLL
+has more than 5 HSDIV blocks, 1; else 0.
+<PLL_Name>_CTRL[16] BYP_ON_LOCKLOSS (=
+{0, 1})
+Delay
+Enable PLL
+<PLL_Name>_CTRL[15] PLL_EN = 1
+Wait for Lock
+Wait for MCU_PLL0_STAT[0] LOCK = 1
+Enable HSDIV(s)
+<PLL_Name>_HSDIV_CTRLk[15] CLKOUT_EN = 1
+Delay
+Configure external bypass to pass PLL
+<PLL_Name>_CTRL[31] BYPASS_EN = 0
+Delay
+If PLL0
+Configure PLLCTRL block into PLL mode
+PLLCTL[0] PLLEN = 0
+Lock PLL registers
+<PLL_Name>_LOCKKEY0 (= any value)
+<PLL_Name>_LOCKKEY1 (= any value)
+6.4.5.7.5 Dual Clock Comparator (DCC)
+The Dual Clock Comparator (DCC) is used to determine the accuracy of a clock signal during the time
+execution of an application. Specifically, the DCC is designed to detect drifts from the expected clock frequency.
+The desired accuracy can be programed based on calculation for each application. The DCC measures the
+frequency of a selectable clock source using another input clock as a reference. Internal 12.5 MHz RC oscillator
+clock is used to validate HFOSC0_CLKOUT. Then HFOSC0_CLKOUT (most accurate clock) is used to validate/
+track all other clocks in the device. An additional use of this module is to measure the frequency of a selectable
+clock source, using an external input clock source of known frequency (MCU_EXT_REFCLK0, EXT_REFCLK1
+pins). There is one instance of DCC module in MCU domain and seven instances of DCC modules in Main
+domain to monitor critical clocks. Refer to DCC chapter for details.
+6.4.5.7.6 DeepSleep Clock Gating
+This device supports deepsleep mode where the HFOSC0_CLK is synchronously gated during deep-sleep
+entry sequence. HFOSC0 Clock loss detection mux control must be disabled during Deepsleep entry mode.
+(CLKLOSS_SWITCH_EN must be µ0’).
+In addition, HFOSC0 can be put into Power-down mode. When exiting deep-sleep mode, HFOSC0 is powered-
+up, wait until clock is stabilized and disable the clock gating so clock can propagate to PLL and Wake-up
+domain. This function is handled by Deep-sleep Hardware logic in Wake-up Domain.
+=== Page 641 ===
+6.4.5.7.6.1 Software responsibility of clock settings during deeplseep mode
+•
+Before going into deepsleep mode, software must ensure to configure the clock mux controls of modules
+in MCU domain such that when it resumes from sleep mode these modules will have a functional clock
+when MCU domain reset is de-asserted. Examples of such modules are: TIMER, WDT/RTI, SPI, MCAN and
+UART. This is a very important requirement to ensure a proper reset of MCU domain modules coming out of
+deeplseep mode.
+•
+For modules in Wake-up domain, during deepsleep resume, DM/Pulsar must ensure to first enable the
+functional clocks before accessing the modules in wake-up domain. This requirement is also applicable
+during normal mode of operation.

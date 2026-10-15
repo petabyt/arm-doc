@@ -1,0 +1,449 @@
+4.6 Audio
+4.6.1 Multichannel Audio Serial Port (MCASP)
+This section contains the integration details for the McASP module on this device. For Further information, see
+the Multichannel Audio Serial Port (MCASP) section of the Peripherals chapter
+4.6.1.1 MCASP Unsupported Features
+The following features are not supported on this family of devices:
+•
+Muting output (AMUTE)
+•
+Muting input (AMUTEIN)
+•
+Instances may not support all pin options. See device specific datasheet for details on which McASP instance
+support which pins
+4.6.1.2 Module Allocations
+Table 4-42. MCASP Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+MCASP0
+✓
+MCASP1
+✓
+MCASP2
+✓
+4.6.1.3 Resets, Interrupts, and Clocks
+Table 4-43. MCASP Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+MCASP0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_M
+CASP_0
+17
+OFF
+YES
+LPSC_MAIN_IP
+MCASP1
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_M
+CASP_1
+18
+OFF
+YES
+LPSC_MAIN_IP
+MCASP2
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_MAIN_M
+CASP_2
+19
+OFF
+YES
+LPSC_MAIN_IP
+Table 4-44. MCASP Resets
+Module Instance
+Source
+Description
+MCASP0
+PSC0_PSC_0
+MCASP0 reset
+MCASP1
+PSC0_PSC_0
+MCASP1 reset
+MCASP2
+PSC0_PSC_0
+MCASP2 reset
+Table 4-45. MCASP Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+MCASP0
+MCASP0_rec_dma_e
+vent_req_0
+PDMA2_mcasp_main
+_0_rx_IN_0
+PDMA2
+MCASP0 interrupt
+request
+pulse
+MCASP0
+MCASP0_rec_intr_pe
+nd_0
+GICSS0_spi_IN_267
+GICSS0
+MCASP0 interrupt
+request
+level
+MCASP0
+MCASP0_rec_intr_pe
+nd_0
+ICSSM0_COMMON_
+0_pr1_slv_intr_IN_22
+ICSSM0_COMMON_
+0
+MCASP0 interrupt
+request
+level
+=== Page 123 ===
+Table 4-45. MCASP Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+MCASP0
+MCASP0_rec_intr_pe
+nd_0
+TIFS0_nvic_IN_116
+TIFS0
+MCASP0 interrupt
+request
+level
+MCASP0
+MCASP0_rec_intr_pe
+nd_0
+HSM0_nvic_IN_116
+HSM0
+MCASP0 interrupt
+request
+level
+MCASP0
+MCASP0_xmit_dma_
+event_req_0
+PDMA2_mcasp_main
+_0_tx_IN_0
+PDMA2
+MCASP0 interrupt
+request
+pulse
+MCASP0
+MCASP0_xmit_intr_p
+end_0
+GICSS0_spi_IN_268
+GICSS0
+MCASP0 interrupt
+request
+level
+MCASP0
+MCASP0_xmit_intr_p
+end_0
+ICSSM0_COMMON_
+0_pr1_slv_intr_IN_23
+ICSSM0_COMMON_
+0
+MCASP0 interrupt
+request
+level
+MCASP0
+MCASP0_xmit_intr_p
+end_0
+TIFS0_nvic_IN_113
+TIFS0
+MCASP0 interrupt
+request
+level
+MCASP0
+MCASP0_xmit_intr_p
+end_0
+HSM0_nvic_IN_113
+HSM0
+MCASP0 interrupt
+request
+level
+MCASP1
+MCASP1_rec_dma_e
+vent_req_0
+PDMA2_mcasp_main
+_1_rx_IN_0
+PDMA2
+MCASP1 interrupt
+request
+pulse
+MCASP1
+MCASP1_rec_intr_pe
+nd_0
+GICSS0_spi_IN_269
+GICSS0
+MCASP1 interrupt
+request
+level
+MCASP1
+MCASP1_rec_intr_pe
+nd_0
+ICSSM0_COMMON_
+0_pr1_slv_intr_IN_2
+ICSSM0_COMMON_
+0
+MCASP1 interrupt
+request
+level
+MCASP1
+MCASP1_rec_intr_pe
+nd_0
+TIFS0_nvic_IN_117
+TIFS0
+MCASP1 interrupt
+request
+level
+MCASP1
+MCASP1_rec_intr_pe
+nd_0
+HSM0_nvic_IN_117
+HSM0
+MCASP1 interrupt
+request
+level
+MCASP1
+MCASP1_xmit_dma_
+event_req_0
+PDMA2_mcasp_main
+_1_tx_IN_0
+PDMA2
+MCASP1 interrupt
+request
+pulse
+MCASP1
+MCASP1_xmit_intr_p
+end_0
+GICSS0_spi_IN_270
+GICSS0
+MCASP1 interrupt
+request
+level
+MCASP1
+MCASP1_xmit_intr_p
+end_0
+ICSSM0_COMMON_
+0_pr1_slv_intr_IN_1
+ICSSM0_COMMON_
+0
+MCASP1 interrupt
+request
+level
+MCASP1
+MCASP1_xmit_intr_p
+end_0
+TIFS0_nvic_IN_114
+TIFS0
+MCASP1 interrupt
+request
+level
+MCASP1
+MCASP1_xmit_intr_p
+end_0
+HSM0_nvic_IN_114
+HSM0
+MCASP1 interrupt
+request
+level
+MCASP2
+MCASP2_rec_dma_e
+vent_req_0
+PDMA2_mcasp_main
+_2_rx_IN_0
+PDMA2
+MCASP2 interrupt
+request
+pulse
+MCASP2
+MCASP2_rec_intr_pe
+nd_0
+GICSS0_spi_IN_271
+GICSS0
+MCASP2 interrupt
+request
+level
+MCASP2
+MCASP2_rec_intr_pe
+nd_0
+ICSSM0_COMMON_
+0_pr1_slv_intr_IN_28
+ICSSM0_COMMON_
+0
+MCASP2 interrupt
+request
+level
+MCASP2
+MCASP2_rec_intr_pe
+nd_0
+TIFS0_nvic_IN_118
+TIFS0
+MCASP2 interrupt
+request
+level
+=== Page 124 ===
+Table 4-45. MCASP Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+MCASP2
+MCASP2_rec_intr_pe
+nd_0
+HSM0_nvic_IN_118
+HSM0
+MCASP2 interrupt
+request
+level
+MCASP2
+MCASP2_xmit_dma_
+event_req_0
+PDMA2_mcasp_main
+_2_tx_IN_0
+PDMA2
+MCASP2 interrupt
+request
+pulse
+MCASP2
+MCASP2_xmit_intr_p
+end_0
+GICSS0_spi_IN_272
+GICSS0
+MCASP2 interrupt
+request
+level
+MCASP2
+MCASP2_xmit_intr_p
+end_0
+ICSSM0_COMMON_
+0_pr1_slv_intr_IN_27
+ICSSM0_COMMON_
+0
+MCASP2 interrupt
+request
+level
+MCASP2
+MCASP2_xmit_intr_p
+end_0
+TIFS0_nvic_IN_115
+TIFS0
+MCASP2 interrupt
+request
+level
+MCASP2
+MCASP2_xmit_intr_p
+end_0
+HSM0_nvic_IN_115
+HSM0
+MCASP2 interrupt
+request
+level
+Table 4-46. MCASP Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+MCASP0
+AUX_CLK
+MAIN_PLL2_HSDIV8_CL
+KOUT
+MCASP0_CLKSEL[0:0]
+MAIN_PLL1_HSDIV6_CL
+KOUT
+MCASP_AHCLKR_PIN
+EXT_REFCLK1
+MCASP0_AHCLKSEL[1:0]
+HFOSC0_CLKOUT
+AUDIO_EXT_REFCLK0
+AUDIO_EXT_REFCLK1
+MCASP_AHCLKX_PIN
+EXT_REFCLK1
+MCASP0_AHCLKSEL[9:8]
+HFOSC0_CLKOUT
+AUDIO_EXT_REFCLK0
+AUDIO_EXT_REFCLK1
+ICLK
+MAIN_SYSCLK0/2
+MCASP0 Interface Clock
+=== Page 125 ===
+Table 4-46. MCASP Clocks (continued)
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+MCASP1
+AUX_CLK
+MAIN_PLL2_HSDIV8_CL
+KOUT
+MCASP1_CLKSEL[0:0]
+MAIN_PLL1_HSDIV6_CL
+KOUT
+MCASP_AHCLKR_PIN
+EXT_REFCLK1
+MCASP1_AHCLKSEL[1:0]
+HFOSC0_CLKOUT
+AUDIO_EXT_REFCLK0
+AUDIO_EXT_REFCLK1
+MCASP_AHCLKX_PIN
+EXT_REFCLK1
+MCASP1_AHCLKSEL[9:8]
+HFOSC0_CLKOUT
+AUDIO_EXT_REFCLK0
+AUDIO_EXT_REFCLK1
+ICLK
+MAIN_SYSCLK0/2
+MCASP1 Interface Clock
+MCASP2
+AUX_CLK
+MAIN_PLL2_HSDIV8_CL
+KOUT
+MCASP2_CLKSEL[0:0]
+MAIN_PLL1_HSDIV6_CL
+KOUT
+MCASP_AHCLKR_PIN
+EXT_REFCLK1
+MCASP2_AHCLKSEL[1:0]
+HFOSC0_CLKOUT
+AUDIO_EXT_REFCLK0
+AUDIO_EXT_REFCLK1
+MCASP_AHCLKX_PIN
+EXT_REFCLK1
+MCASP2_AHCLKSEL[9:8]
+HFOSC0_CLKOUT
+AUDIO_EXT_REFCLK0
+AUDIO_EXT_REFCLK1
+ICLK
+MAIN_SYSCLK0/2
+MCASP2 Interface Clock
+=== Page 126 ===

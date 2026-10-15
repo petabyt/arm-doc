@@ -1,0 +1,525 @@
+Chapter 16 Mailbox
+16
+
+16.1 Overview
+The Mailbox module is a simple APB peripheral that allows CPU, MCU core to communicate
+with each other by writing operation to generate interrupt. The registers are accessible via
+APB interface.
+There are three mailbox controllers in RK3588.
+The Mailbox has the following main features:
+⚫ Support APB interface
+⚫ Support four mailbox elements, each element includes one data word, one command
+word register and one flag bit that can represent one interrupt
+⚫ Support interrupts to CPU, and MCU core
+⚫ Provide 32 lock registers for software to use to indicate whether mailbox is occupied
+
+16.2 Block Diagram
+The figure below shows Mailbox block diagram:
+
+Mailbox
+
+AP_IRQ[3:0]
+
+APB bus
+
+APB slave
+
+Mailbox
+Registers
+
+BB_IRQ[3:0]
+
+Fig. 16-1 Mailbox Block Diagram
+
+16.3 Function Description
+16.3.1 Mailbox
+⚫
+
+⚫
+
+⚫
+
+Regard CPU as the “AP” side of the Mailbox. The four elements interrupt to CPU is:
+◼ Enabled when MAILBOX_B2A_INTEN[i] is set to 1 (i=0~3) and the responding IRQs
+is enabled in GIC.
+◼ Generated when there are writing operation to corresponding MAILBOX_B2A_CMD_i
+and MAILBOX_B2A_DAT_i orderly.
+◼ Cleared when writing 1 to corresponding MAILBOX_B2A_STATUS[i].
+Regard MCU core as the “BB” side of the Mailbox. The four elements interrupt to MCU
+core is:
+◼ Enabled when MAILBOX_A2B_INTEN[i] is set to 1 (i=0~3) and the responding IRQs
+is enabled in INTC of MCU.
+◼ Generated when there are writing operation to corresponding MAILBOX_A2B_CMD_i
+and MAILBOX_A2B_DAT_i orderly.
+◼ Cleared when writing 1 to corresponding MAILBOX_A2B_STATUS[i].
+You can also regard CPU as the “BB” side of the Mailbox and regard MCU core as the
+“AP” side of the Mailbox. The configuration flow is similar.
+
+16.4 Register Description
+16.4.1 Internal Address Mapping
+Slave address can be divided into different length for different usage, which is shown as
+follows.
+
+16.4.2 Registers Summary
+Name
+MAILBOX_A2B_INTEN
+MAILBOX_A2B_STATUS
+
+Offset
+0x0000
+0x0004
+
+Size
+W
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Reset
+Description
+Value
+0x00000000 AP to BB Interrupt Enable Register
+0x00000000 AP to BB Interrupt Status Register
+
+1397
+
+RK3588 TRM-Part1
+Name
+MAILBOX_A2B_CMD_0
+MAILBOX_A2B_DAT_0
+MAILBOX_A2B_CMD_1
+MAILBOX_A2B_DAT_1
+MAILBOX_A2B_CMD_2
+MAILBOX_A2B_DAT_2
+MAILBOX_A2B_CMD_3
+MAILBOX_A2B_DAT_3
+MAILBOX_B2A_INTEN
+MAILBOX_B2A_STATUS
+MAILBOX_B2A_CMD_0
+MAILBOX_B2A_DAT_0
+MAILBOX_B2A_CMD_1
+MAILBOX_B2A_DAT_1
+MAILBOX_B2A_CMD_2
+MAILBOX_B2A_DAT_2
+MAILBOX_B2A_CMD_3
+MAILBOX_B2A_DAT_3
+
+Offset
+0x0008
+0x000C
+0x0010
+0x0014
+0x0018
+0x001C
+0x0020
+0x0024
+0x0028
+0x002C
+0x0030
+0x0034
+0x0038
+0x003C
+0x0040
+0x0044
+0x0048
+0x004C
+
+Size
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+
+Reset
+Description
+Value
+0x00000000 AP to BB Command 0 Register
+0x00000000 AP to BB Data 0 Register
+0x00000000 AP to BB Command 1 Register
+0x00000000 AP to BB Data 1 Register
+0x00000000 AP to BB Command 2 Register
+0x00000000 AP to BB Data 2 Register
+0x00000000 AP to BB Command 3 Register
+0x00000000 AP to BB Data 3 Register
+0x00000000 BB to AP Interrupt Enable Register
+0x00000000 BB to AP Interrupt Status Register
+0x00000000 BB to AP Command 0 Register
+0x00000000 BB to AP Data 0 Register
+0x00000000 BB to AP Command 1 Register
+0x00000000 BB to AP Data 1 Register
+0x00000000 BB to AP Command 2 Register
+0x00000000 BB to AP Data 2 Register
+0x00000000 BB to AP Command 3 Register
+0x00000000 BB to AP Data 3 Register
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+16.4.3 Detail Registers Description
+MAILBOX_A2B_INTEN
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+int3
+Interrupt enable for int3.
+3
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+int2
+Interrupt enable for int2.
+2
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+int1
+Interrupt enable for int1.
+1
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+int0
+Interrupt enable for int0.
+0
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+MAILBOX_A2B_STATUS
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+int3
+Interrupt status for int3.
+W1
+3
+0x0
+Clear the interrupt by writing 1 to this bit.
+C
+1'b0: Interrupt is inactive
+1'b1: Interrupt is active
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1398
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+2
+
+W1
+C
+
+0x0
+
+1
+
+W1
+C
+
+0x0
+
+0
+
+W1
+C
+
+0x0
+
+Description
+int2
+Interrupt status for int2.
+Clear the interrupt by writing 1 to this bit.
+1'b0: Interrupt is inactive
+1'b1: Interrupt is active
+int1
+Interrupt status for int1.
+Clear the interrupt by writing 1 to this bit.
+1'b0: Interrupt is inactive
+1'b1: Interrupt is active
+int0
+Interrupt status for int0.
+Clear the interrupt by writing 1 to this bit.
+1'b0: Interrupt is inactive
+1'b1: Interrupt is active
+
+MAILBOX_A2B_CMD_0
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+command
+31:0 RW 0x00000000
+Command register.
+
+Description
+
+MAILBOX_A2B_DAT_0
+Address: Operational Base + offset (0x000C)
+Bit Attr Reset Value
+data
+31:0 RW 0x00000000
+Data register.
+
+Description
+
+MAILBOX_A2B_CMD_1
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+command
+31:0 RW 0x00000000
+Command register.
+
+Description
+
+MAILBOX_A2B_DAT_1
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+data
+31:0 RW 0x00000000
+Data register.
+
+Description
+
+MAILBOX_A2B_CMD_2
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+command
+31:0 RW 0x00000000
+Command register.
+
+Description
+
+MAILBOX_A2B_DAT_2
+Address: Operational Base + offset (0x001C)
+Bit Attr Reset Value
+data
+31:0 RW 0x00000000
+Data register.
+
+Description
+
+MAILBOX_A2B_CMD_3
+Address: Operational Base + offset (0x0020)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1399
+
+RK3588 TRM-Part1
+Bit
+31:0
+
+Attr Reset Value
+RW 0x00000000
+
+Description
+command
+Command register.
+
+MAILBOX_A2B_DAT_3
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+data
+31:0 RW 0x00000000
+Data register.
+
+Description
+
+MAILBOX_B2A_INTEN
+Address: Operational Base + offset (0x0028)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+int3
+Interrupt enable for int3.
+3
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+int2
+Interrupt enable for int2.
+2
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+int1
+Interrupt enable for int1.
+1
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+int0
+Interrupt enable for int0.
+0
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+MAILBOX_B2A_STATUS
+Address: Operational Base + offset (0x002C)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+int3
+Interrupt status for int3.
+W1
+3
+0x0
+Clear the interrupt by writing 1 to this bit.
+C
+1'b0: Interrupt is inactive
+1'b1: Interrupt is active
+int2
+Interrupt status for int2.
+W1
+2
+0x0
+Clear the interrupt by writing 1 to this bit.
+C
+1'b0: Interrupt is inactive
+1'b1: Interrupt is active
+int1
+Interrupt status for int1.
+W1
+1
+0x0
+Clear the interrupt by writing 1 to this bit.
+C
+1'b0: Interrupt is inactive
+1'b1: Interrupt is active
+int0
+Interrupt status for int0.
+W1
+0
+0x0
+Clear the interrupt by writing 1 to this bit.
+C
+1'b0: Interrupt is inactive
+1'b1: Interrupt is active
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1400
+
+RK3588 TRM-Part1
+MAILBOX_B2A_CMD_0
+Address: Operational Base + offset (0x0030)
+Bit Attr Reset Value
+command
+31:0 RW 0x00000000
+Command register.
+
+Description
+
+MAILBOX_B2A_DAT_0
+Address: Operational Base + offset (0x0034)
+Bit Attr Reset Value
+data
+31:0 RW 0x00000000
+Data register.
+
+Description
+
+MAILBOX_B2A_CMD_1
+Address: Operational Base + offset (0x0038)
+Bit Attr Reset Value
+command
+31:0 RW 0x00000000
+Command register.
+
+Description
+
+MAILBOX_B2A_DAT_1
+Address: Operational Base + offset (0x003C)
+Bit Attr Reset Value
+data
+31:0 RW 0x00000000
+Data register.
+
+Description
+
+MAILBOX_B2A_CMD_2
+Address: Operational Base + offset (0x0040)
+Bit Attr Reset Value
+command
+31:0 RW 0x00000000
+Command register.
+
+Description
+
+MAILBOX_B2A_DAT_2
+Address: Operational Base + offset (0x0044)
+Bit Attr Reset Value
+data
+31:0 RW 0x00000000
+Data register.
+
+Description
+
+MAILBOX_B2A_CMD_3
+Address: Operational Base + offset (0x0048)
+Bit Attr Reset Value
+command
+31:0 RW 0x00000000
+Command register.
+
+Description
+
+MAILBOX_B2A_DAT_3
+Address: Operational Base + offset (0x004C)
+Bit Attr Reset Value
+data
+31:0 RW 0x00000000
+Data register.
+
+Description
+
+16.5 Application Notes
+⚫
+⚫
+
+It is recommended to read one ATOMIC_LOCK register first when using the Mailbox. The
+read value is 0 means it is available, and 1 means it has been automatically locked.
+Writing to the ATOMIC_LOCK register will clear this bit.
+Write to the CMD register before writing to the DAT register. If wrong order is used, then
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1401
+
+RK3588 TRM-Part1
+⚫
+⚫
+
+the interrupt cannot be generated successfully.
+If you want to clear the interrupt, you can read out the STATUS register and writing 1 to
+corresponding bit.
+MAILBOX0 is suggested to use for communication between MCU in PD_PMU and CPU.
+MAILBOX1 is suggested to use for communication between MCU in PD_CENTER and CPU.
+MAILBOX2 is suggested to use for communication between MCU in PD_NPU and CPU.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1402
+
+RK3588 TRM-Part1
+

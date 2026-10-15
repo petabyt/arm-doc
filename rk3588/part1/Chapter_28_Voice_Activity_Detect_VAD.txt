@@ -1,0 +1,1494 @@
+Chapter 28 Voice Activity Detect (VAD)
+28
+
+28.1 Overview
+Voice Activity Detect (VAD) is used to detect the amplitude of voice which is received by Analog
+Mic, I2S Digital Mic or PDM digital Mic when SoC is in low power mode. If the amplitude of
+voice is over threshold, the VAD will assert interrupt to wake up SoC, then SoC will exit low
+power mode.
+VAD supports the following features:
+⚫ Support AHB bus interface
+⚫ Support read voice data from I2S1, PDM0
+◼ Support to configure the voice source address
+◼ Support to configure increment or fixed for the direction of voice data address
+◼ Support DMA request and acknowledge
+◼ Support transfer 1~8 burst per DMA request
+◼ Support read 1~8 Mic voice data, and only support single Mic voice detection, user
+can select any Mic voice data to detect the amplitude of voice
+◼ Support 16/24 bits voice data
+⚫ Support voice amplitude detection
+◼ Support an Amplifier for the voice data
+◼ Support a IIR high pass filter for the voice frequency band, and the filter coefficient
+can be configured
+◼ Support a voice detect threshold that take the ambient noise to account
+⚫ Support Multi-Mic array data storing
+◼ Buffer memory is shared with Internal SRAM
+◼ The start and end address of storing can be configured
+◼ When current storing address is up to end address, it will loop to start address and
+overlap previous data, it will also assert a flag
+◼ Support 3 data storing mode: mode 0 start storing data after the voice detect event,
+mode 1 start storing after VAD is enabled and mode 2 do not storing data
+◼ Support storing data through bus or ram write interface
+⚫ Support a level combined interrupt
+◼ Support voice detect interrupt
+◼ Support time out interrupt
+◼ Support transfer error interrupt
+◼ Support data transfer interrupt
+
+28.2 Block Diagram
+VAD comprises with:
+⚫ AHB_MASTER: AHB Master Interface
+⚫ AHB_SRAM_IF: AHB Slave Interface
+⚫ VAD_REG_BANK: Register bank
+⚫ DMAC_ENGINE: DMA control engine
+⚫ VAD_DET: Voice detection
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1857
+
+RKRK3588 TRM-Part1
+
+VAD
+Interrupt
+
+vad_reg_bank
+
+ahb_sram_if
+
+Internal
+SRAM
+
+vad_det
+
+dma_req/ack
+ahb_master
+
+I2S/PDM
+
+dmac_engine
+
+Fig. 28-1 VAD Block Diagram
+
+28.3 Function Description
+28.3.1 DMAC_ENGINE
+
+DMAC_ENGING is used to read voice data from one of I2S_8CH_0 or PDM, and it can store all
+channels data to Internal SRAM. If the bus can be access, user can configure to store through
+bus. Otherwise user should configure to store through ram write interface. When VAD is
+working, user can change the data storing mode dynamically. The storing address can be
+continuous transition or be spitted.
+The voice data can be 16 or 24 bits:
+⚫ When it’s 16 bits, it must be half word transfer mode that low 16 bits in a word for left
+channel and high 16 bits in a word for right channel.
+⚫ When it’s 24bits, it must be word transfer mode that only 24 bits data is valid in a word,
+and it support left or right justified.
+DMAC_ENGING also select and send one channel data to vad_det for voice detection. vad_det
+only support 16 bits data to detect the amplitude of voice, so when the voice data is 24 bits,
+user can use the high or low 16 bits in 24 bits.
+⚫ When use high bits, the data value will be divided by 256.
+⚫ When use low bits, the data value will be saturation to 16 bits.
+
+28.3.2 VAD_DET
+
+VAD_DET is used to detect the amplitude of voice.
+
+vad_det
+voice_data
+
+Amplifier
+
+IIR HPF
+
+int_trigger
+
++
+INT_GEN
+-
+
+Noise
+Calculate
+
+X
+
+noise_level
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
++
+
+sound_thd
+
+1858
+
+RKRK3588 TRM-Part1
+Fig. 28-2 VAD_DET Block Diagram
+
+Amplifier
+voice_amplitude_amplified=gain*voice_amplitude_original/8.
+IIR HPF
+There is a high pass filter for the human voice frequency band, the filter is a two order direct
+I type IIR. The following formula describes:
+y(n)=-a1*y(n-1)-a2*y(n-2)+b0*x(n)+b1*x(n-1)+b2*x(n-2)
+The coefficient a1, a2, b0, b1 and b2 are all quantified by multiplying 16384 and represented
+as 16 bits, the result in follow registers that can be configured: iir_anum_0, iir_anum_1,
+iir_anum_2, iir_aden_1 and iir_aden_2.
+The output of HPF need some time to achieve convergence after VAD is enabled.
+Noise Calculate
+VAD support a voice detection threshold that take the ambient noise to account:
+⚫ VAD calculate the average amplitude of voice data within noise_sample_num samples, the
+result is regard as the noise value of one frame. The noise value of last 128 frames also
+can be configured directly.
+⚫ VAD find the minimum noise value within noise_frm_num frames, the result is regard as
+the noise_min(minimum noise value).User can configure min_noise_find_mode to change
+the mode to find the minimum noise.
+⚫ The noise_min will be smooth updated to noise_abs(current noise value), the formula is
+as follow: noise_abs= (noise_abs * noise_alpha + noise_min * (256-noise_alpha)/256.
+noise_abs will be updated once every frame. noise_abs also can be configured directly,
+and it is not clear until VAD is reset.
+Voice Detect Threshold
+The final threshold is sound_thd + noise_abs * noise_level.
+INT_GEN
+VAD support 3 modes to assert the voice detection interrupt.
+⚫ Normal mode: When equal or more than a number (vad_con_thd) of continuous samples
+over the threshold, the voice detection interrupt will be asserted. The vad_con_thd can be
+configured by register.
+⚫ Allow an exception mode: base on normal mode, it can be configured to allow exceptions
+during continuous sample judgment. The exception number can be configured by register.
+When the exceptions is more, the voice detect condition is less strict.
+⚫ Accumulating mode: A counter is used for accumulating, the counter will plus 1 when
+current sample is over threshold (it will not plus when it reach maximum value 256), the
+counter will minus 1 when current sample is not over threshold (it will not minus when it
+reach 0); When the counter is equal or more than a number (vad_con_thd), the voice
+detection interrupt will be asserted. Compare with normal mode, the voice detect condition
+is less strict when use the same value of vad_con_thd.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1859
+
+RKRK3588 TRM-Part1
+
+28.4 Register Description
+28.4.1 Registers Summary
+Reset
+Value
+
+Name
+
+Offset
+
+VAD_CONTROL
+
+0x0000
+
+W
+
+0x03000000 Control register
+
+VAD_VS_ADDR
+
+0x0004
+
+W
+
+0x00000000 Voice source address register
+
+VAD_TIMEOUT
+
+0x004c
+
+W
+
+0x00000000 Timeout register
+
+VAD_RAM_START_ADDR
+
+0x0050
+
+W
+
+0xfff88000
+
+RAM start address register
+
+VAD_RAM_END_ADDR
+
+0x0054
+
+W
+
+0xfffbfff8
+
+RAM end address register
+
+VAD_RAM_CUR_ADDR
+
+0x0058
+
+W
+
+0x00000000 RAM current address register
+
+VAD_DET_CON0
+
+0x005c
+
+W
+
+0x01024008 Detect control register0
+
+VAD_DET_CON1
+
+0x0060
+
+W
+
+0x04ff0064
+
+Detect control register1
+
+VAD_DET_CON2
+
+0x0064
+
+W
+
+0x3bf5e663
+
+Detect control register2
+
+VAD_DET_CON3
+
+0x0068
+
+W
+
+0x3bf58817 Detect control register3
+
+VAD_DET_CON4
+
+0x006c
+
+W
+
+0x382b8858 Detect control register4
+
+VAD_DET_CON5
+
+0x0070
+
+W
+
+0x00000000 Detect control register5
+
+VAD_INT
+
+0x0074
+
+W
+
+0x00000200 VAD Interrupt register
+
+VAD_AUX_CON0
+
+0x0078
+
+W
+
+0x00000000 Auxiliary control register0
+
+VAD_SAMPLE_CNT
+
+0x007c
+
+W
+
+0x00000000 Sample counter register
+
+VAD_RAM_START_ADDR_
+0x0080
+BUS
+
+W
+
+0xfff88000
+
+RAM start address register for bus
+write mode
+
+VAD_RAM_END_ADDR_B
+US
+
+0x0084
+
+W
+
+0xfffbfff8
+
+RAM end address register for bus
+write mode
+
+VAD_RAM_CUR_ADDR_BU
+0x0088
+S
+
+W
+
+0x00000000
+
+RAM current address register for
+bus write mode
+
+VAD_AUX_CON1
+
+0x008c
+
+W
+
+0x00000000 Auxiliary control register1
+
+VAD_NOISE_FIRST_DATA 0x0100
+
+W
+
+0x00000000 Noise first data register
+
+VAD_NOISE_LAST_DATA
+
+W
+
+0x00000000 Noise last data register
+
+0x02fc
+
+Size
+
+Description
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access
+
+28.4.2 Detail Register Description
+
+VAD_CONTROL
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+
+Description
+
+31:29 RW 0x0
+
+vad_det_channel
+Index of the channal for voice detect, from channel 0 to channel
+7
+
+28
+
+RW 0x0
+
+voice_24bit_sat
+The mode of voice 24bit data change to 16bit
+1'b0: Get the high 16bit data(divided by 256)
+1'b1: Saturation from 24bit to 16bit
+
+RW 0x0
+
+voice_24bit_align_mode
+Align mode of channel 24bit width
+1'b0: 8~31bits is valid
+1'b1: 0~23bits is valid
+
+27
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1860
+
+RKRK3588 TRM-Part1
+Bit
+26
+
+Attr Reset Value
+RW 0x0
+
+Description
+voice_channel_bitwidth
+1'b0: 16bits
+1'b1: 24bits
+
+25:23 RW 0x6
+
+voice_channel_num
+Voice channel number, the value N means N+1 channel
+
+22
+
+reserved
+
+RO
+
+0x0
+
+21:20 RW 0x0
+
+vad_mode
+2'h0: Begin to store the data after voice detect
+2'h1: Begin to store the data after VAD is enable
+2'h2: Don't store the data
+2'h3: Reserved
+
+19:15 RO
+
+reserved
+
+14
+
+0x0
+
+RW 0x0
+
+source_fixaddr_en
+Direction of source address
+1'b0: Increment
+1'b1: Fixed
+
+13:10 RW 0x0
+
+incr_length
+INCR burst length, 0~15 is valid.
+It is valid when source_burst is set to 3'h1.
+
+9:7
+
+RW 0x0
+
+source_burst_num
+Source burst number per dma_req, the value N means N+1 burst
+
+RW 0x0
+
+source_burst
+3'h0: SINGLE
+3'h1: INCR
+3'h3: INCR4
+3'h5: INCR8
+3'h7: INCR16
+Others: Reserved
+
+RW 0x0
+
+source_select
+Voice source select
+3'h0: I2S0
+3'h1: I2S1
+3'h2: PDM
+Others: Reserved
+
+RW 0x0
+
+vad_en
+VAD enable
+1'b0: Disable
+1'b1: Enable
+
+6:4
+
+3:1
+
+0
+
+VAD_VS_ADDR
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+31:0
+
+RW 0x00000000
+
+Description
+
+vs_addr
+Voice source address
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1861
+
+RKRK3588 TRM-Part1
+
+VAD_TIMEOUT
+Address: Operational Base + offset (0x004c)
+Bit Attr Reset Value
+
+31
+
+30
+
+RW 0x0
+
+work_timeout_en
+Work timeout enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+idle_timeout_en
+Idle timeout enable
+1'b0: Disable
+1'b1: Enable
+
+Description
+
+29:20 RW 0x000
+
+work_timeout_thd
+work timeout threshold, the unit is one cycle of hclk
+
+19:0
+
+idle_timeout_thd
+Idle timeout threshold, the unit is one cycle of hclk
+
+RW 0x00000
+
+VAD_RAM_START_ADDR
+Address: Operational Base + offset (0x0050)
+Bit Attr Reset Value
+31:0
+
+RW 0x00000000
+
+ram_start_addr
+RAM start address to store voice data, the address must be
+double word alignment
+
+VAD_RAM_END_ADDR
+Address: Operational Base + offset (0x0054)
+Bit Attr Reset Value
+31:0
+
+RW 0x00000000
+
+RW 0x00000000
+
+Description
+
+ram_end_addr
+RAM end address to store voice data, the address must be double
+word alignment
+
+VAD_RAM_CUR_ADDR
+Address: Operational Base + offset (0x0058)
+Bit Attr Reset Value
+
+31:0
+
+Description
+
+Description
+
+ram_cur_addr
+RAM current address to store voice data, The last valid double
+word data is at address ram_cur_addr-0x8.
+When the ram_loop_flag is valid, the valid voice data will be
+ram_cur_addr ~ ram_end_addr ~ loop to ram_begin_addr ~
+ram_cur_addr-0x8.
+When the ramp_loop_flag is not valid, the valid voice data will be
+ram_begin_addr ~ ram_cur_addr-0x8
+
+VAD_DET_CON0
+Address: Operational Base + offset (0x005c)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1862
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:30 RO
+
+0x0
+
+Description
+reserved
+
+29:28 RW 0x0
+
+vad_thd_mode
+Threshold mode for vad_con_thd
+2'b00: Normal mode
+2'b01: Allow an exception mode
+2'b10: Accumulating mode
+2'b11: Reserved
+
+27:24 RW 0x1
+
+dis_vad_con_thd
+In the determining of continuous sample number exceed
+threshold, allow some number of sample as an exception. It's
+valid only when vad_thd_mode=1.
+When this value is lower, the voice detect condition is more strict
+
+23:16 RW 0x02
+
+vad_con_thd
+When continuous sample number(>=vad_con_thd) exceed
+threshold, then assert the vad_det interrupt, the value N means
+N+1.
+When this value is higher, the voice detect condition is more
+strict
+
+15
+
+reserved
+
+RO
+
+0x0
+
+14:12 RW 0x4
+
+noise_level
+Noise level, valid value is 0x1~0x6
+when this value is higher, the voice detect condition is more strict
+
+11:0
+
+gain
+The gain control of voice data amplifier, the value of gain is
+unsigned and is valid from 0 to 4095.
+voice_amplitude_amplified=gain*voice_amplitude_original/8.
+
+RW 0x008
+
+VAD_DET_CON1
+Address: Operational Base + offset (0x0060)
+Bit Attr Reset Value
+31
+
+30
+
+29
+
+RO
+
+0x0
+
+Description
+
+reserved
+
+RW 0x0
+
+min_noise_find_mode
+Minimal noise value find mode
+1'b0: Always find the value at the range of noise_frm_num
+1'b1: When receive N frame: if N is less than noise_frm_num,
+find the value at the range of N; if N is more than
+noise_frm_num, find the value at the range of noise_frm_num
+
+RW 0x0
+
+clean_noise_at_begin
+1'b0: The noise will be clean only at the begin of the first time
+VAD is enable after reset
+1'b1: The noise will be clean every time at the begin of VAD is
+enable
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1863
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+28
+
+RW 0x0
+
+force_noise_clk_en
+Force noise calculate clk enable
+1'b0: The clock will be auto gating for low power
+1'b1: The clock will be always enable
+
+27
+
+RO
+
+reserved
+
+26
+
+0x0
+
+RW 0x1
+
+clean_iir_en
+Clean IIR filter when VAD is disable
+1'b0: Not clean
+1'b1: Clean
+
+25:16 RW 0x0ff
+
+noise_sample_num
+The number of sample in one frame to calculate the noise, the
+value N means N+1 sample.
+When this value is higher, the voice detect condition is more
+strict
+
+15:0
+
+sound_thd
+Initial sound threshold
+when this value is higher, the voice detect condition is more strict
+
+RW 0x0064
+
+VAD_DET_CON2
+Address: Operational Base + offset (0x0064)
+Bit Attr Reset Value
+
+Description
+
+31:16 RW 0x3bf5
+
+iir_anum_0
+IIR numerator coefficient b0
+
+15:8
+
+RW 0xe6
+
+noise_alpha
+The update smooth speed of noise
+When this value is lower, the voice detect condition is more strict
+
+7
+
+RO
+
+reserved
+
+6:0
+
+0x0
+
+RW 0x63
+
+noise_frm_num
+The number of frame to calculate the noise, the value N means
+N+1 frame.
+When this value is lower, the voice detect condition is more strict
+
+VAD_DET_CON3
+Address: Operational Base + offset (0x0068)
+Bit Attr Reset Value
+
+Description
+
+31:16 RW 0x3bf5
+
+iir_anum_2
+IIR numerator coefficient b2
+
+15:0
+
+iir_anum_1
+IIR numerator coefficient b1
+
+RW 0x8817
+
+VAD_DET_CON4
+Address: Operational Base + offset (0x006c)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1864
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RW 0x382b
+
+iir_aden_2
+IIR demoninator coefficient a2
+
+15:0
+
+iir_aden_1
+IIR demoninator coefficient a1
+
+RW 0x8858
+
+VAD_DET_CON5
+Address: Operational Base + offset (0x0070)
+Bit Attr Reset Value
+31:16 RO
+15:0
+
+0x0000
+
+RW 0x0000
+
+iir_result
+Voice real time data after IIR filter
+noise_abs
+Noise abs value
+
+VAD_INT
+Address: Operational Base + offset (0x0074)
+Bit Attr Reset Value
+31:13 RO
+
+12
+
+11
+
+10
+
+9
+
+8
+
+7
+
+RO
+
+W1
+C
+
+Description
+
+Description
+
+0x0
+
+reserved
+
+0x0
+
+ramp_loop_flag_bus
+RAM adress loop flag for AHB bus interface write mode. Only valid
+when bus_write_addr_mode=1'b1.
+1'b0: Not loop
+1'b1: Loop
+
+0x0
+
+vad_data_trans_int
+VAD data transfer interrupt
+1'b0: Interrupt not generated
+1'b1: Interrupt generated
+
+RW 0x0
+
+vad_data_trans_int_en
+VAD data transfer interrupt enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+vad_idle
+VAD idle flag
+1'b0: Not idle
+1'b1: Idle
+
+RO
+
+0x0
+
+ramp_loop_flag
+RAM address loop flag
+1'b0: Not loop
+1'b1: Loop
+
+0x0
+
+work_timeout_int
+Work timeout interrupt
+1'b0: Interrupt not generated
+1'b1: Interrupt generated
+
+W1
+C
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1865
+
+RKRK3588 TRM-Part1
+Bit
+
+6
+
+5
+
+4
+
+3
+
+2
+
+1
+
+0
+
+Attr Reset Value
+
+Description
+
+0x0
+
+idle_timeout_int
+Idle timeout interrupt
+1'b0: Interrupt not generated
+1'b1: Interrupt generated
+
+RW 0x0
+
+error_int
+Error interrupt
+1'b0: Interrupt not generated
+1'b1: Interrupt generated
+
+W1
+C
+
+0x0
+
+vad_det_int
+VAD detect interrupt
+1'b0: Interrupt not generated
+1'b1: Interrupt generated
+
+RW 0x0
+
+work_timeout_int_en
+Wrok timeout interrupt enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+idle_timeout_int_en
+Idle timeout interrupt enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+error_int_en
+Error interrupt enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+vad_det_int_en
+VAD detect interrupt enable
+1'b0: Disable
+1'b1: Enable
+
+W1
+C
+
+VAD_AUX_CON0
+Address: Operational Base + offset (0x0078)
+Bit Attr Reset Value
+31:30 RO
+
+29
+
+28
+
+0x0
+
+Description
+
+reserved
+
+RW 0x0
+
+sample_cnt_en
+Sample counter enable
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+int_trig_ctrl_en
+The VAD detection interrupt trigger control enable.
+1'b0: Disable, the VAD detection interrupt is always trigger
+1'b1: Enable, the VAD detection interrupt trigger is controlled by
+int_trig_valid_thd
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1866
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+Description
+
+27:16 RW 0x000
+
+int_trig_valid_thd
+VAD detection interrupt trigger valid threshold. The VAD
+detection interrupt will be triggered valid after sample_cnt exceed
+int_trig_valid_thd.
+The value N means N+1,The unit is one voice sample point.
+
+15
+
+reserved
+
+RO
+
+0x0
+
+RW 0x0
+
+ram_write_rework_addr_mode
+The rework address for RAM interface write mode.
+1'b0: Store the data from the current address
+1'b1: Store the data from the start address
+
+RW 0x0
+
+bus_write_rework_addr_mode
+The rework address for bus write mode.
+1'b0: Store the data from the current address
+1'b1: Store the data from the start address
+
+RW 0x0
+
+bus_write_addr_mode
+The address selection when use AHB bus interface write mode.
+1'b0: Use RAM_START_ADDR, RAM_END_ADDR,
+RAM_CUR_ADDR(same with RAM interface write mode). The
+internal address will continuous when dynamic change between
+bus write mode and RAM interface write mode.
+1'b1: Use RAM_START_ADDR_BUS, RAM_END_ADDR_BUS and
+RAM_CUR_ADDR_BUS.
+
+11:4
+
+RW 0x00
+
+data_trans_kbyte_thd
+Data transfer number threshold, the unit is KByte. The value N
+means N+1 KByte. The interrupt is generated per
+data_trans_kbyte_thd+1 KBytes.
+
+3
+
+RO
+
+reserved
+
+14
+
+13
+
+12
+
+2
+
+1
+
+0
+
+0x0
+
+RW 0x0
+
+data_trans_trig_int_en
+Trigger an interrupt for data transfer, It's valid only when
+bus_write_en=1'b1.
+1'b0: Disable
+1'b1: Enable
+
+RW 0x0
+
+dis_ram_itf
+Disable write voice data to Internal SRAM through RAM interface
+1'b0: Enable ram interface
+1'b1: Disable ram interface
+
+RW 0x0
+
+bus_write_en
+Enable write voice data to Internal SRAM through AHB bus
+interface
+1'b0: Disable
+1'b1: Enable
+
+VAD_SAMPLE_CNT
+Address: Operational Base + offset (0x007c)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1867
+
+RKRK3588 TRM-Part1
+Bit
+31:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+sample_cnt
+Sample counter
+
+VAD_RAM_START_ADDR_BUS
+Address: Operational Base + offset (0x0080)
+Bit Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+ram_start_addr_bus
+RAM start address to store voice data, the address must be
+double word alignment. Only used for bus write mode and when
+bus_write_addr_mode=1'b1.
+
+VAD_RAM_END_ADDR_BUS
+Address: Operational Base + offset (0x0084)
+Bit Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+RW 0x00000000
+
+16
+
+15:0
+
+0x0
+
+Description
+
+ram_cur_addr_bus
+RAM current address to store voice data. Only used for bus write
+mode and when bus_write_addr_mode=1'b1. The last valid
+double word data is at address ram_cur_addr_bus-0x8.
+When the ram_loop_flag_bus is valid, the valid voice data will be
+ram_cur_addr_bus ~ ram_end_addr_bus ~ loop to
+ram_begin_addr_bus ~ ram_cur_addr_bus-0x8.
+When the ramp_loop_flag is not valid, the valid voice data will be
+ram_begin_addr_bus ~ ram_cur_addr_bus-0x8
+
+VAD_AUX_CON1
+Address: Operational Base + offset (0x008c)
+Bit Attr Reset Value
+31:17 RO
+
+Description
+
+ram_begin_addr_bus
+RAM start address to store voice data, the address must be
+double word alignment. Only used for bus write mode and when
+bus_write_addr_mode=1'b1.
+
+VAD_RAM_CUR_ADDR_BUS
+Address: Operational Base + offset (0x0088)
+Bit Attr Reset Value
+
+31:0
+
+Description
+
+Description
+
+reserved
+
+RW 0x0
+
+data_trans_int_mode_sel
+Data transfer number threshold selection for interrupt trigger
+1'b0: Data_trans_kbyte_thd
+1'b1: Data_trans_word_thd
+
+RW 0x0000
+
+data_trans_word_thd
+Data transfer number threshold, the unit is word. The value N
+means N+1 words. The interrupt is generated per
+trans_word_thd+1 words.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1868
+
+RKRK3588 TRM-Part1
+
+VAD_NOISE_FIRST_DATA
+Address: Operational Base + offset (0x0100)
+Bit Attr Reset Value
+31:16 RO
+15:0
+
+0x0
+
+reserved
+
+RW 0x0000
+
+noise_first_data
+Noise first data
+
+VAD_NOISE_LAST_DATA
+Address: Operational Base + offset (0x02fc)
+Bit Attr Reset Value
+31:16 RO
+15:0
+
+Description
+
+0x0
+
+Description
+
+reserved
+
+RW 0x0000
+
+noise_last_data
+Noise last data
+
+28.5 Application Notes
+28.5.1 VAD usage flow
+
+VAD usage flow is shown as following figures.
+Step12: Recover voice data sample
+rate(optional)
+
+Step1: SoC at normal mode
+No task or interactive
+Step2: Stop DMA controller
+
+Step11: Keyword Detection(
+backtracking data transfered by
+VAD and data transferred by DMA )
+
+Step3: Change voice data sample
+rate(optional)
+
+Step10:Enable CPU interrupt
+
+Step4: Disable CPU interrupt
+
+Step9: Disable VAD and poll until
+VAD idle(Optional)
+
+Step5: Configuration and enable
+VAD to use ram write interface
+
+Step8: Configure and enable DMA
+controller
+
+Step6 :SoC enter lower power
+mode
+
+vad_interrupt
+Step7: SoC exit lower power mode
+
+Fig. 28-3 VAD usage flow (only used ram write interface mode)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1869
+
+RKRK3588 TRM-Part1
+
+Step12: Recover voice data sample
+rate(optional)
+
+Step1: SoC at normal mode
+No task or interactive
+
+Step11: Disable VAD and poll until
+VAD idle(Optional)
+
+Step2: Stop DMA controller
+
+keyword find
+Step3: Change voice data sample
+rate(optional)
+
+⚫
+
+Step10: Keyword Detection(
+backtracking data transfered by
+VAD)
+
+Step4: Disable CPU interrupt
+
+Step9:Enable CPU interrupt
+
+Step5: Configure VAD to ram write
+interface mode
+
+Step8: Configure VAD to bus write
+mode
+
+Step6 :SoC enter lower power
+mode
+
+⚫
+
+no keyword find
+
+vad_interrupt
+Step7: SoC exit lower power mode
+
+Fig. 28-4 VAD usage flow (use bus mode and ram write interface mode)
+Step3, step12 are optional, user should consider the power consumption and keyword
+detection accuracy for these steps.
+Disable VAD step is optional, user can keep VAD working, and use it as a DMA Controller.
+
+28.5.2 VAD configuration usage flow
+⚫
+⚫
+⚫
+
+⚫
+
+⚫
+
+Set VAD_VS_ADDR.vs_addr=I2S_8CH_0 base address + I2S_8CH_INCR_RXDR.
+Set VAD_RAM_BEGIN_ADDR.ram_begin_addr and VAD_RAM_END_ADDR.ram_end_addr,
+the address should match with the Internal SRAM sharing scheme.
+Set to bus write mode or ram interface mode when enable VAD
+Set VAD_AUX_CON0.bus_write_en=0, and VAD_AUX_CON0.dis_ram_itf =0 toenable
+VAD as ram interface write mode.
+Set VAD_AUX_CON0.bus_write_en=1, and VAD_AUX_CON0.dis_ram_itf =1 to enable
+VAD as bus write mode.
+Adjust the sensitivity of voice activity detect by setting follow registers:
+VAD_DET_CON0.noise_level
+VAD_DET_CON0.vad_con_thd
+VAD_DET_CON0.dis_vad_con_thd
+VAD_DET_CON0.vad_thd_mode
+VAD_DET_CON1.noise_sample_num
+VAD_DET_CON1.sound_thd
+VAD_DET_CON2.noise_frm_num
+VAD_DET_CON2.noise_alpha
+Set the iir_anum_0~3 and iir_aden_1~2 to adjust the IIR HPF coefficient.
+For 48Khz sample rate:
+iir_anum_0: 0x382d
+iir_anum_1: 0x8fa5
+iir_anum_2: 0x382d
+iir_aden_1: 0x909b
+iir_aden_2: 0x3150
+For 16Khz sample rate (default):
+iir_anum_0: 0x3bf5
+iir_anum_1: 0x8817
+iir_anum_2: 0x3bf5
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1870
+
+RKRK3588 TRM-Part1
+
+⚫
+
+⚫
+⚫
+
+⚫
+
+⚫
+
+iir_aden_1: 0x8858
+iir_aden_2: 0x382b
+For 8Khz sample rate:
+iir_anum_0: 0x3e9f
+iir_anum_1: 0x82c2
+iir_anum_2:0x3e9f
+iir_aden_1: 0x82c9
+iir_aden_2: 0x3d46
+Set DET_CON5.noise_abs to ambient noise which is calculated by software.
+Set VAD_NOISE_DATA+offset to initial the noise data of all frames. The frame number is
+VAD_DET_CON2.noise_frm_num.
+The first frame noise data address is VAD_NOISE_DATA, the second frame noise data
+address is VAD_NOISE_DATA+0x4, and so on.
+Set VAD_INT.vad_det_int_en=0x1 to enable the interrupt.
+Set VAD_AUX_CONTROL to disable detection at the beginning after VAD is enabled.
+Set sample_cnt_en=0x1
+Set int_trig_ctrl_en=0x1
+Set int_trig_valid_thd to appropriate value, it recommended configuration to 4ms.
+For 48Khz sample rate: int_trig_valid_thd= 0xc0
+For 16Khz sample rate: int_trig_valid_thd= 0x40
+For 8Khz sample rate: int_trig_valid_thd= 0x20
+Set VAD_CONTROL register:
+Set source_select=0x1, select I2S_8CH_0
+Set source_burst=0x3, select INCR4 burst type
+Set source_burst_num=0x0, select 1 burst transfer per DMA request
+Set vad_mode=0x0, select Mode 0
+Set voice_channel_num=0x7, all voice channel number is 8
+Set voice_channel_bitwidth=0x0, voice data width is 16 bits
+Set vad_det_channel=0x0, use channel 0 to voice activity detect
+Set vad_en=0x1, enable VAD
+After above setting, VAD will start to work and system can enter low power mode.
+When VAD is working, user can configure the VAD_AUX_CON0.bus_write_en and
+VAD_AUX_CON0.ram_itf_dis to change the data storing mode dynamically. The
+storing address can be continuous transition or be spitted. It’s controlled by
+following bits:
+VAD_AUX_CON0.bus_write_addr_mode
+VAD_AUX_CON0. bus_write_rework_addr_mode
+VAD_AUX_CON0. ram_write_rework_addr_mode
+
+28.5.3 Data Transfer Interrupt usage flow
+
+When VAD is working at bus write mode. User can get data transfer interrupt by following
+additional configuration.
+⚫ Set VAD_AUX_CONTROL.data_trans_trig_int_en=0x1
+⚫ Set VAD_AUX_CONTROL.data_trans_kbyte_thd at appropriate value
+⚫ Set VAD_INT.vad_data_trans_int_en=0x1
+
+28.5.4 Timeout configuration usage flow
+⚫
+
+⚫
+
+Set VAD_TIMEOUT.idle_timeout_thd=0xfffff, set VAD_TIMEOUT.idle_timeout_en=0x1,
+set VAD_INT.idle_timeout_int=0x1. After above setting, a counter is increase at AHB
+clock when dmac_engine is idle, the counter will be clear to 0 once dmac_engine start to
+read voice data. An interrupt will be asserted when the counter up to idle_timeout_thd.
+This idle timeout is used for I2S/PDM work fail (Don’t assert DMA request for a long
+time).
+Set VAD_TIMEOUT.work_timeout_thd=0x3ff, set VAD_TIMEOUT.work_timeout_en=0x1,
+set VAD_INT.work_timeout_int=0x1. After above setting, a counter is increase at AHB
+clock when dmac_engine is busy, the counter will be clear to 0 once dmac_engine is idle.
+An interrupt will be asserted when the counter up to work_timeout_thd. This work
+timeout is used for bus transmission congestion (a burst transferring is not completed
+for a long time).
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1871
+
+RKRK3588 TRM-Part1
+

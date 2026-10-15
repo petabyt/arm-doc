@@ -1,0 +1,1467 @@
+Chapter 33 KEYLAD
+33
+
+33.1 Overview
+KEYLAD is used to securely protect the transmission and operation of the KEY and ensure
+that other masters cannot access the KEY.
+The KEYLAD supports following features:
+⚫ Support Link List Item (LLI) DMA transfer
+⚫ Support AES-128, AES-192, AES-256 encrypt & decrypt cipher
+⚫ Support DES & TDES cipher
+⚫ Support AES ECB/CBC/OFB/CFB mode
+⚫ Support SM4 ECB/CBC/OFB/CFB mode
+⚫ Support DES/TDES ECB/CBC/OFB/CFB mode
+⚫ Support for caching OTP or TRNG specific data and deriving it
+⚫ Support writing KEY Table data to some specific modules
+⚫ Support AES/SM4/DES/TDES lockstep error monitoring
+
+33.2 Block Diagram
+
+Fig. 33-1 KEYLAD Architecture
+KEYLAD contains several modules: AHB_Slave, DMA, CIPHER, Key_table, APB_master.
+AHB_Slave
+AHB_Slave is used to configure registers. This module is in HCLK domain.
+DMA
+DMA is used to transfer data from external memory to RX_FIFO, or from TX_FIFO to KEY
+Table. DMA uses 64-bits AXI3 protocol with max burst length to 16. LLI transfer is also
+supported for performance and convenience consideration. This module is in ACLK domain.
+CIPHER
+CIPHER contains AES, SM4, DES/TDES engines. And it also supports various mode
+operations. The source data is either from RX_FIFO, or from other engine output. The result
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1949
+
+RKRK3588 TRM-Part1
+data is sending to TX_FIFO. This module is in CLK_CORE domain.
+KEY_Table
+The KEY table is used to store OTP KEY, TRNG data and CIPHER calculate result. KEY table’s
+content can’t be see by CPU. This module is in ACLK domain.
+APB_master
+APB_master is used to write data to module configurations that require secret configuration
+data. This APB_master is write-only APB master. This module is in PCLK domain.
+
+33.3 Function Description
+33.3.1 KEY Table
+
+The KEY Table consists of 32 registers. The 32 word registers are numbered 0~31 one by
+one.
+⚫ Copy data into KEY Table
+KEYLAD can copy 8 words OTP KEY or TRNG data to the KEY Table at one time. To copy data
+to KEY Table, the following steps should be followed:
+1. Clear KEYLAD_SRC_NUM_DONE register;
+2. Configure the KEYLAD_SRC_NUM_SEL register to select data source;
+3. Configure OTPC or TRNG_S to generate data source for KEYLAD;
+4. Waiting for KEYLAD_SRC_NUM_DONE register to set;
+5. Configure the KEYLAD_OTP_COPY register to copy the data to the specified location in
+the KEY Table;
+6. Waiting for KEYLAD_OTP_COPY register to clear indicates that data is written to KEY
+Table
+⚫ Internal data copy
+KEYLAD can also copy the key table data internally, 8 words at a time, by configuring the
+KEYLAD_INTER_COPY register.
+⚫ Copy the KEY Table data to a specific module
+KEYLAD has a set of write only APB interfaces, which can write the data in the KEY Table
+to SCRYPTO, SCRYAMBLE_KEY and HDCP_KEY, one word at a time. To write the data in
+the KEY Table to a specific module, the following steps should be followed:
+1. Configure the KEYLAD_APB_PADDR register to select the destination address;
+2. Configure KEYLAD_APB_PWDATA register to select word data corresponding to KEY
+Table;
+3. Configure KEYLAD_APB_CMD register to start data writing;
+4. Wait for the KEYLAD_APB_CMD register to clear, indicating that the data has been
+written to the destination.
+
+33.3.2 KEY derivation
+
+KEYLAD can derive the KEY in the KEY Table. If you need to use the data in the KEY Table as
+the KEY of the operation, you need to configure register KEYLAD_KEY_SEL.
+
+33.4 Register Description
+33.4.1 Internal Address Mapping
+
+Slave address can be divided into different length for different usage, which is shown as
+follows.
+
+33.4.2 Registers Summary
+Name
+KEYLAD_CLK_CTL
+KEYLAD_RST_CTL
+KEYLAD_DMA_INT_EN
+KEYLAD_DMA_INT_ST
+
+Offset Size Reset Value
+0x0000 W
+0x00000001
+0x0004 W
+0x00000000
+0x0008 W
+0x00000000
+0x000C W
+0x00000000
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+Clock Control Register
+Reset Control Register
+DMA Interrupt Enable Register
+DMA Interrupt Status Register
+
+1950
+
+RKRK3588 TRM-Part1
+Name
+KEYLAD_DMA_CTL
+
+Offset Size Reset Value
+Description
+0x0010 W
+0x00000000
+DMA Control Register
+DMA LIST Start Address
+KEYLAD_DMA_LLI_ADDR
+0x0014 W
+0x00000000
+Register
+KEYLAD_DMA_ST
+0x0018 W
+0x00000000
+DMA Status Register
+KEYLAD_DMA_STATE
+0x001C W
+0x00000000
+DMA State Register
+KEYLAD_DMA_LLI_RADDR 0x0020 W
+0x00000000
+DMA LLI Read Address Register
+DMA Source Data Read Address
+KEYLAD_DMA_SRC_RADDR 0x0024 W
+0x00000000
+Register
+DMA Destination Data Read
+KEYLAD_DMA_DST_WADDR 0x0028 W
+0x00000000
+Address Register
+KEYLAD_DMA_ITEM_ID
+0x002C W
+0x00000000
+DMA Descriptor ID Register
+KEYLAD_FIFO_CTL
+0x0040 W
+0x00000003
+FIFO Control Register
+KEYLAD_BC_CTL
+0x0044 W
+0x00000000
+Block Cipher Control Register
+KEYLAD_CIPHER_ST
+0x004C W
+0x00000000
+Cipher Status Register
+KEYLAD_CIPHER_STATE
+0x0050 W
+0x00000400
+Cipher Current State Register
+KEYLAD_CH0_IV_0
+0x0100 W
+0x00000000
+iv 0
+KEYLAD_CH0_IV_1
+0x0104 W
+0x00000000
+iv 1
+KEYLAD_CH0_IV_2
+0x0108 W
+0x00000000
+iv 2
+KEYLAD_CH0_IV_3
+0x010C W
+0x00000000
+iv 3
+KEYLAD_CH0_KEY_0
+0x0180 W
+0x00000000
+key 0
+KEYLAD_CH0_KEY_1
+0x0184 W
+0x00000000
+key 1
+KEYLAD_CH0_KEY_2
+0x0188 W
+0x00000000
+key 2
+KEYLAD_CH0_KEY_3
+0x018C W
+0x00000000
+key 3
+KEYLAD_APB_CMD
+0x0450 W
+0x00000000
+apb master command enable
+KEYLAD_APB_PADDR
+0x0454 W
+0x00000000
+apb paddr
+KEYLAD_APB_PWDATA
+0x0458 W
+0x00000000
+apb pwdata
+KEYLAD_APB_PWRITE
+0x045C W
+0x00000000
+apb pwrite
+KEYLAD_INTER_COPY
+0x0608 W
+0x00000000
+key table internal copy
+KEYLAD_OTP_COPY
+0x060C W
+0x00000000
+OTP key COPY
+KEYLAD_KEY_SEL
+0x0610 W
+0x00000000
+Operation key select
+KEYLAD_LOCKSTEP_FLAG
+0x0618 W
+0x00000000
+Lockstep mistake flag
+KEYLAD_LOCKSTEP_EN
+0x061C W
+0x00000000
+Lockstep check enable
+KEYLAD_SRC_NUM_SEL
+0x0620 W
+0x00000000
+Source key select
+KEYLAD_SRC_NUM_DONE
+0x0624 W
+0x00000000
+Source key cache flag
+AES version code is
+KEYLAD_AES_VERSION
+0x0680 W
+0x00070033
+0x0007_0033
+DES version code is
+KEYLAD_DES_VERSION
+0x0684 W
+0x00030033
+0x0003_0033
+SM4 version code is
+KEYLAD_SM4_VERSION
+0x0688 W
+0x00000033
+0x0000_0033
+HASH version code is
+KEYLAD_HASH_VERSION
+0x068C W
+0x00000000
+0x0000_0000
+HMAC version code is
+KEYLAD_HMAC_VERSION
+0x0690 W
+0x00000000
+0x0000_0000
+RNG version code is
+KEYLAD_RNG_VERSION
+0x0694 W
+0x02000000
+0x0200_0000
+PKA version code is
+KEYLAD_PKA_VERSION
+0x0698 W
+0x00000000
+0x0000_0000
+KEYLAD version code is
+KEYLAD_CRYPTO_VERSION 0x06F0 W
+0x02000003
+0x0200_0003
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+33.4.3 Detail Registers Description
+KEYLAD_CLK_CTL
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1951
+
+RKRK3588 TRM-Part1
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+31:17 RO 0x0000
+reserved
+write_enable
+Write enable for lower 16bits, each bit is individual
+16
+WO 0x0
+1’b0: Write access disable
+1’b1: Write access enable
+15:1 RO 0x0000
+reserved
+auto_clkgate_en
+KEYLAD will gate unused Block Cipher module automatically
+0
+RW 0x1
+1'b0: Disable
+1'b1: Enable
+KEYLAD_RST_CTL
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+31:19 RO 0x0000
+reserved
+write_enable
+Write enable for lower 16bits, each bit is individual
+18:16 RW 0x0
+1’b0: Write access disable
+1’b1: Write access enable
+15:2 RO 0x0000
+reserved
+sw_rng_reset
+R/W
+1
+0x0
+Software set this bit to start a reset to TRNG module. After the
+SC
+reset is done, KEYLAD will clear this bit.
+sw_cc_reset
+R/W
+0
+0x0
+Software set this bit to start a reset to Symmetric Cipher module.
+SC
+After the reset is done, KEYLAD will clear this bit.
+KEYLAD_DMA_INT_EN
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+lockstep_int_en
+7
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+zero_len_int_en
+6
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+list_err_int_en
+5
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+src_err_int_en
+4
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+dst_err_int_en
+3
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+src_item_done_int_en
+2
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+dst_item_done_int_en
+1
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1952
+
+RKRK3588 TRM-Part1
+Bit
+0
+
+Attr Reset Value
+RW 0x0
+
+Description
+list_done_int_en
+1'b0: Disable
+1'b1: Enable
+
+KEYLAD_DMA_INT_ST
+Address: Operational Base + offset (0x000C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+lockstep_flag
+7
+RW 0x0
+1'b0: Nothing
+1'b1: Indicate that KEYLAD was attacked
+zero_len
+1'b0: Nothing
+W1
+6
+0x0
+1'b1: Indicate that DMA has met an 0 byte source transfer length
+C
+in list descriptors. After the bit is read, the application should
+write 1 to clear this bit for next time use
+list_err
+1'b0: Nothing
+1'b1: Indicate that DMA has met an error response when transfer
+5
+RW 0x0
+list descriptors. The state machine will exit current transfer and
+then return to IDLE state. After the bit is read, the application
+should write 1 to clear this bit for next time use
+src_err
+1'b0: Nothing
+W1
+1'b1: Indicate that DMA has met an error response when transfer
+4
+0x0
+C
+source data. The state machine will exit current transfer and then
+return to IDLE state. After the bit is read, the application should
+write 1 to clear this bit for next time use
+dst_err
+1'b0: Nothing
+W1
+1'b1: Indicate that DMA has met an error response when transfer
+3
+0x0
+C
+destination data. The state machine will exit current transfer and
+then return to IDLE state. After the bit is read, the application
+should write 1 to clear this bit for next time use
+src_item_done
+1'b0: Nothing
+W1
+2
+0x0
+1'b1: Indicate that DMA has completed a read transfers which the
+C
+current list descriptor pointed to. After the bit is read, the
+application should write 1 to clear this bit for next time use
+dst_item_done
+1'b0: Nothing
+W1
+1
+0x0
+1'b1: Indicate that DMA has completed a write transfers which
+C
+the current list descriptor pointed to. After the bit is read, the
+application should write 1 to clear this bit for next time use
+list_done
+1'b0: Nothing
+W1
+0
+0x0
+1'b1: Indicate that DMA has completed all the transfers which the
+C
+list descriptors pointed to. After the bit is read, the application
+should write 1 to clear this bit for next time use
+KEYLAD_DMA_CTL
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+31:18 RO 0x0000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1953
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+17:16 WO 0x0
+15:2
+
+RO
+
+0x0000
+
+1
+
+R/W
+0x0
+SC
+
+0
+
+R/W
+0x0
+SC
+
+Description
+write_enable
+Write enable for lower 16bits, each bit is individual
+1’b0: Write access disable
+1’b1: Write access enable
+reserved
+dma_restart
+If DMA data for next stage is not ready, application could pause
+DMA by descriptor commands. DMA will stop prefetching next
+descriptor. The application could restart DMA by asserting this bit
+when DMA data for next state is ready. KEYLAD will continue with
+previous transfer, and clear the bit automatically.
+dma_start
+DMA asserts the bit to start DMA transfer, then KEYLAD will clear
+the bit automatically.
+
+KEYLAD_DMA_LLI_ADDR
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+Description
+dma_lli_addr
+When DMA_CTL start asserted, KEYLAD will read the address to
+31:0 RW 0x00000000
+get the 1'st descriptor. It should be 8-bytes align. We suggest
+dma_lli_addr 64-byte align for best performance consideration.
+KEYLAD_DMA_ST
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+31:1 RO 0x00000000 reserved
+dma_busy
+0
+RO 0x0
+1'b0: DMA idle
+1'b1: DMA busy
+KEYLAD_DMA_STATE
+Address: Operational Base + offset (0x001C)
+Bit Attr Reset Value
+31:6 RO 0x0000000
+reserved
+dma_lli_state
+For debug use only
+2'b00: IDLE STATE
+5:4
+RO 0x0
+2'b01: FETCH STATE
+2'b10: WORK STATE
+Others: Reserved
+dma_src_state
+For debug use only
+2'b00: IDLE STATE
+3:2
+RO 0x0
+2'b01: LOAD STATE
+2'b10: WORK STATE
+Others: Reserved
+dma_dst_state
+For debug use only
+2'b00: IDLE STATE
+1:0
+RO 0x0
+2'b01: LOAD STATE
+2'b10: WORK STATE
+Others: Reserved
+
+Description
+
+Description
+
+KEYLAD_DMA_LLI_RADDR
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1954
+
+RKRK3588 TRM-Part1
+Address: Operational Base + offset (0x0020)
+Bit Attr Reset Value
+Description
+dma_lli_raddr
+31:0 RO 0x00000000 For debug use only
+It indicates the current DMA LLI read address
+KEYLAD_DMA_SRC_RADDR
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+Description
+dma_src_raddr
+31:0 RO 0x00000000 For debug use only
+It indicates the current DMA source read address
+KEYLAD_DMA_DST_WADDR
+Address: Operational Base + offset (0x0028)
+Bit Attr Reset Value
+Description
+dma_dst_waddr
+31:0 RO 0x00000000 For debug use only
+It indicates the current DMA destination write address
+KEYLAD_DMA_ITEM_ID
+Address: Operational Base + offset (0x002C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+dma_item_id
+7:0
+RO 0x00
+For debug use only
+It indicates the current descriptor ID
+KEYLAD_FIFO_CTL
+Address: Operational Base + offset (0x0040)
+Bit Attr Reset Value
+Description
+31:18 RO 0x0000
+reserved
+write_enable
+Write enable for lower 16bits, each bit is individual
+17:16 WO 0x0
+1’b0: Write access disable
+1’b1: Write access enable
+15:2 RO 0x0000
+reserved
+dout_byteswap
+1
+RW 0x1
+1'b0: Little endian
+1'b1: Big endian
+din_byteswap
+0
+RW 0x1
+1'b0: Little endian
+1'b1: Big endian
+KEYLAD_BC_CTL
+Address: Operational Base + offset (0x0044)
+Bit Attr Reset Value
+Description
+31:26 RO 0x00
+reserved
+write_enable
+Write enable for lower 16bits, each bit is individual
+25:16 WO 0x000
+1’b0: Write access disable
+1’b1: Write access enable
+15:10 RO 0x00
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1955
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+9:8
+
+RW 0x0
+
+7:4
+
+RW 0x0
+
+3:2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+bc_cipher_sel
+2'b00: AES
+2'b01: SM4
+2'b10: DES
+2'b11: TDES
+Others: Reserved
+mode
+For AES
+4'h0: ECB
+4'h1: CBC
+4'h4: CFB
+4'h5: OFB
+Others: Reserved
+For TDES/DES
+4'h0: ECB
+4'h1: CBC
+4'h4: CFB
+4'h5: OFB
+Others: Reserved
+key_size
+For AES
+2'b00: 128 bit
+2'b01: 192 bit
+2'b10: 256 bit
+2'b11: reserved
+For TDES/DES, it is reserved
+decrypt
+1'b0: Encrypt
+1'b1: Decrypt
+bc_enable
+1'b0: Disable
+1'b1: Enable
+
+KEYLAD_CIPHER_ST
+Address: Operational Base + offset (0x004C)
+Bit Attr Reset Value
+Description
+31:3 RO 0x00000000 reserved
+otp_key_valid
+Indicate if otp_key is valid
+2
+RO 0x0
+1'b0: Invalid
+1'b1: Valid
+block_cipher_busy
+0
+RO 0x0
+1'b0: Idle
+1'b1: Busy
+KEYLAD_CIPHER_STATE
+Address: Operational Base + offset (0x0050)
+Bit Attr Reset Value
+31:15 RO 0x00000
+reserved
+parallel_state
+For debug use only
+2'b00: IDLE State
+5:4
+RO 0x0
+2'b01: PRE State
+2'b10: BULK State
+Others: Reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1956
+
+RKRK3588 TRM-Part1
+Bit
+
+1:0
+
+Attr Reset Value
+
+RO
+
+0x0
+
+Description
+serial_state
+For debug use only
+2'b00: IDLE State
+2'b01: PRE State
+2'b10: BULK State
+2'b11: Reserved
+
+KEYLAD_CH0_IV_0
+Address: Operational Base + offset (0x0100)
+Bit Attr Reset Value
+ch0_iv_0
+31:0 RW 0x00000000
+Channel 0 IV[127:96]
+
+Description
+
+KEYLAD_CH0_IV_1
+Address: Operational Base + offset (0x0104)
+Bit Attr Reset Value
+ch0_iv_1
+31:0 RW 0x00000000
+Channel 0 IV[95:64]
+
+Description
+
+KEYLAD_CH0_IV_2
+Address: Operational Base + offset (0x0108)
+Bit Attr Reset Value
+ch0_iv_2
+31:0 RW 0x00000000
+Channel 0 IV[63:32]
+
+Description
+
+KEYLAD_CH0_IV_3
+Address: Operational Base + offset (0x010C)
+Bit Attr Reset Value
+ch0_iv_3
+31:0 RW 0x00000000
+Channel 0 IV[31:0]
+
+Description
+
+KEYLAD_CH0_KEY_0
+Address: Operational Base + offset (0x0180)
+Bit Attr Reset Value
+ch0_key_0
+31:0 RW 0x00000000
+Channel 0 Key[127:96]
+
+Description
+
+KEYLAD_CH0_KEY_1
+Address: Operational Base + offset (0x0184)
+Bit Attr Reset Value
+ch0_key_1
+31:0 RW 0x00000000
+Channel 0 Key[95:64]
+
+Description
+
+KEYLAD_CH0_KEY_2
+Address: Operational Base + offset (0x0188)
+Bit Attr Reset Value
+ch0_key_2
+31:0 RW 0x00000000
+Channel 0 Key[63:32]
+
+Description
+
+KEYLAD_CH0_KEY_3
+Address: Operational Base + offset (0x018C)
+Bit Attr Reset Value
+ch0_key_3
+31:0 RW 0x00000000
+Channel 0 Key[31:0]
+
+Description
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1957
+
+RKRK3588 TRM-Part1
+
+KEYLAD_APB_CMD
+Address: Operational Base + offset (0x0450)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+apb_cmd_en
+APB master command enable
+0
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+KEYLAD_APB_PADDR
+Address: Operational Base + offset (0x0454)
+Bit Attr Reset Value
+apb_paddr
+31:0 RW 0x00000000
+Where to write out
+
+Description
+
+KEYLAD_APB_PWDATA
+Address: Operational Base + offset (0x0458)
+Bit Attr Reset Value
+Description
+apb_pwdata
+Chose which 32 bits data in key table will be write out
+31:0 RW 0x00000000 0: Chose key_tab[31:0]
+1: Chose key_tab[63:32]
+n: Chose key_tab[(n*32+31):(n*32)]
+KEYLAD_APB_PWRITE
+Address: Operational Base + offset (0x045C)
+Bit Attr Reset Value
+31:1 RO 0x00000000 reserved
+apb_pwrite
+0
+RW 0x0
+APB pwrite
+
+Description
+
+KEYLAD_INTER_COPY
+Address: Operational Base + offset (0x0608)
+Bit Attr Reset Value
+Description
+inter_copy_en
+internal key copy enable
+31
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+30:29 RO 0x0
+reserved
+inter_copy_des_addr
+28:16 RW 0x0000
+OTP key copy destination address (dword count).
+15:13 RO 0x0
+reserved
+inter_copy_src_addr
+12:0 RW 0x0000
+OTP key copy source address (dword count).
+KEYLAD_OTP_COPY
+Address: Operational Base + offset (0x060C)
+Bit Attr Reset Value
+31:3 RO 0x00000000 reserved
+otp_key_copy_en
+OTP key copy enable
+2
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1958
+
+RKRK3588 TRM-Part1
+Bit
+
+1:0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+otp_key_copy_sel
+OTP key copy select
+2'b00: select the first 256 bits of key table
+2'b01: select the second 256 bits of key table
+2'b10: select the third 256 bits of key table
+2'b11: select the fourth 256 bits of key table
+
+KEYLAD_KEY_SEL
+Address: Operational Base + offset (0x0610)
+Bit Attr Reset Value
+Description
+kl_high_sel
+Swap high and low word pair keys per 64 bits.
+31
+RW 0x0
+1'b0: Nothing
+1'b1: Swap
+kl_key_sel
+Select the operation key.
+30:0 RW 0x00000000
+31'h5a5a5a5a: Select key table key
+Others: Select normal key
+KEYLAD_LOCKSTEP_FLAG
+Address: Operational Base + offset (0x0618)
+Bit Attr Reset Value
+31:1 RO 0x00000000 reserved
+lockstep_flag
+lock step status
+0
+RW 0x0
+1'b0: No mistake
+1'b1: Mistake happened
+KEYLAD_LOCKSTEP_EN
+Address: Operational Base + offset (0x061C)
+Bit Attr Reset Value
+31:1 RO 0x00000000 reserved
+lockstep_en
+Enable lockstep check
+0
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+
+Description
+
+Description
+
+KEYLAD_SRC_NUM_SEL
+Address: Operational Base + offset (0x0620)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+src_num_sel
+Select which key to write to the key table
+0
+RW 0x0
+1'b0: Select OTP value
+1'b1: Select TRNG value
+KEYLAD_SRC_NUM_DONE
+Address: Operational Base + offset (0x0624)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+src_num_done
+W1
+Indicates whether the key reaches the port
+0
+0x0
+C
+1'b0: Not reach the port
+1'b1: Reach the port
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1959
+
+RKRK3588 TRM-Part1
+
+KEYLAD_AES_VERSION
+Address: Operational Base + offset (0x0680)
+Bit Attr Reset Value
+Description
+31:19 RO 0x0000
+reserved
+aes256_flag
+Whether the AES supports AES256
+18
+RO 0x1
+1'b0: No support
+1'b1: Support
+aes192_flag
+Whether the AES supports AES192
+17
+RO 0x1
+1'b0: No support
+1'b1: Support
+aes128_flag
+Whether the AES supports AES128
+16
+RO 0x1
+1'b0: No support
+1'b1: Support
+15:11 RO 0x00
+reserved
+cbc-mac_flag
+Whether the AES supports CBC-MAC
+10
+RO 0x0
+1'b0: No support
+1'b1: Support
+cmac_flag
+Whether the AES supports CMAC
+9
+RO 0x0
+1'b0: No support
+1'b1: Support
+gcm_flag
+Whether the AES supports GCM
+8
+RO 0x0
+1'b0: No support
+1'b1: Support
+ccm_flag
+Whether the AES supports CCM
+7
+RO 0x0
+1'b0: No support
+1'b1: Support
+xts_flag
+Whether the AES supports XTS
+6
+RO 0x0
+1'b0: No support
+1'b1: Support
+ofb_flag
+Whether the AES supports OFB
+5
+RO 0x1
+1'b0: No support
+1'b1: Support
+cfb_flag
+Whether the AES supports CFB
+4
+RO 0x1
+1'b0: No support
+1'b1: Support
+ctr_flag
+Whether the AES supports CTR
+3
+RO 0x0
+1'b0: No support
+1'b1: Support
+cts_flag
+Whether the AES supports CTS
+2
+RO 0x0
+1'b0: No support
+1'b1: Support
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1960
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+1
+
+RO
+
+0x1
+
+0
+
+RO
+
+0x1
+
+Description
+cbc_flag
+Whether the AES supports CBC
+1'b0: No support
+1'b1: Support
+ecb_flag
+Whether the AES supports ECB
+1'b0: No support
+1'b1: Support
+
+KEYLAD_DES_VERSION
+Address: Operational Base + offset (0x0684)
+Bit Attr Reset Value
+Description
+31:18 RO 0x0000
+reserved
+eee_flag
+Whether the DES supports EEE mode
+17
+RO 0x1
+1'b0: No support
+1'b1: Support
+tdes_flag
+Whether the DES supports TDES
+16
+RO 0x1
+1'b0: No support
+1'b1: Support
+15:6 RO 0x000
+reserved
+ofb_flag
+Whether the DES supports OFB
+5
+RO 0x1
+1'b0: No support
+1'b1: Support
+cfb_flag
+Whether the DES supports CFB
+4
+RO 0x1
+1'b0: No support
+1'b1: Support
+3:2
+RO 0x0
+reserved
+cbc_flag
+Whether the DES supports CBC
+1
+RO 0x1
+1'b0: No support
+1'b1: Support
+ecb_flag
+Whether the DES supports ECB
+0
+RO 0x1
+1'b0: No support
+1'b1: Support
+KEYLAD_SM4_VERSION
+Address: Operational Base + offset (0x0688)
+Bit Attr Reset Value
+Description
+31:11 RO 0x000000
+reserved
+cbc-mac_flag
+Whether the SM4 supports CBC-MAC
+10
+RO 0x0
+1'b0: No support
+1'b1: Support
+cmac_flag
+Whether the SM4 supports CMAC
+9
+RO 0x0
+1'b0: No support
+1'b1: Support
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1961
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+8
+
+RO
+
+0x0
+
+7
+
+RO
+
+0x0
+
+6
+
+RO
+
+0x0
+
+5
+
+RO
+
+0x1
+
+4
+
+RO
+
+0x1
+
+3
+
+RO
+
+0x0
+
+2
+
+RO
+
+0x0
+
+1
+
+RO
+
+0x1
+
+0
+
+RO
+
+0x1
+
+Description
+gcm_flag
+Whether the SM4 supports GCM
+1'b0: No support
+1'b1: Support
+ccm_flag
+Whether the SM4 supports CCM
+1'b0: No support
+1'b1: Support
+xts_flag
+Whether the SM4 supports XTS
+1'b0: No support
+1'b1: Support
+ofb_flag
+Whether the SM4 supports OFB
+1'b0: No support
+1'b1: Support
+cfb_flag
+Whether the SM4 supports CFB
+1'b0: No support
+1'b1: Support
+ctr_flag
+Whether the SM4 supports CTR
+1'b0: No support
+1'b1: Support
+cts_flag
+Whether the SM4 supports CTS
+1'b0: No support
+1'b1: Support
+cbc_flag
+Whether the SM4 supports CBC
+1'b0: No support
+1'b1: Support
+ecb_flag
+Whether the SM4 supports ECB
+1'b0: No support
+1'b1: Support
+
+KEYLAD_HASH_VERSION
+Address: Operational Base + offset (0x068C)
+Bit Attr Reset Value
+Description
+31:9 RO 0x000000
+reserved
+sm3_flag
+Whether the HASH supports SM3
+8
+RO 0x0
+1'b0: No support
+1'b1: Support
+md5_flag
+Whether the HASH supports MD5
+7
+RO 0x0
+1'b0: No support
+1'b1: Support
+sha512-256_flag
+Whether the HASH supports SHA-512/256
+6
+RO 0x0
+1'b0: No support
+1'b1: Support
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1962
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+5
+
+RO
+
+0x0
+
+4
+
+RO
+
+0x0
+
+3
+
+RO
+
+0x0
+
+2
+
+RO
+
+0x0
+
+1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+sha512-224_flag
+Whether the HASH supports SHA-512/224
+1'b0: No support
+1'b1: Support
+sha512_flag
+Whether the HASH supports SHA-512
+1'b0: No support
+1'b1: Support
+sha384_flag
+Whether the HASH supports SHA-384
+1'b0: No support
+1'b1: Support
+sha256_flag
+Whether the HASH supports SHA-256
+1'b0: No support
+1'b1: Support
+sha224_flag
+Whether the HASH supports SHA-224
+1'b0: No support
+1'b1: Support
+sha1_flag
+Whether the HASH supports SHA-1
+1'b0: No support
+1'b1: Support
+
+KEYLAD_HMAC_VERSION
+Address: Operational Base + offset (0x0690)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+sm3_flag
+Whether the HMAC supports SM3
+4
+RO 0x0
+1'b0: No support
+1'b1: Support
+md5_flag
+Whether the HMAC supports MD5
+3
+RO 0x0
+1'b0: No support
+1'b1: Support
+sha512_flag
+Whether the HMAC supports SHA-512
+2
+RO 0x0
+1'b0: No support
+1'b1: Support
+sha256_flag
+Whether the HMAC supports SHA-256
+1
+RO 0x0
+1'b0: No support
+1'b1: Support
+sha1_flag
+Whether the HMAC supports SHA-1
+0
+RO 0x0
+1'b0: No support
+1'b1: Support
+KEYLAD_RNG_VERSION
+Address: Operational Base + offset (0x0694)
+Bit Attr Reset Value
+Description
+rng_version_code
+31:0 RO 0x02000000
+RNG version code is 0x0200_0000.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1963
+
+RKRK3588 TRM-Part1
+
+KEYLAD_PKA_VERSION
+Address: Operational Base + offset (0x0698)
+Bit Attr Reset Value
+Description
+pka_version_code
+31:0 RW 0x00000000
+PKA version code is 0x0000_0000.
+KEYLAD_CRYPTO_VERSION
+Address: Operational Base + offset (0x06F0)
+Bit Attr Reset Value
+Description
+keylad_version_code
+31:0 RW 0x02000003
+KEYLAD version code is 0x0200_0003.
+
+33.5 Application Note
+⚫
+⚫
+⚫
+⚫
+
+KEYLAD lockstep function refers to “Chapter CRYPTO”.
+The cipher function configuration of KEYLAD refers to “Chapter CRYPTO”.
+When performing KEY derivation, you need to configure the dout_byteswap bit segment
+of KEYLAD_FIFO_CTL to '0'.
+When KEYLAD copies the data in KEY Table to SCRYPTO, the base address of SCRYPTO
+shall be regarded as 0xfe420000.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1964
+
+RKRK3588 TRM-Part1
+

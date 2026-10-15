@@ -1,0 +1,1356 @@
+Chapter 24 SPDIF Receiver
+24
+
+24.1 Overview
+The SPDIF receiver is a self-clocking, serial, unidirectional interface for the interconnection
+of digital audio equipment for consumer and professional applications, using linear PCM
+coded audio samples.
+It provides the basic structure of the interface. Separate documents define items specific to
+particular applications.
+When used in a professional application, the interface is primarily intended to receive
+monophonic or stereophonic programmes, at a 48 kHz sampling frequency and with a
+resolution of up to 24bits per sample; it may alternatively be used to receive signals
+sampled at 32 kHz or 44.1 kHz.
+When used in a consumer application, the interface is primarily intended to receive
+stereophonic programmes, with a resolution of up to 24 bits per sample.
+When used for other purposes, the interface is primarily intended to receive audio data
+coded other than as linear PCM coded audio samples. Provision is also made to allow the
+interface to receive data related to computer software or signals coded using non-linear
+PCM. The format specification for these applications is not part of this standard.
+There are 3 SPDIF receivers(SPDIF_RX) in total. That are SPDIF_RX0, SPDIF_RX1 and
+SPDIF_RX2. Each of them supports following features.
+⚫ Support AHB Bus Interface
+⚫ Support one internal 30-bit wide and 32-location deep FIFO for receiving audio data
+⚫ Support combined interrupt output
+⚫ Support DMA handshaking interface and configurable DMA water level
+⚫ Support liner PCM(IEC60958) and non-liner PCM(IEC61937)
+⚫ Support 16~24 bits audio sample length for liner PCM application
+⚫ Support 16 bits audio sample length for non-liner PCM application
+⚫ Support up to 384kHz sample rate with the corresponding reference clock equal to
+384KHz*64*2*10, that is 491.52MHz
+⚫ Support the frequency of reference clock is at least 10 times the frequency of the
+biphase encoding clock, but not more than 256 times
+⚫ Support recovering clock and audio data from input bitstream
+
+24.2 Block Diagram
+scan_mode
+rkscan_cmux
+spdif_mclk
+
+scan_clk
+spdif_in
+spdif_cdr_refclk
+
+spdif_clk
+CDR
+
+spdif_out
+
+spdif_cdr_rstn
+
+Decoder
+Fsm
+
+RX_FIFO
+
+DECODER
+
+dma_rx_ack
+AHB
+SPDIF_RX_SYS
+dma_rx_req
+
+intr
+
+SPDIF_RX_TOP
+
+Fig. 24-1 SPDIF receiver Block Diagram
+The SPDIF receiver is composed of following modules.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1561
+
+RKRK3588 TRM-Part1
+SPDIF_RX_SYS
+The module implements the AHB slave operation. It contains not only control registers of
+SPDIF receiver inside but also interrupt and DMA handshaking interface.
+CDR
+The CDR is short for clock and data recovery. Clock and data can be recovered from the
+input bitstream by using a high frequency reference clock.
+DECODER
+The clock recovered from the CDR is used as the working clock to decode the input
+bitstream such as extracting audio data, the corresponding preamble code, V/U/C/P flags
+and other audio information.
+RX_FIFO
+The RX FIFO stores the audio data extracted from input bitstream. The size of the FIFO is
+30bitsx32.
+
+24.3 Function description
+24.3.1 Frame Format
+
+SPDIF receiver follows the same protocol(IEC60958/IEC61937) as SPDIF transmitter. A
+frame is uniquely composed of two sub-frames. For linear coded audio applications, the rate
+of receiving of frames corresponds exactly to the source sampling frequency.
+In the 2-channel operation mode, the samples received from both channels are arranged by
+time multiplexing in consecutive sub-frames. The first subframe(left channel in stereophonic
+operation and primary channel in monophonic operation) normally use preamble M.
+However, the preamble is changed to preamble B once every 192 frame to identify the start
+of the block structure used to organize the channel status information. The second subframe (right in stereophonic operation and secondary channel in monophonic operation)
+always use preamble W.
+
+M
+
+left
+
+W
+
+right
+
+B
+
+Frame 191
+
+left
+
+W
+
+right
+
+M
+
+left
+
+W
+
+Sub-frame
+
+Frame 0
+
+right
+
+Sub-frame
+
+Frame 1
+End of block
+
+Start of block
+
+Fig. 24-2 SPDIF Frame Format
+In the single channel operation mode in a professional application, the frame format is the
+same as in the 2-channel mode. Data is carried only in the first sub-frame and may be
+duplicated in the second sub-frame. If the second sub-frame is not carrying duplicate data,
+then time slot 28 (validity flag) shall be set to logical ‘1’ (not valid).
+
+24.3.2 Sub-frame Format
+3 4
+7 8
+0
+Preamble
+
+Aux
+
+Audio sample word
+
+27 28 29
+
+30
+
+31
+
+V
+
+C
+
+P
+
+U
+
+Validity flag
+User data
+Channel status
+Parity bit
+Fig. 24-3 SPDIF Sub-frame Format
+Each sub-frame is divided into 32 time slots, numbered from 0 to 31. Time slot 0 to 3
+carries one of the three permitted preambles. Time slot 4 to 27 carry the audio sample word
+in linear 2’s complement representation. The MSB is carried by time slot 27. When a 24-bit
+coding range is used, the LSB is in time slot 4. When a 20-bit coding range is used, time slot
+8 to 27 carry the audio sample word with the LSB in time slot 8. Time slot 4 to 7 may be
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1562
+
+RKRK3588 TRM-Part1
+used for other application. Under these circumstances, the bits in the time slot 4 to 7 are
+designated auxiliary sample bits.
+If the source provides fewer bits than the interface allows (either 24 or 20), the unused
+LSBs are set to a logical ‘0’. For a non-linear PCM audio application or a data application the
+main data field may carry any other information. Time slot 28 carries the validity flag
+associated with the main data field. Time slot 29 carries 1 bit of the user data associated
+with the audio channel transmitted in the same sub-frame. Time slot 30 carries one bit of
+the channel status words associated with the main data field channel transmitted in the
+same sub-frame. Time slot 31 carries a parity bit such that time slots 4 to 31 inclusive
+carries an even number of ones and an even number of zeros.
+
+24.3.3 Channel Coding
+
+1
+
+0
+
+0
+
+1
+
+0
+
+1
+
+0
+
+Serial audio data
+
+Biphase output
+(start with 1)
+
+1 0 1 1 0 0 1 0 1 1 0 1 0 0
+
+0 1 0 0 1 1 0 1 0 0 1 0 1 1
+Biphase output
+(start with 0)
+Fig. 24-4 SPDIF Channel Coding
+To minimize the direct current component on the transmission/receiving line, to facilitate
+clock recovery from the data stream and to make the interface insensitive to the polarity of
+connections, time slots 4 to 31 are encoded in biphase-mark.
+Each bit to be transmitted is represented by a symbol comprising two consecutive binary
+states. The first state of a symbol is always different from the second state of the previous
+symbol. The second state of the symbol is identical to the first if the bit to be transmitted is
+logical ‘0’.However, it is different from the first if the bit is logical ‘1’.
+
+24.3.4 Preamble
+
+Preambles are specific patterns providing synchronization and identification of the subframes and blocks.
+To achieve synchronization within one sampling period and to make this process completely
+reliable, these patterns violate the biphase-mark code rules, thereby avoiding the possibility
+of data imitating the preambles.
+A set of three preambles is used. These preambles are transmitted in the time allocated to
+four time slots (time slots 0 to 3) and are represented by eight successive states. The first
+state of the preamble is always different from the second state of the previous symbol.
+
+1 1 1 0 0 0 1 0
+M(start with 1)
+
+0 0 0 1 1 1 0 1
+M(start with 0)
+
+1 1 1 0 0 1 0 0
+W(start with 1)
+
+0 0 0 1 1 0 1 1
+W(start with 0)
+
+1 1 1 0 1 0 0 0
+B(start with 1)
+
+0 0 0 1 0 1 1 1
+B(start with 0)
+
+Fig. 24-5 SPDIF Preamble
+Like biphase code, these preambles are dc free and provide clock recovery. They differ in at
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1563
+
+RKRK3588 TRM-Part1
+least two states from any valid biphase sequence.
+
+24.4 Register Description
+24.4.1 Registers Summary
+Name
+
+Offset
+
+Reset
+Value
+
+Size
+
+Description
+
+SPDIF_RX_VERSION
+
+0x0000
+
+W
+
+0x00000100 Version Register
+
+SPDIF_RX_CFGR
+
+0x0004
+
+W
+
+0x00000000 Transfer Configuration Register
+
+SPDIF_RX_CLR
+
+0x0008
+
+W
+
+0x00000000 Clear Register
+
+SPDIF_RX_CDR
+
+0x000C
+
+W
+
+0x000000A1 Clock And Data Recovery Register
+
+SPDIF_RX_CDRST
+
+0x0010
+
+W
+
+0x03FF00FF
+
+SPDIF_RX_DMACR
+
+0x0014
+
+W
+
+0x00000000 DMA Control Register
+
+SPDIF_RX_FIFOCTRL
+
+0x0018
+
+W
+
+0x00000000 FIFO Control Register
+
+SPDIF_RX_INTEN
+
+0x001C
+
+W
+
+0x00000000 Interrupt Enable Register
+
+SPDIF_RX_INTMASK
+
+0x0020
+
+W
+
+0x00000000 Interrupt Mask Register
+
+SPDIF_RX_INTSR
+
+0x0024
+
+W
+
+0x00000000 Interrupt Status Register
+
+SPDIF_RX_INTCLR
+
+0x0028
+
+W
+
+0x00000000 Interrupt Clear Register
+
+SPDIF_RX_SMPDR
+
+0x002C
+
+W
+
+0x00000000 Sample Data Register
+
+SPDIF_RX_USRDRn
+
+0x0030
+
+W
+
+0x00000000 User Data Register n(n=0~11)
+
+SPDIF_RX_CHNSRn
+
+0x0060
+
+W
+
+0x00000000
+
+SPDIF_RX_BURTSINFO
+
+0x0100
+
+W
+
+0x00000000 Channel Burst Info Register
+
+Clock And Data Recovery Status
+Register
+
+Channel Status Register
+n(n=0~11)
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+24.4.2 Detail Registers Description
+SPDIF_RX_VERSION
+Address: Operational Base + offset (0x0000)
+Bit
+31:0
+
+Attr Reset Value
+RO
+
+0x00000100
+
+Description
+VER
+Version of SPDIF_RX
+
+SPDIF_RX_CFGR
+Address: Operational Base + offset (0x0004)
+Bit
+31:2
+
+1
+
+0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+reserved
+
+RW 0x0
+
+TWAD
+1'b0: Only audio data transmitted to FIFO.
+1'b1: Block start, channel number and VUCP transmitted with
+audio data to FIFO.
+
+RW 0x0
+
+EN
+1'b0: Disable SPDIF_RX
+1'b1: Enable SPDIF_RX
+
+SPDIF_RX_CLR
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1564
+
+RKRK3588 TRM-Part1
+Address: Operational Base + offset (0x0008)
+Bit
+31:1
+0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+RW 0x0
+
+Description
+reserved
+RXSC
+This is a software self-cleared bit. Write 1'b1 to clear all receive
+logic.
+
+SPDIF_RX_CDR
+Address: Operational Base + offset (0x000C)
+Bit
+
+Attr Reset Value
+
+31:25 RO
+24
+
+0x00
+
+RW 0x0
+
+Description
+reserved
+JITTRSH
+CDR jitter threshold. It is valid only when BYPASS is 1'b0.
+
+23:16 RW 0x00
+
+MIDRGE
+CDR jitter middle range. It is valid only when BYPASS is 1'b0.
+
+15:11 RO
+
+0x00
+
+reserved
+
+0x0
+
+CS
+CDR state
+2'b00: Idle state. CDR is idle and waits for rising edge of
+SPDIF_RX input bitstream.
+2'b01: Detect state
+2'b10: Measurement state
+2'b11: Synchronization state
+
+0x1
+
+JITST
+CDR jitter status
+2'b01: Low
+2'b10: High
+2'b11: Normal
+It is valid only when BYPASS is 1'b0.
+
+0x0
+
+FULL
+CDR FIFO full status.
+1'b0: Not full
+1'b1: Full
+
+0x1
+
+EMPTY
+CDR FIFO empty status.
+1'b0: Not empty
+1'b1: Empty
+
+10:9
+
+8:7
+
+6
+
+5
+
+4:2
+
+1
+
+RO
+
+RO
+
+RO
+
+RO
+
+RW 0x0
+
+AVGWIN
+Average the non-jitter recovered clk from bitstream at a period of
+AVGWIN time.
+
+RW 0x0
+
+AVGSEL
+Select if the min or average number of cycles from the calculation
+of SPDIF_RX input bitstream pulse width.
+1'b0: Minimum number of cycles
+1'b1: Average number of cycles, that is (max+min)/4.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1565
+
+RKRK3588 TRM-Part1
+Bit
+
+0
+
+Attr Reset Value
+
+RW 0x1
+
+Description
+BYPASS
+Write 1'b1 to enable CDR non-jitter bypass mode. It's
+recommended that this bit set to 1'b1. Please ensure that this bit
+is set to 1'b1 before starting receiving data.
+
+SPDIF_RX_CDRST
+Address: Operational Base + offset (0x0010)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RW 0x03ff
+
+NOSTRTHR
+The threshold counter determines the latency between input
+bitstream idle and exit synchronous status. Make sure that this
+value is large than 16'h03ff.
+
+15:8
+
+0x00
+
+MAXCNT
+The value indicates the number of reference clock cycles to
+oversample the maximum pulse width of bitstream.
+
+0xff
+
+MINCNT
+The value indicates the number of reference clock cycles to
+oversample the minimum pulse width of bitstream.
+
+7:0
+
+RO
+
+RO
+
+SPDIF_RX_DMACR
+Address: Operational Base + offset (0x0014)
+Bit
+31:6
+5
+
+4:0
+
+Attr Reset Value
+RO
+
+0x0000000
+
+Description
+reserved
+
+RW 0x0
+
+RDE
+1'b0: Receive DMA disabled.
+1'b1: Receive DMA enabled.
+
+RW 0x00
+
+RDL
+This bit field controls the level at which a DMA request is made by
+the receive logic. The watermark level = DMARDL+1. That is,
+dma_rx_req is generated when the number of valid data entries
+in the sample date buffer is equal to or above this field value + 1.
+
+SPDIF_RX_FIFOCTRL
+Address: Operational Base + offset (0x0018)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:14 RO
+
+0x00000
+
+reserved
+
+13:8
+
+RO
+
+0x00
+
+RFL
+Contains the number of valid data entries in the receive FIFO.
+
+7:5
+
+RO
+
+0x0
+
+reserved
+
+4:0
+
+RW 0x00
+
+RFT
+When the number of receive FIFO entries is more than or equal to
+this threshold plus 1, the receive FIFO full interrupt is triggered.
+
+SPDIF_RX_INTEN
+Address: Operational Base + offset (0x001C)
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1566
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:11 RO
+
+10
+
+9
+
+8
+
+7
+
+6
+
+5
+
+4
+
+3
+
+0x000000
+
+Description
+reserved
+
+RW 0x0
+
+UBCIE
+1'b0: Disable
+1'b1: Enable
+If enabled, an interrupt will generate if current user bit is
+different from previous one.
+
+RW 0x0
+
+ESYNCIE
+1'b0: Disable
+1'b1: Enable
+If enabled, an interrupt will generate when entering synchronous
+state.
+
+RW 0x0
+
+BTEIE
+1'b0: Disable
+1'b1: Enable
+When enabled, an interrupt will generate when the block receive
+is finished if the channel conveys linear PCM or when the
+repetition period is reached if the channel conveys non-linear
+PCM.
+
+RW 0x0
+
+NSYNCIE
+1'b0: Disable
+1'b1: Enable
+If enabled, an interrupt will generate if CDR change from
+synchronization state to idle state.
+
+RW 0x0
+
+BMDEIE
+1'b0: Disable
+1'b1: Enable
+If enabled, an interrupt will generate if a bi-phase mark decoding
+error has occurred.
+
+RW 0x0
+
+RXOIE
+1'b0: Disable
+1'b1: Enable
+If enabled, an interrupt will generate if CDR FIFO is overrun.
+
+RW 0x0
+
+RXFIE
+1'b0: Disable
+1'b1: Enable
+If enabled, an interrupt will generate if CDR FIFO is full.
+
+RW 0x0
+
+NPSPIE
+1'b0: Disable
+1'b1: Enable
+If enabled, an interrupt will generate if non-liner PCM sync word
+is received.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1567
+
+RKRK3588 TRM-Part1
+Bit
+
+2
+
+1
+
+0
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+NVLDIE
+1'b0: Disable
+1'b1: Enable
+If enabled, an interrupt will generate if validity bit received from
+bitstream is 1'b1.
+
+RW 0x0
+
+CSCIE
+1'b0: Disable
+1'b1: Enable
+If enabled, an interrupt will generate if current channel status bit
+is different from previous one.
+
+RW 0x0
+
+PEIE
+1'b0: Disable
+1'b1: Enable
+If enabled, an interrupt will generate if a parity error has
+occurred.
+
+SPDIF_RX_INTMASK
+Address: Operational Base + offset (0x0020)
+Bit
+
+Attr Reset Value
+
+31:11 RO
+
+0x000000
+
+Description
+reserved
+
+RW 0x0
+
+UBCIMSK
+1'b0: Unmask
+1'b1: Mask
+
+RW 0x0
+
+ESYNCIMSK
+1'b0: Unmask
+1'b1: Mask
+
+RW 0x0
+
+BTEIMSK
+1'b0: Unmask
+1'b1: Mask
+
+RW 0x0
+
+NSYNCIMSK
+1'b0: Unmask
+1'b1: Mask
+
+RW 0x0
+
+BMDEIMSK
+1'b0: Don't mask
+1'b1: Mask
+
+RW 0x0
+
+RXOIMSK
+1'b0: Unmask
+1'b1: Mask
+
+4
+
+RW 0x0
+
+RXFIMSK
+1'b0: Unmask
+1'b1: Mask
+
+3
+
+RW 0x0
+
+NPSPIMSK
+1'b0: Unmask
+1'b1: Mask
+
+10
+
+9
+
+8
+
+7
+
+6
+
+5
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1568
+
+RKRK3588 TRM-Part1
+Bit
+2
+
+1
+
+0
+
+Attr Reset Value
+
+Description
+
+RW 0x0
+
+NVLDIMSK
+1'b0: Don't mask
+1'b1: Mask
+
+RW 0x0
+
+CSCIMSK
+1'b0: Unmask
+1'b1: Mask
+
+RW 0x0
+
+PEIMSK
+1'b0: Unmask
+1'b1: Mask
+
+SPDIF_RX_INTSR
+Address: Operational Base + offset (0x0024)
+Bit
+
+Attr Reset Value
+
+31:11 RO
+10
+
+9
+
+8
+
+RO
+
+RO
+
+RO
+
+Description
+
+0x000000
+
+reserved
+
+0x0
+
+UBCISR
+1'b0: Inactive
+1'b1: Active
+
+0x0
+
+ESYNCISR
+1'b0: Inactive
+1'b1: Active
+
+0x0
+
+BTEISR
+1'b0: Inactive
+1'b1: Active
+
+7
+
+RO
+
+0x0
+
+NSYNCISR
+1'b0: Inactive
+1'b1: Active
+
+6
+
+RO
+
+0x0
+
+BMDEISR
+1'b0: Inactive
+1'b1: Active
+
+0x0
+
+RXOIS
+1'b0: Inactive
+1'b1: Active
+
+0x0
+
+RXFIS
+1'b0: Inactive
+1'b1: Active
+
+0x0
+
+NPSPIS
+1'b0: Inactive
+1'b1: Active
+
+0x0
+
+NVLDIS
+1'b0: Inactive
+1'b1: Active
+
+0x0
+
+CSCIS
+1'b0: Inactive
+1'b1: Active
+
+5
+
+4
+
+3
+
+2
+
+1
+
+RO
+
+RO
+
+RO
+
+RO
+
+RO
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1569
+
+RKRK3588 TRM-Part1
+Bit
+0
+
+Attr Reset Value
+RO
+
+0x0
+
+Description
+PEIS
+1'b0: Inactive
+1'b1: Active
+
+SPDIF_RX_INTCLR
+Address: Operational Base + offset (0x0028)
+Bit
+
+Attr Reset Value
+
+31:11 RO
+
+0x000000
+
+Description
+reserved
+
+10
+
+RW 0x0
+
+UBCICLR
+Write 1'b1 to clear user bit change interrupt.
+
+9
+
+RW 0x0
+
+ESYNCICLR
+Write 1'b1 to clear entering synchronous state interrupt.
+
+8
+
+RW 0x0
+
+BTEICLR
+Write 1'b1 to clear block transfer/repetition period end interrupt.
+
+7
+
+RW 0x0
+
+NSYNCICLR
+Write 1'b1 to clear CDR not synchronization interrupt.
+
+6
+
+RW 0x0
+
+BMDEICLR
+Write 1'b1 to clear bi-phase mark decoding interrupt.
+
+5
+
+RW 0x0
+
+RXOICLR
+Write 1'b1 to clear receive overrun interrupt.
+
+4
+
+RW 0x0
+
+RXFICLR
+Write 1'b1 to clear receive full interrupt.
+
+3
+
+RW 0x0
+
+NPSPICLR
+Write 1'b1 to clear non-liner PCM sync word received interrupt.
+
+2
+
+RW 0x0
+
+NVLDICLR
+Write 1'b1 to clear validity bit received interrupt.
+
+1
+
+RW 0x0
+
+CSCICLR
+Write 1'b1 to clear channel status change interrupt.
+
+0
+
+RW 0x0
+
+PEICLR
+Write 1'b1 to clear parity error interrupt.
+
+SPDIF_RX_SMPDR
+Address: Operational Base + offset (0x002C)
+Bit
+31:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+SMPDR
+Sample Data Register
+
+SPDIF_RX_USRDRn
+Address: Operational Base + offset (0x0030)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RO
+
+0x0000
+
+USR_SUB_1
+User data bit for subframe 1
+
+15:0
+
+0x0000
+
+USR_SUB_0
+User data bit for subframe 0
+
+RO
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1570
+
+RKRK3588 TRM-Part1
+SPDIF_RX_CHNSRn
+Address: Operational Base + offset (0x0060)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RW 0x0000
+
+CHNSR_SUB_1
+Channel status bit for subframe 1
+
+15:0
+
+CHNSR_SUB_0
+Channel status bit for subframe 0
+
+RO
+
+0x0000
+
+SPDIF_RX_BURTSINFO
+Address: Operational Base + offset (0x0100)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:16 RW 0x0000
+
+PD
+Preamble Pd for non-linear PCM, indicating the length of burst
+payload in unit of bytes or bits.
+
+15:13 RW 0x0
+
+BSNUM
+This field indicates the bitstream number. Usually the bitstream
+number is 0.
+
+12:8
+
+0x00
+
+DATAINFO
+This field gives the data-type-dependent info.
+
+0x0
+
+ERRFLAG
+1'b0: Indicates a valid burst-payload.
+1'b1: Indicates that the burst-payload may contain errors.
+
+7
+
+RO
+
+RO
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1571
+
+RKRK3588 TRM-Part1
+Bit
+
+6:0
+
+Attr Reset Value
+
+RO
+
+0x00
+
+Description
+DATATYPE
+7'b0000000: Null data
+7'b0000001: AC-3 data
+7'b0000011: Pause data
+7'b0000100: MPEG-1 layer 1 data
+7'b0000101: MPEG-1 layer 2 or 3 data or MPEG-2 without
+extension
+7'b0000110: MPEG-2 data with extension
+7'b0000111: MPEG-2 AAC
+7'b0001000: MPEG-2, layer-1 low sampling frequency
+7'b0001001: MPEG-2, layer-2 low sampling frequency
+7'b0001010: MPEG-2, layer-3 low sampling frequency
+7'b0001011: DTS type I
+7'b0001100: DTS type II
+7'b0001101: DTS type III
+7'b0001110: ATRAC
+7'b0001111: ATRAC 2/3
+7'b0010000: ATRAC-X
+7'b0010001: DTS type IV
+7'b0010010: WMA professional type I
+7'b0110010: WMA professional type II
+7'b1010010: WMA professional type III
+7'b1110010: WMA professional type IV
+7'b0010011: MPEG-2 AAC low sampling frequency
+7'b0110011: MPEG-2 AAC low sampling frequency
+7'b1010011: MPEG-2 AAC low sampling frequency
+7'b1110011: MPEG-2 AAC low sampling frequency
+7'b0010100: MPEG-4 AAC
+7'b0110100: MPEG-4 AAC
+7'b1010100: MPEG-4 AAC
+7'b1110100: MPEG-4 AAC
+7'b0010101: Enhanced AC-3
+7'b0010110: MAT
+Others: Reserved
+
+24.5 Interface Description
+SPDIF_RX0/SPDIF_RX1 are connected to HDMI TX Controller0/HDMI TX Controller1
+respectively, while SPDIF_RX2 is connected to HDMIRX.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1572
+
+RKRK3588 TRM-Part1
+
+24.6 Application Notes
+Clear receive RX_FIFO, CDR and decoder logic by writing
+0x1 to SPDIF_RX_CLR and wait for clear done
+
+Write SPDIF_RX_CDR, SPDIF_RX_DMCR and
+SPDIF_RX_INTEN to set operation mode
+
+Write 1 to SPDIF_RX_CFGR[0] to enable SPDIF receiver
+
+Config a DMA channel for SPDIF receiver
+
+Write 0 to SPDIF_RX_CFGR[0] to disable SPDIF receiver
+anytime to stop receiving audio data
+
+Fig. 24-6 SPDIF receiver operation flow chart
+The above figure shows the operation flow of SPDIF receiver operation.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1573
+
+RKRK3588 TRM-Part1
+

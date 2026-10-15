@@ -1,0 +1,5165 @@
+Chapter 14 USBDP COMBO PHY
+14.1 Overview
+
+This chapter describes an overview of USBDP Combo PHY. USBDP Combo PHY is a PMA
+hardmacro to support USB and DP interface. USB’s PCS and DP Link must be used along
+with USBDP Combo PHY for successful operation.
+
+14.2 Features
+
+The supported features in USBDP Combo PHY are:
+⚫ USB Specification 3.0 and DP Specification 1.4 compliant
+⚫ 5Gb/s Serializer/Deserializer for USB
+⚫ 1.62 Gb/s, 2.7 Gb/s, 5.4 Gb/s and 8.1 Gb/s Serializer for DP
+⚫ USB Type-C and DP Alt Mode supported
+
+14.3 Function Description
+14.3.1 Block Diagram
+
+Fig.1-1 illustrates a block diagram of USBDP Combo PHY. USBDP Combo PHY comprises one
+Common, two lanes of transceiver, two lanes of transmitter, one AUX channel for DP, and
+PMA digital.
+
+Fig. 14-1 USBDP Combo PHY Block Diagram
+The following sections describe the various blocks and their functionalities. DPTX uses a 32
+bit internal data path for the main link.
+
+14.3.2 Function Overview
+
+USBDP Combo PHY is used for Universal Serial Bus (USB) and DisplayPort (DP) applications.
+The transceiver in the core performs these functions:
+⚫ Serializes the 8b/10b encoded data for transmission for USB Gen1 and DP
+RBR/HBR/HBR2/HBR3 operations
+⚫ De-serializes the received code groups Input data coming is registered once before it
+goes through a 3-stage pipeline. The 3-stage pipeline is required to capture the three
+colors components in various input video formats.
+When transmitting the data, the transceiver performs these functions:
+⚫ Accepts four 10-bit 8b/10b encoded transmit characters for USB Gen1
+⚫ Attaches and serializes the data to the TXP/TXN differential outputs to a maximum value
+of 5.0 Gb/s for USB. Accepts two 10-bit 8b/10b encoded transmit characters for DP
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2233
+
+RK3588 TRM-Part2
+⚫ Attaches and serializes the data to the TXP/TXN differential outputs to a maximum value
+of 8.1 Gb/s for DP
+When receiving the data, the transceiver performs these functions:
+⚫ Samples the received serial data on the RXP/RXN differential inputs
+⚫ De-serializes it into four 10-bit (or 8-bit) received characters
+
+14.3.3 PMA Analog
+
+USBDP Combo PHY comprises of a PMA analog and PMA digital. The PMA consists of:
+⚫ One CMN block
+⚫ One AUX block for DP
+⚫ Two lanes including TX (lane1/3)
+⚫ Two lanes including TX and RX (lane0/2)
+⚫ One SSC ROPLL for DP
+⚫ One SSC LCPLL for USB
+To support display alter mode, lane0 and lane2 work as TX in DP mode and as RX in USB
+mode. TX and RX are sharing bump in lane0 and lane2.
+In the DP transmitter side, the PMA analog executes these actions:
+⚫ PMA Analog receives parallel data from PMA digital
+⚫ The data is serialized and transmitted through ln0/2_trxdp/n and ln1/3_txdp/n pads by
+hybrid-mode driver
+⚫ The TX driver characteristics, such as amplitude and 2-tap FIR filter, are user-controllable
+In the USB transmitter side, the PMA analog executes these actions:
+⚫ PMA Analog receives parallel data from PMA digital
+⚫ The data is serialized and transmitted through ln1/3_txdp/n pads by hybrid-mode driver
+⚫ The TX driver characteristics, such as amplitude and 3-tap FIR filter, are either presettable or user-controllable
+In the USB receiver side, the PMA analog executes these actions:
+⚫ The data is received through ln0/2_trxdp/n pads with 50Ω termination resistance
+⚫ Distortion on received signal due to channel loss is compensated by Continuous Time
+Linear Equalizer (CTLE) and Decision Feedback Equalizer (DFE)
+⚫ Clock and Data Recovery (CDR) generates frequency- and phase-aligned clock and
+equalized signal is deserialized to parallel data which is delivered to the PMA digital
+
+14.3.4 CMN
+The CMN consists of a band-gap reference (BGR), bias generator and PLL.
+The BGR circuit generates high-accuracy reference voltage of 820mV across PVT variation. A
+bias generator makes two kinds of current, external- and internal-resistor (RMRES)-referred
+current, and these currents are distributed to each block in CMN and lanes. The external
+resistor-referred (REXT) current is generated using an8.2KΩ resistor which is connected
+between the rext pad and ground outside the chip. On the other hand, the internal resistorreferred current is generated using internally integrated replica resistor to compensate
+resistance error across PVT variation.
+The PLL in the CMN synthesizes high-speed clock, which is used for TX serializer and RX CDR
+lock, from a reference clock.
+The following are the main features of the PLL:
+⚫ Wide-range LC VCO from 8GHz to 10GHz
+⚫ Wide-range RO VCO from 4GHz to 8.1GHz
+⚫ Pre-defined or programmable divider setting for each USBDP Type-C specification
+⚫ Spread spectrum clocking (SSC) with sigma-delta modulated fractional divider
+⚫ Automatic Frequency Calibrated (AFC) oscillator setting for the desired frequency of
+operation
+⚫ Programmable charge pump current and loop filter resistance allowing for wide range of
+programmable loop bandwidth and peaking
+
+14.3.5 AUX
+
+The AUX is 1Mbps half-duplex bidirectional channel used for link management and device
+control. The AUX block does not support upstream detection feature.
+
+14.4 Register Description
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2234
+
+RK3588 TRM-Part2
+
+14.4.1 Internal Address Mapping
+
+Slave address can be divided into different length for different usage, which is shown as
+follows.
+Table 14-1 USB3 Address Mapping
+Base Address
+Device
+0xFED70000~0xFED7FFFF
+USBDPPHY 0
+0xFED80000~0xFED8FFFF
+USBDPPHY 1
+USB3.0 Controller Address Mapping
+Offset Address Range
+Register Type
+0x8000 ~ 0xFFFF
+USBDPPHY PMA
+
+14.4.2 Registers Summary
+Name
+
+Offset
+
+USBDPPHY_CMM_REG002
+0x0090
+4
+USBDPPHY_CMM_REG002
+0x0094
+5
+USBDPPHY_CMN_REG004
+0x0128
+A
+USBDPPHY_CMN_REG004
+0x012C
+B
+USBDPPHY_CMN_REG004
+0x0130
+C
+USBDPPHY_CMN_REG004
+0x0134
+D
+USBDPPHY_CMN_REG005
+0x015C
+7
+USBDPPHY_CMN_REG005
+0x0160
+8
+USBDPPHY_CMN_REG005
+0x0164
+9
+USBDPPHY_CMN_REG005
+0x0168
+A
+USBDPPHY_CMN_REG005
+0x0174
+D
+USBDPPHY_CMN_REG005
+0x0178
+E
+USBDPPHY_CMN_REG005
+0x017C
+F
+USBDPPHY_CMN_REG006
+0x0180
+0
+USBDPPHY_CMN_REG006
+0x018C
+3
+USBDPPHY_CMN_REG006
+0x0190
+4
+USBDPPHY_CMN_REG006
+0x0194
+5
+USBDPPHY_CMN_REG006
+0x01AC
+B
+USBDPPHY_CMN_REG006
+0x01B0
+C
+USBDPPHY_CMN_REG006
+0x01B4
+D
+
+Size
+
+Reset
+Value
+
+Description
+
+W
+
+0x00000060 USBDPPHY CMN configure register
+
+W
+
+0x00000060 USBDPPHY CMN configure register
+
+W
+
+0x0000003C USBDPPHY CMN configure register
+
+W
+
+0x000000F4 USBDPPHY CMN configure register
+
+W
+
+0x0000000F USBDPPHY CMN configure register
+
+W
+
+0x000000F4 USBDPPHY CMN configure register
+
+W
+
+0x0000004E USBDPPHY CMN configure register
+
+W
+
+0x00000034 USBDPPHY CMN configure register
+
+W
+
+0x00000034 USBDPPHY CMN configure register
+
+W
+
+0x0000004E USBDPPHY CMN configure register
+
+W
+
+0x0000004E USBDPPHY CMN configure register
+
+W
+
+0x00000034 USBDPPHY CMN configure register
+
+W
+
+0x00000034 USBDPPHY CMN configure register
+
+W
+
+0x0000004E USBDPPHY CMN configure register
+
+W
+
+0x00000041 USBDPPHY CMN configure register
+
+W
+
+0x00000000 USBDPPHY CMN configure register
+
+W
+
+0x00000005 USBDPPHY CMN configure register
+
+W
+
+0x0000002C USBDPPHY CMN configure register
+
+W
+
+0x0000002C USBDPPHY CMN configure register
+
+W
+
+0x0000002C USBDPPHY CMN configure register
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2235
+
+RK3588 TRM-Part2
+Name
+USBDPPHY_CMN_REG006
+E
+USBDPPHY_CMN_REG007
+2
+USBDPPHY_CMN_REG007
+3
+USBDPPHY_CMN_REG007
+4
+USBDPPHY_CMN_REG007
+5
+USBDPPHY_CMN_REG007
+6
+USBDPPHY_CMN_REG007
+7
+USBDPPHY_CMN_REG007
+8
+USBDPPHY_CMN_REG007
+9
+USBDPPHY_CMN_REG007
+C
+USBDPPHY_CMN_REG007
+D
+USBDPPHY_CMN_REG007
+E
+USBDPPHY_CMN_REG007
+F
+USBDPPHY_CMN_REG008
+2
+USBDPPHY_CMN_REG008
+3
+USBDPPHY_CMN_REG008
+4
+USBDPPHY_CMN_REG008
+5
+USBDPPHY_CMN_REG008
+9
+USBDPPHY_CMN_REG00F
+C
+USBDPPHY_CMN_REG00F
+D
+USBDPPHY_CMN_REG00F
+E
+USBDPPHY_CMN_REG00F
+F
+USBDPPHY_CMN_REG010
+1
+USBDPPHY_CMN_REG010
+2
+USBDPPHY_CMN_REG010
+3
+USBDPPHY_CMN_REG010
+4
+
+Offset
+
+Size
+
+Reset
+Value
+
+Description
+
+0x01B8
+
+W
+
+0x0000002C USBDPPHY CMN configure register
+
+0x01C8
+
+W
+
+0x00000008 USBDPPHY CMN configure register
+
+0x01CC
+
+W
+
+0x00000008 USBDPPHY CMN configure register
+
+0x01D0
+
+W
+
+0x00000008 USBDPPHY CMN configure register
+
+0x01D4
+
+W
+
+0x00000008 USBDPPHY CMN configure register
+
+0x01D8
+
+W
+
+0x00000000 USBDPPHY CMN configure register
+
+0x01DC
+
+W
+
+0x00000005 USBDPPHY CMN configure register
+
+0x01E0
+
+W
+
+0x0000002D USBDPPHY CMN configure register
+
+0x01E4
+
+W
+
+0x0000000A USBDPPHY CMN configure register
+
+0x01F0
+
+W
+
+0x00000007 USBDPPHY CMN configure register
+
+0x01F4
+
+W
+
+0x00000007 USBDPPHY CMN configure register
+
+0x01F8
+
+W
+
+0x00000007 USBDPPHY CMN configure register
+
+0x01FC
+
+W
+
+0x00000007 USBDPPHY CMN configure register
+
+0x0208
+
+W
+
+0x00000016 USBDPPHY CMN configure register
+
+0x020C
+
+W
+
+0x00000016 USBDPPHY CMN configure register
+
+0x0210
+
+W
+
+0x00000016 USBDPPHY CMN configure register
+
+0x0214
+
+W
+
+0x00000016 USBDPPHY CMN configure register
+
+0x0224
+
+W
+
+0x00000010 USBDPPHY CMN configure register
+
+0x03F0
+
+W
+
+0x00000019 USBDPPHY CMN configure register
+
+0x03F4
+
+W
+
+0x00000019 USBDPPHY CMN configure register
+
+0x03F8
+
+W
+
+0x00000019 USBDPPHY CMN configure register
+
+0x03FC
+
+W
+
+0x00000019 USBDPPHY CMN configure register
+
+0x0404
+
+W
+
+0x0000000F USBDPPHY CMN configure register
+
+0x0408
+
+W
+
+0x0000000F USBDPPHY CMN configure register
+
+0x040C
+
+W
+
+0x0000000F USBDPPHY CMN configure register
+
+0x0410
+
+W
+
+0x0000003C USBDPPHY CMN configure register
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2236
+
+RK3588 TRM-Part2
+Name
+
+Offset
+
+USBDPPHY_TRSV_REG02
+0x0A3C
+8F
+USBDPPHY_TRSV_REG02
+0x0A44
+91
+USBDPPHY_TRSV_REG02
+0x0A48
+92
+USBDPPHY_TRSV_REG02
+0x0A4C
+93
+USBDPPHY_TRSV_REG02
+0x0A54
+95
+USBDPPHY_TRSV_REG02
+0x0A5C
+97
+USBDPPHY_TRSV_REG02
+0x0A64
+99
+USBDPPHY_TRSV_REG06
+0x1A3C
+8F
+USBDPPHY_TRSV_REG06
+0x1A44
+91
+USBDPPHY_TRSV_REG06
+0x1A48
+92
+USBDPPHY_TRSV_REG06
+0x1A4C
+93
+USBDPPHY_TRSV_REG06
+0x1A54
+95
+USBDPPHY_TRSV_REG06
+0x1A5C
+97
+USBDPPHY_TRSV_REG06
+0x1A64
+99
+USBDPPHY_CMN_REG00A
+0x028C
+3
+USBDPPHY_TRSV_REG02
+0x0854
+15
+USBDPPHY_TRSV_REG04
+0x1054
+15
+USBDPPHY_TRSV_REG08
+0x1054
+15
+USBDPPHY_CMN_REG00E
+0x038C
+3
+USBDPPHY_CMN_REG00D
+0x0354
+5
+USBDPPHY_TRSV_REG02
+0x0B84
+E1
+USBDPPHY_TRSV_REG06
+0x1B84
+E1
+USBDPPHY_TRSV_REG02
+0x0810
+04
+USBDPPHY_TRSV_REG04
+0x1010
+04
+USBDPPHY_TRSV_REG06
+0x1810
+04
+USBDPPHY_TRSV_REG08
+0x2010
+04
+
+Size
+
+Reset
+Value
+
+W
+
+0x000000C0
+
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+
+Description
+
+USBDPPHY TRSV configure
+register
+USBDPPHY TRSV configure
+0x000000C0
+register
+USBDPPHY TRSV configure
+0x00000000
+register
+USBDPPHY TRSV configure
+0x000000F9
+register
+USBDPPHY TRSV configure
+0x000000CF
+register
+USBDPPHY TRSV configure
+0x000000CF
+register
+USBDPPHY TRSV configure
+0x0000009B
+register
+USBDPPHY TRSV configure
+0x000000C0
+register
+USBDPPHY TRSV configure
+0x000000C0
+register
+USBDPPHY TRSV configure
+0x00000000
+register
+USBDPPHY TRSV configure
+0x000000F9
+register
+USBDPPHY TRSV configure
+0x00000000
+register
+USBDPPHY TRSV configure
+0x000000CF
+register
+USBDPPHY TRSV configure
+0x0000009B
+register
+
+W
+
+0x00000000 USBDPPHY CMN configure register
+
+W
+
+0x00000000
+
+W
+W
+
+USBDPPHY TRSV configure
+register
+USBDPPHY TRSV configure
+0x00000004
+register
+USBDPPHY TRSV configure
+0x00000004
+register
+
+W
+
+0x00000002 USBDPPHY CMN configure register
+
+W
+
+0x00000000 USBDPPHY CMN configure register
+
+W
+
+0x00000000
+
+W
+W
+W
+W
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+USBDPPHY TRSV configure
+register
+USBDPPHY TRSV configure
+0x00000000
+register
+USBDPPHY TRSV configure
+0x0000000F
+register
+USBDPPHY TRSV configure
+0x0000000F
+register
+USBDPPHY TRSV configure
+0x0000000F
+register
+USBDPPHY TRSV configure
+0x0000000F
+register
+
+2237
+
+RK3588 TRM-Part2
+Name
+USBDPPHY_TRSV_REG02
+05
+USBDPPHY_TRSV_REG04
+05
+USBDPPHY_TRSV_REG06
+05
+USBDPPHY_TRSV_REG08
+05
+USBDPPHY_TRSV_REG02
+06
+USBDPPHY_TRSV_REG04
+06
+USBDPPHY_TRSV_REG06
+06
+USBDPPHY_TRSV_REG08
+06
+USBDPPHY_TRSV_REG02
+07
+USBDPPHY_TRSV_REG04
+07
+USBDPPHY_TRSV_REG06
+07
+USBDPPHY_TRSV_REG08
+07
+USBDPPHY_TRSV_REG02
+0C
+USBDPPHY_TRSV_REG02
+17
+USBDPPHY_TRSV_REG04
+0C
+USBDPPHY_TRSV_REG04
+17
+USBDPPHY_TRSV_REG06
+0C
+USBDPPHY_TRSV_REG06
+17
+USBDPPHY_TRSV_REG08
+0C
+USBDPPHY_TRSV_REG08
+17
+USBDPPHY_CMN_REG008
+A
+USBDPPHY_CMN_REG004
+1
+USBDPPHY_CMN_REG009
+2
+USBDPPHY_TRSV_REG02
+1E
+USBDPPHY_TRSV_REG06
+1E
+USBDPPHY_TRSV_REG02
+26
+
+Size
+
+Reset
+Value
+
+0x0814
+
+W
+
+0x00000000
+
+0x1014
+
+W
+
+0x1814
+
+W
+
+0x2014
+
+W
+
+0x0818
+
+W
+
+0x1018
+
+W
+
+0x1818
+
+W
+
+0x2018
+
+W
+
+0x081C
+
+W
+
+0x101C
+
+W
+
+0x181C
+
+W
+
+0x201C
+
+W
+
+0x0830
+
+W
+
+0x085C
+
+W
+
+0x1030
+
+W
+
+0x105C
+
+W
+
+0x1830
+
+W
+
+0x185C
+
+W
+
+0x2030
+
+W
+
+0x205C
+
+W
+
+0x0228
+
+W
+
+0x00000038 USBDPPHY CMN configure register
+
+0x0104
+
+W
+
+0x00000077 USBDPPHY CMN configure register
+
+0x0248
+
+W
+
+0x00000077 USBDPPHY CMN configure register
+
+0x0878
+
+W
+
+0x00000004
+
+0x1878
+
+W
+
+0x0898
+
+W
+
+Offset
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+USBDPPHY TRSV configure
+register
+USBDPPHY TRSV configure
+0x00000000
+register
+USBDPPHY TRSV configure
+0x00000000
+register
+USBDPPHY TRSV configure
+0x00000000
+register
+USBDPPHY TRSV configure
+0x00000001
+register
+USBDPPHY TRSV configure
+0x00000001
+register
+USBDPPHY TRSV configure
+0x00000001
+register
+USBDPPHY TRSV configure
+0x00000001
+register
+USBDPPHY TRSV configure
+0x000000E7
+register
+USBDPPHY TRSV configure
+0x000000E7
+register
+USBDPPHY TRSV configure
+0x000000E7
+register
+USBDPPHY TRSV configure
+0x000000E7
+register
+USBDPPHY TRSV configure
+0x00000007
+register
+USBDPPHY TRSV configure
+0x00000080
+register
+USBDPPHY TRSV configure
+0x00000007
+register
+USBDPPHY TRSV configure
+0x00000080
+register
+USBDPPHY TRSV configure
+0x00000007
+register
+USBDPPHY TRSV configure
+0x00000080
+register
+USBDPPHY TRSV configure
+0x00000007
+register
+USBDPPHY TRSV configure
+0x00000080
+register
+
+USBDPPHY TRSV configure
+register
+USBDPPHY TRSV configure
+0x00000004
+register
+USBDPPHY TRSV configure
+0x00000077
+register
+
+2238
+
+RK3588 TRM-Part2
+Name
+USBDPPHY_TRSV_REG06
+26
+USBDPPHY_CMN_REG001
+5
+USBDPPHY_CMN_REG003
+8
+USBDPPHY_CMN_REG001
+8
+USBDPPHY_CMN_REG001
+9
+USBDPPHY_CMN_REG001
+C
+USBDPPHY_CMN_REG008
+D
+USBDPPHY_TRSV_REG02
+BD
+USBDPPHY_TRSV_REG06
+BD
+USBDPPHY_TRSV_REG02
+67
+USBDPPHY_TRSV_REG06
+67
+USBDPPHY_TRSV_REG02
+69
+USBDPPHY_TRSV_REG02
+6A
+USBDPPHY_TRSV_REG06
+69
+USBDPPHY_TRSV_REG06
+6A
+USBDPPHY_TRSV_REG02
+6E
+USBDPPHY_TRSV_REG06
+6E
+USBDPPHY_TRSV_REG02
+79
+USBDPPHY_TRSV_REG06
+79
+USBDPPHY_TRSV_REG02
+8D
+USBDPPHY_TRSV_REG06
+8D
+USBDPPHY_TRSV_REG02
+A6
+USBDPPHY_TRSV_REG06
+A6
+USBDPPHY_TRSV_REG03
+0C
+USBDPPHY_TRSV_REG03
+12
+USBDPPHY_TRSV_REG07
+0C
+
+Size
+
+Reset
+Value
+
+0x189C
+
+W
+
+0x00000077
+
+0x0054
+
+W
+
+0x00000001 USBDPPHY CMN configure register
+
+0x00E0
+
+W
+
+0x00000038 USBDPPHY CMN configure register
+
+0x0060
+
+W
+
+0x00000024 USBDPPHY CMN configure register
+
+0x0064
+
+W
+
+0x000000FF USBDPPHY CMN configure register
+
+0x0070
+
+W
+
+0x00000006 USBDPPHY CMN configure register
+
+0x0234
+
+W
+
+0x00000068 USBDPPHY CMN configure register
+
+0x0AF4
+
+W
+
+0x00000018
+
+0x1AF4
+
+W
+
+0x099C
+
+W
+
+0x199C
+
+W
+
+0x09A4
+
+W
+
+0x09A8
+
+W
+
+0x19A4
+
+W
+
+0x19A8
+
+W
+
+0x09B8
+
+W
+
+0x19B8
+
+W
+
+0x09E4
+
+W
+
+0x09E8
+
+W
+
+0x0A34
+
+W
+
+0x1A34
+
+W
+
+0x0A98
+
+W
+
+0x1A98
+
+W
+
+0x0C30
+
+W
+
+0x0C48
+
+W
+
+0x1C3C
+
+W
+
+Offset
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+USBDPPHY TRSV configure
+register
+
+USBDPPHY TRSV configure
+register
+USBDPPHY TRSV configure
+0x00000018
+register
+USBDPPHY TRSV configure
+0x00000008
+register
+USBDPPHY TRSV configure
+0x00000008
+register
+USBDPPHY TRSV configure
+0x00000007
+register
+USBDPPHY TRSV configure
+0x00000022
+register
+USBDPPHY TRSV configure
+0x00000007
+register
+USBDPPHY TRSV configure
+0x00000022
+register
+USBDPPHY TRSV configure
+0x0000004E
+register
+USBDPPHY TRSV configure
+0x0000004E
+register
+USBDPPHY TRSV configure
+0x00000002
+register
+USBDPPHY TRSV configure
+0x00000002
+register
+USBDPPHY TRSV configure
+0x00000010
+register
+USBDPPHY TRSV configure
+0x00000010
+register
+USBDPPHY TRSV configure
+0x0000004F
+register
+USBDPPHY TRSV configure
+0x0000004F
+register
+USBDPPHY TRSV configure
+0x00000006
+register
+USBDPPHY TRSV configure
+0x00000003
+register
+USBDPPHY TRSV configure
+0x00000006
+register
+
+2239
+
+RK3588 TRM-Part2
+Name
+
+Offset
+
+USBDPPHY_TRSV_REG07
+0x1C48
+12
+USBDPPHY_TRSV_REG06
+0x1AF0
+BC
+
+Size
+
+Reset
+Value
+
+W
+
+0x00000003
+
+W
+
+Description
+
+USBDPPHY TRSV configure
+register
+USBDPPHY TRSV configure
+0x0000001D
+register
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+14.4.3 Detail Registers Description
+USBDPPHY_CMM_REG0024
+Address: Operational Base + offset (0x0090)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ana_lcpll_pms_mdiv
+7:0
+RW 0x60
+PLL main divider setting.
+Divider value = Setting code.
+USBDPPHY_CMM_REG0025
+Address: Operational Base + offset (0x0094)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ana_lcpll_pms_mdiv
+7:0
+RW 0x60
+PLL main divider setting for AFC counter.
+Divider value = Setting code.
+USBDPPHY_CMN_REG004A
+Address: Operational Base + offset (0x0128)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+ropll_ana_cpi_ctrl_coarse
+PLL integral path charge-pump current contorl.
+3'b0xx: half current (not used)
+5:3
+RW 0x7
+3'b100: 1.25uA
+3'b101: 1.5625uA
+3'b110: 20833uA
+3'b111: 3.125uA
+ropll_ana_cpi_ctrl_fine
+PLL integral path charge-pump current contorl.
+3'b0xx: half current (not used)
+2:0
+RW 0x4
+3'b100: 1.25uA
+3'b101: 1.5625uA
+3'b110: 20833uA
+3'b111: 3.125uA
+USBDPPHY_CMN_REG004B
+Address: Operational Base + offset (0x012C)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2240
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+7:4
+
+RW 0xf
+
+3:0
+
+RW 0x4
+
+Description
+ropll_ana_cpp_ctrl_coarse
+PLL proportional path charge-pump current contorl.
+3'b000: 66.7uA
+3'b001: 75uA
+3'b010: 85.7uA
+3'b011: 100uA
+3'b100: 120uA
+3'b101: 150uA
+3'b110: 200uA
+3'b111: 300uA
+ropll_ana_cpp_ctrl_fine
+PLL proportional path charge-pump current contorl.
+3'b000: 66.7uA
+3'b001: 75uA
+3'b010: 85.7uA
+3'b011: 100uA
+3'b100: 120uA
+3'b101: 150uA
+3'b110: 200uA
+3'b111: 300uA
+
+USBDPPHY_CMN_REG004C
+Address: Operational Base + offset (0x0130)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+ropll_ana_lpf_c_sel_coarse
+PLL loop filter capacitor control.
+3'b000: 0pF
+3'b001: 1pF
+3'b010: 2pF
+5:3
+RW 0x1
+3'b011: 3pF
+3'b100: 4pF
+3'b101: 5pF
+3'b110: 6pF
+3'b111: 7pF
+ropll_ana_lpf_c_sel_fine
+PLL loop filter capacitor control.
+3'b000: 0pF
+3'b001: 1pF
+3'b010: 2pF
+2:0
+RW 0x7
+3'b011: 3pF
+3'b100: 4pF
+3'b101: 5pF
+3'b110: 6pF
+3'b111: 7pF
+USBDPPHY_CMN_REG004D
+Address: Operational Base + offset (0x0134)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2241
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+7:4
+
+RW 0xf
+
+3:0
+
+RW 0x4
+
+Description
+ropll_ana_lpf_r_sel_coarse
+PLL loop filter resistor control.
+4'b0000: 2K
+4'b0001: 4K
+4'b0010:6K
+~
+4'b1111: 32K
+ropll_ana_lpf_r_sel_fine
+PLL loop filter resistor control.
+4'b0000: 2K
+4'b0001: 4K
+4'b0010:6K
+4'b1111: 32K
+
+USBDPPHY_CMN_REG0057
+Address: Operational Base + offset (0x015C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ropll_pms_mdiv_rbr
+7:0
+RW 0x4e
+PLL main divider setting.
+Divider value = Setting code.
+USBDPPHY_CMN_REG0058
+Address: Operational Base + offset (0x0160)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ropll_pms_mdiv_hbr
+7:0
+RW 0x34
+PLL main divider setting.
+Divider value = Setting code.
+USBDPPHY_CMN_REG0059
+Address: Operational Base + offset (0x0164)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ropll_pms_mdiv_hbr2
+7:0
+RW 0x34
+PLL main divider setting.
+Divider value = Setting code.
+USBDPPHY_CMN_REG005A
+Address: Operational Base + offset (0x0168)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ropll_pms_mdiv_hbr3
+7:0
+RW 0x4e
+PLL main divider setting.
+Divider value = Setting code.
+USBDPPHY_CMN_REG005D
+Address: Operational Base + offset (0x0174)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ropll_pms_mdiv_afc_rbr
+7:0
+RW 0x4e
+PLL main divider setting.
+Divider value = Setting code.
+USBDPPHY_CMN_REG005E
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2242
+
+RK3588 TRM-Part2
+Address: Operational Base + offset (0x0178)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ropll_pms_mdiv_afc_hbr
+7:0
+RW 0x34
+PLL main divider setting.
+Divider value = Setting code.
+USBDPPHY_CMN_REG005F
+Address: Operational Base + offset (0x017C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ropll_pms_mdiv_afc_hbr2
+7:0
+RW 0x34
+PLL main divider setting.
+Divider value = Setting code.
+USBDPPHY_CMN_REG0060
+Address: Operational Base + offset (0x0180)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ropll_pms_mdiv_afc_hbr3
+7:0
+RW 0x4e
+PLL main divider setting.
+Divider value = Setting code.
+USBDPPHY_CMN_REG0063
+Address: Operational Base + offset (0x018C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ropll_pms_sdiv_rbr
+PLL post divider setting (N-1, except /7).
+3'b000: /1
+3'b001: /2
+3'b010: /3
+7:4
+RW 0x4
+3'b011: /4
+3'b100: /5
+3'b101: /6
+3'b110: X
+3'b111: /8
+ropll_pms_sdiv_hbr
+PLL post divider setting (N-1, except /7).
+3'b000: /1
+3'b001: /2
+3'b010: /3
+3:0
+RW 0x1
+3'b011: /4
+3'b100: /5
+3'b101: /6
+3'b110: X
+3'b111: /8
+USBDPPHY_CMN_REG0064
+Address: Operational Base + offset (0x0190)
+Bit Attr Reset Value
+31:5 RO 0x0000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2243
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+4
+
+RW 0x0
+
+3:0
+
+RW 0x0
+
+Description
+ropll_pms_sdiv_hbr3
+PLL post divider setting (N-1, except /7).
+3'b000: /1
+3'b001: /2
+3'b010: /3
+3'b011: /4
+3'b100: /5
+3'b101: /6
+3'b110: X
+3'b111: /8
+ropll_pms_sdiv_hbr2
+PLL post divider setting (N-1, except /7).
+3'b000: /1
+3'b001: /2
+3'b010: /3
+3'b011: /4
+3'b100: /5
+3'b101: /6
+3'b110: X
+3'b111: /8
+
+USBDPPHY_CMN_REG0065
+Address: Operational Base + offset (0x0194)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ana_ropll_iqdiv_bypass
+7
+RW 0x0
+VCO clock bypass IQ divider enable.
+ovrd_ropll_pms_iqdiv_rstn
+6
+RW 0x0
+Override enable flag for ropll_pms_iqdiv_rstn
+ropll_pms_iqdiv_rstn
+5
+RW 0x0
+IQ divider resetn.
+ana_ropll_ref_bypass_clk_sel
+PLL Bypass clock selection.
+2'b00: XO
+4:3
+RW 0x0
+2'b01: IO
+2'b10: PIXEL or LC_OUT_CLK
+2'b11: System PLL clock
+ana_ropll_ref_chopper_clk_en
+Chopper clk enable.
+2
+RW 0x1
+1'b0: Disable
+1'b1: Enable
+ovrd_ropll_ref_chopper_clk_div_rstn
+1
+RW 0x0
+Override enable flag for ropll_ref_chopper_clk_div_rstn.
+ropll_ref_chopper_clk_div_rstn
+Chopper clk divider reset.
+0
+RW 0x1
+1'b0: Reset.
+1'b1: Released.
+USBDPPHY_CMN_REG006B
+Address: Operational Base + offset (0x01AC)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2244
+
+RK3588 TRM-Part2
+Bit
+7:0
+
+Attr Reset Value
+RW 0x2c
+
+Description
+ropll_sdm_denominator_rbr
+Denominator of SDM (Max. 255)
+Constraint: i_pll_sdm_lc > |signedi_pll_sdm_ki_pll_ssc_fm_deviation-i_pll_ssc_fm_freq-1|
+
+USBDPPHY_CMN_REG006C
+Address: Operational Base + offset (0x01B0)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ropll_sdm_denominator_hbr
+Denominator of SDM (Max. 255)
+7:0
+RW 0x2c
+Constraint: i_pll_sdm_lc > |signedi_pll_sdm_ki_pll_ssc_fm_deviation-i_pll_ssc_fm_freq-1|
+USBDPPHY_CMN_REG006D
+Address: Operational Base + offset (0x01B4)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ropll_sdm_denominator_hbr2
+Denominator of SDM (Max. 255)
+7:0
+RW 0x2c
+Constraint: i_pll_sdm_lc > |signedi_pll_sdm_ki_pll_ssc_fm_deviation-i_pll_ssc_fm_freq-1|
+USBDPPHY_CMN_REG006E
+Address: Operational Base + offset (0x01B8)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ropll_sdm_denominator_hbr3
+Denominator of SDM (Max. 255)
+7:0
+RW 0x2c
+Constraint: i_pll_sdm_lc > |signedi_pll_sdm_ki_pll_ssc_fm_deviation-i_pll_ssc_fm_freq-1|
+USBDPPHY_CMN_REG0072
+Address: Operational Base + offset (0x01C8)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ropll_sdm_numerator_rbr
+7:0
+RW 0x08
+Numerator of SDM with i_pll_sdm_k_sign (-255~255).
+USBDPPHY_CMN_REG0073
+Address: Operational Base + offset (0x01CC)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ropll_sdm_numerator_hbr
+7:0
+RW 0x08
+Numerator of SDM with i_pll_sdm_k_sign (-255~255).
+USBDPPHY_CMN_REG0074
+Address: Operational Base + offset (0x01D0)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ropll_sdm_numerator_hbr2
+7:0
+RW 0x08
+Numerator of SDM with i_pll_sdm_k_sign (-255~255).
+USBDPPHY_CMN_REG0075
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2245
+
+RK3588 TRM-Part2
+Address: Operational Base + offset (0x01D4)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ropll_sdm_numerator_hbr3
+7:0
+RW 0x08
+Numerator of SDM with i_pll_sdm_k_sign (-255~255).
+USBDPPHY_CMN_REG0076
+Address: Operational Base + offset (0x01D8)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+ana_ropll_sdm_ph_num_sel
+PLL PI input clock phase number .
+5
+RW 0x0
+1'b0: 8-phase,
+1'b1: 4-phase
+ana_ropll_sdm_pi_step
+PLL phase interpolstor step.
+4:3
+RW 0x0
+3'b00: 1-step (16-phase)
+3'b01: 2-step (8-phase)
+3'b1x: 0.5-step
+ropll_sdc_n_sp
+PLL SDC divide-ratio selection (MC_val=0 N, MC_val=1 N-1)
+3'b000: /4/3
+3'b001: /5/4
+2:0
+RW 0x0
+3'b010: /6/5
+3'b100: /7/6
+3'b101: /8/7
+3'b110: /9/8
+USBDPPHY_CMN_REG0077
+Address: Operational Base + offset (0x01DC)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+ropll_sdc_n_ssp
+PLL SDC divide-ratio selection (MC_val=0 N, MC_val=1 N-1).
+3'b000: /4/3
+3'b001: /5/4
+5:3
+RW 0x0
+3'b010: /6/5
+3'b100: /7/6
+3'b101: /8/7
+3'b110: /9/8
+ropll_sdc_n_rbr
+PLL SDC divide-ratio selection (MC_val=0 N, MC_val=1 N-1).
+3'b000: /4/3
+3'b001: /5/4
+2:0
+RW 0x5
+3'b010: /6/5
+3'b100: /7/6
+3'b101: /8/7
+3'b110: /9/8
+USBDPPHY_CMN_REG0078
+Address: Operational Base + offset (0x01E0)
+Bit Attr Reset Value
+31:6 RO 0x0000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2246
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+5:3
+
+RW 0x5
+
+2:0
+
+RW 0x5
+
+Description
+ropll_sdc_n_hbr
+PLL SDC divide-ratio selection (MC_val=0 N, MC_val=1 N-1)
+3'b000: /4/3
+3'b001: /5/4
+3'b010: /6/5
+3'b100: /7/6
+3'b101: /8/7
+3'b110: /9/8
+ropll_sdc_n_hbr2
+PLL SDC divide-ratio selection (MC_val=0 N, MC_val=1 N-1)
+3'b000: /4/3
+3'b001: /5/4
+3'b010: /6/5
+3'b100: /7/6
+3'b101: /8/7
+3'b110: /9/8
+
+USBDPPHY_CMN_REG0079
+Address: Operational Base + offset (0x01E4)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+ropll_sdc_n_hbr3
+PLL SDC divide-ratio selection (MC_val=0 N, MC_val=1 N-1)
+3'b000: /4/3
+3'b001: /5/4
+3:1
+RW 0x5
+3'b010: /6/5
+3'b100: /7/6
+3'b101: /8/7
+3'b110: /9/8
+ana_ropll_sdc_n2
+PLL SDC divide-ratio selection.
+0
+RW 0x0
+1'b0: No additional /2
+1'b1: Additional /2
+USBDPPHY_CMN_REG007C
+Address: Operational Base + offset (0x01F0)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+ropll_sdc_numerator_rbr
+5:0
+RW 0x07
+Numerator of SDC (Max 65).
+USBDPPHY_CMN_REG007D
+Address: Operational Base + offset (0x01F4)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+ropll_sdc_numerator_hbr
+5:0
+RW 0x07
+Numerator of SDC (Max 65).
+USBDPPHY_CMN_REG007E
+Address: Operational Base + offset (0x01F8)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+ropll_sdc_numerator_hbr2
+5:0
+RW 0x07
+Numerator of SDC (Max 65).
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2247
+
+RK3588 TRM-Part2
+USBDPPHY_CMN_REG007F
+Address: Operational Base + offset (0x01FC)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+ropll_sdc_numerator_hbr3
+4:0
+RW 0x07
+Numerator of SDC (Max 65).
+USBDPPHY_CMN_REG0082
+Address: Operational Base + offset (0x0208)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+ropll_sdc_denominator_rbr
+5:0
+RW 0x16
+Denominator of SDC (Max 65).
+USBDPPHY_CMN_REG0083
+Address: Operational Base + offset (0x020C)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+ropll_sdc_denominator_hbr
+5:0
+RW 0x16
+Denominator of SDC (Max 65).
+USBDPPHY_CMN_REG0084
+Address: Operational Base + offset (0x0210)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+ropll_sdc_denominator_hbr2
+5:0
+RW 0x16
+Denominator of SDC (Max 65).
+USBDPPHY_CMN_REG0085
+Address: Operational Base + offset (0x0214)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+ropll_sdc_denominator_hbr3
+5:0
+RW 0x16
+Denominator of SDC (Max 65).
+USBDPPHY_CMN_REG0089
+Address: Operational Base + offset (0x0224)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ana_ropll_ssc_clk_div_sel
+PLL SSC clock divide ratio.
+4'b0000: N/A
+7:4
+RW 0x1
+4'b0001: /1
+4'b0010: /2
+~
+4'b1111: /15
+ovrd_ropll_cd_clk_en
+3
+RW 0x0
+Override enable flag for ropll_cd_clk_en
+ropll_cd_clk_en
+CD enable
+2
+RW 0x0
+1'b0: Disable
+1'b1: Enable
+ovrd_ropll_cd_tx_ser_rstn
+1
+RW 0x0
+Override enable flag for ropll_cd_tx_ser_rstn.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2248
+
+RK3588 TRM-Part2
+Bit
+0
+
+Attr Reset Value
+RW 0x0
+
+Description
+ropll_cd_tx_ser_rstn
+TX_SER resetn.
+
+USBDPPHY_CMN_REG00FC
+Address: Operational Base + offset (0x03F0)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+ana_ropll_ssc_fm_deviation_rbr
+5:0
+RW 0x19
+PLL SSC modulation deviation.
+USBDPPHY_CMN_REG00FD
+Address: Operational Base + offset (0x03F4)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+ana_ropll_ssc_fm_deviation_hbr
+5:0
+RW 0x19
+PLL SSC modulation deviation.
+USBDPPHY_CMN_REG00FE
+Address: Operational Base + offset (0x03F8)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+ana_ropll_ssc_fm_deviation_hbr2
+5:0
+RW 0x19
+PLL SSC modulation deviation.
+USBDPPHY_CMN_REG00FF
+Address: Operational Base + offset (0x03FC)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+ana_ropll_ssc_fm_deviation_hbr3
+5:0
+RW 0x19
+PLL SSC modulation deviation.
+USBDPPHY_CMN_REG0101
+Address: Operational Base + offset (0x0404)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+ana_ropll_ssc_fm_freq_rbr
+4:0
+RW 0x0f
+PLL SSC modulation frequency.
+USBDPPHY_CMN_REG0102
+Address: Operational Base + offset (0x0408)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+ana_ropll_ssc_fm_freq_hbr
+4:0
+RW 0x0f
+PLL SSC modulation frequency.
+USBDPPHY_CMN_REG0103
+Address: Operational Base + offset (0x040C)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+ana_ropll_ssc_fm_freq_hbr2
+4:0
+RW 0x0f
+PLL SSC modulation frequency.
+USBDPPHY_CMN_REG0104
+Address: Operational Base + offset (0x0410)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2249
+
+RK3588 TRM-Part2
+Bit
+31:7
+6:2
+1
+0
+
+Attr Reset Value
+Description
+RO 0x0000000
+reserved
+ana_ropll_ssc_fm_freq_hbr3
+RW 0x0f
+PLL SSC modulation frequency.
+lcpll_lock_done_delay_bypass
+RW 0x0
+Lock_done_flag_delay_bypass.
+ropll_lock_done_delay_bypass
+RW 0x0
+Lock_done_flag_delay_bypass.
+
+USBDPPHY_TRSV_REG028F
+Address: Operational Base + offset (0x0A3C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln0_rx_cdr_pms_m_sp_7_0
+7:0
+RW 0xc0
+CDR AFC target value.
+The ratio of VCO frequency over reference clock frequency.
+USBDPPHY_TRSV_REG0291
+Address: Operational Base + offset (0x0A44)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln0_rx_cdr_pms_m_ssp_7_0
+7:0
+RW 0xc0
+CDR AFC target value.
+The ratio of VCO frequency over reference clock frequency.
+USBDPPHY_TRSV_REG0292
+Address: Operational Base + offset (0x0A48)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+ln0_rx_cdr_pms_m_rbr_8
+0
+RW 0x0
+CDR AFC target value.
+The ratio of VCO frequency over reference clock frequency.
+USBDPPHY_TRSV_REG0293
+Address: Operational Base + offset (0x0A4C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln0_rx_cdr_pms_m_rbr_7_0
+7:0
+RW 0xf9
+CDR AFC target value.
+The ratio of VCO frequency over reference clock frequency.
+USBDPPHY_TRSV_REG0295
+Address: Operational Base + offset (0x0A54)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln0_rx_cdr_pms_m_hbr_7_0
+7:0
+RW 0xcf
+CDR AFC target value.
+The ratio of VCO frequency over reference clock frequency.
+USBDPPHY_TRSV_REG0297
+Address: Operational Base + offset (0x0A5C)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2250
+
+RK3588 TRM-Part2
+Bit
+7:0
+
+Attr Reset Value
+RW 0xcf
+
+Description
+ln0_rx_cdr_pms_m_hbr2_7_0
+CDR AFC target value.
+The ratio of VCO frequency over reference clock frequency.
+
+USBDPPHY_TRSV_REG0299
+Address: Operational Base + offset (0x0A64)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln0_rx_cdr_pms_m_hbr3_7_0
+7:0
+RW 0x9b
+CDR AFC target value.
+The ratio of VCO frequency over reference clock frequency.
+USBDPPHY_TRSV_REG068F
+Address: Operational Base + offset (0x1A3C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln2_rx_cdr_pms_m_sp_7_0
+7:0
+RW 0xc0
+CDR AFC target value.
+The ratio of VCO frequency over reference clock frequency.
+USBDPPHY_TRSV_REG0691
+Address: Operational Base + offset (0x1A44)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln2_rx_cdr_pms_m_ssp_7_0
+7:0
+RW 0xc0
+CDR AFC target value.
+The ratio of VCO frequency over reference clock frequency.
+USBDPPHY_TRSV_REG0692
+Address: Operational Base + offset (0x1A48)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+ln2_rx_cdr_pms_m_rbr_8
+0
+RW 0x0
+CDR AFC target value.
+The ratio of VCO frequency over reference clock frequency.
+USBDPPHY_TRSV_REG0693
+Address: Operational Base + offset (0x1A4C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln2_rx_cdr_pms_m_rbr_7_0
+7:0
+RW 0xf9
+CDR AFC target value.
+The ratio of VCO frequency over reference clock frequency.
+USBDPPHY_TRSV_REG0695
+Address: Operational Base + offset (0x1A54)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+ln2_rx_cdr_pms_m_hbr_7_0
+0
+RW 0x0
+CDR AFC target value.
+The ratio of VCO frequency over reference clock frequency.
+USBDPPHY_TRSV_REG0697
+Address: Operational Base + offset (0x1A5C)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2251
+
+RK3588 TRM-Part2
+Bit
+31:8
+7:0
+
+Attr Reset Value
+Description
+RO 0x000000
+reserved
+ln2_rx_cdr_pms_m_hbr2_7_0
+RW 0xcf
+CDR AFC target value.
+The ratio of VCO frequency over reference clock frequency.
+
+USBDPPHY_TRSV_REG0699
+Address: Operational Base + offset (0x1A64)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln2_rx_cdr_pms_m_hbr3_7_0
+7:0
+RW 0x9b
+CDR AFC target value.
+The ratio of VCO frequency over reference clock frequency.
+USBDPPHY_CMN_REG00A3
+Address: Operational Base + offset (0x028C)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+dp_tx_link_bw
+DP bandwidth
+2'b00: RBR (1.62Gbps)
+6:5
+RW 0x0
+2'b01: HBR (2.7Gbps)
+2'b10: HBR2(5.4Gbps)
+2'b11: HBR3(8.1Gbps)
+4:3
+RO 0x0
+reserved
+dp_tx_lane_swap_en
+DP lane swap enable.
+2
+RW 0x0
+1'b0: Lane0/1/2/3_TxData mapping to Lane0/1/2/3_TXDP/N.
+1'b1: Lane0/1/2/3_TxData mapping to Lane2/3/0/1_TXDP/N.
+dp_tx_data_inv
+1
+RW 0x0
+DP TX data polarity inversion enable.
+dp_tx_data_swap
+0
+RW 0x0
+DP TX data bit order swap enable (MSB <-> LSB).
+USBDPPHY_TRSV_REG0215
+Address: Operational Base + offset (0x0854)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln0_tx_ser_rate_sel_hbr
+TX serializer data rate selection for Gen4 (Need to be controlled
+7
+RW 0x0
+with i_tx_en_40bit)
+1'b0: 20/40-bit
+1'b1: 16/32-bit
+ln0_tx_ser_rate_sel_hbr2
+TX serializer data rate selection for Gen4 (Need to be controlled
+6
+RW 0x0
+with i_tx_en_40bit)
+1'b0: 20/40-bit
+1'b1: 16/32-bit
+ln0_tx_ser_rate_sel_hbr3
+TX serializer data rate selection for Gen4 (Need to be controlled
+5
+RW 0x0
+with i_tx_en_40bit)
+1'b0: 20/40-bit
+1'b1: 16/32-bit
+ovrd_ln0_tx_ser_clk_rstn
+4
+RW 0x0
+Override enable flag for ln0_tx_ser_clk_rstn
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2252
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RO
+
+0
+
+RW 0x0
+
+0x0
+
+Description
+ln0_tx_ser_clk_rstn
+TX serializer clock-path resetn.
+1'b0: Reset
+1'b1: Released
+ln0_ana_tx_cdr_clk_mon_en
+TX serializer clock selection: If default=0 then MUX will always
+toggle with PLL clk and 1mA power waste. CDR clock is turned off
+in RX therefore power will not burn.
+1'b0: PLL clock
+1'b1: CDR clock
+reserved
+ln0_ana_tx_lane_rstn_sel
+Mux select to choose lane RSTN (ser_clk_rstn) or CMN RSTN
+(ser_tx_clk_rstn) which resets the CMN RSTN (ser_tx_clk_rstn)
+which resets the divider,
+1'b0: CMN RSTN
+1'b1: LINE RSTN
+
+USBDPPHY_TRSV_REG0415
+Address: Operational Base + offset (0x1054)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln1_tx_ser_rate_sel_hbr
+TX serializer data rate selection for Gen4 (Need to be controlled
+7
+RW 0x0
+with i_tx_en_40bit)
+1'b0: 20/40-bit
+1'b1: 16/32-bit
+ln1_tx_ser_rate_sel_hbr2
+TX serializer data rate selection for Gen4 (Need to be controlled
+6
+RW 0x0
+with i_tx_en_40bit)
+1'b0: 20/40-bit
+1'b1: 16/32-bit
+ln1_tx_ser_rate_sel_hbr3
+TX serializer data rate selection for Gen4 (Need to be controlled
+5
+RW 0x0
+with i_tx_en_40bit)
+1'b0: 20/40-bit
+1'b1: 16/32-bit
+ovrd_ln1_tx_ser_clk_rstn
+4
+RW 0x0
+Override enable flag for ln1_tx_ser_clk_rstn
+ln1_tx_ser_clk_rstn
+TX serializer clock-path resetn.
+3
+RW 0x0
+1'b0: Reset
+1'b1: Released
+ln1_ana_tx_cdr_clk_mon_en
+TX serializer clock selection: If default=0 then MUX will always
+toggle with PLL clk and 1mA power waste. CDR clock is turned off
+2
+RW 0x1
+in RX therefore power will not burn
+1'b0: PLL clock
+1'b1: CDR clock
+1
+RO 0x0
+reserved
+ln1_ana_tx_lane_rstn_sel
+Mux select to choose lane RSTN (ser_clk_rstn) or CMN RSTN
+0
+RW 0x0
+(ser_tx_clk_rstn) which resets the divider (/5/10/20).
+1'b0: CMN RSTN
+1'b1: LANE RSTN
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2253
+
+RK3588 TRM-Part2
+
+USBDPPHY_TRSV_REG0815
+Address: Operational Base + offset (0x1054)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln3_tx_ser_rate_sel_hbr
+TX serializer data rate selection for Gen4 (Need to be controlled
+7
+RW 0x0
+with i_tx_en_40bit)
+1'b0: 20/40-bit
+1'b1: 16/32-bit
+ln3_tx_ser_rate_sel_hbr2
+TX serializer data rate selection for Gen4 (Need to be controlled
+6
+RW 0x0
+with i_tx_en_40bit)
+1'b0: 20/40-bit
+1'b1: 16/32-bit
+ln3_tx_ser_rate_sel_hbr3
+TX serializer data rate selection for Gen4 (Need to be controlled
+5
+RW 0x0
+with i_tx_en_40bit)
+1'b0: 20/40-bit
+1'b1: 16/32-bit
+ovrd_ln3_tx_ser_clk_rstn
+4
+RW 0x0
+Override enable flag for ln1_tx_ser_clk_rstn
+ln3_tx_ser_clk_rstn
+TX serializer clock-path resetn.
+3
+RW 0x0
+1'b0: Reset
+1'b1: Released
+ln3_ana_tx_cdr_clk_mon_en
+TX serializer clock selection: If default=0 then MUX will always
+toggle with PLL clk and 1mA power waste. CDR clock is turned off
+2
+RW 0x1
+in RX therefore power will not burn
+1'b0: PLL clock
+1'b1: CDR clock
+1
+RO 0x0
+reserved
+ln3_ana_tx_lane_rstn_sel
+Mux select to choose lane RSTN (ser_clk_rstn) or CMN RSTN
+0
+RW 0x0
+(ser_tx_clk_rstn) which resets the divider (/5/10/20).
+1'b0: CMN RSTN
+1'b1: LANE RSTN
+USBDPPHY_CMN_REG00E3
+Address: Operational Base + offset (0x038C)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+dp_init_rstn
+3
+RW 0x0
+DP initial reset.
+dp_cmn_rstn
+2
+RW 0x0
+DP PLL reset.
+cdr_watchdog_en
+1
+RW 0x1
+CDR lock watchdog enable.
+If CDR lock wasn't occured, toggle cdr_en signal to restart CDR.
+cdr_watchdog_mask_cdr_en
+0
+RW 0x0
+Disable cdr_en toggle when CDR restart by watchdog.
+USBDPPHY_CMN_REG00D5
+Address: Operational Base + offset (0x0354)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2254
+
+RK3588 TRM-Part2
+Bit
+31:5
+4:2
+1
+0
+
+Attr Reset Value
+Description
+RO 0x0000000
+reserved
+ana_lcpll_mon_gm_code
+RO 0x0
+LC VCO GM code monitor.
+ana_ropll_lock_done
+RO 0x0
+PLL Lock Done.
+ana_ropll_afc_done
+RO 0x0
+PLL AFC Done.
+
+USBDPPHY_TRSV_REG02E1
+Address: Operational Base + offset (0x0B84)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+ln0_mon_rx_cdr_afc_done
+3
+RO 0x0
+Monitoring SFR.
+ln0_mon_rx_cdr_cal_done
+2
+RO 0x0
+Monitoring SFR.
+ln0_mon_rx_cdr_fld_pll_mode_done
+1
+RO 0x0
+Monitoring SFR.
+ln0_mon_rx_cdr_lock_done
+0
+RO 0x0
+Monitoring SFR.
+USBDPPHY_TRSV_REG06E1
+Address: Operational Base + offset (0x1B84)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+ln2_mon_rx_cdr_afc_done
+3
+RW 0x0
+Monitoring SFR.
+ln2_mon_rx_cdr_cal_done
+2
+RO 0x0
+Monitoring SFR.
+ln2_mon_rx_cdr_fld_pll_mode_done
+1
+RO 0x0
+Monitoring SFR.
+ln2_mon_rx_cdr_done
+0
+RO 0x0
+Monitoring SFR.
+USBDPPHY_TRSV_REG0204
+Address: Operational Base + offset (0x0810)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+ovrd_ln0_tx_drv_lvl_ctrl
+5
+RW 0x0
+Override enable flag for ln0_tx_drv_lvl_ctrl
+ln0_tx_drv_lvl_ctrl
+TX driver main-tap level (TX_AMP<10:0>)
+5'b01010: max main-tap level (max swing)
+4:0
+RW 0x0f
+~
+5'b00000: min main-tap level (min swing)
+Others: N/A
+USBDPPHY_TRSV_REG0404
+Address: Operational Base + offset (0x1010)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+ovrd_ln1_tx_drv_lvl_ctrl
+5
+RW 0x0
+Override enable flag for ln1_tx_drv_lvl_ctrl
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2255
+
+RK3588 TRM-Part2
+Bit
+
+4:0
+
+Attr Reset Value
+
+RW 0x0f
+
+Description
+ln1_tx_drv_lvl_ctrl
+TX driver main-tap level (TX_AMP<10:0>)
+5'b01010: max main-tap level (max swing)
+~
+5'b00000: min main-tap level (min swing)
+Others: N/A
+
+USBDPPHY_TRSV_REG0604
+Address: Operational Base + offset (0x1810)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+ovrd_ln2_tx_drv_lvl_ctrl
+5
+RW 0x0
+Override enable flag for ln2_tx_drv_lvl_ctrl
+ln2_tx_drv_lvl_ctrl
+TX driver main-tap level (TX_AMP<10:0>)
+5'b01010: max main-tap level (max swing)
+4:0
+RW 0x0f
+~
+5'b00000: min main-tap level (min swing)
+Others: N/A
+USBDPPHY_TRSV_REG0804
+Address: Operational Base + offset (0x2010)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+ovrd_ln3_tx_drv_lvl_ctrl
+5
+RW 0x0
+Override enable flag for ln3_tx_drv_lvl_ctrl
+ln3_tx_drv_lvl_ctrl
+TX driver main-tap level (TX_AMP<10:0>)
+5'b01010: max main-tap level (max swing)
+4:0
+RW 0x0f
+~
+5'b00000: min main-tap level (min swing)
+Others: N/A
+USBDPPHY_TRSV_REG0205
+Address: Operational Base + offset (0x0814)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+ovrd_ln0_tx_drv_lvl_ctrl
+4
+RW 0x0
+Override enable flag for ln0_tx_drv_post_lvl_ctrl
+ln0_tx_drv_post_lvl_ctrl
+TX driver de-emphasis level (TX_DE_EMP<14:0>)
+3'b0000: min de-emphasis level
+3:0
+RW 0x0
+~
+3'b1110: max de-emphasis level
+Others: N/A
+USBDPPHY_TRSV_REG0405
+Address: Operational Base + offset (0x1014)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+ovrd_ln1_tx_drv_lvl_ctrl
+4
+RW 0x0
+Override enable flag for ln1_tx_drv_post_lvl_ctrl
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2256
+
+RK3588 TRM-Part2
+Bit
+
+3:0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+ln1_tx_drv_post_lvl_ctrl
+TX driver de-emphasis level (TX_DE_EMP<14:0>)
+3'b0000: min de-emphasis level
+~
+3'b1110: max de-emphasis level
+Others: N/A
+
+USBDPPHY_TRSV_REG0605
+Address: Operational Base + offset (0x1814)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+ovrd_ln2_tx_drv_lvl_ctrl
+4
+RW 0x0
+Override enable flag for ln2_tx_drv_post_lvl_ctrl
+ln2_tx_drv_post_lvl_ctrl
+TX driver de-emphasis level (TX_DE_EMP<14:0>)
+3'b0000: min de-emphasis level
+3:0
+RW 0x0
+~
+3'b1110: max de-emphasis level
+Others: N/A
+USBDPPHY_TRSV_REG0805
+Address: Operational Base + offset (0x2014)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+ovrd_ln3_tx_drv_lvl_ctrl
+4
+RW 0x0
+Override enable flag for ln3_tx_drv_post_lvl_ctrl
+ln3_tx_drv_post_lvl_ctrl
+TX driver de-emphasis level (TX_DE_EMP<14:0>)
+3'b0000: min de-emphasis level
+3:0
+RW 0x0
+~
+3'b1110: max de-emphasis level
+Others: N/A
+USBDPPHY_TRSV_REG0206
+Address: Operational Base + offset (0x0818)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+ovrd_ln0_tx_drv_pre_lvl_ctrl
+6
+RW 0x0
+Override enable flag for ln0_tx_drv_pre_lvl_ctrl
+ln0_tx_drv_pre_lvl_ctrl
+TX driver pre-shoot level (TX_PRE_EMP<9:0>)
+4'b0000: min pre-shoot boosting
+5:2
+RW 0x0
+~
+4'b1001: max pre-shoot boosting
+Others: N/A
+ovrd_ln0_tx_drv_idrv_en
+1
+RW 0x0
+Override enable flag for ln0_tx_drv_idrv_en
+ln0_tx_drv_idrv_en
+TX current-driver enable
+0
+RW 0x1
+1'b0: Disable
+1'b1: Enable
+USBDPPHY_TRSV_REG0406
+Address: Operational Base + offset (0x1018)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2257
+
+RK3588 TRM-Part2
+Bit
+31:7
+6
+
+5:2
+
+1
+0
+
+Attr Reset Value
+Description
+RO 0x0000000
+reserved
+ovrd_ln1_tx_drv_pre_lvl_ctrl
+RW 0x0
+Override enable flag for ln1_tx_drv_pre_lvl_ctrl
+ln1_tx_drv_pre_lvl_ctrl
+TX driver pre-shoot level (TX_PRE_EMP<9:0>)
+4'b0000: min pre-shoot boosting
+RW 0x0
+~
+4'b1001: max pre-shoot boosting
+Others: N/A
+ovrd_ln1_tx_drv_idrv_en
+RW 0x0
+Override enable flag for ln1_tx_drv_idrv_en
+ln1_tx_drv_idrv_en
+TX current-driver enable
+RW 0x1
+1'b0: Disable
+1'b1: Enable
+
+USBDPPHY_TRSV_REG0606
+Address: Operational Base + offset (0x1818)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+ovrd_ln2_tx_drv_pre_lvl_ctrl
+6
+RW 0x0
+Override enable flag for ln2_tx_drv_pre_lvl_ctrl
+ln2_tx_drv_pre_lvl_ctrl
+TX driver pre-shoot level (TX_PRE_EMP<9:0>)
+4'b0000: min pre-shoot boosting
+5:2
+RW 0x0
+~
+4'b1001: max pre-shoot boosting
+Others: N/A
+ovrd_ln2_tx_drv_idrv_en
+1
+RW 0x0
+Override enable flag for ln2_tx_drv_idrv_en
+ln2_tx_drv_idrv_en
+TX current-driver enable
+0
+RW 0x1
+1'b0: Disable
+1'b1: Enable
+USBDPPHY_TRSV_REG0806
+Address: Operational Base + offset (0x2018)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+ovrd_ln3_tx_drv_pre_lvl_ctrl
+6
+RW 0x0
+Override enable flag for ln3_tx_drv_pre_lvl_ctrl
+ln3_tx_drv_pre_lvl_ctrl
+TX driver pre-shoot level (TX_PRE_EMP<9:0>)
+4'b0000: min pre-shoot boosting
+5:2
+RW 0x0
+~
+4'b1001: max pre-shoot boosting
+Others: N/A
+ovrd_ln3_tx_drv_idrv_en
+1
+RW 0x0
+Override enable flag for ln3_tx_drv_idrv_en
+ln3_tx_drv_idrv_en
+TX current-driver enable
+0
+RW 0x1
+1'b0: Disable
+1'b1: Enable
+USBDPPHY_TRSV_REG0207
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2258
+
+RK3588 TRM-Part2
+Address: Operational Base + offset (0x081C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln0_ana_tx_drv_idrv_iup_ctrl
+TX current driver pmos current control.
+7:5
+RW 0x7
+3'b000: Min
+3'b111: Max
+ln0_ana_tx_drv_beacon_idrv_delay_sel
+Retain idrv settling time margin @beacon entry.
+4
+RW 0x0
+1'b0: Select delay (default)
+1'b1: Org
+ln0_ana_tx_drv_beacon_idrv_delay_ctrl
+i_tx_drv_beacon_delay_ctrl<1:0>
+3'b00: 2UI delay
+3:2
+RW 0x1
+3'b01: 3UI delay (default)
+3'b10: 4UI delay
+3'b11: 5UI delay
+ln0_ana_tx_drv_accdrv_en
+Enable of Cap. Peaking block.
+1
+RW 0x1
+1'b0: Disable
+1'b1: Enable
+ln0_ana_tx_drv_accdrv_pol_sel
+TX edge-enhancement AC coupled driver sign selection
+0
+RW 0x1
+1'b1: polarity change, data P/N is switched (enhancement)
+1'b0: polarity non-change (deenhancement)
+USBDPPHY_TRSV_REG0407
+Address: Operational Base + offset (0x101C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln1_ana_tx_drv_idrv_iup_ctrl
+TX current driver pmos current control.
+7:5
+RW 0x7
+3'b000: Min
+3'b111: Max
+ln1_ana_tx_drv_beacon_idrv_delay_sel
+Retain idrv settling time margin @beacon entry.
+4
+RW 0x0
+1'b0: Select delay (default)
+1'b1: Org
+ln1_ana_tx_drv_beacon_idrv_delay_ctrl
+i_tx_drv_beacon_delay_ctrl<1:0>
+3'b00: 2UI delay
+3:2
+RW 0x1
+3'b01: 3UI delay (default)
+3'b10: 4UI delay
+3'b11: 5UI delay
+ln1_ana_tx_drv_accdrv_en
+Enable of Cap. Peaking block.
+1
+RW 0x1
+1'b0: Disable
+1'b1: Enable
+ln1_ana_tx_drv_accdrv_pol_sel
+TX edge-enhancement AC coupled driver sign selection
+0
+RW 0x1
+1'b1: polarity change, data P/N is switched (enhancement)
+1'b0: polarity non-change (deenhancement)
+USBDPPHY_TRSV_REG0607
+Address: Operational Base + offset (0x181C)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2259
+
+RK3588 TRM-Part2
+Bit
+31:8
+7:5
+
+4
+
+3:2
+
+1
+
+0
+
+Attr Reset Value
+Description
+RO 0x000000
+reserved
+ln2_ana_tx_drv_idrv_iup_ctrl
+TX current driver pmos current control.
+RW 0x7
+3'b000: Min
+3'b111: Max
+ln2_ana_tx_drv_beacon_idrv_delay_sel
+Retain idrv settling time margin @beacon entry.
+RW 0x0
+1'b0: Select delay (default)
+1'b1: Org
+ln2_ana_tx_drv_beacon_idrv_delay_ctrl
+i_tx_drv_beacon_delay_ctrl<1:0>
+3'b00: 2UI delay
+RW 0x1
+3'b01: 3UI delay (default)
+3'b10: 4UI delay
+3'b11: 5UI delay
+ln2_ana_tx_drv_accdrv_en
+Enable of Cap. Peaking block.
+RW 0x1
+1'b0: Disable
+1'b1: Enable
+ln2_ana_tx_drv_accdrv_pol_sel
+TX edge-enhancement AC coupled driver sign selection
+RW 0x1
+1'b1: polarity change, data P/N is switched (enhancement)
+1'b0: polarity non-change (deenhancement)
+
+USBDPPHY_TRSV_REG0807
+Address: Operational Base + offset (0x201C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln3_ana_tx_drv_idrv_iup_ctrl
+TX current driver pmos current control.
+7:5
+RW 0x7
+3'b000: Min
+3'b111: Max
+ln3_ana_tx_drv_beacon_idrv_delay_sel
+Retain idrv settling time margin @beacon entry.
+4
+RW 0x0
+1'b0: Select delay (default)
+1'b1: Org
+ln3_ana_tx_drv_beacon_idrv_delay_ctrl
+i_tx_drv_beacon_delay_ctrl<1:0>
+3'b00: 2UI delay
+3:2
+RW 0x1
+3'b01: 3UI delay (default)
+3'b10: 4UI delay
+3'b11: 5UI delay
+ln3_ana_tx_drv_accdrv_en
+Enable of Cap. Peaking block.
+1
+RW 0x1
+1'b0: Disable
+1'b1: Enable
+ln3_ana_tx_drv_accdrv_pol_sel
+TX edge-enhancement AC coupled driver sign selection
+0
+RW 0x1
+1'b1: polarity change, data P/N is switched (enhancement)
+1'b0: polarity non-change (deenhancement)
+USBDPPHY_TRSV_REG020C
+Address: Operational Base + offset (0x0830)
+Bit Attr Reset Value
+31:5 RO 0x0000000
+reserved
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2260
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+4
+
+RW 0x0
+
+3:0
+
+RW 0x7
+
+Description
+ln0_ana_tx_jeq_en
+TX jitter EQ enable
+1'b0: Disable
+1'b1: Enable
+ln0_tx_jeq_even_ctrl_sp
+TX jitter EQ driver (even) strength control
+4'b0000: 0 legs on (jitter EQ driver off)
+4'b0001: 2 legs on
+4'b0010: 2 legs on
+4'b0011: 4 legs on
+4'b0100: 3 legs on
+4'b0101: 5 legs on
+4'b0110: 5 legs on
+4'b0111: 7 legs on
+
+USBDPPHY_TRSV_REG0217
+Address: Operational Base + offset (0x085C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ovrd_ln0_tx_ser_vreg_en
+7
+RW 0x1
+Override enable flag for ln0_tx_ser_vreg_en
+ln0_tx_ser_vreg_en
+Controls Regulator Enable:
+6
+RW 0x0
+1'b0: Disable regulator (Bypass VDD PMOS switch turns ON)
+1'b1: Regulator Enable (Bypass path disables)
+ln0_ana_tx_ser_vreg_bypass
+Force Bypass Regulator:
+5
+RW 0x0
+1'b0: Regulator mode
+1'b1: Bypass Regulator and VDD is connected to Regulator node
+using pass gate
+ovrd_ln0_tx_ser_vreg_lpf_bypass
+4
+RW 0x0
+Override enable flag for ln0_tx_ser_vreg_lpf_bypass.
+ln0_tx_ser_vreg_lpf_bypass
+Controls Regulator input voltage reference noise reduction Low
+3
+RW 0x0
+pass filter (BW <5MHz)
+1'b0: Regulator reference Low pass filter Mode
+1'b1: Bypass Low pass filter (Fast charging)
+ln0_ana_tx_ser_vreg
+Choose vref based on VDDH ladder tap points. For VDDH=1.8,
+Vref=:
+3'b000:0.749
+3'b001:0.776
+2:0
+RW 0x0
+3'b010:0.804
+3'b011:0.831
+3'b100:0.859(default),
+3'b101:0.886
+3'b110:0.914
+3'b111:0.941
+USBDPPHY_TRSV_REG040C
+Address: Operational Base + offset (0x1030)
+Bit Attr Reset Value
+31:5 RO 0x0000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2261
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+4
+
+RW 0x0
+
+3:0
+
+RW 0x7
+
+Description
+ln1_ana_tx_jeq_en
+TX jitter EQ enable
+1'b0: Disable
+1'b1: Enable
+ln1_tx_jeq_even_ctrl_sp
+TX jitter EQ driver (even) strength control
+4'b0000: 0 legs on (jitter EQ driver off)
+4'b0001: 2 legs on
+4'b0010: 2 legs on
+4'b0011: 4 legs on
+4'b0100: 3 legs on
+4'b0101: 5 legs on
+4'b0110: 5 legs on
+4'b0111: 7 legs on
+
+USBDPPHY_TRSV_REG0417
+Address: Operational Base + offset (0x105C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ovrd_ln1_tx_ser_vreg_en
+7
+RW 0x1
+Override enable flag for ln1_tx_ser_vreg_en
+ln1_tx_ser_vreg_en
+Controls Regulator Enable:
+6
+RW 0x0
+1'b0: Disable regulator (Bypass VDD PMOS switch turns ON)
+1'b1: Regulator Enable (Bypass path disables)
+ln1_ana_tx_ser_vreg_bypass
+Force Bypass Regulator:
+5
+RW 0x0
+1'b0: Regulator mode
+1'b1: Bypass Regulator and VDD is connected to Regulator node
+using pass gate
+ovrd_ln1_tx_ser_vreg_lpf_bypass
+4
+RW 0x0
+Override enable flag for ln1_tx_ser_vreg_lpf_bypass.
+ln1_tx_ser_vreg_lpf_bypass
+Controls Regulator input voltage reference noise reduction Low
+3
+RW 0x0
+pass filter (BW <5MHz)
+1'b0: Regulator reference Low pass filter Mode
+1'b1: Bypass Low pass filter (Fast charging)
+ln1_ana_tx_ser_vreg
+Choose vref based on VDDH ladder tap points. For VDDH=1.8,
+Vref=:
+3'b000:0.749
+3'b001:0.776
+2:0
+RW 0x0
+3'b010:0.804
+3'b011:0.831
+3'b100:0.859(default),
+3'b101:0.886
+3'b110:0.914
+3'b111:0.941
+USBDPPHY_TRSV_REG060C
+Address: Operational Base + offset (0x1830)
+Bit Attr Reset Value
+31:5 RO 0x0000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2262
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+4
+
+RW 0x0
+
+3:0
+
+RW 0x7
+
+Description
+ln2_ana_tx_jeq_en
+TX jitter EQ enable
+1'b0: Disable
+1'b1: Enable
+ln2_tx_jeq_even_ctrl_sp
+TX jitter EQ driver (even) strength control
+4'b0000: 0 legs on (jitter EQ driver off)
+4'b0001: 2 legs on
+4'b0010: 2 legs on
+4'b0011: 4 legs on
+4'b0100: 3 legs on
+4'b0101: 5 legs on
+4'b0110: 5 legs on
+4'b0111: 7 legs on
+
+USBDPPHY_TRSV_REG0617
+Address: Operational Base + offset (0x185C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ovrd_ln2_tx_ser_vreg_en
+7
+RW 0x1
+Override enable flag for ln2_tx_ser_vreg_en
+ln2_tx_ser_vreg_en
+Controls Regulator Enable:
+6
+RW 0x0
+1'b0: Disable regulator (Bypass VDD PMOS switch turns ON)
+1'b1: Regulator Enable (Bypass path disables)
+ln2_ana_tx_ser_vreg_bypass
+Force Bypass Regulator:
+5
+RW 0x0
+1'b0: Regulator mode
+1'b1: Bypass Regulator and VDD is connected to Regulator node
+using pass gate
+ovrd_ln2_tx_ser_vreg_lpf_bypass
+4
+RW 0x0
+Override enable flag for ln2_tx_ser_vreg_lpf_bypass.
+ln2_tx_ser_vreg_lpf_bypass
+Controls Regulator input voltage reference noise reduction Low
+3
+RW 0x0
+pass filter (BW <5MHz)
+1'b0: Regulator reference Low pass filter Mode
+1'b1: Bypass Low pass filter (Fast charging)
+ln2_ana_tx_ser_vreg
+Choose vref based on VDDH ladder tap points. For VDDH=1.8,
+Vref=:
+3'b000:0.749
+3'b001:0.776
+2:0
+RW 0x0
+3'b010:0.804
+3'b011:0.831
+3'b100:0.859(default),
+3'b101:0.886
+3'b110:0.914
+3'b111:0.941
+USBDPPHY_TRSV_REG080C
+Address: Operational Base + offset (0x2030)
+Bit Attr Reset Value
+31:5 RO 0x0000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2263
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+4
+
+RW 0x0
+
+3:0
+
+RW 0x7
+
+Description
+ln3_ana_tx_jeq_en
+TX jitter EQ enable
+1'b0: Disable
+1'b1: Enable
+ln3_tx_jeq_even_ctrl_sp
+TX jitter EQ driver (even) strength control
+4'b0000: 0 legs on (jitter EQ driver off)
+4'b0001: 2 legs on
+4'b0010: 2 legs on
+4'b0011: 4 legs on
+4'b0100: 3 legs on
+4'b0101: 5 legs on
+4'b0110: 5 legs on
+4'b0111: 7 legs on
+
+USBDPPHY_TRSV_REG0817
+Address: Operational Base + offset (0x205C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ovrd_ln3_tx_ser_vreg_en
+7
+RW 0x1
+Override enable flag for ln3_tx_ser_vreg_en
+ln3_tx_ser_vreg_en
+Controls Regulator Enable:
+6
+RW 0x0
+1'b0: Disable regulator (Bypass VDD PMOS switch turns ON)
+1'b1: Regulator Enable (Bypass path disables)
+ln3_ana_tx_ser_vreg_bypass
+Force Bypass Regulator:
+5
+RW 0x0
+1'b0: Regulator mode
+1'b1: Bypass Regulator and VDD is connected to Regulator node
+using pass gate
+ovrd_ln3_tx_ser_vreg_lpf_bypass
+4
+RW 0x0
+Override enable flag for ln3_tx_ser_vreg_lpf_bypass.
+ln3_tx_ser_vreg_lpf_bypass
+Controls Regulator input voltage reference noise reduction Low
+3
+RW 0x0
+pass filter (BW <5MHz)
+1'b0: Regulator reference Low pass filter Mode
+1'b1: Bypass Low pass filter (Fast charging)
+ln3_ana_tx_ser_vreg
+Choose vref based on VDDH ladder tap points. For VDDH=1.8,
+Vref=:
+3'b000:0.749
+3'b001:0.776
+2:0
+RW 0x0
+3'b010:0.804
+3'b011:0.831
+3'b100:0.859(default),
+3'b101:0.886
+3'b110:0.914
+3'b111:0.941
+USBDPPHY_CMN_REG008A
+Address: Operational Base + offset (0x0228)
+Bit Attr Reset Value
+31:7 RO 0x0000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2264
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+6
+
+RW 0x0
+
+5
+
+RW 0x1
+
+4
+
+RW 0x1
+
+3
+
+RW 0x1
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+ana_ropll_cd_hsclk_inv
+CD output clock polarity inversion
+1'b0: No swap
+1'b1: P/N swap
+ana_ropll_cd_hsclk_west_en
+CD driver nmos strength control
+N/A
+ana_ropll_cd_hsclk_east_en
+CD driver pmos strength control
+N/A
+ovrd_ropll_cd_vreg_en
+Override enable flag for ropll_cd_vreg_en
+ropll_cd_vreg_en
+Controls Regulator Enable:
+1'b0: Disable regulator (Bypass VDD PMOS switch turns ON)
+1'b1: Regulator Enable (Bypass path disables)
+ovrd_ropll_cd_vreg_lpf_bypass
+Override enable flag for ropll_cd_vreg_lpf_bypass
+ropll_cd_vreg_lpf_bypass
+Controls Regulator input voltage reference noise reduction Low
+pass filter (BW <5MHz)
+1'b0: Regulator reference Low pass filter Mode
+1'b1: Bypass Low pass filter (Fast charging)
+
+USBDPPHY_CMN_REG0041
+Address: Operational Base + offset (0x0104)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ana_lcpll_reserved
+USBDP
+[7]: i_pll_cd_div2_en_west (default: 0)
+[6]: i_pll_cd_rstn_sel_west (default: 1)
+7:0
+RW 0x77
+[5:4]: i_pll_cd_hsclk_west_ctrl<1:0> (default: 3)
+[3]: i_pll_cd_div2_en_east (default: 0)
+[2]: i_pll_cd_rstn_sel_east (default: 0)
+[1:0]: i_pll_cd_hsclk_east_ctrl<1:0> (default: 3)
+USBDPPHY_CMN_REG0092
+Address: Operational Base + offset (0x0248)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ana_ropll_reserved
+USBDP
+[7]: i_pll_cd_div2_en_west (default: 0)
+[6]: i_pll_cd_rstn_sel_west (default: 1)
+7:0
+RW 0x77
+[5:4]: i_pll_cd_hsclk_west_ctrl<1:0> (default: 3)
+[3]: i_pll_cd_div2_en_east (default: 0)
+[2]: i_pll_cd_rstn_sel_east (default: 0)
+[1:0]: i_pll_cd_hsclk_east_ctrl<1:0> (default: 3)
+USBDPPHY_TRSV_REG021E
+Address: Operational Base + offset (0x0878)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2265
+
+RK3588 TRM-Part2
+Bit
+
+7:0
+
+Attr Reset Value
+
+RW 0x04
+
+Description
+ln0_ana_tx_reserved
+Reserved port
+USBDP Lane0,2
+[0]: Driver input data force sel
+1'b0: Data force @ driver off state
+1'b1: Data force @ srlb_en
+[1]: Driver input P data @ force mode
+[2]: Driver input N data @ force mode
+USBDP Lane 1,3
+[0]: Driver input data force sel
+1'b0: Data force @ driver off state
+1'b1: Data force @ srlb_en
+
+USBDPPHY_TRSV_REG061E
+Address: Operational Base + offset (0x1878)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln2_ana_tx_reserved
+Reserved port
+USBDP Lane0,2
+[0]: Driver input data force sel
+1'b0: Data force @ driver off state
+1'b1: Data force @ srlb_en
+7:0
+RW 0x04
+[1]: Driver input P data @ force mode
+[2]: Driver input N data @ force mode
+USBDP Lane 1,3
+[0]: Driver input data force sel
+1'b0: Data force @ driver off state
+1'b1: Data force @ srlb_en
+USBDPPHY_TRSV_REG0226
+Address: Operational Base + offset (0x0898)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln0_rx_cdr_mdiv_sel_pll_sp
+CDR IQ (main) divider rate control
+4'b1111: div16
+7:4
+RW 0x7
+4'b0111: div8
+4'b0011: div4
+4'b0001: div2
+4'b0000: div1
+ln0_rx_cdr_mdiv_sel_pll_ssp
+CDR IQ (main) divider rate control
+4'b1111: div16
+3:0
+RW 0x7
+4'b0111: div8
+4'b0011: div4
+4'b0001: div2
+4'b0000: div1
+USBDPPHY_TRSV_REG0626
+Address: Operational Base + offset (0x189C)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2266
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+7:4
+
+RW 0x7
+
+3:0
+
+RW 0x7
+
+Description
+ln2_rx_cdr_mdiv_sel_pll_sp
+CDR IQ (main) divider rate control
+4'b1111: div16
+4'b0111: div8
+4'b0011: div4
+4'b0001: div2
+4'b0000: div1
+ln2_rx_cdr_mdiv_sel_pll_ssp
+CDR IQ (main) divider rate control
+4'b1111: div16
+4'b0111: div8
+4'b0011: div4
+4'b0001: div2
+4'b0000: div1
+
+USBDPPHY_CMN_REG0015
+Address: Operational Base + offset (0x0054)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+ana_lcpll_avc_cnt_wait_num
+4:2
+RW 0x0
+Number of reference clock cycle to wait VCO clock during AFC
+ana_lcpll_avc_en
+1
+RW 0x0
+AVC Enable
+ana_lcpll_avc_force_en
+0
+RW 0x1
+AVC Force Enable
+USBDPPHY_CMN_REG0038
+Address: Operational Base + offset (0x00E0)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+ana_lcpll_cd_hsclk_inv
+CD output clock polarity inversion
+6
+RW 0x0
+1'b0: No swap
+1'b1: P/N swap
+ana_lcpll_cd_hsclk_west_en
+5
+RW 0x1
+CD driver enable to WEST Side clocks
+ana_lcpll_cd_hsclk_east_en
+4
+RW 0x1
+CD driver enable to EAST Side clocks
+ovrd_lcpll_cd_vreg_en
+3
+RW 0x1
+Override enable flag for lcpll_cd_vreg_en
+lcpll_cd_vreg_en
+Controls Regulator Enable:
+2
+RW 0x0
+1'b0: Disable regulator (Bypass VDD PMOS switch turns ON)
+1'b1: Regulator Enable (Bypass path disables)
+ovrd_lcpll_cd_vreg_lpf_pass
+1
+RW 0x0
+Override enable flag for lcpll_cd_vreg_lpf_bypass
+lcpll_cd_vreg_lpf_bypass
+Controls Regulator input voltage reference noise reduction Low
+0
+RW 0x0
+pass filter (BW <5MHz)
+1'b0: Regulator reference Low pass filter Mode
+1'b1: Bypass Low pass filter (Fast charging)
+USBDPPHY_CMN_REG0018
+Address: Operational Base + offset (0x0060)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2267
+
+RK3588 TRM-Part2
+Bit
+31:6
+
+5:3
+
+2:0
+
+Attr Reset Value
+Description
+RO 0x0000000
+reserved
+lcpll_ana_cpi_ctrl_coarse
+PLL integral path charge-pump current control
+3'b0xx: half current (not used)
+RW 0x4
+3'b100: 1.25uA
+3'b101:1.5625uA
+3'b110: 20833uA
+3'b111: 3.125uA
+lcpll_ana_cpi_ctrl_fine
+PLL integral path charge-pump current control
+3'b0xx: half current (not used)
+RW 0x4
+3'b100: 1.25uA
+3'b101:1.5625uA
+3'b110: 20833uA
+3'b111: 3.125uA
+
+USBDPPHY_CMN_REG0019
+Address: Operational Base + offset (0x0064)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+lcpll_ana_cpp_ctrl_coarse
+PLL proportional path charge-pump current control
+3'b000: 66.7uA
+3'b001: 75uA
+3'b010: 85.7uA
+7:4
+RW 0xf
+3'b011: 100uA
+3'b100: 120uA
+3'b101: 150uA
+3'b110:200uA
+3'b111:300uA
+lcpll_ana_cpp_ctrl_fine
+PLL proportional path charge-pump current control
+3'b000: 66.7uA
+3'b001: 75uA
+3'b010: 85.7uA
+3:0
+RW 0xf
+3'b011: 100uA
+3'b100: 120uA
+3'b101: 150uA
+3'b110:200uA
+3'b111:300uA
+USBDPPHY_CMN_REG001C
+Address: Operational Base + offset (0x0070)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+lcpll_ana_lpf_c_sel_fine
+PLL loop filter capacitor control
+3'b000: 0pF
+3'b001: 1pF
+3'b010: 2pF
+6:4
+RW 0x0
+3'b011: 3pF
+3'b100: 4pF
+3'b101: 5pF
+3'b110: 6pF
+3'b111: 7pF
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2268
+
+RK3588 TRM-Part2
+Bit
+
+3:0
+
+Attr Reset Value
+
+RW 0x6
+
+Description
+lcpll_ana_lpf_r_sel_coarse
+PLL loop filter resistor control
+4'b0000: 2K
+4'b0001: 4K
+4'b0010:6K
+~
+4'b1111: 32K
+
+USBDPPHY_CMN_REG008D
+Address: Operational Base + offset (0x0234)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ovrd_ropll_beacon_lfps_out_en
+7
+RW 0x0
+Override enable flag for ropll_beacon_lfps_out_en
+ropll_beacon_lfps_out_en
+TX beacon clock enable
+6
+RW 0x1
+1'b0: Disable
+1'b1: Enable
+ana_ropll_misc_clk_sync_en
+PLL miscellaneous clock synchronization enable
+If enabled, PLL misc clock output is self-synchronized so that
+5
+RW 0x1
+clock shape is not affected by LFPS/beacon enable timing.
+1'b0: Disable (async)
+1'b1: Enable (sync)
+ana_ropll_misc_clk_sel
+PLL low-frequency clock output source selection
+2'b00: Reference clock
+4:3
+RW 0x1
+2'b01: Config clock from SoC
+2'b10: Internal oscillator clock
+2'b11: Divided PLL clock
+ana_ropll_ref_clk_mon_en
+PLL reference clock monitor enable
+2
+RW 0x0
+1'b0: Disable
+1'b: Enable
+ovrd_ropll_misc_osc_rstn
+1
+RW 0x0
+Override enable flag for ropll_misc_osc_rstn
+ropll_misc_osc_rstn
+0
+RW 0x0
+Self osc reset
+USBDPPHY_TRSV_REG02BD
+Address: Operational Base + offset (0x0AF4)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln0_ovrd_rx_rcal_rstn
+7
+RW 0x0
+Override enable flag for ln0_rx_rcal_rstn
+ln0_rx_rcal_rstn
+6
+RW 0x0
+Signal override
+ln0_rx_rcal_opt_code
+2'b00: o_rcal_code = tune_code
+5:4
+RW 0x1
+2'b01: o_rcal_code = i_sfr_rcal_code
+2'b10: o_rcal_code = tune_code + i_sfr_rcal_code
+2'b11: o_rcal_code = tune_code - i_sfr_rcal_code
+ln0_rx_rterm_ctrl
+3:0
+RW 0x8
+Offset to tune_code at opt_code = 2 or 3
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2269
+
+RK3588 TRM-Part2
+USBDPPHY_TRSV_REG06BD
+Address: Operational Base + offset (0x1AF4)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln2_ovrd_rx_rcal_rstn
+7
+RW 0x0
+Override enable flag for ln0_rx_rcal_rstn
+ln2_rx_rcal_rstn
+6
+RW 0x0
+Signal override
+ln2_rx_rcal_opt_code
+2'b00: o_rcal_code = tune_code
+5:4
+RW 0x1
+2'b01: o_rcal_code = i_sfr_rcal_code
+2'b10: o_rcal_code = tune_code + i_sfr_rcal_code
+2'b11: o_rcal_code = tune_code - i_sfr_rcal_code
+ln2_rx_rterm_ctrl
+3:0
+RW 0x8
+Offset to tune_code at opt_code = 2 or 3
+USBDPPHY_TRSV_REG0267
+Address: Operational Base + offset (0x099C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln0_rx_dfe_vga_rl_ctrl_hbr2
+VGA R output value control
+7:5
+RW 0x0
+3'b000: 600ohm
+...
+3'b111: 75ohm
+ln0_rx_dfe_vga_rl_ctrl_hbr3
+VGA R output value control
+4:2
+RW 0x2
+3'b000: 600ohm
+...
+3'b111: 75ohm
+ln0_ana_rx_dfe_vga_pbias_ctrl_reserved
+VGA default current control
+2'b00: 1.2mA
+1:0
+RW 0x0
+2'b01: 1.6mA
+2'b10: 2.0mA
+2'b11: 2.4mA
+USBDPPHY_TRSV_REG0667
+Address: Operational Base + offset (0x199C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln2_rx_dfe_vga_rl_ctrl_hbr2
+VGA R output value control
+7:5
+RW 0x0
+3'b000: 600ohm
+...
+3'b111: 75ohm
+ln2_rx_dfe_vga_rl_ctrl_hbr3
+VGA R output value control
+4:2
+RW 0x2
+3'b000: 600ohm
+...
+3'b111: 75ohm
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2270
+
+RK3588 TRM-Part2
+Bit
+
+1:0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+ln2_ana_rx_dfe_vga_pbias_ctrl_reserved
+VGA default current control
+2'b00: 1.2mA
+2'b01: 1.6mA
+2'b10: 2.0mA
+2'b11: 2.4mA
+
+USBDPPHY_TRSV_REG0269
+Address: Operational Base + offset (0x09A4)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+ln0_ana_rx_rterm_ofsn_ctrl
+6
+RW 0x0
+Offset code for RX RTERM N node
+ln0_ana_rx_rterm_ofsp_ctrl
+Offset code for RX RTERM P node
+5
+RW 0x0
+1'b0: No offset added
+1'b1: +1 offset code added
+ln0_ana_rx_rterm_path_ctrl
+RX term sw ctrl
+4
+RW 0x0
+1'b0: Rtern sw ctrl by"offset_cal_enable"
+1'b1: Ctrl by "offset_cal_enable" && "rterm_en" --> for DP tx
+mode
+reserved
+3:0
+RW 0x7
+USBDPPHY_TRSV_REG026A
+Address: Operational Base + offset (0x09A8)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+ln0_ana_rx_rterm_incm_vcm_ctrl_reserved
+6:5
+RW 0x1
+reserved
+ovrd_ln0_rx_rterm_cm_pulldn_reserved
+4
+RW 0x0
+Override enable flag for ln0_rx_rterm_cm_pulldn_reserved
+ln0_rx_rterm_cm_pulldn_reserved
+3
+RW 0x0
+reserved
+ovrd_ln0_rx_rterm_vcm_en_reserved
+2
+RW 0x0
+Override enable flag for ln0_rx_rterm_vcm_en_reserved
+ln0_rx_rterm_vcm_en_reserved
+1
+RW 0x1
+reserved
+ln0_ana_rx_sq_vref_820m_lpf_bypass_reserved
+0
+RW 0x0
+reserved
+USBDPPHY_TRSV_REG0669
+Address: Operational Base + offset (0x19A4)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+ln2_ana_rx_rterm_ofsn_ctrl
+6
+RW 0x0
+Offset code for RX RTERM N node
+ln2_ana_rx_rterm_ofsp_ctrl
+Offset code for RX RTERM P node
+5
+RW 0x0
+1'b0: No offset added
+1'b1: +1 offset code added
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2271
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+4
+
+RW 0x0
+
+3:0
+
+RW 0x7
+
+Description
+ln2_ana_rx_rterm_path_ctrl
+RX term sw ctrl
+1'b0: Rtern sw ctrl by"offset_cal_enable"
+1'b1: Ctrl by "offset_cal_enable" && "rterm_en" --> for DP tx
+mode
+reserved
+
+USBDPPHY_TRSV_REG066A
+Address: Operational Base + offset (0x19A8)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+ln2_ana_rx_rterm_incm_vcm_ctrl_reserved
+6:5
+RW 0x1
+reserved
+ovrd_ln2_rx_rterm_cm_pulldn_reserved
+4
+RW 0x0
+Override enable flag for ln2_rx_rterm_cm_pulldn_reserved
+ln2_rx_rterm_cm_pulldn_reserved
+3
+RW 0x0
+reserved
+ovrd_ln2_rx_rterm_vcm_en_reserved
+2
+RW 0x0
+Override enable flag for ln2_rx_rterm_vcm_en_reserved
+ln2_rx_rterm_vcm_en_reserved
+1
+RW 0x1
+reserved
+ln2_ana_rx_sq_vref_820m_lpf_bypass_reserved
+0
+RW 0x0
+reserved
+USBDPPHY_TRSV_REG026E
+Address: Operational Base + offset (0x09B8)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln0_ana_rx_sqhs_th_ctrl_reserved
+7:4
+RW 0x4
+reserved
+ln0_ana_rx_sqhs_filter_en
+3
+RW 0x1
+SQHS loss detector enable
+ln0_ana_rx_sqhs_bw_ctrl
+2:1
+RW 0x3
+Not used
+0
+RO 0x0
+reserved
+USBDPPHY_TRSV_REG066E
+Address: Operational Base + offset (0x19B8)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln2_ana_rx_sqhs_th_ctrl_reserved
+7:4
+RW 0x4
+reserved
+ln2_ana_rx_sqhs_filter_en
+3
+RW 0x1
+SQHS loss detector enable
+ln2_ana_rx_sqhs_bw_ctrl
+2:1
+RW 0x3
+Not used
+ln2_ana_rx_sqhs_vref_supply_sel
+Selection of supply voltage of reference voltage for threshold
+0
+RW 0x0
+calibration of HS SQ
+1'b0: VREG
+1'b1: VDD
+USBDPPHY_TRSV_REG0279
+Address: Operational Base + offset (0x09E4)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2272
+
+RK3588 TRM-Part2
+Bit
+31:7
+6:0
+
+Attr Reset Value
+Description
+RO 0x0000000
+reserved
+ln0_rx_sslms_c1_init_reserved
+RW 0x02
+reserved
+
+USBDPPHY_TRSV_REG0679
+Address: Operational Base + offset (0x09E8)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+ln2_rx_sslms_c1_init_reserved
+6:0
+RW 0x02
+reserved
+USBDPPHY_TRSV_REG028D
+Address: Operational Base + offset (0x0A34)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+ln0_rx_sslms_rstn
+RX DFE force Reset
+4
+RW 0x1
+1'b0: Reset
+1'b1: Use lane reset
+ln0_ovrd_rx_sslms_adap_en_reserved
+3
+RW 0x0
+Override enable flag for ln0_rx_sslms_adap_en_reserved
+ln0_rx_sslms_adap_en_reserved
+2
+RW 0x0
+reserved
+ln0_ovrd_rx_sslms_adap_hold_reserved
+1
+RW 0x0
+Override enable flag for override enable flag for
+ln0_rx_sslms_adap_hold_reserved
+ln0_rx_sslms_adap_hold_reserved
+0
+RW 0x0
+reserved
+USBDPPHY_TRSV_REG068D
+Address: Operational Base + offset (0x1A34)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+ln2_rx_sslms_rstn
+RX DFE force Reset
+4
+RW 0x1
+1'b0: Reset
+1'b1: Use lane reset
+ln2_ovrd_rx_sslms_adap_en_reserved
+3
+RW 0x0
+Override enable flag for ln2_rx_sslms_adap_en_reserved
+ln2_rx_sslms_adap_en_reserved
+2
+RW 0x0
+reserved
+ln2_ovrd_rx_sslms_adap_hold_reserved
+1
+RW 0x0
+Override enable flag for override enable flag for
+ln2_rx_sslms_adap_hold_reserved
+ln2_rx_sslms_adap_hold_reserved
+0
+RW 0x0
+reserved
+USBDPPHY_TRSV_REG02A6
+Address: Operational Base + offset (0x0A98)
+Bit Attr Reset Value
+31:8 RO 0x000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2273
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+7:4
+
+RW 0x4
+
+3:0
+
+RW 0xf
+
+Description
+ln0_rx_cdr_fbb_fine_ctrl_sp
+RX CDR FBB code in PLL Low-BW of CK and Data mode
+4'b0000: Min FBB code
+~
+4'b1111: Max FBB code
+ln0_rx_cdr_fbb_pll_bw_diff_sp
+RX CDR FBB offset from FBB-calibrated code in PLL mode
+4'b0000: No offset
+4'b0001: +1
+4'b0010: +2
+~
+4'b1111: Max FBB code
+
+USBDPPHY_TRSV_REG06A6
+Address: Operational Base + offset (0x1A98)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln2_rx_cdr_fbb_fine_ctrl_sp
+RX CDR FBB code in PLL Low-BW of CK and Data mode
+7:4
+RW 0x4
+4'b0000: Min FBB code
+~
+4'b1111: Max FBB code
+ln2_rx_cdr_fbb_pll_bw_diff_sp
+RX CDR FBB offset from FBB-calibrated code in PLL mode
+4'b0000: No offset
+3:0
+RW 0xf
+4'b0001: +1
+4'b0010: +2
+~
+4'b1111: Max FBB code
+USBDPPHY_TRSV_REG030C
+Address: Operational Base + offset (0x0C30)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+ln0_rx_sslms_hf_init_rate_ssp
+4:0
+RW 0x06
+RX DFE SSLMS init value
+USBDPPHY_TRSV_REG0312
+Address: Operational Base + offset (0x0C48)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+ln0_rx_sslms_mf_init_rate_ssp
+4:0
+RW 0x03
+RX DFE SSLMS init value
+USBDPPHY_TRSV_REG070C
+Address: Operational Base + offset (0x1C3C)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+ln2_rx_sslms_hf_init_rate_ssp
+4:0
+RW 0x06
+RX DFE SSLMS init value
+USBDPPHY_TRSV_REG0712
+Address: Operational Base + offset (0x1C48)
+Bit Attr Reset Value
+31:5 RO 0x0000000
+reserved
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+2274
+
+RK3588 TRM-Part2
+Bit
+4:0
+
+Attr Reset Value
+RW 0x03
+
+Description
+ln2_rx_sslms_mf_init_rate_ssp
+RX DFE SSLMS init value
+
+USBDPPHY_TRSV_REG06BC
+Address: Operational Base + offset (0x1AF0)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+ln2_rxd_polarity
+7
+RW 0x0
+On normal path, Rx data polarity inversion
+ln2_rx_sigval_lpf_bypass
+Low pass filter for removing sigval falling glitchs.
+6:5
+RW 0x0
+1'b0: Filter enable
+1'b1: Filter bypass
+ln2_tg_rx_sigval_lpf_delay_time
+4:2
+RW 0x7
+N/A
+ln2_rx_ctle_eq_mf_man_sel
+1
+RW 0x0
+N/A
+ln2_rx_ctle_eq_hf_man_sel
+0
+RW 0x1
+N/A
+
+14.5 Application Notes
+14.5.1 Signal Controlled by GRF and CRU
+
+There are two USBDP PHY (USBDPPHY 0 and USBDPPHY 1) in system. The signals need to
+be controlled by CRU or GRF are list below:
+USBDPPHY 0:
+i_rx_lfps_en: USB3PHY0_GRF_CON1[14]
+i_init_rstn: CRU_SOFTRST_CON02[8]
+i_apb_presetn: CRU_SOFTRST_CON72[2]
+i_pcs_apb_presetn: CRU_SOFTRST_CON02[11]
+i_cmn_rstn: CRU_SOFTRST_CON02[9]
+i_lane_rstn: CRU_SOFTRST_CON02[10]
+USBDPPHY 1:
+i_rx_lfps_en: USB3PHY1_GRF_CON1[14]
+i_init_rstn: CRU_SOFTRST_CON02[15]
+i_apb_presetn: CRU_SOFTRST_CON72[4]
+i_pcs_apb_presetn: CRU_SOFTRST_CON03[2]
+i_cmn_rstn: CRU_SOFTRST_CON03[0]
+i_lane_rstn: CRU_SOFTRST_CON03[1]
+
+14.5.2 Power Sequence Guide
+14.5.2.1 Power-Up Sequence
+
+Sequential power-up of 1.8V and 0.85V must be provided to USBDP Combo PHY for proper
+SerDes operation. Supply voltage of 0.85V must be ramped up first, and supply voltage of
+1.8V must be started ramping up after 0.85V supply is completely settled down. Signals
+i_init_rstn and i_apb_presetn must be asserted after power is fully turned on. Following the
+release of i_init_rstn, you can access some registers through APB if need and the primary
+inputs i_cmn_rstn should be set low until the APB programming is finished from initial. After
+the APB is programmed, the i_cmn_rstn should be released. The signal i_cmn_rstn=0 will
+cause the PMA's COMMON to turn on. And, the primary input i_lane_rstn will be controlled
+by Link sub-controller and will be reset in abnormal situation like link-down.
+PLL locks within 60us after i_cmn_rstn is asserted and o_pll_lock_done goes to high when
+the PLL achieves lock. Fig.1-2 illustrates the timing restrictions for RESET signals and the
+typical timing information for the related output signals.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2275
+
+RK3588 TRM-Part2
+
+Fig. 14-2 USBDP PHY Power Up Sequence
+
+14.5.2.2 Power-Down Sequence
+
+During power-down (Turning-off supply voltage), supply voltage of 0.85V must start
+ramping down after supply voltage of 1.8V is completely discharge.
+
+Fig. 14-3 USBDP PHY Power Down Sequence
+
+14.5.3 PHY Initialization Guide
+14.5.3.1 USBDP APB Reset Sequence
+
+The USBDP PHY has USB part and DP part. And both parts share the APB Reset. The APB
+Reset sequence is needed to initialize the USBDP PHY.
+Please de-assert USBDP PHY APB Reset when the USBDP PHY is needed to re-initialize like
+POR (Power-On-Reset, Alt-mode configuration changing).
+Please do not de-assert i_apb_presetn when only USB part or DP part initialized.
+
+14.5.3.2 USB LANE0/1, DP LANE2/3 Setting Sequence
+
+When USBDP PHY works, some initial setting should be applicated. The following shows the
+initialization sequence.
+i_usbdp_low_pwrn
+
+i_apb_presetn
+
+>1 apb cycle
+apb setting
+
+0x38c
+
+i_init_rstn
+
+0x38c & apb check
+
+200 ns
+
+i_lane_rstn
+
+i_cmn_rstn
+
+Fig. 14-4 USBDP PHY Power Down Sequence
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2276
+
+RK3588 TRM-Part2
+
+Port / SFR Address
+
+rext
+i_usbdp_low_pwrn
+i_apb_presetn
+WAIT 1 APB_CLK
+i_usbdp_low_pwrn
+i_apb_presetn
+i_lcpll_ref_clk_sel
+i_ropll_ref_clk_Sel
+i_init_rstn
+i_lane_rstn
+i_cmn_rstn
+24M reference clk:
+0x0090
+0x0094
+0x0128
+0x012c
+0x0130
+0x0134
+0x015c
+0x0160
+0x0164
+0x0168
+0x0174
+0x0178
+0x017c
+0x0180
+0x018c
+0x0190
+0x0194
+0x01ac
+0x01b0
+0x01b4
+0x01b8
+0x01c8
+0x01cc
+0x01d0
+0x01d4
+0x01d8
+0x01dc
+0x01e0
+0x01e4
+0x01f0
+0x01f4
+0x01f8
+0x01fc
+0x0208
+0x020c
+0x0210
+0x0214
+0x0224
+0x03f0
+
+Table 14-2 PHY Initialization Sequence
+Write value
+USB RX0
+TX1
+DP TX2 TX3
+1
+0
+0
+
+DP TX0 TX1
+USB RX2 TX3
+
+DP
+TX0/TX1/TX2/TX3
+
+1
+0
+0
+
+1
+0
+0
+
+1
+1
+1
+1
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+24M reference clk:
+0x68
+0x68
+0x24
+0x44
+0x3f
+0x44
+0xa9
+0x71
+0x71
+0xa9
+0xa9
+0x71
+0x71
+0xa9
+0x41
+0x00
+0x05
+0x2a
+0x17
+0x17
+0x2a
+0x04
+0x08
+0x08
+0x04
+0x20
+0x01
+0x09
+0x03
+0x29
+0x02
+0x02
+0x29
+0x2a
+0x17
+0x17
+0x2a
+0x20
+0x0d
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Read value
+
+1
+1
+0
+0
+0
+0
+0
+
+2277
+
+RK3588 TRM-Part2
+Port / SFR Address
+
+0x03f4
+0x03f8
+0x03fc
+0x0404
+0x0408
+0x040c
+0x0410
+0x0a3c
+0x0a44
+0x0a48
+0x0a4c
+0x0a54
+0x0a5c
+0x0a64
+0x1a3c
+0x1a44
+0x1a48
+0x1a4c
+0x1a54
+0x1a5c
+0x1a64
+0x0E38
+26M reference clk:
+0x0830
+0x085c
+0x1030
+0x105c
+0x1830
+0x185c
+0x2030
+0x205c
+0x0228
+0x0104
+0x0248
+0x038C
+0x0878
+0x1878
+0x0898
+0x1898
+0x0054
+0x00e0
+0x0060
+0x0064
+0x0070
+0x0234
+0x0AF4
+0x1AF4
+0x081C
+0x181C
+0x099C
+0x199C
+0x09A4
+
+Write value
+USB RX0
+DP TX0 TX1
+TX1
+USB RX2 TX3
+DP TX2 TX3
+0x09
+0x09
+0x0d
+0x0e
+0x14
+0x14
+0x3b
+0xd0
+0xd0
+0x01
+0x0d
+0xe0
+0xe0
+0xa8
+0xd0
+0xd0
+0x01
+0x0d
+0xe0
+0xe0
+0xa8
+0x05
+26M reference clk:
+0x07
+0x80
+0x07
+0x80
+0x07
+0x80
+0x07
+0x80
+0x38
+0x44
+0x44
+0x02
+0x04
+0x04
+0x77
+0x77
+0x01
+0x38
+0x24
+0x77
+0x76
+0xE8
+0x15
+0x15
+0xE5
+0xE5
+0x48
+0x48
+0x07
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Read value
+
+DP
+TX0/TX1/TX2/TX3
+
+2278
+
+RK3588 TRM-Part2
+Port / SFR Address
+
+0x09A8
+0x19A4
+0x19A8
+0x09B8
+0x19B8
+0x09E4
+0x19E4
+0x0A34
+0x1A34
+0x0A98
+0x1A98
+0x0c30
+0x0C48
+0x1C30
+0x1C48
+0x028C
+0x0AF0
+0x1AF0
+0x0E38
+0x028C
+
+0x0854 (RBR, HBR)
+0x1054 (RBR, HBR)
+0x1854 (RBR, HBR)
+0x2054 (RBR, HBR)
+0x0854 (HBR2,
+HBR3)
+0x1054 (HBR2,
+HBR3)
+0x1854 (HBR2,
+HBR3)
+0x2054 (HBR2,
+HBR3)
+i_init_rstn (when USB
+used)
+0x038C (when DP
+used)
+WAIT 200ns
+i_lane_rstn (when
+USB used)
+i_cmn_rstn (when
+USB used)
+0x038C (when DP
+used)
+0x0350 (Check when
+USB used)
+0x0354 (Check when
+DP used)
+
+Write value
+USB RX0
+TX1
+DP TX2 TX3
+0x22
+0x07
+0x22
+0x3E
+0x3E
+0x02
+0x02
+0x1E
+0x1E
+0x2F
+0x2F
+0x0E
+0x06
+0x0E
+0x06
+0x18
+0x00
+0x00
+0x05
+0x14 // RBR
+0x34 // HBR
+0x54 //
+HBR2
+0x74 //
+HBR3
+0x04
+0x04
+0x06
+0x06
+0x04
+0x04
+
+DP TX0 TX1
+USB RX2 TX3
+
+DP
+TX0/TX1/TX2/TX3
+
+0x10 // RBR
+0x30 // HBR
+0x50 //
+HBR2
+0x70 //
+HBR3
+0x06
+0x06
+0x04
+0x04
+0x04
+0x04
+
+0x10 // RBR
+0x30 // HBR
+0x50 // HBR2
+0x70 // HBR3
+
+0x04
+0x04
+
+0x04
+0x04
+
+0x04
+0x04
+
+1
+
+1
+
+0
+
+0x0A
+
+0x0A
+
+0x0A
+
+1
+
+1
+
+0
+
+1
+
+1
+
+0
+
+0x0E
+
+0x0E
+
+0x0E
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Read value
+
+0x06
+0x06
+0x06
+0x06
+0x04
+0x04
+
+SKIP
+
+0b_11XX_XXXX
+0b_XXXX_XX11
+
+2279
+
+RK3588 TRM-Part2
+Port / SFR Address
+
+Write value
+USB RX0
+TX1
+DP TX2 TX3
+
+0x0B84 (Check when
+USB used)
+0x1B84 (Check when
+USB used)
+
+Read value
+
+DP TX0 TX1
+USB RX2 TX3
+
+DP
+TX0/TX1/TX2/TX3
+
+SKIP
+
+SKIP
+
+0b_XXXX_XXX1
+
+SKIP
+
+0b_XXXX_XXX1
+
+SKIP
+
+14.5.4 SFR Setting for Transmitter
+14.5.4.1 Amplitude
+
+Tx amplitude is defined as a differential swing of low-frequency (DC) signal, which is less
+dependent on off-chip environment, at ln[N]_txdp, ln[N]_txdn, ln[N]_trxdp and ln[N]_trxdn
+as shown in Fig.1-4. Tx driver amplitude is controlled by two tuning parameters; voltagemode and current-mode driver amplitude control, respectively.
+
+Fig. 14-5 TX DC Amplitude Control
+The amplitude of voltage-mode driver can be controlled by either PCS or PMA SFR setting.
+As shown in Table1-3, SFR fields for control consist of override enable and input bits. When
+override enable is set to high, all following input bits for override are directly applied to Tx
+voltage mode driver circuit. Due to its own characteristic of voltage-mode driver, the
+maximum single-ended amplitude of the driver cannot exceed the supply voltage level, VDD
+(Assuming well-matched Tx impedance). Note that the register field for voltage-mode driver
+swing control is separated into four rate-specific registers and one matched register value is
+automatically applied according to the data rate under operation. A current-mode driver is
+implemented to achieve higher voltage swing beyond the limit of voltage-mode drive. In
+order to activate the current-mode driver, ln_tx_drv_idrv_en must be set to high and
+ana_tx_drv_idrv_iup_ctrl must be set When the current-mode driver is enabled, extra higher
+swing can be achieved over VDD.
+Table 14-3 Amplitude Control of Voltage-Mode Driver
+Name
+Address
+Code
+Description
+Override enable for TX Amplitude
+0x0810
+0x1
+Override enable
+Contorl
+0x1010
+for
+0x1810
+tx_drv_idrv_en
+0x2010
+Bit[5]
+TX Differential Output
+0x0810
+0xa
+1200mV (Max)
+(TXDP/TXDN)
+0x1010
+Amplitude Control
+0x1810
+0x0
+400 mV
+ln0/1/2/3_tx_drv_lvl_ctrl
+0x2010
+Bit[4:0]
+
+TX Differential Output
+(TXDP/TXDN)
+
+0x0818
+0x1018
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+0x10
+
+Disable current
+driver
+
+2280
+
+RK3588 TRM-Part2
+Name
+Amplitude Control
+ln0/1/2/3_tx_drv_idrv_en
+
+Address
+0x1818
+0x2018
+Bit[0]
+
+Code
+0x11
+
+Description
+enable current
+driver
+
+TX Differential Output
+(TXDP/TXDN)
+Amplitude Control
+ln0/1/2/3_ana_tx_drv_idrv_iup_ctrl
+
+0x081C
+0x101C
+0x181C
+0x201C
+Bit[7:5]
+
+0x0
+
+1200mV ( Max )
+
+0x7
+
+850mV ( Min )
+
+14.5.4.2 Equalization
+
+USBDP Combo PHY has 3 tap FIR filter in Tx. De-emphasis function is implemented to
+reduce the swing of driver when there is no transition (bit change) between current and
+previous data bit as shown in Fig.1-5.
+
+Fig. 14-6 TX De-emphasis Level Control
+Table 14-4 SFR Setting for De-emphasis Level Control
+Name
+Address
+Code
+TX De-Emphasis Level Control 0x0814
+00000
+ln0/1/2/3_tx_drv_post_lvl_ctrl 0x1014
+00100
+0x1814
+0x2014
+0100
+Bit[4:0]
+01000
+
+Description
+-0.5 dB
+–1.5 dB.
+–2.8 dB.
+–4.2 dB.
+
+Preshoot function is implemented to reduce the swing of driver when there is no transition
+(bit change) between current and next data bit as shown in Fig.1-6
+
+Fig. 14-7 TX Preshoot Level Control
+Table 14-5 SFR Setting for Preshoot Level Control
+Name
+Address
+Code
+Description
+TX Pre-shoot Level Control
+0x0818
+0000
+0 dB
+ln0/1/2/3_tx_drv_pre_lvl_ctrl 0x1018
+Recommend to use over 5
+0x1818
+Gbps speed
+0x2018
+0110
+–1.6 dB.
+Bit[5:2]
+Recommend to use over 10
+Gbps speed.
+1001
+–6.9 dB.
+Not recommend to use
+because main amplitude
+level is also aggressively
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2281
+
+RK3588 TRM-Part2
+Name
+
+Address
+
+Code
+
+Description
+reduced.
+
+14.5.4.3 Slew Rate
+
+Slew rate of Tx waveform is able to be controlled by SFR shown in Table 1-6. In order to
+enable slew-rate control, ana_tx_drv_accdrv_en bit must be set to high. Polarity of slew-rate
+control is controlled by ana_tx_drv_accdrv_pol_sel_* for each data rate. Tx driver has faster
+slew rate when this bit is set to high, while slower rate when set to low. Amount of slew rate
+control is determined by ana_tx_drv_accdrv_ctrl_* for each data rate. Higher value makes
+Tx driver to have faster slope when ana_tx_drv_accdrv_pol_sel_* is set to high, while
+higher value makes Tx driver to have slower slope when ana_tx_drv_accdrv_pol_sel_* is set
+to low.
+
+Fig. 14-8 TX Slew-Rate Control
+Table 14-6 SFR Setting for Slew Rate Level Control
+Name
+Address
+Code
+accdrv_en
+0x081C
+0x0
+ln0/1/2/3_ana_tx_drv_accdrv_en
+0x101C
+0x181C
+0x201C
+Bit[1]
+0x1
+
+accdrv_pol_sel
+ln0/1/2/3_ana_tx_drv_accdrv_pol_sel
+
+drv_accdrv_ctrl
+ln0/1/2/3_ana_tx_ drv_accdrv_ctrl
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+0x081C
+0x101C
+0x181C
+0x201C
+Bit[0]
+0x0820
+0x1020
+0x1820
+0x2020
+Bit[5:3]
+
+0x1
+
+Description
+TX AC-coupled
+driver enable for
+slew rate control
+Disable
+TX AC-coupled
+driver enable for
+slew rate control
+Enable
+Faster slew rate
+
+0x0
+
+Slower slew rate
+
+0x7
+
+TX AC-coupled
+driver Max
+Strength
+TX AC-coupled
+driver Min Strength
+
+0x0
+
+2282
+
+RK3588 TRM-Part2
+

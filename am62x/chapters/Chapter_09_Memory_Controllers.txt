@@ -1,0 +1,774 @@
+=== Page 801 ===
+This chapter describes the memory controllers in the device.
+9.1 DDR Subsystem (DDRSS)........................................................................................................................................802
+9.2 Region-based Address Translation (RAT) Module................................................................................................817
+Chapter 9
+Memory Controllers
+
+=== Page 802 ===
+9.1 DDR Subsystem (DDRSS)
+This section describes the DDR Subsystem (DDRSS) for the device.
+9.1.1 DDRSS Overview
+The DDR subsystem in this device comprises DDR controller, DDR PHY and wrapper logic to integrate these
+blocks in the device. The DDR subsystem is referred to as DDRSS0 and is used to provide an interface to
+external SDRAM devices which can be utilized for storing program or data. DDRSS0 is accessed via CBASS0
+interconnect.
+Table 9-1 shows DDRSS allocation across device domains.
+Table 9-1. DDRSS Allocation Across Device Domains
+Instance
+Domain
+MCU
+MAIN
+DDRSS0
+-
+✓
+Figure 9-1 shows an overview of the DDRSS0 and its surrounding modules.
+Device
+Interrupts
+CBASS0
+External SDRAM
+Interface
+DDR Controller
+DDR PHY
+DDR IOs
+Configuration
+Data
+Clocks
+Reset
+Wrapper Logic
+DDRSS0
+GICSS0, R5FSS, TIFS0,
+HSM0,ESM0
+ddr16ss0-001
+LPSC10
+PLLCTRL0 and PLL12
+Figure 9-1. DDRSS Overview
+The DDRSS0 supports:
+•
+Memory Types:
+
+=== Page 803 ===
+•
+DDR4 up to 1600Mbps
+•
+LPDDR4 up to 1600Mbps
+•
+Memory Bus Features:
+•
+16-bit width with in-line ECC
+•
+Up to 2 ranks
+•
+SDRAM address range up to 8 GB
+•
+System Bus Interface:
+•
+128-bit data width
+•
+Little endian only
+•
+Address aliasing prevention to block accesses to unpopulated SDRAM region
+•
+Clock asynchronous to DDR clock
+•
+Configuration Bus Interface:
+•
+32-bit data width
+•
+Linear incrementing addressing mode
+•
+32-bit aligned accesses only
+•
+Little endian only
+•
+Clock asynchronous to DDR clock
+•
+Key Features:
+•
+Full coherency across all commands
+•
+Bank interleaving
+•
+Priority based scheduling
+•
+Scheduling based on bank openness
+•
+Class of Service (CoS) - Three latency classes supported
+•
+Read/write scheduling to avoid turn-around time
+•
+Prioritized refresh scheduling
+•
+Dynamic change of refresh rate via software for extended temperatures
+•
+Statistical counters for performance management
+•
+SDRAM ECC Features:
+•
+In-line ECC
+•
+32-byte ECC calculated over 256-byte data
+•
+Read-modify-write ECC for sub-word writes
+•
+Support ECC cache to improve in-line ECC performance
+•
+Support 64 cache-lines each 512-byte wide
+•
+ECC address error logging
+•
+Statistical counters for counting ECC errors
+•
+Low Power Features:
+•
+All power modes defined by JEDEC (clock stop for LPDDR4, self-refresh, power-down, etc.)
+•
+Self-refresh entry and exit via software or hardware clock stop request/acknowledge
+•
+System bus clock stop via hardware clock stop request/acknowledge when controller is idle
+•
+Automatic idle power saving mode when no or low activity is detected
+•
+DDR and system bus clock frequency change using self-refresh via software or hardware clock stop
+request/acknowledge
+•
+Turning off SoC power after DDR is put into self-refresh (DDR reset and CKE I/O retention)
+•
+Tri-stating of all DDR I/O cells via software while driving CKE and RESETn pins during self-refresh
+•
+LPDDR4 Frequency Set Point (FSP)
+•
+Functional Safety Features:
+•
+VBUSM2AXI bridge AXI bus timeout
+•
+DDR PHY Features:
+•
+Automatic and software controllable initialization and calibration (ZQ) for the DDR PHY and I/O cells
+•
+Automatic and software controllable delay line calibrations with Voltage and Temperature (VT)
+compensation
+•
+Automatic and software controllable write levelling with VT compensation
+
+=== Page 804 ===
+•
+Automatic read DQS gate training per rank with VT compensation
+•
+Automatic and software controllable DQ/DQS eye training per rank
+•
+Automatic and software controllable read and write data bit deskew
+•
+Automatic and software controllable Command/Address (CA) levelling with VT compensation for LPDDR4
+•
+Automatic and software controllable CA bit deskew for LPDDR4
+•
+Refreshes to SDRAM during leveling and training
+•
+No seeding requirement based on board topology for any of the leveling and training algorithms
+•
+Dynamic/automatic I/O Receiver disable when read transfer is not on going
+•
+Capability of disabling data macros and I/O cells when not in use
+Note
+Some features may not be available. See Module Integration for more information.
+
+=== Page 805 ===
+9.1.2 DDRSS Environment
+Please refer to the AM62x DDR Board Design and Layout Guidelines application note for detailed information on
+DDR interface connections to LPDDR4 and DDR4 memory devices
+
+=== Page 806 ===
+Table 9-2 describes the DDRSS0 I/O signals used for connection to SDRAM devices.
+Table 9-2. DDRSS0 I/O signals
+Module Pin
+Device Level Signal
+I/O(1)
+Description
+RESETN
+DDR0_RESET0_n
+O
+SDRAM reset
+CK
+DDR0_CK0
+O
+SDRAM differential clock pair
+CKN
+DDR0_CK0_n
+O
+ALERTN
+DDR0_ALERT_n
+IO
+SDRAM parity error output
+A[13-0]
+DDR0_A[13-0]
+O
+SDRAM address and command bus
+WEN
+DDR0_WE_n
+O
+SDRAM write enable
+CASN
+DDR0_CAS_n
+O
+SDRAM column address strobe
+RASN
+DDR0_RAS_n
+O
+SDRAM row address strobe
+ACTN
+DDR0_ACT_n
+O
+SDRAM activate
+BA[1-0]
+DDR0_BA[1-0]
+O
+SDRAM bank address
+BG[1-0]
+DDR0_BG[1-0]
+O
+SDRAM bank group
+PAR
+DDR0_PAR
+O
+SDRAM command parity
+CSN[1-0]
+DDR0_CS[1-0]_n
+O
+SDRAM chip select
+ODT[1-0]
+DDR0_ODT[1-0]
+O
+SDRAM on-die termination
+CKE[1-0]
+DDR0_CKE[1-0]
+O
+SDRAM CKE
+DQ[15-0]
+DDR0_DQ[15-0]
+IO
+SDRAM data bus
+DM[1-0]
+DDR0_DM[1-0]
+IO
+SDRAM data and mask/DBI
+DQS[1-0]
+DDR0_DQS[1-0]
+IO
+SDRAM data strobe
+DQSN[1-0]
+DDR0_DQS[1-0]_n
+IO
+SDRAM data strobe invert
+(1)
+I = Input; O = Output
+Note
+For more information about device level signals (pull-up/down resistors, buffer type, multiplexing and
+others), see tables Pin Attributes and Pin Multiplexing in the device-specific Datasheet.
+
+=== Page 807 ===
+9.1.3 DDRSS Functional Description
+9.1.3.1 Class of Service (CoS)
+Commands arriving to the DDRSS0 carry the VBUSM priority whereas the DDR controller uses AXI priority. The
+VBUSM2AXI bridge has the following registers for flexible mapping of the VBUSM priority to DDR controllers's
+priority:
+•
+Range match registers:
+•
+DDRSS_V2A_R1_MAT_REG
+•
+DDRSS_V2A_R2_MAT_REG
+•
+DDRSS_V2A_R3_MAT_REG
+•
+Priority map registers:
+•
+DDRSS_V2A_DEF_PRI_MAP_REG
+•
+DDRSS_V2A_R1_PRI_MAP_REG
+•
+DDRSS_V2A_R2_PRI_MAP_REG
+•
+DDRSS_V2A_R3_PRI_MAP_REG
+This allows the system to essentially create different classes of service based on the initiator (Route ID) and the
+priority of the commands.
+The priority map registers map the incoming priority to appropriate proirity for the DDR controller as shown in
+Figure 9-2.
+Note
+For information about Route ID, see Section 3.1.4, Route ID in Chapter 3, System Interconnect.
+ddr16ss0-004
+DDR Controller
+Command Queue
+1
+0
+2
+4
+3
+5
+6
+7
+1
+0
+2
+3
+DDRSS_V2A_R1_MAT_REG
+DDRSS_V2A_R2_MAT_REG
+DDRSS_V2A_R3_MAT_REG
+Comparator
+VBUSM Priority
+VBUSM Route ID
+DDRSS_V2A_DEF_PRI_MAP_REG
+DDRSS_V2A_R1_PRI_MAP_REG
+DDRSS_V2A_R2_PRI_MAP_REG
+DDRSS_V2A_R3_PRI_MAP_REG
+Figure 9-2. DDRSS CoS Mapping Diagram
+9.1.3.2 AXI Write Data All-Strobes
+The DDR controller data path is connected to the VBUSM2AXI bridge through AXI interface. To enable higher
+performance and lower latency, the bridge drives the AXI AWALLSTRB signal to a "1" when the AXI write data
+does not have any byte enable holes. This allows the DDR controller to accept and start processing the write
+command as soon as possible without waiting for all data. The AXI0_ALL_STROBES_USED_ENABLE bit in
+
+=== Page 808 ===
+the DDR Controller must be set to a 0x1 to utilize this feature. The controller ignores the AWALLSTRB signal if
+AXI0_ALL_STROBES_USED_ENABLE is set to 0x0.
+9.1.3.3 Inline ECC for SDRAM Data
+For SDRAM data integrity, the VBUSM2AXI bridge supports inline ECC on the data written to or read from the
+SDRAM. ECC is enabled by programming the bits in the DDRSS_ECC_CTRL_REG register. ECC is stored
+together with the data so that a dedicated SDRAM device for ECC is not required.
+8-bit single error correction double error detection (SECDED) ECC is calculated over 64-bit data quanta. For
+every 256-byte data block 32 bytes of ECC is stored inline. Thus 1/9th of the total SDRAM space is used for
+ECC storage and the rest 8/9th is available for system use. From system point of view that 8/9th of the SDRAM
+data space are seen as consecutive byte addresses. Even if there are non-ECC protected regions the previously
+described 1/9th-8/9th rule still applies and consecutive byte addresses are seen from system point of view. Note
+that 8/9 of the total SDRAM space is available for system use regardless of the size of the ECC region(s). In
+other words, only 8/9 of the memory is available even in non-ECC regions when ECC is enabled.
+The ECC is calculated for all accesses that are within the address ranges protected by ECC. The address
+ranges are specified through the following registers:
+•
+DDRSS_ECC_R0_STR_ADDR_REG
+•
+DDRSS_ECC_R0_END_ADDR_REG
+•
+DDRSS_ECC_R1_STR_ADDR_REG
+•
+DDRSS_ECC_R1_END_ADDR_REG
+•
+DDRSS_ECC_R2_STR_ADDR_REG
+•
+DDRSS_ECC_R2_END_ADDR_REG
+Note that the addresses in these address range registers should be in terms of the DDRSS address space, not
+the SoC memory space. Even though the SoC memory space for DDR may be split into multiple regions, the
+DDRSS address space is continuous.
+For example, if the beginning of DDR is in SoC memory space 0x8000_0000 to 0xFFFF_FFFF, this corresponds
+to DDRSS address space 0x00000000 to 0x7FFFFFFF. If the SoC has greater DDR address reach, even at a
+discontinuous address, the address range for these registers would be continuous (eg, if the next DDR address
+at the SoC level is 0x880000000, the corresponding address would be continuous at 0x80000000)
+Note that the value programmed in the ECC range start/end registers does not include the lower 16 bits of the
+address. For example, to represent an address of 0x40000000, the register contents would be 0x4000.
+The ECC is read and verified during reads if both the DDRSS_ECC_CTRL_REG[0] ECC_EN and
+DDRSS_ECC_CTRL_REG[2] ECC_CK bits are set to 0x1. For 1-bit ECC error, the bridge corrects the data
+and returns it to the requestor. Although the error is corrected on the returned data, the SDRAM is not corrected.
+It is responsibility of the system software to correct the ECC error at that location.
+It is also responsibility of the system software to pre-load the ECC protected region with known data before
+functional reads and writes are performed. This can be done by writing to the SDRAM with ECC enabled
+(DDRSS_ECC_CTRL_REG[0] ECC_EN = 0x1 and DDRSS_ECC_CTRL_REG[1] RMW_EN = 0x1) and ECC
+check disabled (DDRSS_ECC_CTRL_REG[2] ECC_CK = 0x0). Once the data is loaded in the SDRAM, ECC
+check must be enabled (DDRSS_ECC_CTRL_REG[2] ECC_CK = 0x1) before using the DDR interface.
+9.1.3.3.1 ECC Cache
+The VBUSM2AXI bridge implements a 64-line deep ECC cache for improving inline ECC performance. Each
+cache line can be allocated to an initiator in the system based on its Route ID. The Route ID allocation to cache
+line can be done by writing to the DDRSS_ECC_RID_INDX_REG and DDRSS_ECC_RID_VAL_REG registers.
+Since the bridge uses unallocated cache lines for all read accesses without Route ID allocation, one or more
+locations in the cache should be kept unallocated for better performance. To ensure that at least one cache line
+remains unallocated, in the case all cache lines are allocated by software, the bridge automatically unallocates
+the 63rd cache line. Write accesses without Route ID allocation result in ECC and data writes to the SDRAM,
+
+=== Page 809 ===
+when the DDRSS_ECC_CTRL_REG[4] WR_ALLOC bit is set to 0x0. When DDRSS_ECC_CTRL_REG[4]
+WR_ALLOC is set to 0x1, an unassigned cache-line is allocated to write accesses without Route ID allocation.
+9.1.3.3.2 ECC Cache Flush
+For low power modes, the bridge supports flushing the cache when DDRSS stop clock request is asserted.
+When a clock stop is requested, the bridge will start issuing writes to the DRAM until all dirty cache locations
+are written to the DRAM. Once the writes are complete, the bridge asserts an acknowledge signal to let
+the subsystem know that the operation is complete. The subsystem uses this acknowledge signal along with
+acknowledgments from other submodules to generate the final DDRSS stop clock acknowledge to the system.
+9.1.3.3.3 ECC Statistics
+For 1-bit ECC error, the bridge logs the address location for the error in an internal 2-level deep FIFO. It
+stores the first two 1-bit ECC errors. The DDRSS_ECC_1B_ERR_ADR_LOG_REG register shows the address
+on top of the internal FIFO. Software should write 0x1 to the DDRSS_ECC_1B_ERR_ADR_LOG_REG[29-0]
+ECC_1B_ERR_ADR field to pop the FIFO and display the next address stored. The FIFO is loaded with the
+address for the next 1-bit ECC error if it is not full. No address comparison will be performed, that is, if a single
+address is associated with more than one ECC error, that address is logged twice.
+The number of 1-bit ECC errors can be counted using the DDRSS_ECC_1B_ERR_CNT_REG
+register. The bridge also supports programming a threshold in the DDRSS_ECC_1B_ERR_THRSH_REG
+register. When the 1-bit error count is equal to or greater than the programmed threshold,
+the bridge sets the DDRSS_V2A_INT_RAW_REG[3] ECC1BERR bit and also triggers the
+DDR0_DDRSS_DRAM_ECC_CORR_ERR_LVL_0 interrupt. When servicing the interrupt, software needs
+to clear the error count otherwise further interrupts will not be triggered. For 2-bit ECC
+errors, the bridge sets the DDRSS_V2A_INT_RAW_REG[4] ECC2BERR bit and also triggers the
+DDR0_DDRSS_DRAM_ECC_UNCORR_ERR_LVL_0 interrupt. The bridge does not correct the data for these
+uncorrectable errors. Along with generating the interrupt, the bridge also reports an error to the requesting
+initiatior and sends all zeros for the data. The bridge also logs the address location for the error in the
+DDRSS_ECC_2B_ERR_ADR_LOG_REG register.
+The bridge sets the DDRSS_V2A_INT_RAW_REG[5] ECCM1BERR bit and triggers the
+DDR0_DDRSS_DRAM_ECC_UNCORR_ERR_LVL_0 interrupt whenever it receives multiple 1-bit errors in
+different data words of the same SDRAM burst. This is done because the probability of receiving multiple 1-bit
+errors in different data words of the same SDRAM burst is very low. If this occurs, the chances are that there
+were multi-bit errors in each data word. Therefore, for reliability, pessimistic approach is taken to report these
+as a fatal error. The threshold for the number of 1-bit errors that result in an uncorrected error, reporting can
+be set by writing to the DDRSS_ECC_CTRL_REG[11-8] COR_ECC_THRESH field. For reliability, the threshold
+is always kept at 0/1 meaning 1-bit error in 2 or more data words is reported as a 2-bit error. For debug, the
+threshold can be changed to a higher value. Note that since these are multiple 1-bit errors, the statistic logging is
+done in the DDRSS_ECC_1B_ERR_CNT_REG and DDRSS_ECC_1B_ERR_ADR_LOG_REG registers.
+9.1.3.4 Address Alias Prevention
+The VBUSM2ZXI bridge checks the VBUSM address received against the valid SDRAM address space
+programmed in the DDRSS_V2A_CTL_REG register. If the VBUSM address for an access falls outside the
+programmed range the bridge sets to 0x1 the DDRSS_V2A_INT_RAW_REG[1] AERR bit and also triggers the
+DDR0_DDRSS_V2A_OTHER_ERR_LVL_0 interrupt. The address and the Route ID for the command caused
+error are logged in the DDRSS_V2A_AERR_LOG1_REG and DDRSS_V2A_AERR_LOG2_REG registers.
+The bridge fragments all incoming transactions into 32-byte accesses aligned at a 32-byte boundary. Therefore,
+for commands greater than 32 bytes with an address error, each fragment will report an error. This can cause
+multiple interrupts to be reported if software clears the error interrupt for the first fragment while other fragments
+are being executed. The address log register will always log the address for the fragment which caused the
+last interrupt. The valid address range can be programmed using the DDRSS_V2A_CTL_REG[9-5] SDRAM_IDX
+and DDRSS_V2A_CTL_REG[4-0] REGION_IDX fields.
+Table 9-3 summarizes the scenarios for determining valid address range and interrupt generation.
+
+=== Page 810 ===
+Table 9-3. REGION_IDX and SDRAM_IDX Scenarios
+Condition
+Description
+REGION_IDX = SDRAM_IDX
+DDR region size is equal to the connected SDRAM size. It is the SoC responsibility to
+ensure that the addresses received by the DDR subsystem do not fall outside the region
+size. No address error is generated if the address received falls outside the region size.
+REGION_IDX < SDRAM_IDX
+DDR region size is less than the connected SDRAM size. It is SoC responsibility to ensure
+that the addresses received by the DDR subsystem do not fall outside the region size. No
+address error is generated if the address received falls outside the region size.
+REGION_IDX > SDRAM_IDX
+DDR region size is greater than the connected SDRAM size. Address error is generated if
+the address received falls outside the connected SDRAM size.
+A write access outside the programmed range is discarded. A write error associated status is sent back to the
+VBUSM interface.
+A read access outside the programmed range is executed on the SDRAM interface as a normal read, but data
+will contain all zeroes before forwarding it to the VBUSM interface. A read error associated status is sent back to
+the VBUSM interface along with the read data containing all zeroes.
+When inline ECC is enabled, the available SDRAM size is reduced by 1/9th of the size programmed in the
+SDRAM_IDX field. Therefore, the bridge reports an error if an access falls outside the reduced SDRAM size
+when inline ECC is enabled. The reduced SDRAM size limit applies to all accesses, both to the protected and
+non-protected ECC regions.
+9.1.3.5 AXI Bus Timeout
+The VBUSM2AXI bridge has a timeout counter that expires when no AXI transaction can be sent to the
+DDR controller or no AXI response is received from the controller for a programmed time interval. The
+counter only counts when there are pending commands in the bridge and the AXI bus is idle. Therefore,
+the bridge will not time out during low-power modes. The time interval can be programmed by writing to the
+DDRSS_V2A_BUS_TO[23-0] BUS_TIMER field.
+Upon the expiry of the counter, the bridge terminates all pending commands in its internal
+FIFOs, returns error responses, sets the DDRSS_V2A_INT_RAW_REG[2] TOERR bit and triggers the
+DDR0_DDRSS_V2A_OTHER_ERR_LVL_0 interrupt.
+After a timeout occurs, the bridge terminates any new commands received and returns error response. Writing
+a value of 0x0 to the DDRSS_V2A_BUS_TO[23-0] BUS_TIMER field exits the timeout mode. The other method
+to exit the timeout mode is to reset the DDRSS0, thus resetting the VBUSM2ZXI bridge, the DDR controller, and
+the DDR PHY.
+9.1.3.6 DDRSS Interrupts
+The VBUSM2AXI bridge sets to 0x1 the DDRSS_V2A_INT_RAW_REG[1] AERR bit, if the VBUSM address for
+an access that falls outside the DDR space programmed in the DDRSS_V2A_CTL_REG register.
+The VBUSM2AXI bridge sets to 0x1 the DDRSS_V2A_INT_RAW_REG[2] TOERR bit, if it detects a hang on its
+interface to the DDR controller.
+The VBUSM2AXI bridge sets to 0x1 the DDRSS_V2A_INT_RAW_REG[3] ECC1BERR bit, if the threshold for
+1-bit ECC errors is met.
+The VBUSM2AXI bridge sets to 0x1 the DDRSS_V2A_INT_RAW_REG[4] ECC2BERR bit, in case of 2-bit errors
+for a read access performed within the SDRAM address range protected by ECC.
+The DDRSS0 asserts particular interrupt line only if the interrupts are enabled by writing 0x1 to the
+corresponding bit in the DDRSS_V2A_INT_SET_REG register. The interrupts can be disabled by writing 0x1
+to the corresponding bit in the DDRSS_V2A_INT_CLR_REG register.
+When interrupts are enabled, the corresponding bits in the DDRSS_V2A_INT_STAT_REG register are also set
+if an interrupt condition occurs. The interrupts can be cleared once serviced by writing 0x1 to the corresponding
+bit in the DDRSS_V2A_INT_STAT_REG register as well as writing to the DDRSS_V2A_EOI_REG register.
+
+=== Page 811 ===
+The subsystem will send an interrupt pulse, if there are any bits set in the Interrupt Status register
+(DDRSS_V2A_INT_STAT_REG) when the End of Interrupt register (DDRSS_V2A_EOI_REG) is written.
+VBUSM2AXI Bridge Events shows the events that are generated by the VBUSM2AXI bridge.
+Table 9-4. VBUSM2AXI Bridge Events
+Event Flag
+Event Mask
+Description
+DDRSS_V2A_INT_RAW_REG[4] ECC2BERR
+DDRSS_V2A_INT_STAT_REG[4] ECC2BERR
+DDRSS_V2A_INT_SET_REG[4] ECC2BERR_EN
+DDRSS_V2A_INT_CLR_REG[4] ECC2BERR_EN
+Generated in case of 2-bit
+errors for a read access
+within the ECC protected
+SDRAM address range. For
+more information, see Section
+9.1.3.3.3.
+DDRSS_V2A_INT_RAW_REG[3] ECC1BERR
+DDRSS_V2A_INT_STAT_REG[3] ECC1BERR
+DDRSS_V2A_INT_SET_REG[3] ECC1BERR_EN
+DDRSS_V2A_INT_CLR_REG[3] ECC1BERR_EN
+Generated in case of meeting
+the threshold for 1-bit ECC
+errors. For more information,
+see Section 9.1.3.3.3.
+DDRSS_V2A_INT_RAW_REG[2] TOERR
+DDRSS_V2A_INT_STAT_REG[2] TOERR
+DDRSS_V2A_INT_SET_REG[2] TOERR_EN
+DDRSS_V2A_INT_CLR_REG[2] TOERR_EN
+Generated in case of a hang
+of the interface between the
+bridge and the DDR controller.
+For more information, see
+Section 9.1.3.5.
+DDRSS_V2A_INT_RAW_REG[1] AERR
+DDRSS_V2A_INT_STAT_REG[1] AERR
+DDRSS_V2A_INT_SET_REG[1] AERR_EN
+DDRSS_V2A_INT_CLR_REG[1] AERR_EN
+Generated if the VBUSM
+address for an access falls
+outside the programmed
+range. For more information,
+see Section 9.1.3.4.
+9.1.3.7 DDRSS Memory Regions
+Table 9-5 shows all memory regions associated with the DDRSS0.
+Table 9-5. DDRSS0 Memory Regions
+Region
+Start Address
+End Address
+Region Size
+DDRSS0 wrapper logic registers
+0x00F300000
+0x00F3001FF
+512 B
+DDR controller registers
+0x00F308000
+0x00F309FFF
+8 KB
+DDR PHY independent module registers
+0x00F30A000
+0x00F30BFFF
+8 KB
+DDR PHY registers
+0x00F30C000
+0x00F30FFFF
+16 KB
+External SDRAM data space
+0x080000000
+0x0FFFFFFFF
+2 GB
+0x880000000
+0x9FFFFFFFF
+6 GB
+9.1.3.8 DDRSS Dynamic Frequency Change Interface
+This interface is used for handshaking between DDRSS0 and CTRL_MMR0 to dynamically change DDR clock
+frequency to support LPDDR4 Frequency Set Point (FSP). The frequency change can be initiated either by a
+SoC processor or by the DDRSS0.
+The associated CTRL_MMR0 registers for processor initiated frequency change are:
+•
+CTRLMMR_CHNG_DDR4_FSP_REQ
+•
+CTRLMMR_CHNG_DDR4_FSP_ACK
+The associated CTRL_MMR0 registers for DDRSS0 initiated frequency change are:
+•
+CTRLMMR_DDR4_FSP_CLKCHNG_REQ
+•
+CTRLMMR_DDR4_FSP_CLKCHNG_ACK
+The sequence for an SoC processor initiated frequency change is as follows:
+1.
+The processor writes the desired frequency to the CTRLMMR_CHNG_DDR4_FSP_REQ[1-0] REQ_TYPE
+field.
+
+=== Page 812 ===
+2.
+The processor sets to 0x1 the CTRLMMR_CHNG_DDR4_FSP_REQ[8] REQ bit to initiate frequency
+change.
+3.
+The processor programs PLL12 according to the CTRLMMR_CHNG_DDR4_FSP_REQ[1-0] REQ_TYPE
+value.
+4.
+The processor polls the CTRLMMR_CHNG_DDR4_FSP_ACK[7] ACK and
+CTRLMMR_CHNG_DDR4_FSP_ACK[0] ERROR bits to check if the frequency change has been completed
+successfully.
+The sequence for DDRSS0 initiated frequency change is as follows:
+1.
+DDRSS0 requests frequency change by asserting the CTRLMMR_DDR4_FSP_CLKCHNG_REQ[7] REQ bit
+and the CTRLMMR_DDR4_FSP_CLKCHNG_REQ[1-0] REQ_TYPE field. The REQ bit is also connected to
+the DDR0_DDRSS_PLL_FREQ_CHANGE_REQ_0 interrupt.
+2.
+Software reads the CTRLMMR_DDR4_FSP_CLKCHNG_REQ[1-0] REQ_TYPE value and programs PLL12
+accordingly.
+3.
+After the DDRSS0_FCLK has been changed software should set to 0x1 the
+CTRLMMR_DDR4_FSP_CLKCHNG_ACK[0] ACK bit.
+
+=== Page 813 ===
+9.1.3.9 DDR Controller Functional Description
+Figure 9-3 shows the DDR controller blocks along with the DDR PHY and VBUSM2AXI bridge.
+DDR Controller
+DDR PHY
+Placement
+Logic
+Command
+Selection
+Logic
+Command
+Queue
+Arbitration
+Priority
+Engine
+Write Queue
+Read Queue
+Configuration
+Registers
+ECC Engine
+BIST Engine
+Look-Ahead
+Optimization
+Transaction
+Processing
+AXI
+Interface
+VBUSM2AXI
+Bridge
+External
+SDRAM
+DDRSS0
+DDR I/Os
+Address/
+Control
+Slice
+Data
+Slices
+Address
+Slice
+Clock
+Slice
+PHY
+Core
+Logic
+PI
+Module
+PLLs
+DFI
+VBUSM
+The ECC Engine block of the DDR controller is not supported.
+Figure 9-3. DDR Controller Functional Blocks
+
+=== Page 814 ===
+9.1.3.9.1 DDR PHY Interface (DFI)
+The DDR controller and DDR PHY are connected via DDR PHY Interface (DFI) which is used for transferring
+control information and data between the PHY and the controller. For more information about DFI, see http://
+www.ddr-phy.org/.
+
+=== Page 815 ===
+9.1.3.9.2 Command Queue
+The DDR controller contains a command queue which uses a placement algorithm to determine the order of
+commands to be placed into the command queue. The placement logic follows many rules to determine where
+new commands should be inserted into the queue, relative to the contents of the command queue at a time.
+Placement is determined by considering address collisions, source collisions, data collisions, command types
+and priorities. The placement logic also attempts to maximize efficiency of the DDR controller through command
+grouping and bank splitting.
+9.1.3.9.2.1 Placement Logic
+The placement logic is a 2-stage queue which determines the order of commands that run in the DDR controller.
+The placement logic follows rules for determining placement of new commands into the queue, relative to the
+contents of the command queue at that time. Placement is determined by considering coherency, address
+collisions, source collisions, data collisions, user assigned priority, latency, age, and command type to offer low
+latency for critical controllers while optimizing bandwidth for all controllers. A second reordering stage allows
+ready-to-run commands to start even if the head-of-queue command is not yet ready to run. In addition, the
+queue can be disabled completely, resulting in an in-line queue that services requests in the order that they
+arrive.
+The DDR controller also has a full look-ahead facility that reduces the effect of page misses by pre-conditioning
+rows for upcoming requests by using „spare“ cycles in preceding transactions.
+9.1.3.9.2.2 Command Selection Logic
+After a command is in the command queue, command selection logic determines the method of pulling
+commands from the queue for running. On each clock cycle, the selection logic scans the entries of the
+command queue for determining the command to run. Commands for running are based on bank readiness,
+availability of at least 1 burst of data (writes), availability of storage for at least 1 burst of data (reads), bus
+turnaround timing, and conflicts. Similar to the placement rules, a command does not run before a command that
+was placed ahead of it in the command queue if it conflicts with address, source ID, or bank commands. Lower
+priority commands can run ahead of higher priority commands if the higher priority commands are not ready to
+run, as long as they do not conflict with commands that are ahead in the command queue.
+9.1.3.9.3 Transaction Processing
+The transaction command processing logic is used to process the commands in the command queue. The logic
+organizes the commands to the memories in such a way that data throughput is maximized. Bank opening and
+closing cycles are used for data transfers. The logic reviews the entire command queue for look-ahead of which
+banks have to be accessed in the future and ensures that the programed memory timing conditions are met.
+This flexibility allows the controller to be tuned to extract the maximum performance out of memories. During
+processing, the controller examines the commands and issues the appropriate set of signals to the memory.
+9.1.3.9.4 Paging Policy
+The DDR controller offers a flexible paging policy that allows open page operation, closed page operation, or
+an auto-precharge-per-command option that allows both modes simultaneously. Auto-precharge-per-command
+allows marking a particular controller or transaction (for example, a CPU cache) as a closed-page transaction.
+This type of transaction reduces power and improves latency for the next transaction to a different row in the
+same SDRAM bank. Other transactions can be marked as open page transactions. This type of transaction
+reduces power and improves latency and bandwidth to the next transaction to the same row in the same
+SDRAM bank.
+9.1.3.9.5 DDR Controller Initialization
+Once the power to the SDRAM and SoC is stable, the DDR controller must be initialized. It then automatically
+initializes the external memory. Please refer to the Processor SDK for the software drivers to initalize the DDR
+registers and memory
+
+=== Page 816 ===
+Note
+To facilitate the programming of these registers, refer to the device-specific DDR Subsystem Register
+Configuration Tool available at http://dev.ti.com/sysconfig.
+
+=== Page 817 ===
+9.2 Region-based Address Translation (RAT) Module
+This section describes the RAT functionality.
+9.2.1 RAT Functional Description
+9.2.1.1 RAT Availability
+lists the device modules and subsystems which have RAT module.
+9.2.1.2 RAT Operation
+The RAT module performs a region based address translation. It translates a 32-bit input address into a 48-bit
+output address. Any input transaction that starts inside of a programmed region will have its address translated,
+if the region is enabled. Any disabled region is ignored from the translation lookup.
+RAT has 16 regions, with each region having dedicated registers that define its attributes:
+•
+Base address of the region, via the RAT_BASE_k register.
+•
+Size of the region, via the RAT_CTRL_k register.
+•
+Translated base address (48-bit). It is defined by 32-bit lower address via the RAT_TRANS_L_k register, and
+16-bit upper address via the RAT_TRANS_U_k register.
+The input addresses are compared against all the enabled regions in parallel. The region size defines how many
+of the lowest address bits are included in the region space, starting from a 1B space to a 4GB space. Then
+the upper bits not part of the region are used for the lookup and comparison, matching those bits of the input
+addresses against the region base address. The region matches when it is enabled and the compare matches.
+The first region that matches has the output address set with the region translated base address upper bits. The
+lower bits that are part of the region size are copied from the input address to the output address. If there are no
+region matches then the input address is copied to the output address entirely.
+RAT does not automatically correct transactions that cross region boundaries, that is, start inside of a region and
+end outside of it, or start outside of a region and end inside of it. If a boundary crossing transaction is detected,
+then RAT annuls the transaction as illegal, generates an interrupt and logs an error, as explained in RAT Error
+Logging.
+Note
+The region base address and translated base address must be aligned to the defined region size. For
+example, if the defined region size is 64KB, then the two addresses must be 64KB aligned. This is
+software responsibility as RAT does not perform such alignment check. Regions that are not aligned
+have unpredictable results.
+Moreover, multiple region definitions must not overlap in their covered address space. RAT does not
+check for this, so it is software responsibility to take care of it. Overlapping regions may lead to
+unpredictable results.
+9.2.1.3 RAT Error Logging
+The error log consists of a series of registers that capture the details of the transaction, including the input
+address that caused the error. These registers are the following:
+•
+RAT_EXCEPTION_LOGGING_HEADER0 and RAT_EXCEPTION_LOGGING_HEADER1
+•
+RAT_EXCEPTION_LOGGING_DATA0 through RAT_EXCEPTION_LOGGING_DATA3
+The RAT module can capture one error before it is cleared by software. The error logging is enabled by default,
+but can be disabled via the RAT_EXCEPTION_LOGGING_CONTROL[0] DISABLE_F bit. Upon error logging an
+interrupt is also generated. To clear the log, software must either read the final error logging register, or manually
+clear the RAT_EXCEPTION_PEND_CLEAR[0] PEND_CLR bit by setting it to 0x1. This will clear the error status,
+and not the actual log registers, but it does allow the next error to be captured into the log registers. If the status
+is not cleared and additional errors are detected, they are not logged.
+
+=== Page 818 ===
+After an error occurs and is cleared (whether by reading the final error logging register or by clearing the status
+bit), the RAT_EOI_REG register must be written to guarantee the next interrupt pulse will be produced.
+shows the RAT source ID mapping which is associated with the RAT_EXCEPTION_LOGGING_HEADER0[23-8]
+SRC_ID field.
+

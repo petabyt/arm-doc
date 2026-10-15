@@ -1,0 +1,219 @@
+4.11 Camera Subsystem
+4.11.1 Camera Serial Interface Receiver (CSI_RX_IF)
+This section contains the integration details for the CSI_RX_IF module on this device. For Further information,
+see the Camera Serial Interface Receiver (CSI_RX_IF) section of the Peripherals chapter
+4.11.1.1 CSI_RX_IF Unsupported Features
+The following features are not supported on this family of devices:
+•
+Line Count Error Interrupt (Streams 1-3)
+•
+Frame Mismatch Error Interrupt (Streams 1-3)
+•
+Frame Count Error Interrupt (Streams 1-3)
+•
+FCC Stop Interrupt (Streams 1-3)
+•
+FCC Start Interrupt (Streams 1-3)
+•
+Line/Byte Interrupt (Streams 1-3)
+•
+Timer / Timer Interrupt (Streams 1-3)
+•
+VID32 Streams to VPAC, no VPAC available
+•
+PPI Retransmission, No Transmit interface available
+4.11.1.2 Module Allocations
+Table 4-122. CSI_RX_IF Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+csi_rx_if0
+✓
+4.11.1.3 Resets, Interrupts, and Clocks
+Table 4-123. CSI_RX_IF Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+CSI_RX_IF0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_CSI_RX
+_0
+25
+OFF
+YES
+LPSC_DPHY_0
+Table 4-124. CSI_RX_IF Resets
+Module Instance
+Source
+Description
+CSI_RX_IF0
+PSC0_PSC_0
+CSI_RX_IF0 reset
+Table 4-125. CSI_RX_IF Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+CSI_RX_IF0
+CSI_RX_IF0_csi_err_
+irq_0
+ESM0_esm_lvl_event
+_IN_0
+ESM0
+CSI_RX_IF0 interrupt
+request
+level
+CSI_RX_IF0
+CSI_RX_IF0_csi_err_
+irq_0
+GICSS0_spi_IN_175
+GICSS0
+CSI_RX_IF0 interrupt
+request
+level
+CSI_RX_IF0
+CSI_RX_IF0_csi_fatal
+_0
+ESM0_esm_lvl_event
+_IN_70
+ESM0
+CSI_RX_IF0 interrupt
+request
+level
+CSI_RX_IF0
+CSI_RX_IF0_csi_irq_
+0
+GICSS0_spi_IN_173
+GICSS0
+CSI_RX_IF0 interrupt
+request
+level
+CSI_RX_IF0
+CSI_RX_IF0_csi_leve
+l_0
+ESM0_esm_lvl_event
+_IN_72
+ESM0
+CSI_RX_IF0 interrupt
+request
+level
+=== Page 170 ===
+Table 4-125. CSI_RX_IF Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+CSI_RX_IF0
+CSI_RX_IF0_csi_leve
+l_0
+GICSS0_spi_IN_174
+GICSS0
+CSI_RX_IF0 interrupt
+request
+level
+CSI_RX_IF0
+CSI_RX_IF0_csi_non
+fatal_0
+ESM0_esm_lvl_event
+_IN_71
+ESM0
+CSI_RX_IF0 interrupt
+request
+level
+Table 4-126. CSI_RX_IF Clocks
+Module Instance
+Module Clock Input
+Source Clock Signal
+Description
+CSI_RX_IF0
+MAIN_CLK_CLK
+MAIN_SYSCLK0
+VBUS_CLK_CLK
+MAIN_SYSCLK0/2
+VP_CLK_CLK
+MAIN_SYSCLK0
+=== Page 171 ===
+4.11.2 MIPI D-PHY Receiver (DPHY_RX)
+This section contains the integration details for the DPHY_RX module on this device. For Further information,
+see the MIPI D-PHY Receiver (DPHY_RX) section of the Peripherals chapter
+4.11.2.1 DPHY4RX Unsupported Features
+The following features are not supported on this family of devices:
+•
+Swapping of Clock & Data Lanes
+4.11.2.2 Module Allocations
+Table 4-127. DPHY_RX Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+DPHY_RX0
+✓
+4.11.2.3 Resets, Interrupts, and Clocks
+Table 4-128. DPHY_RX Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+DPHY_RX0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_DPHY_0
+26
+OFF
+YES
+LPSC_MAIN_IP
+Table 4-129. DPHY_RX Resets
+Module Instance
+Source
+Description
+DPHY_RX0
+PSC0_PSC_0
+DPHY_RX0 reset
+Table 4-130. DPHY_RX Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+Table 4-131. DPHY_RX Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+DPHY_RX0
+MAIN_CLK_CLK
+MAIN_SYSCLK0/4
+=== Page 172 ===

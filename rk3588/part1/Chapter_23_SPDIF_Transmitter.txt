@@ -1,0 +1,1045 @@
+Chapter 23 SPDIF Transmitter
+23
+
+23.1 Overview
+The SPDIF transmitter is a self-clocking, serial, unidirectional interface for the
+interconnection of digital audio equipment for consumer and professional applications, using
+linear PCM coded audio samples.
+It provides the basic structure of the interface. Separate documents define items specific to
+particular applications.
+When used in a professional application, the interface is primarily intended to carry
+monophonic or stereophonic programmes, at a 48 kHz sampling frequency and with a
+resolution of up to 24bits per sample; it may alternatively be used to carry signals sampled
+at 32 kHz or 44.1 kHz.
+When used in a consumer application, the interface is primarily intended to carry
+stereophonic programmes, with a resolution of up to 20 bits per sample, an extension to 24
+bits per sample being possible.
+When used for other purposes, the interface is primarily intended to carry audio data coded
+other than as linear PCM coded audio samples. Provision is also made to allow the interface
+to carry data related to computer software or signals coded using non-linear PCM. The
+format specification for these applications is not part of this standard.
+In all cases, the clock references and auxiliary information are transmitted along with the
+programme.
+There are 6 SPDIF transmitters in total. They are SPDIF0, SPDIF1, SPDIF2, SPDIF3, SPDIF4
+and SPDIF5.
+MCLK is the operation clock of SPDIF transmitter. The maximum frequency of MCLK are
+different for the 6 SPDIF transmitters. Following table shows the maximum frequency of
+MCLK for SPDIF0, SPDIF1, SPDIF2, SPDIF3, SPDIF4 and SPDIF5.
+Table 23-1 Maximum Frequency of MCLK for the 6 SPDIF Transmitters
+SPDIF transmitter
+Maximum frequency of MCLK
+SPDIF0, SPDIF1
+49.152MHz
+SPDIF2, SPDIF5
+393.216MHz
+SPDIF3, SPDIF4
+196.608MHz
+Each SPDIF transmitter supports following features.
+⚫ Support one internal 32-bit wide and 32-location deep sample data buffer
+⚫ Support two 16-bit audio data store together in one 32-bit wide location
+⚫ Support AHB bus interface
+⚫ Support biphase format stereo audio data output
+⚫ Support DMA handshake interface and configurable DMA water level
+⚫ Support sample data buffer empty and block terminate interrupt
+⚫ Support combine interrupt output
+⚫ Support 16 to 31 bit audio data left or right justified in 32-bit wide sample data buffer
+⚫ Support 48, 44.1, 32kHz sample rate
+⚫ Support 16, 20, 24 bits audio data transfer
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1550
+
+RKRK3588 TRM-Part1
+
+23.2 Block Diagram
+dma
+interface
+
+Serial
+Audio
+Converter
+
+Biphase
+Audio
+Generator
+
+Parallel
+Audio
+Buffer
+
+Clock
+Divider
+
+biphase
+output
+
+System
+Interface
+
+AHB BUS
+interrupt
+interface
+
+Fig. 23-1 SPDIF transmitter Block Diagram
+The SPDIF transmitter is composed of following module.
+System Interface
+The system interface implements the AHB slave operation. It contains not only control
+registers of transmitters and receiver inside but also interrupt and DMA handshaking
+interface.
+Clock Divider
+The clock divider implements clock generation function. It divides the source clock MCLK to
+generate the working clock used for the digital audio data transformation and transmission.
+Parallel Audio Buffer
+The parallel audio buffer stores the audio data to be transmitted. The size of the FIFO is
+32bits x 32.
+Serial Audio Converter
+The serial audio converter converts the parallel audio data from the parallel audio buffer to
+the serial audio data.
+Biphase Audio Generator
+The biphase audio generator reads serial audio data from the serial audio converter and
+generates biphase audio data based on IEC-60958 standard.
+
+23.3 Function description
+23.3.1 Frame Format
+
+A frame is uniquely composed of two sub-frames. For linear coded audio applications, the
+rate of transmission of frames corresponds exactly to the source sampling frequency.
+In the 2-channel operation mode, the samples taken from both channels are transmitted by
+time multiplexing in consecutive sub-frames. The first sub-frame(left channel in
+stereophonic operation and primary channel in monophonic operation) normally use
+preamble M. However, the preamble is changed to preamble B once every 192 frame to
+identify the start of the block structure used to organize the channel status information. The
+second sub-frame (right in stereophonic operation and secondary channel in monophonic
+operation) always use preamble W.
+M
+
+left
+
+W
+
+Frame 191
+
+right
+
+B
+
+left
+
+W
+
+right
+
+Frame 0
+
+M
+
+left
+
+Sub-frame
+
+W
+
+right
+
+Sub-frame
+
+Frame 1
+End of block
+
+Start of block
+
+Fig. 23-2 SPDIF Frame Format
+In the single channel operation mode in a professional application, the frame format is the
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1551
+
+RKRK3588 TRM-Part1
+same as in the 2-channel mode. Data is carried only in the first sub-frame and may be
+duplicated in the second sub-frame. If the second sub-frame is not carrying duplicate data,
+then time slot 28 (validity flag) shall be set to logical ‘1’ (not valid).
+
+23.3.2 Sub-frame Format
+3 4
+
+0
+Preamble
+
+7 8
+Aux
+
+27 28 29
+
+30
+
+31
+
+V
+
+C
+
+P
+
+Audio sample word
+
+U
+
+Validity flag
+User data
+Channel status
+Parity bit
+Fig. 23-3 SPDIF Sub-frame Format
+Each sub-frame is divided into 32 time slots, numbered from 0 to 31. Time slot 0 to 3
+carries one of the three permitted preambles. Time slot 4 to 27 carry the audio sample word
+in linear 2’s complement representation. The MSB is carried by time slot 27. When a 24-bit
+coding range is used, the LSB is in time slot 4. When a 20-bit coding range is used, time slot
+8 to 27 carry the audio sample word with the LSB in time slot 8.Time slot 4 to 7 may be
+used for other application. Under these circumstances, the bits in the time slot 4 to 7 are
+designated auxiliary sample bits.
+If the source provides fewer bits than the interface allows (either 24 or 20), the unused
+LSBs are set to a logical ‘0’. For a non-linear PCM audio application or a data application the
+main data field may carry any other information. Time slot 28 carries the validity flag
+associated with the main data field. Time slot 29 carries 1 bit of the user data associated
+with the audio channel transmitted in the same sub-frame. Time slot 30 carries one bit of
+the channel status words associated with the main data field channel transmitted in the
+same sub-frame. Time slot 31 carries a parity bit such that time slots 4 to 31 inclusive
+carries an even number of ones and an even number of zeros.
+
+23.3.3 Channel Coding
+
+1
+
+0
+
+0
+
+1
+
+0
+
+1
+
+0
+
+Serial audio data
+
+Biphase output
+(start with 1)
+
+1 0 1 1 0 0 1 0 1 1 0 1 0 0
+
+0 1 0 0 1 1 0 1 0 0 1 0 1 1
+Biphase output
+(start with 0)
+Fig. 23-4 SPDIF Channel Coding
+To minimize the direct current component on the transmission line, to facilitate clock
+recovery from the data stream and to make the interface insensitive to the polarity of
+connections, time slots 4 to 31 are encoded in biphase-mark.
+Each bit to be transmitted is represented by a symbol comprising two consecutive binary
+states. The first state of a symbol is always different from the second state of the previous
+symbol. The second state of the symbol is identical to the first if the bit to be transmitted is
+logical ‘0’.However, it is different from the first if the bit is logical ‘1’.
+
+23.3.4 Preamble
+
+Preambles are specific patterns providing synchronization and identification of the subframes and blocks.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1552
+
+RKRK3588 TRM-Part1
+To achieve synchronization within one sampling period and to make this process completely
+reliable, these patterns violate the biphase-mark code rules, thereby avoiding the possibility
+of data imitating the preambles.
+A set of three preambles is used. These preambles are transmitted in the time allocated to
+four time slots (time slots 0 to 3) and are represented by eight successive states. The first
+state of the preamble is always different from the second state of the previous symbol.
+
+1 1 1 0 0 0 1 0
+M(start with 1)
+
+0 0 0 1 1 1 0 1
+M(start with 0)
+
+1 1 1 0 0 1 0 0
+W(start with 1)
+
+0 0 0 1 1 0 1 1
+W(start with 0)
+
+1 1 1 0 1 0 0 0
+B(start with 1)
+
+0 0 0 1 0 1 1 1
+B(start with 0)
+
+Fig. 23-5 SPDIF Preamble
+Like biphase code, these preambles are dc free and provide clock recovery. They differ in at
+least two states from any valid biphase sequence.
+
+23.4 Register Description
+23.4.1 Registers Summary
+Name
+
+Offset
+
+Size
+
+SPDIF_CFGR
+SPDIF_SDBLR
+SPDIF_DMACR
+SPDIF_INTCR
+SPDIF_INTSR
+SPDIF_XFER
+SPDIF_SMPDR
+SPDIF_VLDFRn
+SPDIF_USRDRn
+
+0x0000
+0x0004
+0x0008
+0x000C
+0x0010
+0x0018
+0x0020
+0x0060
+0x0090
+
+W
+W
+W
+W
+W
+W
+W
+W
+W
+
+SPDIF_CHNSRn
+
+0x00C0
+
+W
+
+SPDIF_BURTSINFO
+SPDIF_REPETTION
+
+0x0100
+0x0104
+
+W
+W
+
+SPDIF_BURTSINFO_SHD
+
+0x0108
+
+W
+
+SPDIF_REPETTION_SHD
+
+0x010C
+
+W
+
+SPDIF_USRDR_SHDn
+
+0x0190
+
+W
+
+SPDIF_VERSION
+
+0x01C0
+
+W
+
+Reset
+Description
+Value
+0x00000000 Transfer Configuration Register
+0x00000000 Sample Date Buffer Level Register
+0x00000000 DMA Control Register
+0x00000000 Interrupt Control Register
+0x00000000 Interrupt Status Register
+0x00000000 Transfer Start Register
+0x00000000 Sample Data Register
+0x00000000 Validity Flag Register n(n=0~11)
+0x00000000 User Data Register n(n=0~11)
+Channel Status Register
+0x00000000
+n(n=0~11)
+0x00000000 Channel Burst Info Register
+0x00000000 Channel Repetition Register
+Shadow Channel Burst Info
+0x00000000
+Register
+Shadow Channel Repetition
+0x00000000
+Register
+Shadow User Data Register
+0x00000000
+n(n=0~11)
+0x20160100 Version Register
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+23.4.2 Detail Registers Description
+SPDIF_CFGR
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+31:24 RO 0x00
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1553
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+23:16 RW 0x00
+15:9
+
+RO
+
+0x00
+
+8
+
+RW 0x0
+
+7
+
+WO 0x0
+
+6
+
+RW 0x0
+
+5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1:0
+
+RW 0x0
+
+Description
+MCD
+Mclk divider
+Mclk is the operation clock. This parameter can be calculated by
+(frequency of mclk)/(Fs*128). Fs=sample frequency
+reserved
+PCMTYPE
+1'b0: Linear PCM
+1'b1: Non-linear PCM
+CLR
+Write 1'b1 to clear MCLK domain logic. Read return zero.
+CSE
+Channel status enable.
+1'b0: Disable.
+1'b1: Enable.
+The bit should be set to 1'b1 when the channel conveys nonlinear PCM.
+UDE
+User data enable.
+1'b0: Disable. User data bit field is 1'b0.
+1'b1: Enable. User data bit field is defined by SPDIF_VLDFRn.
+VFE
+Validity data enable.
+1'b0: Disable. Validity data bit field is 1'b0.
+1'b1: Enable. For linear PCM mode, validity data bit field is
+defined by SPDIF_VLDFRn. For non-linear PCM mode, validity
+data bit field is 1'b1.
+ADJ
+1'b0: Right justified
+1'b1: Left justified
+If right justified, audio data
+bit23~0(VDW=2'b10)/bit19~0(VDW=2'b01)/bit15~0(VDW=2'b0
+0) will be the valid bit to be transmitted.
+If left justified, audio data
+bit31~8(VDW=2'b10)/bit31~12(VDW=2'b01)/bit31~16(VDW=2'
+b00) will be the valid bit to be transmitted.
+HWT
+1'b0: Disable
+1'b1: Enable
+It is valid only when the valid data width is 16bit.
+VDW
+2'b00: 16bit
+2'b01: 20bit
+2'b10: 24bit
+2'b11: Reserved
+The valid data width is 16bit only for non-linear PCM.
+
+SPDIF_SDBLR
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+SDBLR
+5:0
+RW 0x00
+Contains the number of valid data entries in the sample data
+buffer.
+SPDIF_DMACR
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1554
+
+RKRK3588 TRM-Part1
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+TDE
+5
+RW 0x0
+1'b0: Transmit DMA disabled.
+1'b1: Transmit DMA enabled.
+TDL
+This bit field controls the level at which a DMA request is made by
+the transmit logic. It is equal to the watermark level. That is, the
+4:0
+RW 0x00
+dma_tx_req signal is generated when the number of valid data
+entries in the Sample Date Buffer is equal to or below this field
+value.
+SPDIF_INTCR
+Address: Operational Base + offset (0x000C)
+Bit Attr Reset Value
+Description
+31:18 RO 0x0000
+reserved
+W1
+UDTIC
+17
+0x0
+C
+Write 1'b1 to clear the user data interrupt.
+W1
+BTTIC
+16
+0x0
+C
+Write 1'b1 to clear the block transfer finish interrupt.
+15:10 RO 0x00
+reserved
+SDBT
+9:5
+RW 0x00
+Sample date buffer threshold for empty interrupt.
+SDBEIE
+Sample data buffer empty interrupt enable.
+1'b0: Disable
+4
+RW 0x0
+1'b1: Enable
+Sample data buffer empty interrupt will generate if interrupt is
+enabled and the number of entries is lower than threshold of
+empty interrupt.
+BTTIE
+Block transfer finish interrupt enable.
+1'b0: Disable
+3
+RW 0x0
+1'b1: Enable
+When enabled, an interrupt will assert when the block transfer is
+finished if the channel conveys linear PCM or when the repetition
+period is reached if the channel conveys non-linear PCM.
+UDTIE
+User data interrupt enable.
+1'b0: Disable
+2
+RW 0x0
+1'b1: Enable
+If enabled, an interrupt will assert when the content of the user
+data register is fed into the corresponding shadow register.
+1:0
+RO 0x0
+reserved
+SPDIF_INTSR
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+SDBEIS
+Sample data buffer empty interrupt status.
+4
+RO 0x0
+1'b0: Inactive
+1'b1: Active
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1555
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+3
+
+RO
+
+0x0
+
+2
+
+RO
+
+0x0
+
+1:0
+
+RO
+
+0x0
+
+Description
+BTTIS
+Block transfer finish interrupt status.
+1'b0: Inactive
+1'b1: Active
+UDTIS
+User data interrupt status.
+1'b0: Inactive
+1'b1: Active
+reserved
+
+SPDIF_XFER
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+31:1 RO 0x00000000 reserved
+XFER
+0
+RW 0x0
+Transfer start.
+
+Description
+
+SPDIF_SMPDR
+Address: Operational Base + offset (0x0020)
+Bit Attr Reset Value
+Description
+SMPDR
+31:0 WO 0x00000000 Sample data written to this register will be pushed into internal
+transfer buffer.
+SPDIF_VLDFRn
+Address: Operational Base + offset (0x0060)
+Bit Attr Reset Value
+Description
+VLDFR_SUB_1
+31:16 RW 0x0000
+Validity flag for subframe 1
+VLDFR_SUB_0
+15:0 RW 0x0000
+Validity flag for subframe 0
+SPDIF_USRDRn
+Address: Operational Base + offset (0x0090)
+Bit Attr Reset Value
+Description
+USR_SUB_1
+31:16 RW 0x0000
+User data bit for subframe 1
+USR_SUB_0
+15:0 RW 0x0000
+User data bit for subframe 0
+SPDIF_CHNSRn
+Address: Operational Base + offset (0x00C0)
+Bit Attr Reset Value
+Description
+CHNSR_SUB_1
+31:16 RW 0x0000
+Channel status bit for subframe 1
+CHNSR_SUB_0
+15:0 RW 0x0000
+Channel status bit for subframe 0
+SPDIF_BURTSINFO
+Address: Operational Base + offset (0x0100)
+Bit Attr Reset Value
+Description
+PD
+31:16 RW 0x0000
+Preamble Pd for non-linear PCM, indicating the length of burst
+payload in unit of bytes or bits.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1556
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+15:13 RW 0x0
+12:8
+
+RW 0x00
+
+7
+
+RW 0x0
+
+6:0
+
+RW 0x00
+
+Description
+BSNUM
+This field indicates the bitstream number. Usually the bitstream
+number is 0.
+DATAINFO
+This field gives the data-type-dependent info.
+ERRFLAG
+1'b0: Indicates a valid burst-payload.
+1'b1: Indicates that the burst-payload may contain errors.
+DATATYPE
+7'b0000000: Null data
+7'b0000001: AC-3 data
+7'b0000011: Pause data
+7'b0000100: MPEG-1 layer 1 data
+7'b0000101: MPEG-1 layer 2 or 3 data or MPEG-2 without
+extension
+7'b0000110: MPEG-2 data with extension
+7'b0000111: MPEG-2 AAC
+7'b0001000: MPEG-2, layer-1 low sampling frequency
+7'b0001001: MPEG-2, layer-2 low sampling frequency
+7'b0001010: MPEG-2, layer-3 low sampling frequency
+7'b0001011: DTS type I
+7'b0001100: DTS type II
+7'b0001101: DTS type III
+7'b0001110: ATRAC
+7'b0001111: ATRAC 2/3
+7'b0010000: ATRAC-X
+7'b0010001: DTS type IV
+7'b0010010: WMA professional type I
+7'b0110010: WMA professional type II
+7'b1010010: WMA professional type III
+7'b1110010: WMA professional type IV
+7'b0010011: MPEG-2 AAC low sampling frequency
+7'b0110011: MPEG-2 AAC low sampling frequency
+7'b1010011: MPEG-2 AAC low sampling frequency
+7'b1110011: MPEG-2 AAC low sampling frequency
+7'b0010100: MPEG-4 AAC
+7'b0110100: MPEG-4 AAC
+7'b1010100: MPEG-4 AAC
+7'b1110100: MPEG-4 AAC
+7'b0010101: Enhanced AC-3
+7'b0010110: MAT
+Others: Reserved
+
+SPDIF_REPETTION
+Address: Operational Base + offset (0x0104)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+REPETTION
+15:0 RW 0x0000
+This defines the repetition period when the channel conveys nonlinear PCM.
+SPDIF_BURTSINFO_SHD
+Address: Operational Base + offset (0x0108)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1557
+
+RKRK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:16 RO
+
+0x0000
+
+15:13 RO
+
+0x0
+
+12:8
+
+RO
+
+0x00
+
+7
+
+RO
+
+0x0
+
+6:0
+
+RO
+
+0x00
+
+Description
+PD
+Preamble Pd for non-linear PCM, indicating the length of burst
+payload in unit of bytes or bits.
+BSNUM
+This field indicates the bitstream number. Usually the bitstream
+number is 0.
+DATAINFO
+This field gives the data-type-dependent info.
+ERRFLAG
+1'b0: Indicates a valid burst-payload.
+1'b1: Indicates that the burst-payload may contain errors.
+DATATYPE
+7'b0000000: Null data
+7'b0000001: AC-3 data
+7'b0000011: Pause data
+7'b0000100: MPEG-1 layer 1 data
+7'b0000101: MPEG-1 layer 2 or 3 data or MPEG-2 without
+extension
+7'b0000110: MPEG-2 data with extension
+7'b0000111: MPEG-2 AAC
+7'b0001000: MPEG-2, layer-1 low sampling frequency
+7'b0001001: MPEG-2, layer-2 low sampling frequency
+7'b0001010: MPEG-2, layer-3 low sampling frequency
+7'b0001011: DTS type I
+7'b0001100: DTS type II
+7'b0001101: DTS type III
+7'b0001110: ATRAC
+7'b0001111: ATRAC 2/3
+7'b0010000: ATRAC-X
+7'b0010001: DTS type IV
+7'b0010010: WMA professional type I
+7'b0110010: WMA professional type II
+7'b1010010: WMA professional type III
+7'b1110010: WMA professional type IV
+7'b0010011: MPEG-2 AAC low sampling frequency
+7'b0110011: MPEG-2 AAC low sampling frequency
+7'b1010011: MPEG-2 AAC low sampling frequency
+7'b1110011: MPEG-2 AAC low sampling frequency
+7'b0010100: MPEG-4 AAC
+7'b0110100: MPEG-4 AAC
+7'b1010100: MPEG-4 AAC
+7'b1110100: MPEG-4 AAC
+7'b0010101: Enhanced AC-3
+7'b0010110: MAT
+Others: Reserved
+
+SPDIF_REPETTION_SHD
+Address: Operational Base + offset (0x010C)
+Bit Attr Reset Value
+31:16 RO 0x0000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1558
+
+RKRK3588 TRM-Part1
+Bit
+
+15:0
+
+Attr Reset Value
+
+RO
+
+0x0000
+
+Description
+REPETTION
+This register provides the repetition of the bitstream when
+channel conveys non-linear PCM. It defines the length between Pa
+of the two consecutive data-burst. For the same audio format,
+the definition is different. Please convert the actual repetition in
+order to comply with the design.
+
+SPDIF_USRDR_SHDn
+Address: Operational Base + offset (0x0190)
+Bit Attr Reset Value
+Description
+USR_SUB_1
+31:16 RO 0x0000
+User data bit for subframe 1
+USR_SUB_0
+15:0 RO 0x0000
+User data bit for subframe 0
+SPDIF_VERSION
+Address: Operational Base + offset (0x01C0)
+Bit Attr Reset Value
+VER
+31:0 RO 0x20160100
+Version of SPDIF
+
+Description
+
+23.5 Interface Description
+SPDIF0 and SPDIF1 are used to communicate with audio equipment outside this chip.
+Following table shows the interface of SPDIF0 and SPDIF1.
+Table 23-2 SPDIF0 Interface Description
+Module
+Pin
+spdif0_
+sdo
+
+Dir
+
+PIN Name
+
+IOMUX Setting
+
+O
+
+MIPI_CAMERA1_CLK_M0/SPDIF0_TX_M0/PCIE30X2_WAKEN_M3/H
+DMI_RX_HPDOUT_M2/I2C5_SCL_M3/UART1_TX_M1/GPIO1_B6_d
+
+~spdif0
+_sdo/
+spdif0_
+sdo
+
+O
+
+CIF_CLKOUT/BT1120_D10/I2S1_SDO3_M0/PCIE30X4_CLKREQN_M
+1/DP0_HPDIN_M0/SPDIF0_TX_M1/UART9_TX_M1/PWM11_IR_M1/G
+PIO4_B4_u
+
+BUS_IOC_GPIO1B
+_IOMUX_SEL_H[1
+1:8]=4’h3
+BUS_IOC_GPIO4B
+_IOMUX_SEL_H[3
+:0]=4’h6
+
+Notes: I=input, O=output, I/O=input/output, bidirectional, ~spdif0_sdo means inverse of
+spdif0_sdo
+SYS_GRF_SOC_CON1[15] controls whether ~spdif0_sdo or spdif0_sdo is connected to
+SPDIF0_TX_M1/UART9_TX_M1/PWM11_IR_M1/GPIO4_B4_u.
+
+Table 23-3 SPDIF1 Interface Description
+Module
+Pin
+spdif1_
+sdo
+
+Dir
+
+PIN Name
+
+IOMUX Setting
+
+O
+
+spdif1_
+sdo
+
+O
+
+spdif1_
+sdo
+
+O
+
+MIPI_CAMERA2_CLK_M0/SPDIF1_TX_M0/PCIE30X2_PERSTN_M3/H
+DMI_RX_CEC_M2/SATA2_ACT_LED_M1/I2C5_SDA_M3/UART1_RX_
+M1/PWM13_M2/GPIO1_B7_u
+MIPI_CAMERA0_CLK_M0/SPDIF1_TX_M1/I2S1_SDO0_M0/PCIE30X
+1_0_BUTTON_RSTN/SATA2_ACT_LED_M0/I2C6_SCL_M3/UART8_RX
+_M0/SPI0_CS1_M1/GPIO4_B1_u
+BT1120_D15/SPDIF1_TX_M2/PCIE20X1_2_PERSTN_M1/HDMI_TX0
+_CEC_M0/I2C8_SDA_M3/PWM6_M1/SPI3_CS1_M1/GPIO4_C1_d
+
+BUS_IOC_GPIO1B
+_IOMUX_SEL_H[1
+5:12]=4’h3
+BUS_IOC_GPIO4B
+_IOMUX_SEL_L[7:
+4]=4’h2
+BUS_IOC_GPIO4C
+_IOMUX_SEL_L[7:
+4]=4’h3
+
+Notes: I=input, O=output, I/O=input/output, bidirectional
+The output of SPDIF3 are internally connected to EDP TX Controller0 and HDMI TX Controller0
+respectively. The SPDIF audio interface of EDP TX Controller0 and HDMI TX Controller0 can work
+at the same time. If GRF_VO1_CON0[4] is set 1’b1, then the output of SPDIF3 are connected to
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1559
+
+RKRK3588 TRM-Part1
+EDP TX Controller0. If GRF_VO1_CON3[14] is set 1’b1, then the output of SPDIF3 are connected
+to HDMI TX Controller0.
+The output of SPDIF4 are internally connected to EDP TX Controller1 and HDMI TX Controller1
+respectively. The SPDIF audio interface of EDP TX Controller1 and HDMI TX Controller1 can work
+at the same time. If GRF_VO1_CON1[4] is set 1’b1, then the output of SPDIF4 are connected to
+EDP TX Controller1. If GRF_VO1_CON6[14] is set 1’b1, then the output of SPDIF3 are connected
+to HDMI TX Controller1.
+The output of SPDIF2 are internally connected to DPTX0. DPTX0 SPDIF audio interface operation
+clock and MCLK of SPDIF2 are from the same source. MCLK of SPDIF2 should be divided by 4 by
+programming SPDIF_CFGR.MCD to 3 to meet the requirement that DPTX0 SPDIF audio interface
+operates at 4 times frequency over sample the output of SPDIF2. SPDIF5 is similar with SPDIF2
+except that SPDIF5 is connected to DPTX1.
+
+23.6 Application Notes
+Disable SPDIF by writing 0x0 to SPDIF_XFER
+
+Clear sample data buffer and control logic by writing 0x1 to
+SPDIF_CFGR[7]
+
+Write SPDIF_CFGR to config spdif operation mode
+
+Write SPDIF_VLDFR，SPDIF_USRDR，SPDIF_CHNSR
+to supply audio information for external device
+
+Config a DMA channel for SPDIF transmitter and the
+destination address is SPDIF_SMPDR
+
+Write SPDIF_DMACR to determine when to issue dma request
+
+SPDIF
+Transmitter
+Configuration
+
+Enable SPDIF by writing 0x1 to SPDIF_XFER
+
+SPDIF_XFER can not be disabled until the current transfer
+has completed
+
+DMA
+Controller
+Configuration
+
+Fig. 23-6 SPDIF transmitter operation flow chart
+The above figure shows the operation flow of SPDIF operation. Note that the configuration
+register can be written only when the transfer is stopped.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1560
+
+RKRK3588 TRM-Part1
+

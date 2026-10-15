@@ -1,0 +1,5539 @@
+Chapter 12 DMA Controller (DMAC)
+12
+
+12.1 Overview
+This device supports 3 Direct Memory Access (DMA) Controller. DMAC0/1/2 support transfers
+between memory and memory, peripheral and memory. DMAC0/1/2 is under Non-secure
+state after reset, and the Secure state can be changed by configurable SGRF module.
+DMAC supports the following features:
+⚫ DMAC0 Supports 24 peripheral requests
+⚫ DMAC1 Supports 23 peripheral requests
+⚫ DMAC2 Supports 21 peripheral requests
+⚫ Up to 64 bits data size
+⚫ 8 channel at the same time
+⚫ Up to burst 16
+⚫ 16 interrupts output and 1 abort output
+⚫ Supports 128 MFIFO depth
+Following table shows the DMAC request mapping scheme.
+Table 12-1 DMAC Request Mapping Table
+DMAC0
+Req number
+Source
+Polarity
+0
+I2S0_8CH_TX
+High level
+1
+I2S0_8CH_RX
+High level
+2
+I2S1_8CH_TX
+High level
+3
+I2S1_8CH_RX
+High level
+4
+PDM0
+High level
+5
+SPDIF0
+High level
+6
+UART0_TX
+High level
+7
+UART0_RX
+High level
+8
+UART1_TX
+High level
+9
+UART1_RX
+High level
+10
+UART2_TX
+High level
+11
+UART2_RX
+High level
+12
+UART3_TX
+High level
+13
+UART3_RX
+High level
+14
+SPI0_TX
+High level
+15
+SPI0_RX
+High level
+16
+SPI1_TX
+High level
+17
+SPI1_RX
+High level
+18
+PWM_PMU
+High level
+19
+CAN0_TX
+High level
+20
+CAN0_RX
+High level
+21
+SPDIF_RX0
+High level
+22
+SPDIF_RX1
+High level
+23
+SPDIF_RX2
+High level
+DMAC1
+Req number
+Source
+Polarity
+0
+I2S2_2CH_TX
+High level
+1
+I2S2_2CH_RX
+High level
+2
+I2S3_2CH_TX
+High level
+3
+I2S3_2CH_RX
+High level
+4
+PDM1
+High level
+5
+SPDIF1
+High level
+6
+SPDIF2
+High level
+7
+SPDIF3
+High level
+8
+SPDIF4
+High level
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1314
+
+RK3588 TRM-Part1
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+
+UART4_TX
+UART4_RX
+UART5_TX
+UART5_RX
+UART6_TX
+UART6_RX
+SPI2_TX
+SPI2_RX
+SPI3_TX
+SPI3_RX
+PWM1
+CAN1_TX
+CAN1_RX
+SPDIF5
+
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+
+Req number
+0
+2
+4
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+21
+22
+23
+24
+
+DMAC2
+Source
+I2S4_8CH_TX
+I2S5_8CH_TX
+I2S6_8CH_TX
+UART7_TX
+UART7_RX
+UART8_TX
+UART8_RX
+UART9_TX
+UART9_RX
+SPI4_TX
+SPI4_RX
+PWM2
+PWM3
+CAN2_TX
+CAN2_RX
+SDMMC_BUFFER
+I2S7_8CH_RX
+I2S8_8CH_TX
+I2S9_8CH_RX
+I2S10_8CH_RX
+
+Polarity
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+High level
+
+DMAC supports incrementing-address burst and fixed-address burst. But in the case of
+access to SPI and UART at byte or half word size, DMAC only supports fixed-address burst
+and the address must be aligned to word.
+
+12.2 Block Diagram
+Following figure shows the block diagram of DMAC.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1315
+
+RK3588 TRM-Part1
+
+26
+
+Fig. 12-1 Block Diagram of DMAC
+As the DMAC supports TrustZone technology, so dual APB interfaces enable the operation of
+the DMAC to be partitioned into the Secure state and Non-secure state. You can use the APB
+interfaces to access status registers and also directly execute instructions in the DMAC. The
+default interface after reset is Non-secure APB interface.
+
+12.3 Function Description
+12.3.1 Introduction
+
+The DMAC contains an instruction processing block that enables it to process program code
+that controls a DMA transfer. The program code is stored in a region of system memory that
+the DMAC accesses using its AXI interface. The DMAC stores instructions temporarily in a
+cache. It supports 8 channels, each channel capable of supporting a single concurrent thread
+of DMA operation. In addition, a single DMA manager thread exists, and you can use it to
+initialize the DMA channel threads. The DMAC executes up to one instruction for each AXI
+clock cycle. To ensure that it regularly executes each active thread, it alternates by
+processing the DMA manager thread and then a DMA channel thread. It uses a round-robin
+process when selecting the next active DMA channel thread to execute.
+The DMAC uses variable-length instructions that consist of one to six bytes. It provides a
+separate Program Counter (PC) register for each DMA channel. When a thread requests an
+instruction from an address, the cache performs a look-up. If a cache hit occurs, then the
+cache immediately provides the data. Otherwise, the thread is stalled while the DMAC uses
+the AXI interface to perform a cache line fill. If an instruction is greater than 4 bytes, or
+spans the end of a cache line, the DMAC performs multiple cache accesses to fetch the
+instruction.
+When a cache line fill is in progress, the DMAC enables other threads to access the cache,
+but if another cache miss occurs, this stalls the pipeline until the first line fill is complete.
+When a DMA channel thread executes a load or store instruction, the DMAC adds the
+instruction to the relevant read or write queue. The DMAC uses these queues as an
+instruction storage buffer prior to it issuing the instructions on the AXI bus. The DMAC also
+contains a Multi First-In-First-Out (MFIFO) data buffer that it uses to store data that it reads,
+or writes, during a DMA transfer.
+
+12.3.2 Operating states
+
+Following figure shows the operating states for the DMA manager thread and DMA channel
+threads.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1316
+
+RK3588 TRM-Part1
+
+Fig. 12-2 DMAC Operation State
+
+Notes: arcs with no letter designator indicate state transitions for the DMA manager and DMA channel
+threads, otherwise use is restricted as follows:
+C DMA channel threads only.
+M DMA manager thread only.
+
+After the DMAC exits from reset, it sets all DMA channel threads to the stopped state, and
+DMA manager thread moves to the Stopped state.
+
+12.4 Register Description
+12.4.1 Internal Address Mapping
+
+Slave address can be divided into different length for different usage, which is shown as
+follows.
+
+12.4.2 Registers Summary
+Name
+
+Offset
+
+Size
+
+DMAC_DSR
+DMAC_DPC
+DMAC_INTEN
+
+0x0000
+0x0004
+0x0020
+
+W
+W
+W
+
+DMAC_EVENT_RIS
+
+0x0024
+
+W
+
+DMAC_INTMIS
+DMAC_INTCLR
+
+0x0028
+0x002c
+
+W
+W
+
+DMAC_FSRD
+
+0x0030
+
+W
+
+DMAC_FSRC
+
+0x0034
+
+W
+
+DMAC_FTRD
+
+0x0038
+
+W
+
+DMAC_FTR0
+
+0x0040
+
+W
+
+DMAC_FTR1
+
+0x0044
+
+W
+
+DMAC_FTR2
+
+0x0048
+
+W
+
+DMAC_FTR3
+
+0x004c
+
+W
+
+DMAC_FTR4
+
+0x0050
+
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Reset
+Description
+Value
+0x00000000 DMA Manager Status Register
+0x00000000 DMA Program Counter Register
+0x00000000 Interrupt Enable Register
+Event-Interrupt Raw Status
+0x00000000
+Register
+0x00000000 Interrupt Status Register
+0x00000000 Interrupt Clear Register
+Fault Status DMA Manager
+0x00000000
+Register
+Fault Status DMA Channel
+0x00000000
+Register
+0x00000000 Fault Type DMA Manager Register
+Fault Type DMA Channel 0
+0x00000000
+Register
+Fault Type DMA Channel 1
+0x00000000
+Register
+Fault Type DMA Channel 2
+0x00000000
+Register
+Fault Type DMA Channel 3
+0x00000000
+Register
+Fault Type DMA Channel 4
+0x00000000
+Register
+
+1317
+
+RK3588 TRM-Part1
+Name
+
+Offset
+
+Size
+
+DMAC_FTR5
+
+0x0054
+
+W
+
+DMAC_FTR6
+
+0x0058
+
+W
+
+DMAC_FTR7
+
+0x005c
+
+W
+
+DMAC_CSR0
+
+0x0100
+
+W
+
+DMAC_CPC0
+
+0x0104
+
+W
+
+DMAC_CSR1
+
+0x0108
+
+W
+
+DMAC_CPC1
+
+0x010c
+
+W
+
+DMAC_CSR2
+
+0x0110
+
+W
+
+DMAC_CPC2
+
+0x0114
+
+W
+
+DMAC_CSR3
+
+0x0118
+
+W
+
+DMAC_CPC3
+
+0x011c
+
+W
+
+DMAC_CSR4
+
+0x0120
+
+W
+
+DMAC_CPC4
+
+0x0124
+
+W
+
+DMAC_CSR5
+
+0x0128
+
+W
+
+DMAC_CPC5
+
+0x012c
+
+W
+
+DMAC_CSR6
+
+0x0130
+
+W
+
+DMAC_CPC6
+
+0x0134
+
+W
+
+DMAC_CSR7
+
+0x0138
+
+W
+
+DMAC_CPC7
+
+0x013c
+
+W
+
+DMAC_SAR0
+
+0x0400
+
+W
+
+DMAC_DAR0
+
+0x0404
+
+W
+
+DMAC_CCR0
+
+0x0408
+
+W
+
+DMAC_LC0_0
+
+0x040c
+
+W
+
+DMAC_LC1_0
+
+0x0410
+
+W
+
+DMAC_SAR1
+
+0x0420
+
+W
+
+DMAC_DAR1
+
+0x0424
+
+W
+
+DMAC_CCR1
+
+0x0428
+
+W
+
+DMAC_LC0_1
+
+0x042c
+
+W
+
+DMAC_LC1_1
+
+0x0430
+
+W
+
+DMAC_SAR2
+
+0x0440
+
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Reset
+Value
+
+Description
+
+Fault Type DMA Channel 5
+Register
+Fault Type DMA Channel 6
+0x00000000
+Register
+Fault Type DMA Channel 7
+0x00000000
+Register
+0x00000000 Channel 0 Status Register
+Channel 0 Program Counter
+0x00000000
+Register
+0x00000000 Channel 1 Status Register
+Channel 1 Program Counter
+0x00000000
+Register
+0x00000000 Channel 2 Status Register
+Channel 2 Program Counter
+0x00000000
+Register
+0x00000000 Channel 3 Status Register
+Channel 3 Program Counter
+0x00000000
+Register
+0x00000000 Channel 4 Status Register
+Channel 4 Program Counter
+0x00000000
+Register
+0x00000000 Channel 5 Status Register
+Channel 5 Program Counter
+0x00000000
+Register
+0x00000000 Channel 6 Status Register
+Channel 6 Program Counter
+0x00000000
+Register
+0x00000000 Channel 7 Status Register
+Channel 7 Program Counter
+0x00000000
+Register
+Channel 0 Source Address
+0x00000000
+Register
+Channel 0 Destination Address
+0x00000000
+Register
+Channel 0 Channel Control
+0x00000000
+Register
+Channel 0 Loop Counter 0
+0x00000000
+Register
+Channel 0 Loop Counter 1
+0x00000000
+Register
+Channel 1 Source Address
+0x00000000
+Register
+Channel 1 Destination Address
+0x00000000
+Register
+Channel 1 Channel Control
+0x00000000
+Register
+Channel 1 Loop Counter 0
+0x00000000
+Register
+Channel 1 Loop Counter 1
+0x00000000
+Register
+Channel 2 Source Address
+0x00000000
+Register
+0x00000000
+
+1318
+
+RK3588 TRM-Part1
+Name
+
+Offset
+
+Size
+
+DMAC_DAR2
+
+0x0444
+
+W
+
+DMAC_CCR2
+
+0x0448
+
+W
+
+DMAC_LC0_2
+
+0x044c
+
+W
+
+DMAC_LC1_2
+
+0x0450
+
+W
+
+DMAC_SAR3
+
+0x0460
+
+W
+
+DMAC_DAR3
+
+0x0464
+
+W
+
+DMAC_CCR3
+
+0x0468
+
+W
+
+DMAC_LC0_3
+
+0x046c
+
+W
+
+DMAC_LC1_3
+
+0x0470
+
+W
+
+DMAC_SAR4
+
+0x0480
+
+W
+
+DMAC_DAR4
+
+0x0484
+
+W
+
+DMAC_CCR4
+
+0x0488
+
+W
+
+DMAC_LC0_4
+
+0x048c
+
+W
+
+DMAC_LC1_4
+
+0x0490
+
+W
+
+DMAC_SAR5
+
+0x04a0
+
+W
+
+DMAC_DAR5
+
+0x04a4
+
+W
+
+DMAC_CCR5
+
+0x04a8
+
+W
+
+DMAC_LC0_5
+
+0x04ac
+
+W
+
+DMAC_LC1_5
+
+0x04b0
+
+W
+
+DMAC_SAR6
+
+0x04c0
+
+W
+
+DMAC_DAR6
+
+0x04c4
+
+W
+
+DMAC_CCR6
+
+0x04c8
+
+W
+
+DMAC_LC0_6
+
+0x04cc
+
+W
+
+DMAC_LC1_6
+
+0x04d0
+
+W
+
+DMAC_SAR7
+
+0x04e0
+
+W
+
+DMAC_DAR7
+
+0x04e4
+
+W
+
+DMAC_CCR7
+
+0x04e8
+
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Reset
+Value
+
+Description
+
+Channel 2 Destination Address
+Register
+Channel 2 Channel Control
+0x00000000
+Register
+Channel 2 Loop Counter 0
+0x00000000
+Register
+Channel 2 Loop Counter 1
+0x00000000
+Register
+Channel 3 Source Address
+0x00000000
+Register
+Channel 3 Destination Address
+0x00000000
+Register
+Channel 3 Channel Control
+0x00000000
+Register
+Channel 3 Loop Counter 0
+0x00000000
+Register
+Channel 3 Loop Counter 1
+0x00000000
+Register
+0x00000000 Channel 4 Address Register
+Channel 4 Destination Address
+0x00000000
+Register
+Channel 4 Channel Control
+0x00000000
+Register
+Channel 4 Loop Counter 0
+0x00000000
+Register
+Channel 4 Loop Counter 1
+0x00000000
+Register
+0x00000000 Channel 5 Address Register
+Channel 5 Destination Address
+0x00000000
+Register
+Channel 5 Channel Control
+0x00000000
+Register
+Channel 5 Loop Counter 0
+0x00000000
+Register
+Channel 5 Loop Counter 1
+0x00000000
+Register
+Channel 6 Source Address
+0x00000000
+Register
+Channel 6 Destination Address
+0x00000000
+Register
+Channel 6 Channel Control
+0x00000000
+Register
+Channel 6 Loop Counter 0
+0x00000000
+Register
+Channel 6 Loop Counter 1
+0x00000000
+Register
+Channel 7 Source Address
+0x00000000
+Register
+Channel 7 Destination Address
+0x00000000
+Register
+Channel 7 Channel Control
+0x00000000
+Register
+0x00000000
+
+1319
+
+RK3588 TRM-Part1
+Name
+
+Offset
+
+Size
+
+DMAC_LC0_7
+
+0x04ec
+
+W
+
+DMAC_LC1_7
+
+0x04f0
+
+W
+
+DMAC_DBGSTATUS
+DMAC_DBGCMD
+DMAC_DBGINST0
+DMAC_DBGINST1
+DMAC_CR0
+DMAC_CR1
+DMAC_CR2
+DMAC_CR3
+DMAC_CR4
+DMAC_CRDn
+DMAC_WD
+
+0x0d00
+0x0d04
+0x0d08
+0x0d0c
+0x0e00
+0x0e04
+0x0e08
+0x0e0c
+0x0e10
+0x0e14
+0x0e80
+
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+W
+
+Reset
+Value
+
+Description
+
+Channel 7 Loop Counter 0
+Register
+Channel 7 Loop Counter 1
+0x00000000
+Register
+0x00000000 Debug Status Register
+0x00000000 Debug Command Register
+0x00000000 Debug Instruction-0 Register
+0x00000000 Debug Instruction-1 Register
+0x001f3075 Configuration Register 0
+0x000000b5 Configuration Register 1
+0x00000000 Configuration Register 2
+0x0000ffff
+Configuration Register 3
+0x000fffff
+Configuration Register 4
+0x07ff7f73 Configuration Register
+0x00000000 DMA Watchdog Register
+0x00000000
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access
+
+12.4.3 Detail Register Description
+
+DMAC_DSR
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+31:10 RO 0x0
+reserved
+dns
+9
+RO 0x0
+1'b0: DMA manager operates in the Secure state
+1'b1: DMA manager operates in the Non-secure state
+wakeup_event
+5'h0: event[0]
+5'h1: event[1]
+8:4
+RO 0x00
+5'h2: event[2]
+…
+5'h1f: event[31]
+dma_status
+4'h0: Stopped
+4'h1: Executing
+4'h2: Cache miss
+3:0
+RO 0x0
+4'h3: Updating PC
+4'h4: Waiting for event
+4'hf: Faulting
+Others: Reserved
+DMAC_DPC
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+pc_mgr
+31:0 RO 0x00000000
+Program counter for the DMA manager thread
+DMAC_INTEN
+Address: Operational Base + offset (0x0020)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1320
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+event_irq_select
+Bit [N]
+1'b0: If the DMAC executes DMASEV for the event-interrupt
+resource N then the DMAC signals event N to all of the threads.
+Set bit [N] to 0 if your system design does not use irq[N] to
+signal an interrupt request.
+1'b1: If the DMAC executes DMASEV for the event-interrupt
+resource N then the DMAC sets irq[N] HIGH. Set bit [N] to 1 if
+your system designer requires irq[N] to signal an interrupt
+request.
+
+DMAC_EVENT_RIS
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+Description
+dmasev_active
+Bit [N]
+31:0 RO 0x00000000
+1'b0: Event N is inactive or irq[N] is LOW
+1'b1: Event N is active or irq[N] is HIGH
+DMAC_INTMIS
+Address: Operational Base + offset (0x0028)
+Bit Attr Reset Value
+Description
+irq_status
+Bit [N]
+31:0 RO 0x00000000
+1'b0: Interrupt N is inactive and therefore irq[N] is LOW
+1'b1: Interrupt N is active and therefore irq[N] is HIGH
+DMAC_INTCLR
+Address: Operational Base + offset (0x002c)
+Bit Attr Reset Value
+Description
+irq_clr
+Bit [N]
+1'b0: The status of irq[N] does not change
+31:0 WO 0x00000000
+1'b1: The DMAC sets irq[N] LOW if the DMAC_INTEN Register
+programs the DMAC to signal an interrupt. Otherwise, the status
+of irq[N] does not change.
+DMAC_FSRD
+Address: Operational Base + offset (0x0030)
+Bit Attr Reset Value
+Description
+31:1 RO 0x0
+reserved
+fs_mgr
+0
+RO 0x0
+1'b0: The DMA manager thread is not in the Faulting state
+1'b1: The DMA manager thread is in the Faulting state
+DMAC_FSRC
+Address: Operational Base + offset (0x0034)
+Bit Attr Reset Value
+Description
+31:8 RO 0x0
+reserved
+fault_status
+Bit [N]
+7:0
+RO 0x00
+1'b0: No fault is present on DMA channel N
+1'b1: DMA channel N is in the Faulting or Faulting completing
+state
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1321
+
+RK3588 TRM-Part1
+DMAC_FTRD
+Address: Operational Base + offset (0x0038)
+Bit Attr Reset Value
+Description
+31
+RO 0x0
+reserved
+dbg_instr
+Memory or from the debug interface.
+1'b0: Instruction that generated an abort was read from system
+30
+RO 0x0
+memory
+1'b1: Instruction that generated an abort was read from the
+debug interface
+29:17 RO 0x0
+reserved
+instr_fetch_err
+Performs an instruction fetch.
+16
+RO 0x0
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+15:6 RO 0x0
+reserved
+mgr_evnt_err
+1'b0: DMA manager has appropriate security to execute DMAWFE
+or DMASEV
+5
+RO 0x0
+1'b1: DMA manager thread in the Non-secure state attempted to
+execute either:
+a. DMAWFE to wait for a secure event
+b. DMASEV to create a secure event or secure interrupt
+dmago_err
+1'b0: DMA manager has appropriate security to execute DMAGO
+4
+RO 0x0
+1'b1: DMA manager thread in the Non-secure state attempted to
+execute DMAGO to create a DMA channel operating in the Secure
+state
+3:2
+RO 0x0
+reserved
+operand_invalid
+The configuration of the DMAC.
+1
+RO 0x0
+1'b0: Valid operand
+1'b1: Invalid operand
+undef_instr
+0
+RW 0x0
+1'b0: Defined instruction
+1'b1: Undefined instruction
+DMAC_FTR0
+Address: Operational Base + offset (0x0040)
+Bit Attr Reset Value
+Description
+lockup_err
+1'b0: DMA channel has adequate resources
+31
+RO 0x0
+1'b1: DMA channel has locked-up because of insufficient
+resources
+This fault is an imprecise abort.
+dbg_instr
+Memory or from the debug interface.
+1'b0: Instruction that generated an abort was read from system
+memory
+30
+RO 0x0
+1'b1: Instruction that generated an abort was read from the
+debug interface
+This fault is an imprecise abort but the bit is only valid when a
+precise abort occurs.
+29:19 RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1322
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+18
+
+RO
+
+0x0
+
+17
+
+RO
+
+0x0
+
+16
+
+RO
+
+0x0
+
+15:14 RO
+
+0x0
+
+13
+
+RO
+
+0x0
+
+12
+
+RO
+
+0x0
+
+11:8
+
+RO
+
+0x0
+
+7
+
+RO
+
+0x0
+
+6
+
+RO
+
+0x0
+
+Description
+data_read_err
+Thread performs a data read.
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is an imprecise abort.
+data_write_err
+Thread performs a data write.
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is an imprecise abort.
+instr_fetch_err
+Thread performs an instruction fetch.
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is a precise abort.
+reserved
+st_data_unavailable
+1'b0: MFIFO contains all the data to enable the DMAST to
+complete
+1'b1: Previous DMALDs have not put enough data in the MFIFO to
+enable the DMAST to complete
+This fault is a precise abort.
+mfifo_err
+DMALD
+1'b0: MFIFO contains sufficient space
+1'b1: MFIFO is too small to hold the data that DMALD requires
+DMAST
+1'b0: MFIFO contains sufficient data
+1'b1: MFIFO is too small to store the data to enable DMAST to
+complete
+This fault is an imprecise abort.
+reserved
+ch_rdwr_err
+To perform a secure read or secure write.
+1'b0: A DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: A DMA channel thread in the Non-secure state attempted to
+perform a secure read or secure write
+This fault is a precise abort.
+ch_periph_err
+DMASTP, or DMAFLUSHP with inappropriate security permissions.
+1'b0: a DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: a DMA channel thread in the Non-secure state attempted to
+execute either:
+a. DMAWFP to wait for a secure peripheral
+b. DMALDP or DMASTP to notify a secure peripheral
+c. DMAFLUSHP to flush a secure peripheral
+This fault is a precise abort.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1323
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+5
+
+RO
+
+0x0
+
+4:2
+
+RO
+
+0x0
+
+1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+ch_event_err
+1'b0: A DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: A DMA channel thread in the Non-secure state attempted to
+execute either:
+a. DMAWFE to wait for a secure event
+b. DMASEV to create a secure event or secure interrupt
+This fault is a precise abort.
+reserved
+operand_invalid
+Valid for the configuration of the DMAC.
+1'b0: Valid operand
+1'b1: Invalid operand
+This fault is a precise abort.
+undef_instr
+1'b0: Defined instruction
+1'b1: Undefined instruction
+This fault is a precise abort.
+
+DMAC_FTR1
+Address: Operational Base + offset (0x0044)
+Bit Attr Reset Value
+Description
+lockup_err
+1'b0: DMA channel has adequate resources
+31
+RO 0x0
+1'b1: DMA channel has locked-up because of insufficient
+resources
+This fault is an imprecise abort.
+dbg_instr
+Memory or from the debug interface.
+1'b0: Instruction that generated an abort was read from system
+memory
+30
+RO 0x0
+1'b1: Instruction that generated an abort was read from the
+debug interface
+This fault is an imprecise abort but the bit is only valid when a
+precise abort occurs.
+29:19 RO 0x0
+reserved
+data_read_err
+Thread performs a data read.
+18
+RO 0x0
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is an imprecise abort.
+data_write_err
+Thread performs a data write.
+17
+RO 0x0
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is an imprecise abort.
+instr_fetch_err
+Thread performs an instruction fetch.
+16
+RO 0x0
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is a precise abort.
+15:14 RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1324
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+13
+
+RO
+
+0x0
+
+12
+
+RO
+
+0x0
+
+11:8
+
+RO
+
+0x0
+
+7
+
+RO
+
+0x0
+
+6
+
+RO
+
+0x0
+
+5
+
+RO
+
+0x0
+
+4:2
+
+RO
+
+0x0
+
+1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+st_data_unavailable
+1'b0: MFIFO contains all the data to enable the DMAST to
+complete
+1'b1: Previous DMALDs have not put enough data in the MFIFO to
+enable the DMAST to complete
+This fault is a precise abort.
+mfifo_err
+DMALD
+1'b0: MFIFO contains sufficient space
+1'b1: MFIFO is too small to hold the data that DMALD requires
+DMAST
+1'b0: MFIFO contains sufficient data
+1'b1: MFIFO is too small to store the data to enable DMAST to
+complete
+This fault is an imprecise abort.
+reserved
+ch_rdwr_err
+To perform a secure read or secure write.
+1'b0: A DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: A DMA channel thread in the Non-secure state attempted to
+perform a secure read or secure write
+This fault is a precise abort.
+ch_periph_err
+DMASTP, or DMAFLUSHP with inappropriate security permissions.
+1'b0: A DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: A DMA channel thread in the Non-secure state attempted to
+execute either:
+a. DMAWFP to wait for a secure peripheral
+b. DMALDP or DMASTP to notify a secure peripheral
+c. DMAFLUSHP to flush a secure peripheral
+This fault is a precise abort.
+ch_event_err
+1'b0: A DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: A DMA channel thread in the Non-secure state attempted to
+execute either:
+a. DMAWFE to wait for a secure event
+b. DMASEV to create a secure event or secure interrupt
+This fault is a precise abort.
+reserved
+operand_invalid
+Valid for the configuration of the DMAC.
+1'b0: Valid operand
+1'b1: Invalid operand
+This fault is a precise abort.
+undef_instr
+1'b0: Defined instruction
+1'b1: Undefined instruction
+This fault is a precise abort.
+
+DMAC_FTR2
+Address: Operational Base + offset (0x0048)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1325
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+31
+
+RO
+
+0x0
+
+30
+
+RO
+
+0x0
+
+29:19 RO
+
+0x0
+
+18
+
+RO
+
+0x0
+
+17
+
+RO
+
+0x0
+
+16
+
+RO
+
+0x0
+
+15:14 RO
+
+0x0
+
+13
+
+RO
+
+0x0
+
+12
+
+RO
+
+0x0
+
+11:8
+
+RO
+
+0x0
+
+7
+
+RO
+
+0x0
+
+Description
+lockup_err
+1'b0: DMA channel has adequate resources
+1'b1: DMA channel has locked-up because of insufficient
+resources
+This fault is an imprecise abort.
+dbg_instr
+Memory or from the debug interface.
+1'b0: Instruction that generated an abort was read from system
+memory
+1'b1: Instruction that generated an abort was read from the
+debug interface
+This fault is an imprecise abort but the bit is only valid when a
+precise abort occurs.
+reserved
+data_read_err
+Thread performs a data read.
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is an imprecise abort.
+data_write_err
+Thread performs a data write.
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is an imprecise abort.
+instr_fetch_err
+Thread performs an instruction fetch.
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is a precise abort.
+reserved
+st_data_unavailable
+1'b0: MFIFO contains all the data to enable the DMAST to
+complete
+1'b1: Previous DMALDs have not put enough data in the MFIFO to
+enable the DMAST to complete
+This fault is a precise abort.
+mfifo_err
+DMALD
+1'b0: MFIFO contains sufficient space
+1'b1: MFIFO is too small to hold the data that DMALD requires
+DMAST
+1'b0: MFIFO contains sufficient data
+1'b1: MFIFO is too small to store the data to enable DMAST to
+complete
+This fault is an imprecise abort.
+reserved
+ch_rdwr_err
+To perform a secure read or secure write.
+1'b0: A DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: A DMA channel thread in the Non-secure state attempted to
+perform a secure read or secure write
+This fault is a precise abort.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1326
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+6
+
+RO
+
+0x0
+
+5
+
+RO
+
+0x0
+
+4:2
+
+RO
+
+0x0
+
+1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+ch_periph_err
+DMASTP, or DMAFLUSHP with inappropriate security permissions.
+1'b0: A DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: A DMA channel thread in the Non-secure state attempted to
+execute either:
+a. DMAWFP to wait for a secure peripheral
+b. DMALDP or DMASTP to notify a secure peripheral
+c. DMAFLUSHP to flush a secure peripheral
+This fault is a precise abort.
+ch_event_err
+1'b0: A DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: A DMA channel thread in the Non-secure state attempted to
+execute either:
+a. DMAWFE to wait for a secure event
+b. DMASEV to create a secure event or secure interrupt
+This fault is a precise abort.
+reserved
+operand_invalid
+Valid for the configuration of the DMAC.
+1'b0: Valid operand
+1'b1: Invalid operand
+This fault is a precise abort.
+undef_instr
+1'b0: Defined instruction
+1'b1: Undefined instruction
+This fault is a precise abort.
+
+DMAC_FTR3
+Address: Operational Base + offset (0x004c)
+Bit Attr Reset Value
+Description
+lockup_err
+1'b0: DMA channel has adequate resources
+31
+RO 0x0
+1'b1: DMA channel has locked-up because of insufficient
+resources
+This fault is an imprecise abort.
+dbg_instr
+Memory or from the debug interface.
+1'b0: Instruction that generated an abort was read from system
+memory
+30
+RO 0x0
+1'b1: Instruction that generated an abort was read from the
+debug interface
+This fault is an imprecise abort but the bit is only valid when a
+precise abort occurs.
+29:19 RO 0x0
+reserved
+data_read_err
+Thread performs a data read.
+18
+RO 0x0
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is an imprecise abort.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1327
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+17
+
+RO
+
+0x0
+
+16
+
+RO
+
+0x0
+
+15:14 RO
+
+0x0
+
+13
+
+RO
+
+0x0
+
+12
+
+RO
+
+0x0
+
+11:8
+
+RO
+
+0x0
+
+7
+
+RO
+
+0x0
+
+6
+
+RO
+
+0x0
+
+5
+
+RO
+
+0x0
+
+4:2
+
+RO
+
+0x0
+
+Description
+data_write_err
+Thread performs a data write.
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is an imprecise abort.
+instr_fetch_err
+Thread performs an instruction fetch.
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is a precise abort.
+reserved
+st_data_unavailable
+1'b0: MFIFO contains all the data to enable the DMAST to
+complete
+1'b1: Previous DMALDs have not put enough data in the MFIFO to
+enable the DMAST to complete
+This fault is a precise abort.
+mfifo_err
+DMALD
+1'b0: MFIFO contains sufficient space
+1'b1: MFIFO is too small to hold the data that DMALD requires
+DMAST
+1'b0: MFIFO contains sufficient data
+1'b1: MFIFO is too small to store the data to enable DMAST to
+complete
+This fault is an imprecise abort.
+reserved
+ch_rdwr_err
+To perform a secure read or secure write.
+1'b0: A DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: A DMA channel thread in the Non-secure state attempted to
+perform a secure read or secure write
+This fault is a precise abort.
+ch_periph_err
+DMASTP, or DMAFLUSHP with inappropriate security permissions.
+1'b0: A DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: A DMA channel thread in the Non-secure state attempted to
+execute either:
+a. DMAWFP to wait for a secure peripheral
+b. DMALDP or DMASTP to notify a secure peripheral
+c. DMAFLUSHP to flush a secure peripheral
+This fault is a precise abort.
+ch_event_err
+1'b0: A DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: A DMA channel thread in the Non-secure state attempted to
+execute either:
+a. DMAWFE to wait for a secure event
+b. DMASEV to create a secure event or secure interrupt
+This fault is a precise abort.
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1328
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+operand_invalid
+Valid for the configuration of the DMAC.
+1'b0: Valid operand
+1'b1: Invalid operand
+This fault is a precise abort.
+undef_instr
+1'b0: Defined instruction
+1'b1: Undefined instruction
+This fault is a precise abort.
+
+DMAC_FTR4
+Address: Operational Base + offset (0x0050)
+Bit Attr Reset Value
+Description
+lockup_err
+1'b0: DMA channel has adequate resources
+31
+RO 0x0
+1'b1: DMA channel has locked-up because of insufficient
+resources
+This fault is an imprecise abort.
+dbg_instr
+Memory or from the debug interface.
+1'b0: Instruction that generated an abort was read from system
+memory
+30
+RO 0x0
+1'b1: Instruction that generated an abort was read from the
+debug interface
+This fault is an imprecise abort but the bit is only valid when a
+precise abort occurs.
+29:19 RO 0x0
+reserved
+data_read_err
+Thread performs a data read.
+18
+RO 0x0
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is an imprecise abort.
+data_write_err
+Thread performs a data write.
+17
+RO 0x0
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is an imprecise abort.
+instr_fetch_err
+Thread performs an instruction fetch.
+16
+RO 0x0
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is a precise abort.
+15:14 RO 0x0
+reserved
+st_data_unavailable
+1'b0: MFIFO contains all the data to enable the DMAST to
+complete
+13
+RO 0x0
+1'b1: Previous DMALDs have not put enough data in the MFIFO to
+enable the DMAST to complete
+This fault is a precise abort.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1329
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+12
+
+RO
+
+0x0
+
+11:8
+
+RO
+
+0x0
+
+7
+
+RO
+
+0x0
+
+6
+
+RO
+
+0x0
+
+5
+
+RO
+
+0x0
+
+4:2
+
+RO
+
+0x0
+
+1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+mfifo_err
+DMALD
+1'b0: MFIFO contains sufficient space
+1'b1: MFIFO is too small to hold the data that DMALD requires
+DMAST
+1'b0: MFIFO contains sufficient data
+1'b1: MFIFO is too small to store the data to enable DMAST to
+complete
+This fault is an imprecise abort.
+reserved
+ch_rdwr_err
+To perform a secure read or secure write.
+1'b0: A DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: A DMA channel thread in the Non-secure state attempted to
+perform a secure read or secure write
+This fault is a precise abort.
+ch_periph_err
+DMASTP, or DMAFLUSHP with inappropriate security permissions.
+1'b0: A DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: A DMA channel thread in the Non-secure state attempted to
+execute either:
+a. DMAWFP to wait for a secure peripheral
+b. DMALDP or DMASTP to notify a secure peripheral
+c. DMAFLUSHP to flush a secure peripheral
+This fault is a precise abort.
+ch_event_err
+1'b0: A DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: A DMA channel thread in the Non-secure state attempted to
+execute either:
+a. DMAWFE to wait for a secure event
+b. DMASEV to create a secure event or secure interrupt
+This fault is a precise abort.
+reserved
+operand_invalid
+Valid for the configuration of the DMAC.
+1'b0: Valid operand
+1'b1: Invalid operand
+This fault is a precise abort.
+undef_instr
+1'b0: Defined instruction
+1'b1: Undefined instruction
+This fault is a precise abort.
+
+DMAC_FTR5
+Address: Operational Base + offset (0x0054)
+Bit Attr Reset Value
+Description
+lockup_err
+1'b0: DMA channel has adequate resources
+31
+RO 0x0
+1'b1: DMA channel has locked-up because of insufficient
+resources
+This fault is an imprecise abort.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1330
+
+RK3588 TRM-Part1
+Bit
+
+30
+
+Attr Reset Value
+
+RO
+
+0x0
+
+29:19 RO
+
+0x0
+
+18
+
+RO
+
+0x0
+
+17
+
+RO
+
+0x0
+
+16
+
+RO
+
+0x0
+
+15:14 RO
+
+0x0
+
+13
+
+RO
+
+0x0
+
+12
+
+RO
+
+0x0
+
+11:8
+
+RO
+
+0x0
+
+7
+
+RO
+
+0x0
+
+Description
+dbg_instr
+Memory or from the debug interface.
+1'b0: Instruction that generated an abort was read from system
+memory
+1'b1: Instruction that generated an abort was read from the
+debug interface
+This fault is an imprecise abort but the bit is only valid when a
+precise abort occurs.
+reserved
+data_read_err
+Thread performs a data read.
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is an imprecise abort.
+data_write_err
+Thread performs a data write.
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is an imprecise abort.
+instr_fetch_err
+Thread performs an instruction fetch.
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is a precise abort.
+reserved
+st_data_unavailable
+1'b0: MFIFO contains all the data to enable the DMAST to
+complete
+1'b1: Previous DMALDs have not put enough data in the MFIFO to
+enable the DMAST to complete
+This fault is a precise abort.
+mfifo_err
+DMALD
+1'b0: MFIFO contains sufficient space
+1'b1: MFIFO is too small to hold the data that DMALD requires
+DMAST
+1'b0: MFIFO contains sufficient data
+1'b1: MFIFO is too small to store the data to enable DMAST to
+complete
+This fault is an imprecise abort.
+reserved
+ch_rdwr_err
+To perform a secure read or secure write.
+1'b0: A DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: A DMA channel thread in the Non-secure state attempted to
+perform a secure read or secure write
+This fault is a precise abort.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1331
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+6
+
+RO
+
+0x0
+
+5
+
+RO
+
+0x0
+
+4:2
+
+RO
+
+0x0
+
+1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+ch_periph_err
+DMASTP, or DMAFLUSHP with inappropriate security permissions.
+1'b0: A DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: A DMA channel thread in the Non-secure state attempted to
+execute either:
+a. DMAWFP to wait for a secure peripheral
+b. DMALDP or DMASTP to notify a secure peripheral
+c. DMAFLUSHP to flush a secure peripheral
+This fault is a precise abort.
+ch_event_err
+1'b0: A DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: A DMA channel thread in the Non-secure state attempted to
+execute either:
+a. DMAWFE to wait for a secure event
+b. DMASEV to create a secure event or secure interrupt
+This fault is a precise abort.
+reserved
+operand_invalid
+Valid for the configuration of the DMAC.
+1'b0: Valid operand
+1'b1: Invalid operand
+This fault is a precise abort.
+undef_instr
+1'b0: Defined instruction
+1'b1: Undefined instruction
+This fault is a precise abort.
+
+DMAC_FTR6
+Address: Operational Base + offset (0x0058)
+Bit Attr Reset Value
+Description
+lockup_err
+1'b0: DMA channel has adequate resources
+31
+RO 0x0
+1'b1: DMA channel has locked-up because of insufficient
+resources
+This fault is an imprecise abort.
+dbg_instr
+Memory or from the debug interface.
+1'b0: Instruction that generated an abort was read from system
+memory
+30
+RO 0x0
+1'b1: Instruction that generated an abort was read from the
+debug interface
+This fault is an imprecise abort but the bit is only valid when a
+precise abort occurs.
+29:19 RO 0x0
+reserved
+data_read_err
+Thread performs a data read.
+18
+RO 0x0
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is an imprecise abort.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1332
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+17
+
+RO
+
+0x0
+
+16
+
+RO
+
+0x0
+
+15:14 RO
+
+0x0
+
+13
+
+RO
+
+0x0
+
+12
+
+RO
+
+0x0
+
+11:8
+
+RO
+
+0x0
+
+7
+
+RO
+
+0x0
+
+6
+
+RO
+
+0x0
+
+5
+
+RO
+
+0x0
+
+4:2
+
+RO
+
+0x0
+
+Description
+data_write_err
+Thread performs a data write.
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is an imprecise abort.
+instr_fetch_err
+Thread performs an instruction fetch.
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is a precise abort.
+reserved
+st_data_unavailable
+1'b0: MFIFO contains all the data to enable the DMAST to
+complete
+1'b1: Previous DMALDs have not put enough data in the MFIFO to
+enable the DMAST to complete
+This fault is a precise abort.
+mfifo_err
+DMALD
+1'b0: MFIFO contains sufficient space
+1'b1: MFIFO is too small to hold the data that DMALD requires
+DMAST
+1'b0: MFIFO contains sufficient data
+1'b1: MFIFO is too small to store the data to enable DMAST to
+complete
+This fault is an imprecise abort.
+reserved
+ch_rdwr_err
+To perform a secure read or secure write.
+1'b0: A DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: A DMA channel thread in the Non-secure state attempted to
+perform a secure read or secure write
+This fault is a precise abort.
+ch_periph_err
+DMASTP, or DMAFLUSHP with inappropriate security permissions.
+1'b0: A DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: A DMA channel thread in the Non-secure state attempted to
+execute either:
+a. DMAWFP to wait for a secure peripheral
+b. DMALDP or DMASTP to notify a secure peripheral
+c. DMAFLUSHP to flush a secure peripheral
+This fault is a precise abort.
+ch_event_err
+1'b0: A DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: A DMA channel thread in the Non-secure state attempted to
+execute either:
+a. DMAWFE to wait for a secure event
+b. DMASEV to create a secure event or secure interrupt
+This fault is a precise abort.
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1333
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+operand_invalid
+Valid for the configuration of the DMAC.
+1'b0: Valid operand
+1'b1: Invalid operand
+This fault is a precise abort.
+undef_instr
+1'b0: Defined instruction
+1'b1: Undefined instruction
+This fault is a precise abort.
+
+DMAC_FTR7
+Address: Operational Base + offset (0x005c)
+Bit Attr Reset Value
+Description
+lockup_err
+1'b0: DMA channel has adequate resources
+31
+RO 0x0
+1'b1: DMA channel has locked-up because of insufficient
+resources
+This fault is an imprecise abort.
+dbg_instr
+Memory or from the debug interface.
+1'b0: Instruction that generated an abort was read from system
+memory
+30
+RO 0x0
+1'b1: Instruction that generated an abort was read from the
+debug interface
+This fault is an imprecise abort but the bit is only valid when a
+precise abort occurs.
+29:19 RO 0x0
+reserved
+data_read_err
+Thread performs a data read.
+18
+RO 0x0
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is an imprecise abort.
+data_write_err
+Thread performs a data write.
+17
+RO 0x0
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is an imprecise abort.
+instr_fetch_err
+Thread performs an instruction fetch.
+16
+RO 0x0
+1'b0: OKAY response
+1'b1: EXOKAY, SLVERR, or DECERR response
+This fault is a precise abort.
+15:14 RO 0x0
+reserved
+st_data_unavailable
+1'b0: MFIFO contains all the data to enable the DMAST to
+complete
+13
+RO 0x0
+1'b1: Previous DMALDs have not put enough data in the MFIFO to
+enable the DMAST to complete
+This fault is a precise abort.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1334
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+12
+
+RO
+
+0x0
+
+11:8
+
+RO
+
+0x0
+
+7
+
+RO
+
+0x0
+
+6
+
+RO
+
+0x0
+
+5
+
+RO
+
+0x0
+
+4:2
+
+RO
+
+0x0
+
+1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+mfifo_err
+DMALD
+1'b0: MFIFO contains sufficient space
+1'b1: MFIFO is too small to hold the data that DMALD requires
+DMAST
+1'b0: MFIFO contains sufficient data
+1'b1: MFIFO is too small to store the data to enable DMAST to
+complete
+This fault is an imprecise abort.
+reserved
+ch_rdwr_err
+To perform a secure read or secure write.
+1'b0: A DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: A DMA channel thread in the Non-secure state attempted to
+perform a secure read or secure write
+This fault is a precise abort.
+ch_periph_err
+DMASTP, or DMAFLUSHP with inappropriate security permissions.
+1'b0: A DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: A DMA channel thread in the Non-secure state attempted to
+execute either:
+a. DMAWFP to wait for a secure peripheral
+b. DMALDP or DMASTP to notify a secure peripheral
+c. DMAFLUSHP to flush a secure peripheral
+This fault is a precise abort.
+ch_event_err
+1'b0: A DMA channel thread in the Non-secure state is not
+violating the security permissions
+1'b1: A DMA channel thread in the Non-secure state attempted to
+execute either:
+a. DMAWFE to wait for a secure event
+b. DMASEV to create a secure event or secure interrupt
+This fault is a precise abort.
+reserved
+operand_invalid
+Valid for the configuration of the DMAC.
+1'b0: Valid operand
+1'b1: Invalid operand
+This fault is a precise abort.
+undef_instr
+1'b0: Defined instruction
+1'b1: Undefined instruction
+This fault is a precise abort.
+
+DMAC_CSR0
+Address: Operational Base + offset (0x0100)
+Bit Attr Reset Value
+Description
+31:22 RO 0x0
+reserved
+cns
+21
+RO 0x0
+1'b0: DMA channel operates in the Secure state
+1'b1: DMA channel operates in the Non-secure state
+20:16 RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1335
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+15
+
+RO
+
+0x0
+
+14
+
+RO
+
+0x0
+
+13:9
+
+RO
+
+0x0
+
+8:4
+
+RO
+
+0x00
+
+3:0
+
+RO
+
+0x0
+
+Description
+dmawfp_periph
+1'b0: DMAWFP executed with the periph operand not set
+1'b1: DMAWFP executed with the periph operand set
+dmawfp_b_ns
+1'b0: DMAWFP executed with the single operand set
+1'b1: DMAWFP executed with the burst operand set
+reserved
+wakeup_number
+Indicate the event or peripheral number that the channel is
+waiting for.
+5'h0: DMA channel is waiting for event, or peripheral, 0
+5'h1: DMA channel is waiting for event, or peripheral, 1
+5'h2: DMA channel is waiting for event, or peripheral, 2
+…
+5'h1f: DMA channel is waiting for event, or peripheral, 31
+channel_status
+Channel 0 status.
+4'h0: Stopped
+4'h1: Executing
+4'h2: Cache miss
+4'h3: Updating PC
+4'h4: Waiting for event
+4'h5: At barrier
+4'h7: Waiting for peripheral
+4'h8: Killing
+4'h9: Completing
+4'he: Faulting completing
+4'hf: Faulting
+Others: Reserved
+
+DMAC_CPC0
+Address: Operational Base + offset (0x0104)
+Bit Attr Reset Value
+Description
+pc_chnl
+31:0 RO 0x00000000
+Program counter for the DMA channel 0 thread
+DMAC_CSR1
+Address: Operational Base + offset (0x0108)
+Bit Attr Reset Value
+Description
+31:22 RO 0x0
+reserved
+cns
+21
+RO 0x0
+1'b0: DMA channel operates in the Secure state
+1'b1: DMA channel operates in the Non-secure state
+20:16 RO 0x0
+reserved
+dmawfp_periph
+15
+RO 0x0
+1'b0: DMAWFP executed with the periph operand not set
+1'b1: DMAWFP executed with the periph operand set
+dmawfp_b_ns
+14
+RO 0x0
+1'b0: DMAWFP executed with the single operand set
+1'b1: DMAWFP executed with the burst operand set
+13:9 RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1336
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+8:4
+
+RO
+
+0x00
+
+3:0
+
+RO
+
+0x0
+
+Description
+wakeup_number
+Indicate the event or peripheral number that the channel is
+waiting for.
+5'h0: DMA channel is waiting for event, or peripheral, 0
+5'h1: DMA channel is waiting for event, or peripheral, 1
+5'h2: DMA channel is waiting for event, or peripheral, 2
+…
+5'h1f: DMA channel is waiting for event, or peripheral, 31
+channel_status
+Channel 1 status.
+4'h0: Stopped
+4'h1: Executing
+4'h2: Cache miss
+4'h3: Updating PC
+4'h4: Waiting for event
+4'h5: At barrier
+4'h7: Waiting for peripheral
+4'h8: Killing
+4'h9: Completing
+4'he: Faulting completing
+4'hf: Faulting
+Others: Reserved
+
+DMAC_CPC1
+Address: Operational Base + offset (0x010c)
+Bit Attr Reset Value
+Description
+pc_chnl
+31:0 RO 0x00000000
+Program counter for the DMA channel 1 thread
+DMAC_CSR2
+Address: Operational Base + offset (0x0110)
+Bit Attr Reset Value
+Description
+31:22 RO 0x0
+reserved
+cns
+21
+RO 0x0
+1'b0: DMA channel operates in the Secure state
+1'b1: DMA channel operates in the Non-secure state
+20:16 RO 0x0
+reserved
+dmawfp_periph
+15
+RO 0x0
+1'b0: DMAWFP executed with the periph operand not set
+1'b1: DMAWFP executed with the periph operand set
+dmawfp_b_ns
+14
+RO 0x0
+1'b0: DMAWFP executed with the single operand set
+1'b1: DMAWFP executed with the burst operand set
+13:9 RO 0x0
+reserved
+wakeup_number
+Indicate the event or peripheral number that the channel is
+waiting for.
+5'h0: DMA channel is waiting for event, or peripheral, 0
+8:4
+RO 0x00
+5'h1: DMA channel is waiting for event, or peripheral, 1
+5'h2: DMA channel is waiting for event, or peripheral, 2
+…
+5'h1f: DMA channel is waiting for event, or peripheral, 31
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1337
+
+RK3588 TRM-Part1
+Bit
+
+3:0
+
+Attr Reset Value
+
+RO
+
+0x0
+
+Description
+channel_status
+Channel 2 status.
+4'h0: Stopped
+4'h1: Executing
+4'h2: Cache miss
+4'h3: Updating PC
+4'h4: Waiting for event
+4'h5: At barrier
+4'h7: Waiting for peripheral
+4'h8: Killing
+4'h9: Completing
+4'he: Faulting completing
+4'hf: Faulting
+Others: Reserved
+
+DMAC_CPC2
+Address: Operational Base + offset (0x0114)
+Bit Attr Reset Value
+Description
+pc_chnl
+31:0 RO 0x00000000
+Program counter for the DMA channel 2 thread
+DMAC_CSR3
+Address: Operational Base + offset (0x0118)
+Bit Attr Reset Value
+Description
+31:22 RO 0x0
+reserved
+cns
+21
+RO 0x0
+1'b0: DMA channel operates in the Secure state
+1'b1: DMA channel operates in the Non-secure state
+20:16 RO 0x0
+reserved
+dmawfp_periph
+15
+RO 0x0
+1'b0: DMAWFP executed with the periph operand not set
+1'b1: DMAWFP executed with the periph operand set
+dmawfp_b_ns
+14
+RO 0x0
+1'b0: DMAWFP executed with the single operand set
+1'b1: DMAWFP executed with the burst operand set
+13:9 RO 0x0
+reserved
+wakeup_number
+Indicate the event or peripheral number that the channel is
+waiting for.
+5'h0: DMA channel is waiting for event, or peripheral, 0
+8:4
+RO 0x00
+5'h1: DMA channel is waiting for event, or peripheral, 1
+5'h2: DMA channel is waiting for event, or peripheral, 2
+…
+5'h1f: DMA channel is waiting for event, or peripheral, 31
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1338
+
+RK3588 TRM-Part1
+Bit
+
+3:0
+
+Attr Reset Value
+
+RO
+
+0x0
+
+Description
+channel_status
+Channel 3 status.
+4'h0: Stopped
+4'h1: Executing
+4'h2: Cache miss
+4'h3: Updating PC
+4'h4: Waiting for event
+4'h5: At barrier
+4'h7: Waiting for peripheral
+4'h8: Killing
+4'h9: Completing
+4'he: Faulting completing
+4'hf: Faulting
+Others: Reserved
+
+DMAC_CPC3
+Address: Operational Base + offset (0x011c)
+Bit Attr Reset Value
+Description
+pc_chnl
+31:0 RO 0x00000000
+Program counter for the DMA channel 3 thread
+DMAC_CSR4
+Address: Operational Base + offset (0x0120)
+Bit Attr Reset Value
+Description
+31:22 RO 0x0
+reserved
+cns
+21
+RO 0x0
+1'b0: DMA channel operates in the Secure state
+1'b1: DMA channel operates in the Non-secure state
+20:16 RO 0x0
+reserved
+dmawfp_periph
+15
+RO 0x0
+1'b0: DMAWFP executed with the periph operand not set
+1'b1: DMAWFP executed with the periph operand set
+dmawfp_b_ns
+14
+RO 0x0
+1'b0: DMAWFP executed with the single operand set
+1'b1: DMAWFP executed with the burst operand set
+13:9 RO 0x0
+reserved
+wakeup_number
+Indicate the event or peripheral number that the channel is
+waiting for.
+5'h0: DMA channel is waiting for event, or peripheral, 0
+8:4
+RO 0x00
+5'h1: DMA channel is waiting for event, or peripheral, 1
+5'h2: DMA channel is waiting for event, or peripheral, 2
+…
+5'h1f: DMA channel is waiting for event, or peripheral, 31
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1339
+
+RK3588 TRM-Part1
+Bit
+
+3:0
+
+Attr Reset Value
+
+RO
+
+0x0
+
+Description
+channel_status
+Channel 4 status.
+4'h0: Stopped
+4'h1: Executing
+4'h2: Cache miss
+4'h3: Updating PC
+4'h4: Waiting for event
+4'h5: At barrier
+4'h7: Waiting for peripheral
+4'h8: Killing
+4'h9: Completing
+4'he: Faulting completing
+4'hf: Faulting
+Others: Reserved
+
+DMAC_CPC4
+Address: Operational Base + offset (0x0124)
+Bit Attr Reset Value
+Description
+pc_chnl
+31:0 RO 0x00000000
+Program counter for the DMA channel 4 thread
+DMAC_CSR5
+Address: Operational Base + offset (0x0128)
+Bit Attr Reset Value
+Description
+31:22 RO 0x0
+reserved
+cns
+21
+RO 0x0
+1'b0: DMA channel operates in the Secure state
+1'b1: DMA channel operates in the Non-secure state
+20:16 RO 0x0
+reserved
+dmawfp_periph
+15
+RO 0x0
+1'b0: DMAWFP executed with the periph operand not set
+1'b1: DMAWFP executed with the periph operand set
+dmawfp_b_ns
+14
+RO 0x0
+1'b0: DMAWFP executed with the single operand set
+1'b1: DMAWFP executed with the burst operand set
+13:9 RO 0x0
+reserved
+wakeup_number
+Indicate the event or peripheral number that the channel is
+waiting for.
+5'h0: DMA channel is waiting for event, or peripheral, 0
+8:4
+RO 0x00
+5'h1: DMA channel is waiting for event, or peripheral, 1
+5'h2: DMA channel is waiting for event, or peripheral, 2
+…
+5'h1f: DMA channel is waiting for event, or peripheral, 31
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1340
+
+RK3588 TRM-Part1
+Bit
+
+3:0
+
+Attr Reset Value
+
+RO
+
+0x0
+
+Description
+channel_status
+Channel 5 status.
+4'h0: Stopped
+4'h1: Executing
+4'h2: Cache miss
+4'h3: Updating PC
+4'h4: Waiting for event
+4'h5: At barrier
+4'h7: Waiting for peripheral
+4'h8: Killing
+4'h9: Completing
+4'he: Faulting completing
+4'hf: Faulting
+Others: Reserved
+
+DMAC_CPC5
+Address: Operational Base + offset (0x012c)
+Bit Attr Reset Value
+Description
+pc_chnl
+31:0 RO 0x00000000
+Program counter for the DMA channel 5 thread
+DMAC_CSR6
+Address: Operational Base + offset (0x0130)
+Bit Attr Reset Value
+Description
+31:22 RO 0x0
+reserved
+cns
+21
+RO 0x0
+1'b0: DMA channel operates in the Secure state
+1'b1: DMA channel operates in the Non-secure state
+20:16 RO 0x0
+reserved
+dmawfp_periph
+15
+RO 0x0
+1'b0: DMAWFP executed with the periph operand not set
+1'b1: DMAWFP executed with the periph operand set
+dmawfp_b_ns
+14
+RO 0x0
+1'b0: DMAWFP executed with the single operand set
+1'b1: DMAWFP executed with the burst operand set
+13:9 RO 0x0
+reserved
+wakeup_number
+Indicate the event or peripheral number that the channel is
+waiting for.
+5'h0: DMA channel is waiting for event, or peripheral, 0
+8:4
+RO 0x00
+5'h1: DMA channel is waiting for event, or peripheral, 1
+5'h2: DMA channel is waiting for event, or peripheral, 2
+…
+5'h1f: DMA channel is waiting for event, or peripheral, 31
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1341
+
+RK3588 TRM-Part1
+Bit
+
+3:0
+
+Attr Reset Value
+
+RO
+
+0x0
+
+Description
+channel_status
+Channel 6 status.
+4'h0: Stopped
+4'h1: Executing
+4'h2: Cache miss
+4'h3: Updating PC
+4'h4: Waiting for event
+4'h5: At barrier
+4'h7: Waiting for peripheral
+4'h8: Killing
+4'h9: Completing
+4'he: Faulting completing
+4'hf: Faulting
+Others: Reserved
+
+DMAC_CPC6
+Address: Operational Base + offset (0x0134)
+Bit Attr Reset Value
+Description
+pc_chnl
+31:0 RO 0x00000000
+Program counter for the DMA channel 6 thread
+DMAC_CSR7
+Address: Operational Base + offset (0x0138)
+Bit Attr Reset Value
+Description
+31:22 RO 0x0
+reserved
+cns
+21
+RO 0x0
+1'b0: DMA channel operates in the Secure state
+1'b1: DMA channel operates in the Non-secure state
+20:16 RO 0x0
+reserved
+dmawfp_periph
+15
+RO 0x0
+1'b0: DMAWFP executed with the periph operand not set
+1'b1: DMAWFP executed with the periph operand set
+dmawfp_b_ns
+14
+RO 0x0
+1'b0: DMAWFP executed with the single operand set
+1'b1: DMAWFP executed with the burst operand set
+13:9 RO 0x0
+reserved
+wakeup_number
+Indicate the event or peripheral number that the channel is
+waiting for.
+5'h0: DMA channel is waiting for event, or peripheral, 0
+8:4
+RO 0x00
+5'h1: DMA channel is waiting for event, or peripheral, 1
+5'h2: DMA channel is waiting for event, or peripheral, 2
+…
+5'h1f: DMA channel is waiting for event, or peripheral, 31
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1342
+
+RK3588 TRM-Part1
+Bit
+
+3:0
+
+Attr Reset Value
+
+RO
+
+0x0
+
+Description
+channel_status
+Channel 7 status.
+4'h0: Stopped
+4'h1: Executing
+4'h2: Cache miss
+4'h3: Updating PC
+4'h4: Waiting for event
+4'h5: At barrier
+4'h7: Waiting for peripheral
+4'h8: Killing
+4'h9: Completing
+4'he: Faulting completing
+4'hf: Faulting
+Others: Reserved
+
+DMAC_CPC7
+Address: Operational Base + offset (0x013c)
+Bit Attr Reset Value
+Description
+pc_chnl
+31:0 RO 0x00000000
+Program counter for the DMA channel 7 thread
+DMAC_SAR0
+Address: Operational Base + offset (0x0400)
+Bit Attr Reset Value
+Description
+src_addr
+31:0 RO 0x00000000
+Address of the source data for DMA channel 0
+DMAC_DAR0
+Address: Operational Base + offset (0x0404)
+Bit Attr Reset Value
+Description
+dst_addr
+31:0 RO 0x00000000
+Address of the Destination data for DMA channel 0
+DMAC_CCR0
+Address: Operational Base + offset (0x0408)
+Bit Attr Reset Value
+Description
+31:28 RO 0x0
+reserved
+dst_cache_ctrl
+Bit [27]
+1'b0: AWCACHE[3] is LOW
+1'b1: AWCACHE[3] is HIGH
+Bit [26]
+27:25 RO 0x0
+1'b0: AWCACHE[1] is LOW
+1'b1: AWCACHE[1] is HIGH
+Bit [25]
+1'b0: AWCACHE[0] is LOW
+1'b1: AWCACHE[0] is HIGH
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1343
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+24:22 RO
+
+0x0
+
+21:18 RO
+
+0x0
+
+17:15 RO
+
+0x0
+
+14
+
+RO
+
+0x0
+
+13:11 RO
+
+0x0
+
+10:8
+
+0x0
+
+RO
+
+Description
+dst_prot_ctrl
+Bit [24]
+1'b0: AWPROT[2] is LOW
+1'b1: AWPROT[2] is HIGH
+Bit [23]
+1'b0: AWPROT[1] is LOW
+1'b1: AWPROT[1] is HIGH
+Bit [22]
+1'b0: AWPROT[0] is LOW
+1'b1: AWPROT[0] is HIGH
+dst_burst_len
+the destination data:
+4'h0: 1 data transfer
+4'h1: 2 data transfers
+4'h2: 3 data transfers
+…
+4'hf: 16 data transfers
+The total number of bytes that the DMAC writes out of the MFIFO
+when it executes a DMAST instruction is the product of
+dst_burst_len and dst_burst_size.
+dst_burst_size
+3'h0: Writes 1 byte per beat
+3'h1: Writes 2 bytes per beat
+3'h2: Writes 4 bytes per beat
+3'h3: Writes 8 bytes per beat
+3'h4: Writes 16 bytes per beat
+Others: Reserved
+The total number of bytes that the DMAC writes out of the MFIFO
+when it executes a DMAST instruction is the product of
+dst_burst_len and dst_burst_size.
+dst_inc
+1'b0: Fixed-address burst. The DMAC signals AWBURST[0] LOW.
+1'b1: Incrementing-address burst. The DMAC signals
+AWBURST[0] HIGH.
+src_cache_ctrl
+Bit [13]
+1'b0: ARCACHE[2] is LOW
+1'b1: ARCACHE[2] is HIGH
+Bit [12]
+1'b0: ARCACHE[1] is LOW
+1'b1: ARCACHE[1] is HIGH
+Bit [11]
+1'b0: ARCACHE[0] is LOW
+1'b1: ARCACHE[0] is HIGH
+src_prot_ctrl
+Bit [10]
+1'b0: ARPROT[2] is LOW
+1'b1: ARPROT[2] is HIGH
+Bit [9]
+1'b0: ARPROT[1] is LOW
+1'b1: ARPROT[1] is HIGH
+Bit [8]
+1'b0: ARPROT[0] is LOW
+1'b1: ARPROT[0] is HIGH
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1344
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+7:4
+
+RO
+
+0x0
+
+3:1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+src_burst_len
+4'h0: 1 data transfer
+4'h1: 2 data transfers
+4'h2: 3 data transfers
+…
+4'hf: 16 data transfers
+The total number of bytes that the DMAC reads into the MFIFO
+when it executes a DMALD instruction is the product of
+src_burst_len and src_burst_size.
+src_burst_size
+3'h0: Reads 1 byte per beat
+3'h1: Reads 2 bytes per beat
+3'h2: Reads 4 bytes per beat
+3'h3: Reads 8 bytes per beat
+3'h4: Reads 16 bytes per beat
+Others: Reserved
+The total number of bytes that the DMAC reads into the MFIFO
+when it executes a DMALD instruction is the product of
+src_burst_len and src_burst_size.
+src_inc
+1'b0: Fixed-address burst. The DMAC signals ARBURST[0] LOW.
+1'b1: Incrementing-address burst. The DMAC signals
+ARBURST[0] HIGH.
+
+DMAC_LC0_0
+Address: Operational Base + offset (0x040c)
+Bit Attr Reset Value
+Description
+31:8 RO 0x0
+reserved
+loop_counter_iterations
+7:0
+RO 0x00
+Loop counter 0 iterations
+DMAC_LC1_0
+Address: Operational Base + offset (0x0410)
+Bit Attr Reset Value
+Description
+31:8 RO 0x0
+reserved
+loop_counter_iterations
+7:0
+RO 0x00
+Loop counter 1 iterations
+DMAC_SAR1
+Address: Operational Base + offset (0x0420)
+Bit Attr Reset Value
+Description
+src_addr
+31:0 RO 0x00000000
+Address of the source data for DMA channel 1
+DMAC_DAR1
+Address: Operational Base + offset (0x0424)
+Bit Attr Reset Value
+Description
+dst_addr
+31:0 RO 0x00000000
+Address of the Destination data for DMA channel 1
+DMAC_CCR1
+Address: Operational Base + offset (0x0428)
+Bit Attr Reset Value
+31:28 RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1345
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+27:25 RO
+
+0x0
+
+24:22 RO
+
+0x0
+
+21:18 RO
+
+0x0
+
+17:15 RO
+
+0x0
+
+14
+
+RO
+
+0x0
+
+13:11 RO
+
+0x0
+
+Description
+dst_cache_ctrl
+Bit [27]
+1'b0: AWCACHE[3] is LOW
+1'b1: AWCACHE[3] is HIGH
+Bit [26]
+1'b0: AWCACHE[1] is LOW
+1'b1: AWCACHE[1] is HIGH
+Bit [25]
+1'b0: AWCACHE[0] is LOW
+1'b1: AWCACHE[0] is HIGH
+dst_prot_ctrl
+Bit [24]
+1'b0: AWPROT[2] is LOW
+1'b1: AWPROT[2] is HIGH
+Bit [23]
+1'b0: AWPROT[1] is LOW
+1'b1: AWPROT[1] is HIGH
+Bit [22]
+1'b0: AWPROT[0] is LOW
+1'b1: AWPROT[0] is HIGH
+dst_burst_len
+the destination data:
+4'h0: 1 data transfer
+4'h1: 2 data transfers
+4'h2: 3 data transfers
+…
+4'hf: 16 data transfers
+The total number of bytes that the DMAC writes out of the MFIFO
+when it executes a DMAST instruction is the product of
+dst_burst_len and dst_burst_size.
+dst_burst_size
+3'h0: Writes 1 byte per beat
+3'h1: Writes 2 bytes per beat
+3'h2: Writes 4 bytes per beat
+3'h3: Writes 8 bytes per beat
+3'h4: Writes 16 bytes per beat
+Others: Reserved
+The total number of bytes that the DMAC writes out of the MFIFO
+when it executes a DMAST instruction is the product of
+dst_burst_len and dst_burst_size.
+dst_inc
+1'b0: Fixed-address burst. The DMAC signals AWBURST[0] LOW.
+1'b1: Incrementing-address burst. The DMAC signals
+AWBURST[0] HIGH.
+src_cache_ctrl
+Bit [13]
+1'b0: ARCACHE[2] is LOW
+1'b1: ARCACHE[2] is HIGH
+Bit [12]
+1'b0: ARCACHE[1] is LOW
+1'b1: ARCACHE[1] is HIGH
+Bit [11]
+1'b0: ARCACHE[0] is LOW
+1'b1: ARCACHE[0] is HIGH
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1346
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+10:8
+
+RO
+
+0x0
+
+7:4
+
+RO
+
+0x0
+
+3:1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+src_prot_ctrl
+Bit [10]
+1'b0: ARPROT[2] is LOW
+1'b1: ARPROT[2] is HIGH
+Bit [9]
+1'b0: ARPROT[1] is LOW
+1'b1: ARPROT[1] is HIGH
+Bit [8]
+1'b0: ARPROT[0] is LOW
+1'b1: ARPROT[0] is HIGH
+src_burst_len
+4'h0: 1 data transfer
+4'h1: 2 data transfers
+4'h2: 3 data transfers
+…
+4'hf: 16 data transfers
+The total number of bytes that the DMAC reads into the MFIFO
+when it executes a DMALD instruction is the product of
+src_burst_len and src_burst_size.
+src_burst_size
+3'h0: Reads 1 byte per beat
+3'h1: Reads 2 bytes per beat
+3'h2: Reads 4 bytes per beat
+3'h3: Reads 8 bytes per beat
+3'h4: Reads 16 bytes per beat
+Others: Reserved
+The total number of bytes that the DMAC reads into the MFIFO
+when it executes a DMALD instruction is the product of
+src_burst_len and src_burst_size.
+src_inc
+1'b0: Fixed-address burst. The DMAC signals ARBURST[0] LOW.
+1'b1: Incrementing-address burst. The DMAC signals
+ARBURST[0] HIGH.
+
+DMAC_LC0_1
+Address: Operational Base + offset (0x042c)
+Bit Attr Reset Value
+Description
+31:8 RO 0x0
+reserved
+loop_counter_iterations
+7:0
+RO 0x00
+Loop counter 0 iterations
+DMAC_LC1_1
+Address: Operational Base + offset (0x0430)
+Bit Attr Reset Value
+Description
+31:8 RO 0x0
+reserved
+loop_counter_iterations
+7:0
+RO 0x00
+Loop counter 1 iterations
+DMAC_SAR2
+Address: Operational Base + offset (0x0440)
+Bit Attr Reset Value
+Description
+src_addr
+31:0 RO 0x00000000
+Address of the source data for DMA channel 2
+DMAC_DAR2
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1347
+
+RK3588 TRM-Part1
+Address: Operational Base + offset (0x0444)
+Bit Attr Reset Value
+Description
+dst_addr
+31:0 RO 0x00000000
+Address of the Destination data for DMA channel 2
+DMAC_CCR2
+Address: Operational Base + offset (0x0448)
+Bit Attr Reset Value
+Description
+31:28 RO 0x0
+reserved
+dst_cache_ctrl
+Bit [27]
+1'b0: AWCACHE[3] is LOW
+1'b1: AWCACHE[3] is HIGH
+Bit [26]
+27:25 RO 0x0
+1'b0: AWCACHE[1] is LOW
+1'b1: AWCACHE[1] is HIGH
+Bit [25]
+1'b0: AWCACHE[0] is LOW
+1'b1: AWCACHE[0] is HIGH
+dst_prot_ctrl
+Bit [24]
+1'b0: AWPROT[2] is LOW
+1'b1: AWPROT[2] is HIGH
+Bit [23]
+24:22 RO 0x0
+1'b0: AWPROT[1] is LOW
+1'b1: AWPROT[1] is HIGH
+Bit [22]
+1'b0: AWPROT[0] is LOW
+1'b1: AWPROT[0] is HIGH
+dst_burst_len
+the destination data:
+4'h0: 1 data transfer
+4'h1: 2 data transfers
+4'h2: 3 data transfers
+21:18 RO 0x0
+…
+4'hf: 16 data transfers
+The total number of bytes that the DMAC writes out of the MFIFO
+when it executes a DMAST instruction is the product of
+dst_burst_len and dst_burst_size.
+dst_burst_size
+3'h0: Writes 1 byte per beat
+3'h1: Writes 2 bytes per beat
+3'h2: Writes 4 bytes per beat
+3'h3: Writes 8 bytes per beat
+17:15 RO 0x0
+3'h4: Writes 16 bytes per beat
+Others: Reserved
+The total number of bytes that the DMAC writes out of the MFIFO
+when it executes a DMAST instruction is the product of
+dst_burst_len and dst_burst_size.
+dst_inc
+1'b0: Fixed-address burst. The DMAC signals AWBURST[0] LOW.
+14
+RO 0x0
+1'b1: Incrementing-address burst. The DMAC signals
+AWBURST[0] HIGH.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1348
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+13:11 RO
+
+0x0
+
+10:8
+
+RO
+
+0x0
+
+7:4
+
+RO
+
+0x0
+
+3:1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+src_cache_ctrl
+Bit [13]
+1'b0: ARCACHE[2] is LOW
+1'b1: ARCACHE[2] is HIGH
+Bit [12]
+1'b0: ARCACHE[1] is LOW
+1'b1: ARCACHE[1] is HIGH
+Bit [11]
+1'b0: ARCACHE[0] is LOW
+1'b1: ARCACHE[0] is HIGH
+src_prot_ctrl
+Bit [10]
+1'b0: ARPROT[2] is LOW
+1'b1: ARPROT[2] is HIGH
+Bit [9]
+1'b0: ARPROT[1] is LOW
+1'b1: ARPROT[1] is HIGH
+Bit [8]
+1'b0: ARPROT[0] is LOW
+1'b1: ARPROT[0] is HIGH
+src_burst_len
+4'h0: 1 data transfer
+4'h1: 2 data transfers
+4'h2: 3 data transfers
+…
+4'hf: 16 data transfers
+The total number of bytes that the DMAC reads into the MFIFO
+when it executes a DMALD instruction is the product of
+src_burst_len and src_burst_size.
+src_burst_size
+3'h0: Reads 1 byte per beat
+3'h1: Reads 2 bytes per beat
+3'h2: Reads 4 bytes per beat
+3'h3: Reads 8 bytes per beat
+3'h4: Reads 16 bytes per beat
+Others: Reserved
+The total number of bytes that the DMAC reads into the MFIFO
+when it executes a DMALD instruction is the product of
+src_burst_len and src_burst_size.
+src_inc
+1'b0: Fixed-address burst. The DMAC signals ARBURST[0] LOW.
+1'b1: Incrementing-address burst. The DMAC signals
+ARBURST[0] HIGH.
+
+DMAC_LC0_2
+Address: Operational Base + offset (0x044c)
+Bit Attr Reset Value
+Description
+31:8 RO 0x0
+reserved
+loop_counter_iterations
+7:0
+RO 0x00
+Loop counter 0 iterations
+DMAC_LC1_2
+Address: Operational Base + offset (0x0450)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1349
+
+RK3588 TRM-Part1
+Bit
+31:8
+7:0
+
+Attr Reset Value
+Description
+RO 0x0
+reserved
+loop_counter_iterations
+RO 0x00
+Loop counter 1 iterations
+
+DMAC_SAR3
+Address: Operational Base + offset (0x0460)
+Bit Attr Reset Value
+Description
+src_addr
+31:0 RO 0x00000000
+Address of the source data for DMA channel 3
+DMAC_DAR3
+Address: Operational Base + offset (0x0464)
+Bit Attr Reset Value
+Description
+dst_addr
+31:0 RO 0x00000000
+Address of the Destination data for DMA channel 3
+DMAC_CCR3
+Address: Operational Base + offset (0x0468)
+Bit Attr Reset Value
+Description
+31:28 RO 0x0
+reserved
+dst_cache_ctrl
+Bit [27]
+1'b0: AWCACHE[3] is LOW
+1'b1: AWCACHE[3] is HIGH
+Bit [26]
+27:25 RO 0x0
+1'b0: AWCACHE[1] is LOW
+1'b1: AWCACHE[1] is HIGH
+Bit [25]
+1'b0: AWCACHE[0] is LOW
+1'b1: AWCACHE[0] is HIGH
+dst_prot_ctrl
+Bit [24]
+1'b0: AWPROT[2] is LOW
+1'b1: AWPROT[2] is HIGH
+Bit [23]
+24:22 RO 0x0
+1'b0: AWPROT[1] is LOW
+1'b1: AWPROT[1] is HIGH
+Bit [22]
+1'b0: AWPROT[0] is LOW
+1'b1: AWPROT[0] is HIGH
+dst_burst_len
+the destination data:
+4'h0: 1 data transfer
+4'h1: 2 data transfers
+4'h2: 3 data transfers
+21:18 RO 0x0
+…
+4'hf: 16 data transfers
+The total number of bytes that the DMAC writes out of the MFIFO
+when it executes a DMAST instruction is the product of
+dst_burst_len and dst_burst_size.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1350
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+17:15 RO
+
+0x0
+
+14
+
+RO
+
+0x0
+
+13:11 RO
+
+0x0
+
+10:8
+
+RO
+
+0x0
+
+7:4
+
+RO
+
+0x0
+
+3:1
+
+RO
+
+0x0
+
+Description
+dst_burst_size
+3'h0: Writes 1 byte per beat
+3'h1: Writes 2 bytes per beat
+3'h2: Writes 4 bytes per beat
+3'h3: Writes 8 bytes per beat
+3'h4: Writes 16 bytes per beat
+Others: Reserved
+The total number of bytes that the DMAC writes out of the MFIFO
+when it executes a DMAST instruction is the product of
+dst_burst_len and dst_burst_size.
+dst_inc
+1'b0: Fixed-address burst. The DMAC signals AWBURST[0] LOW.
+1'b1: Incrementing-address burst. The DMAC signals
+AWBURST[0] HIGH.
+src_cache_ctrl
+Bit [13]
+1'b0: ARCACHE[2] is LOW
+1'b1: ARCACHE[2] is HIGH
+Bit [12]
+1'b0: ARCACHE[1] is LOW
+1'b1: ARCACHE[1] is HIGH
+Bit [11]
+1'b0: ARCACHE[0] is LOW
+1'b1: ARCACHE[0] is HIGH
+src_prot_ctrl
+Bit [10]
+1'b0: ARPROT[2] is LOW
+1'b1: ARPROT[2] is HIGH
+Bit [9]
+1'b0: ARPROT[1] is LOW
+1'b1: ARPROT[1] is HIGH
+Bit [8]
+1'b0: ARPROT[0] is LOW
+1'b1: ARPROT[0] is HIGH
+src_burst_len
+4'h0: 1 data transfer
+4'h1: 2 data transfers
+4'h2: 3 data transfers
+…
+4'hf: 16 data transfers
+The total number of bytes that the DMAC reads into the MFIFO
+when it executes a DMALD instruction is the product of
+src_burst_len and src_burst_size.
+src_burst_size
+3'h0: Reads 1 byte per beat
+3'h1: Reads 2 bytes per beat
+3'h2: Reads 4 bytes per beat
+3'h3: Reads 8 bytes per beat
+3'h4: Reads 16 bytes per beat
+Others: Reserved
+The total number of bytes that the DMAC reads into the MFIFO
+when it executes a DMALD instruction is the product of
+src_burst_len and src_burst_size.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1351
+
+RK3588 TRM-Part1
+Bit
+0
+
+Attr Reset Value
+RO
+
+0x0
+
+Description
+src_inc
+1'b0: Fixed-address burst. The DMAC signals ARBURST[0] LOW.
+1'b1: Incrementing-address burst. The DMAC signals
+ARBURST[0] HIGH.
+
+DMAC_LC0_3
+Address: Operational Base + offset (0x046c)
+Bit Attr Reset Value
+Description
+31:8 RO 0x0
+reserved
+loop_counter_iterations
+7:0
+RO 0x00
+Loop counter 0 iterations
+DMAC_LC1_3
+Address: Operational Base + offset (0x0470)
+Bit Attr Reset Value
+Description
+31:8 RO 0x0
+reserved
+loop_counter_iterations
+7:0
+RO 0x00
+Loop counter 1 iterations
+DMAC_SAR4
+Address: Operational Base + offset (0x0480)
+Bit Attr Reset Value
+Description
+src_addr
+31:0 RO 0x00000000
+Address of the source data for DMA channel 4
+DMAC_DAR4
+Address: Operational Base + offset (0x0484)
+Bit Attr Reset Value
+Description
+dst_addr
+31:0 RO 0x00000000
+Address of the Destination data for DMA channel 4
+DMAC_CCR4
+Address: Operational Base + offset (0x0488)
+Bit Attr Reset Value
+Description
+31:28 RO 0x0
+reserved
+dst_cache_ctrl
+Bit [27]
+1'b0: AWCACHE[3] is LOW
+1'b1: AWCACHE[3] is HIGH
+Bit [26]
+27:25 RO 0x0
+1'b0: AWCACHE[1] is LOW
+1'b1: AWCACHE[1] is HIGH
+Bit [25]
+1'b0: AWCACHE[0] is LOW
+1'b1: AWCACHE[0] is HIGH
+dst_prot_ctrl
+Bit [24]
+1'b0: AWPROT[2] is LOW
+1'b1: AWPROT[2] is HIGH
+Bit [23]
+24:22 RO 0x0
+1'b0: AWPROT[1] is LOW
+1'b1: AWPROT[1] is HIGH
+Bit [22]
+1'b0: AWPROT[0] is LOW
+1'b1: AWPROT[0] is HIGH
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1352
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+21:18 RO
+
+0x0
+
+17:15 RO
+
+0x0
+
+14
+
+RO
+
+0x0
+
+13:11 RO
+
+0x0
+
+10:8
+
+RO
+
+0x0
+
+7:4
+
+RO
+
+0x0
+
+Description
+dst_burst_len
+the destination data:
+4'h0: 1 data transfer
+4'h1: 2 data transfers
+4'h2: 3 data transfers
+…
+4'hf: 16 data transfers
+The total number of bytes that the DMAC writes out of the MFIFO
+when it executes a DMAST instruction is the product of
+dst_burst_len and dst_burst_size.
+dst_burst_size
+3'h0: Writes 1 byte per beat
+3'h1: Writes 2 bytes per beat
+3'h2: Writes 4 bytes per beat
+3'h3: Writes 8 bytes per beat
+3'h4: Writes 16 bytes per beat
+Others: Reserved
+The total number of bytes that the DMAC writes out of the MFIFO
+when it executes a DMAST instruction is the product of
+dst_burst_len and dst_burst_size.
+dst_inc
+1'b0: Fixed-address burst. The DMAC signals AWBURST[0] LOW.
+1'b1: Incrementing-address burst. The DMAC signals
+AWBURST[0] HIGH.
+src_cache_ctrl
+Bit [13]
+1'b0: ARCACHE[2] is LOW
+1'b1: ARCACHE[2] is HIGH
+Bit [12]
+1'b0: ARCACHE[1] is LOW
+1'b1: ARCACHE[1] is HIGH
+Bit [11]
+1'b0: ARCACHE[0] is LOW
+1'b1: ARCACHE[0] is HIGH
+src_prot_ctrl
+Bit [10]
+1'b0: ARPROT[2] is LOW
+1'b1: ARPROT[2] is HIGH
+Bit [9]
+1'b0: ARPROT[1] is LOW
+1'b1: ARPROT[1] is HIGH
+Bit [8]
+1'b0: ARPROT[0] is LOW
+1'b1: ARPROT[0] is HIGH
+src_burst_len
+4'h0: 1 data transfer
+4'h1: 2 data transfers
+4'h2: 3 data transfers
+…
+4'hf: 16 data transfers
+The total number of bytes that the DMAC reads into the MFIFO
+when it executes a DMALD instruction is the product of
+src_burst_len and src_burst_size.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1353
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+3:1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+src_burst_size
+3'h0: Reads 1 byte per beat
+3'h1: Reads 2 bytes per beat
+3'h2: Reads 4 bytes per beat
+3'h3: Reads 8 bytes per beat
+3'h4: Reads 16 bytes per beat
+Others: Reserved
+The total number of bytes that the DMAC reads into the MFIFO
+when it executes a DMALD instruction is the product of
+src_burst_len and src_burst_size.
+src_inc
+1'b0: Fixed-address burst. The DMAC signals ARBURST[0] LOW.
+1'b1: Incrementing-address burst. The DMAC signals
+ARBURST[0] HIGH.
+
+DMAC_LC0_4
+Address: Operational Base + offset (0x048c)
+Bit Attr Reset Value
+Description
+31:8 RO 0x0
+reserved
+loop_counter_iterations
+7:0
+RO 0x00
+Loop counter 0 iterations
+DMAC_LC1_4
+Address: Operational Base + offset (0x0490)
+Bit Attr Reset Value
+Description
+31:8 RO 0x0
+reserved
+loop_counter_iterations
+7:0
+RO 0x00
+Loop counter 1 iterations
+DMAC_SAR5
+Address: Operational Base + offset (0x04a0)
+Bit Attr Reset Value
+Description
+src_addr
+31:0 RO 0x00000000
+Address of the source data for DMA channel 5
+DMAC_DAR5
+Address: Operational Base + offset (0x04a4)
+Bit Attr Reset Value
+Description
+dst_addr
+31:0 RO 0x00000000
+Address of the Destination data for DMA channel 5
+DMAC_CCR5
+Address: Operational Base + offset (0x04a8)
+Bit Attr Reset Value
+Description
+31:28 RO 0x0
+reserved
+dst_cache_ctrl
+Bit [27]
+1'b0: AWCACHE[3] is LOW
+1'b1: AWCACHE[3] is HIGH
+Bit [26]
+27:25 RO 0x0
+1'b0: AWCACHE[1] is LOW
+1'b1: AWCACHE[1] is HIGH
+Bit [25]
+1'b0: AWCACHE[0] is LOW
+1'b1: AWCACHE[0] is HIGH
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1354
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+24:22 RO
+
+0x0
+
+21:18 RO
+
+0x0
+
+17:15 RO
+
+0x0
+
+14
+
+RO
+
+0x0
+
+13:11 RO
+
+0x0
+
+10:8
+
+0x0
+
+RO
+
+Description
+dst_prot_ctrl
+Bit [24]
+1'b0: AWPROT[2] is LOW
+1'b1: AWPROT[2] is HIGH
+Bit [23]
+1'b0: AWPROT[1] is LOW
+1'b1: AWPROT[1] is HIGH
+Bit [22]
+1'b0: AWPROT[0] is LOW
+1'b1: AWPROT[0] is HIGH
+dst_burst_len
+the destination data:
+4'h0: 1 data transfer
+4'h1: 2 data transfers
+4'h2: 3 data transfers
+…
+4'hf: 16 data transfers
+The total number of bytes that the DMAC writes out of the MFIFO
+when it executes a DMAST instruction is the product of
+dst_burst_len and dst_burst_size.
+dst_burst_size
+3'h0: Writes 1 byte per beat
+3'h1: Writes 2 bytes per beat
+3'h2: Writes 4 bytes per beat
+3'h3: Writes 8 bytes per beat
+3'h4: Writes 16 bytes per beat
+Others: Reserved
+The total number of bytes that the DMAC writes out of the MFIFO
+when it executes a DMAST instruction is the product of
+dst_burst_len and dst_burst_size.
+dst_inc
+1'b0: Fixed-address burst. The DMAC signals AWBURST[0] LOW.
+1'b1: Incrementing-address burst. The DMAC signals
+AWBURST[0] HIGH.
+src_cache_ctrl
+Bit [13]
+1'b0: ARCACHE[2] is LOW
+1'b1: ARCACHE[2] is HIGH
+Bit [12]
+1'b0: ARCACHE[1] is LOW
+1'b1: ARCACHE[1] is HIGH
+Bit [11]
+1'b0: ARCACHE[0] is LOW
+1'b1: ARCACHE[0] is HIGH
+src_prot_ctrl
+Bit [10]
+1'b0: ARPROT[2] is LOW
+1'b1: ARPROT[2] is HIGH
+Bit [9]
+1'b0: ARPROT[1] is LOW
+1'b1: ARPROT[1] is HIGH
+Bit [8]
+1'b0: ARPROT[0] is LOW
+1'b1: ARPROT[0] is HIGH
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1355
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+7:4
+
+RO
+
+0x0
+
+3:1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+src_burst_len
+4'h0: 1 data transfer
+4'h1: 2 data transfers
+4'h2: 3 data transfers
+…
+4'hf: 16 data transfers
+The total number of bytes that the DMAC reads into the MFIFO
+when it executes a DMALD instruction is the product of
+src_burst_len and src_burst_size.
+src_burst_size
+3'h0: Reads 1 byte per beat
+3'h1: Reads 2 bytes per beat
+3'h2: Reads 4 bytes per beat
+3'h3: Reads 8 bytes per beat
+3'h4: Reads 16 bytes per beat
+Others: Reserved
+The total number of bytes that the DMAC reads into the MFIFO
+when it executes a DMALD instruction is the product of
+src_burst_len and src_burst_size.
+src_inc
+1'b0: Fixed-address burst. The DMAC signals ARBURST[0] LOW.
+1'b1: Incrementing-address burst. The DMAC signals
+ARBURST[0] HIGH.
+
+DMAC_LC0_5
+Address: Operational Base + offset (0x04ac)
+Bit Attr Reset Value
+Description
+31:8 RO 0x0
+reserved
+loop_counter_iterations
+7:0
+RO 0x00
+Loop counter 0 iterations
+DMAC_LC1_5
+Address: Operational Base + offset (0x04b0)
+Bit Attr Reset Value
+Description
+31:8 RO 0x0
+reserved
+loop_counter_iterations
+7:0
+RO 0x00
+Loop counter 1 iterations
+DMAC_SAR6
+Address: Operational Base + offset (0x04c0)
+Bit Attr Reset Value
+Description
+src_addr
+31:0 RO 0x00000000
+Address of the source data for DMA channel 6
+DMAC_DAR6
+Address: Operational Base + offset (0x04c4)
+Bit Attr Reset Value
+Description
+dst_addr
+31:0 RO 0x00000000
+Address of the Destination data for DMA channel 6
+DMAC_CCR6
+Address: Operational Base + offset (0x04c8)
+Bit Attr Reset Value
+31:28 RO 0x0
+reserved
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+1356
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+27:25 RO
+
+0x0
+
+24:22 RO
+
+0x0
+
+21:18 RO
+
+0x0
+
+17:15 RO
+
+0x0
+
+14
+
+RO
+
+0x0
+
+13:11 RO
+
+0x0
+
+Description
+dst_cache_ctrl
+Bit [27]
+1'b0: AWCACHE[3] is LOW
+1'b1: AWCACHE[3] is HIGH
+Bit [26]
+1'b0: AWCACHE[1] is LOW
+1'b1: AWCACHE[1] is HIGH
+Bit [25]
+1'b0: AWCACHE[0] is LOW
+1'b1: AWCACHE[0] is HIGH
+dst_prot_ctrl
+Bit [24]
+1'b0: AWPROT[2] is LOW
+1'b1: AWPROT[2] is HIGH
+Bit [23]
+1'b0: AWPROT[1] is LOW
+1'b1: AWPROT[1] is HIGH
+Bit [22]
+1'b0: AWPROT[0] is LOW
+1'b1: AWPROT[0] is HIGH
+dst_burst_len
+the destination data:
+4'h0: 1 data transfer
+4'h1: 2 data transfers
+4'h2: 3 data transfers
+…
+4'hf: 16 data transfers
+The total number of bytes that the DMAC writes out of the MFIFO
+when it executes a DMAST instruction is the product of
+dst_burst_len and dst_burst_size.
+dst_burst_size
+3'h0: Writes 1 byte per beat
+3'h1: Writes 2 bytes per beat
+3'h2: Writes 4 bytes per beat
+3'h3: Writes 8 bytes per beat
+3'h4: Writes 16 bytes per beat
+Others: Reserved
+The total number of bytes that the DMAC writes out of the MFIFO
+when it executes a DMAST instruction is the product of
+dst_burst_len and dst_burst_size.
+dst_inc
+1'b0: Fixed-address burst. The DMAC signals AWBURST[0] LOW.
+1'b1: Incrementing-address burst. The DMAC signals
+AWBURST[0] HIGH.
+src_cache_ctrl
+Bit [13]
+1'b0: ARCACHE[2] is LOW
+1'b1: ARCACHE[2] is HIGH
+Bit [12]
+1'b0: ARCACHE[1] is LOW
+1'b1: ARCACHE[1] is HIGH
+Bit [11]
+1'b0: ARCACHE[0] is LOW
+1'b1: ARCACHE[0] is HIGH
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1357
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+10:8
+
+RO
+
+0x0
+
+7:4
+
+RO
+
+0x0
+
+3:1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+src_prot_ctrl
+Bit [10]
+1'b0: ARPROT[2] is LOW
+1'b1: ARPROT[2] is HIGH
+Bit [9]
+1'b0: ARPROT[1] is LOW
+1'b1: ARPROT[1] is HIGH
+Bit [8]
+1'b0: ARPROT[0] is LOW
+1'b1: ARPROT[0] is HIGH
+src_burst_len
+4'h0: 1 data transfer
+4'h1: 2 data transfers
+4'h2: 3 data transfers
+…
+4'hf: 16 data transfers
+The total number of bytes that the DMAC reads into the MFIFO
+when it executes a DMALD instruction is the product of
+src_burst_len and src_burst_size.
+src_burst_size
+3'h0: Reads 1 byte per beat
+3'h1: Reads 2 bytes per beat
+3'h2: Reads 4 bytes per beat
+3'h3: Reads 8 bytes per beat
+3'h4: Reads 16 bytes per beat
+Others: Reserved
+The total number of bytes that the DMAC reads into the MFIFO
+when it executes a DMALD instruction is the product of
+src_burst_len and src_burst_size.
+src_inc
+1'b0: Fixed-address burst. The DMAC signals ARBURST[0] LOW.
+1'b1: Incrementing-address burst. The DMAC signals
+ARBURST[0] HIGH.
+
+DMAC_LC0_6
+Address: Operational Base + offset (0x04cc)
+Bit Attr Reset Value
+Description
+31:8 RO 0x0
+reserved
+loop_counter_iterations
+7:0
+RO 0x00
+Loop counter 0 iterations
+DMAC_LC1_6
+Address: Operational Base + offset (0x04d0)
+Bit Attr Reset Value
+Description
+31:8 RO 0x0
+reserved
+loop_counter_iterations
+7:0
+RO 0x00
+Loop counter 1 iterations
+DMAC_SAR7
+Address: Operational Base + offset (0x04e0)
+Bit Attr Reset Value
+Description
+src_addr
+31:0 RO 0x00000000
+Address of the source data for DMA channel 7
+DMAC_DAR7
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1358
+
+RK3588 TRM-Part1
+Address: Operational Base + offset (0x04e4)
+Bit Attr Reset Value
+Description
+dst_addr
+31:0 RO 0x00000000
+Address of the Destination data for DMA channel 7
+DMAC_CCR7
+Address: Operational Base + offset (0x04e8)
+Bit Attr Reset Value
+Description
+31:28 RO 0x0
+reserved
+dst_cache_ctrl
+Bit [27]
+1'b0: AWCACHE[3] is LOW
+1'b1: AWCACHE[3] is HIGH
+Bit [26]
+27:25 RO 0x0
+1'b0: AWCACHE[1] is LOW
+1'b1: AWCACHE[1] is HIGH
+Bit [25]
+1'b0: AWCACHE[0] is LOW
+1'b1: AWCACHE[0] is HIGH
+dst_prot_ctrl
+Bit [24]
+1'b0: AWPROT[2] is LOW
+1'b1: AWPROT[2] is HIGH
+Bit [23]
+24:22 RO 0x0
+1'b0: AWPROT[1] is LOW
+1'b1: AWPROT[1] is HIGH
+Bit [22]
+1'b0: AWPROT[0] is LOW
+1'b1: AWPROT[0] is HIGH
+dst_burst_len
+the destination data:
+4'h0: 1 data transfer
+4'h1: 2 data transfers
+4'h2: 3 data transfers
+21:18 RO 0x0
+…
+4'hf: 16 data transfers
+The total number of bytes that the DMAC writes out of the MFIFO
+when it executes a DMAST instruction is the product of
+dst_burst_len and dst_burst_size.
+dst_burst_size
+3'h0: Writes 1 byte per beat
+3'h1: Writes 2 bytes per beat
+3'h2: Writes 4 bytes per beat
+3'h3: Writes 8 bytes per beat
+17:15 RO 0x0
+3'h4: Writes 16 bytes per beat
+Others: Reserved
+The total number of bytes that the DMAC writes out of the MFIFO
+when it executes a DMAST instruction is the product of
+dst_burst_len and dst_burst_size.
+dst_inc
+1'b0: Fixed-address burst. The DMAC signals AWBURST[0] LOW.
+14
+RO 0x0
+1'b1: Incrementing-address burst. The DMAC signals
+AWBURST[0] HIGH.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1359
+
+RK3588 TRM-Part1
+Bit
+
+Attr Reset Value
+
+13:11 RO
+
+0x0
+
+10:8
+
+RO
+
+0x0
+
+7:4
+
+RO
+
+0x0
+
+3:1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+src_cache_ctrl
+Bit [13]
+1'b0: ARCACHE[2] is LOW
+1'b1: ARCACHE[2] is HIGH
+Bit [12]
+1'b0: ARCACHE[1] is LOW
+1'b1: ARCACHE[1] is HIGH
+Bit [11]
+1'b0: ARCACHE[0] is LOW
+1'b1: ARCACHE[0] is HIGH
+src_prot_ctrl
+Bit [10]
+1'b0: ARPROT[2] is LOW
+1'b1: ARPROT[2] is HIGH
+Bit [9]
+1'b0: ARPROT[1] is LOW
+1'b1: ARPROT[1] is HIGH
+Bit [8]
+1'b0: ARPROT[0] is LOW
+1'b1: ARPROT[0] is HIGH
+src_burst_len
+4'h0: 1 data transfer
+4'h1: 2 data transfers
+4'h2: 3 data transfers
+…
+4'hf: 16 data transfers
+The total number of bytes that the DMAC reads into the MFIFO
+when it executes a DMALD instruction is the product of
+src_burst_len and src_burst_size.
+src_burst_size
+3'h0: Reads 1 byte per beat
+3'h1: Reads 2 bytes per beat
+3'h2: Reads 4 bytes per beat
+3'h3: Reads 8 bytes per beat
+3'h4: Reads 16 bytes per beat
+Others: Reserved
+The total number of bytes that the DMAC reads into the MFIFO
+when it executes a DMALD instruction is the product of
+src_burst_len and src_burst_size.
+src_inc
+1'b0: Fixed-address burst. The DMAC signals ARBURST[0] LOW.
+1'b1: Incrementing-address burst. The DMAC signals
+ARBURST[0] HIGH.
+
+DMAC_LC0_7
+Address: Operational Base + offset (0x04ec)
+Bit Attr Reset Value
+Description
+31:8 RO 0x0
+reserved
+loop_counter_iterations
+7:0
+RO 0x00
+Loop counter 0 iterations
+DMAC_LC1_7
+Address: Operational Base + offset (0x04f0)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1360
+
+RK3588 TRM-Part1
+Bit
+31:8
+7:0
+
+Attr Reset Value
+Description
+RO 0x0
+reserved
+loop_counter_iterations
+RO 0x00
+Loop counter 1 iterations
+
+DMAC_DBGSTATUS
+Address: Operational Base + offset (0x0d00)
+Bit Attr Reset Value
+31:1 RO 0x0
+reserved
+dbgstatus
+0
+RO 0x0
+1'b0: Idle
+1'b1: Busy
+
+Description
+
+DMAC_DBGCMD
+Address: Operational Base + offset (0x0d04)
+Bit Attr Reset Value
+Description
+31:2 RO 0x0
+reserved
+dbgcmd
+2'b00: Execute the instruction that the DMAC_DBGINST [1:0]
+1:0
+WO 0x0
+Registers contain
+Others: Reserved
+DMAC_DBGINST0
+Address: Operational Base + offset (0x0d08)
+Bit Attr Reset Value
+Description
+instruction_byte1
+31:24 WO 0x00
+Instruction byte 1
+instruction_byte0
+23:16 WO 0x00
+Instruction byte 0
+15:11 RO 0x0
+reserved
+channel_number
+3'b000: DMA channel 0
+3'b001: DMA channel 1
+10:8 WO 0x0
+3'b010: DMA channel 2
+…
+3'b111: DMA channel 7
+7:1
+RO 0x0
+reserved
+debug_thread
+0
+WO 0x0
+1'b0: DMA manager thread
+1'b1: DMA channel
+DMAC_DBGINST1
+Address: Operational Base + offset (0x0d0c)
+Bit Attr Reset Value
+instruction_byte5
+31:24 WO 0x00
+Instruction byte 5
+instruction_byte4
+23:16 WO 0x00
+Instruction byte 4
+instruction_byte3
+15:8 WO 0x00
+Instruction byte 3
+instruction_byte2
+7:0
+WO 0x00
+Instruction byte 2
+
+Description
+
+DMAC_CR0
+Address: Operational Base + offset (0x0e00)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1361
+
+RK3588 TRM-Part1
+Bit Attr Reset Value
+Description
+31:22 RO 0x0
+reserved
+num_events
+5'h0: 1 interrupt output, irq[0]
+5'h1: 2 interrupt outputs, irq[1:0]
+21:17 RO 0x0f
+5'h2: 3 interrupt outputs, irq[2:0]
+…
+5'h1f: 32 interrupt outputs, irq[31:0]
+num_periph_req
+5'h0: 1 peripheral request interface
+5'h1: 2 peripheral request interfaces
+16:12 RO 0x13
+5'h2: 3 peripheral request interfaces
+…
+5'h1f: 32 peripheral request interfaces
+11:7 RO 0x0
+reserved
+num_chnls
+3'b000: 1 DMA channel
+3'b001: 2 DMA channels
+6:4
+RO 0x7
+3'b010: 3 DMA channels
+…
+3'b111: 8 DMA channels
+3
+RO 0x0
+reserved
+mgr_ns_at_rst
+2
+RO 0x1
+1'b0: boot_manager_ns was LOW
+1'b1: boot_manager_ns was HIGH
+boot_en
+1
+RO 0x0
+1'b0: boot_from_pc was LOW
+1'b1: boot_from_pc was HIGH
+periph_req
+1'b0: The DMAC does not provide a peripheral request interface
+0
+RO 0x1
+1'b1: The DMAC provides the number of peripheral request
+interfaces that the num_periph_req field specifies
+DMAC_CR1
+Address: Operational Base + offset (0x0e04)
+Bit Attr Reset Value
+Description
+31:8 RO 0x0
+reserved
+num_i_cache_lines
+4'b0000: 1 i-cache line
+4'b0001: 2 i-cache lines
+7:4
+RO 0xb
+4'b0010: 3 i-cache lines
+…
+4'b1111: 16 i-cache lines
+3
+RO 0x0
+reserved
+i_cache_len
+3'b010: 4 bytes
+3'b011: 8 bytes
+2:0
+RO 0x5
+3'b100: 16 bytes
+3'b101: 32 bytes
+Others: Reserved
+DMAC_CR2
+Address: Operational Base + offset (0x0e08)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1362
+
+RK3588 TRM-Part1
+Bit
+31:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+Description
+boot_addr
+Provides the value of boot_addr[31:0] when the DMAC exited
+from reset
+
+DMAC_CR3
+Address: Operational Base + offset (0x0e0c)
+Bit Attr Reset Value
+Description
+ins
+Bit [N]
+31:0 RO 0x0000ffff
+1'b0: Assigns event<N> or irq[N] to the Secure state
+1'b1: Assigns event<N> or irq[N] to the Non-secure state
+DMAC_CR4
+Address: Operational Base + offset (0x0e10)
+Bit Attr Reset Value
+Description
+pns
+Bit [N]
+31:0 RO 0x000fffff
+1'b0: Assigns peripheral request interface N to the Secure state
+1'b1: Assigns peripheral request interface N to the Non-secure
+state
+DMAC_CRDn
+Address: Operational Base + offset (0x0e14)
+Bit Attr Reset Value
+Description
+31:30 RO 0x0
+reserved
+data_buffer_dep
+10'b000000000: 1 line
+29:20 RO 0x07f
+10'b000000001: 2 lines
+…
+10'b111111111: 1024 lines
+rd_q_dep
+4'b0000: 1 line
+19:16 RO 0xf
+4'b0001: 2 lines
+…
+4'b1111: 16 lines
+15
+RO 0x0
+reserved
+rd_cap
+3'b000: 1
+14:12 RO 0x7
+3'b001: 2
+…
+3'b111: 8
+wr_q_dep
+4'b0000: 1 line
+11:8 RO 0xf
+4'b0001: 2 lines
+…
+4'b1111: 16 lines
+7
+RO 0x0
+reserved
+wr_cap
+3'b000: 1
+6:4
+RO 0x7
+3'b001: 2
+…
+3'b111: 8
+3
+RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1363
+
+RK3588 TRM-Part1
+Bit
+2:0
+
+Attr Reset Value
+RO
+
+0x3
+
+Description
+data_width
+3'b010: 32-bit
+3'b011: 64-bit
+3'b100: 128-bit
+Others:Reserved
+
+DMAC_WD
+Address: Operational Base + offset (0x0e80)
+Bit Attr Reset Value
+Description
+31:1 RO 0x0
+reserved
+wd_irq_only
+1'b0: The DMAC aborts all of the contributing DMA channels and
+0
+RW 0x0
+sets irq_abort HIGH
+1'b1: The DMAC sets irq_abort HIGH
+
+12.5 Timing Diagram
+Following picture shows the relationship between dma_req and dma_ack.
+
+clk
+dma_req
+dma_ack
+Fig. 12-3 DMAC Request and Acknowledge Timing
+
+12.6 Application Notes
+12.6.1 Using the APB Slave Interfaces
+You must ensure that you use the appropriate APB interface, depending on the security state
+in which the boot_manager_ns initializes the DMAC to operate. For example, if the DMAC is
+in the secure state, you must issue the instruction using the secure APB interface, otherwise
+the DMAC ignores the instruction. You can use the secure APB interface, or the non-secure
+APB interface, to start or restart a DMA channel when the DMAC is in the Non-secure state.
+The necessary steps to start a DMA channel thread using the debug instruction registers as
+following:
+1. Create a program for the DMA channel.
+2. Store the program in a region of system memory.
+3. Poll the DMAC_DBGSTATUS Register to ensure that debug is idle, that is, the dbgstatus bit
+is 0.
+4. Write to the DMAC_DBGINST0 Register and enter the:
+⚫ Instruction byte 0 encoding for DMAGO.
+⚫ Instruction byte 1 encoding for DMAGO.
+⚫ Debug thread bit to 0. This selects the DMA manager thread.
+5. Write to the DBGINST1 Register with the DMAGO instruction byte [5:2] data, see Debug
+Instruction-1 Register o. You must set these four bytes to the address of the first instruction
+in the program that was written to system memory in step 2.
+6. Writing zero to the DMAC_DBGCMD Register. The DMAC starts the DMA channel thread
+and sets the dbgstatus bit to 1.
+
+12.6.2 Security Usage
+
+DMA manager thread is in the secure state
+If the DNS bit is 0, the DMA manager thread operates in the secure state and it only
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1364
+
+RK3588 TRM-Part1
+performs secure instruction fetches. When a DMA manager thread in the secure state
+processes:
+DMAGO
+It uses the status of the ns bit, to set the security state of the DMA channel thread by
+writing to the CNS bit for that channel.
+DMAWFE
+It halts execution of the thread until the event occurs. When the event occurs, the DMAC
+continues execution of the thread, irrespective of the security state of the corresponding INS
+bit.
+DMASEV
+It sets the corresponding bit in the INT_EVENT_RIS Register, irrespective of the security
+state of the corresponding INS bit.
+DMA manager thread is in the Non-secure state
+If the DNS bit is 1, the DMA manager thread operates in the Non-secure state, and it only
+performs non-secure instruction fetches. When a DMA manager thread in the Non-secure
+state processes:
+DMAGO
+The DMAC uses the status of the ns bit, to control if it starts a DMA channel thread. If:
+ns = 0
+The DMAC does not start a DMA channel thread and instead it:
+1. Executes a NOP.
+2. Sets the DMAC_FSRD Register, see Fault Status DMA Manager
+3. Sets the dmago_err bit in the DMAC_FTRD Register, see Fault Type DMA Manager
+Register.
+4. Moves the DMA manager to the Faulting state.
+ns = 1
+The DMAC starts a DMA channel thread in the Non-secure state and programs the CNS bit to
+be non-secure.
+DMAWFE
+The DMAC uses the status of the corresponding INS bit, in the DMAC_CR3 Register, to
+control if it waits for the event. If:
+INS = 0
+The event is in the Secure state. The DMAC:
+1. Executes a NOP.
+2. Sets the DMAC_FSRD Register, see Fault Status DMA Manager Register.
+3. Sets the mgr_evnt_err bit in the DMAC_FTRD Register, see Fault Type DMA Manager
+Register.
+4. Moves the DMA manager to the Faulting state.
+INS = 1
+The event is in the Non-secure state. The DMAC halts execution of the thread and waits for
+the event to occur.
+DMASEV
+The DMAC uses the status of the corresponding INS bit, in the CR3Register, to control if it
+creates the event-interrupt. If:
+INS = 0
+The event-interrupt resource is in the secure state. The DMAC:
+1. Executes a NOP.
+2. Sets the DMAC_FSRD Register, see Fault Status DMA Manager Register.
+3. Sets the mgr_evnt_err bit in the DMAC_FTRD Register, see Fault Type DMA Manager
+Register.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1365
+
+RK3588 TRM-Part1
+4. Moves the DMA manager to the Faulting state.
+INS = 1
+The event-interrupt resource is in the Non-secure state. The DMAC creates the eventinterrupt.
+DMA channel thread is in the secure state
+When the CNS bit is 0, the DMA channel thread is programmed to operate in the Secure
+state and it only performs secure instruction fetches.
+When a DMA channel thread in the secure state processes the following instructions:
+DMAWFE
+The DMAC halts execution of the thread until the event occurs. When the event occurs, the
+DMAC continues execution of the thread, irrespective of the security state of the
+corresponding INS bit, in the DMAC_CR3 Register.
+DMASEV
+The DMAC creates the event-interrupt, irrespective of the security state of the corresponding
+INS bit, in the DMAC_CR3 Register.
+DMAWFP
+The DMAC halts execution of the thread until the peripheral signals a DMA request. When
+this occurs, the DMAC continues execution of the thread, irrespective of the security state of
+the corresponding PNS bit, in the DMAC_CR4 Register.
+DMALDP, DMASTP
+The DMAC sends a message to the peripheral to communicate that data transfer
+is complete, irrespective of the security state of the corresponding PNS bit, in the
+DMAC_CR4 Register.
+DMAFLUSHP
+The DMAC clears the state of the peripheral and sends a message to the peripheral to
+resend its level status, irrespective of the security state of the corresponding PNS bit, in the
+DMAC_CR4 Register.
+When a DMA channel thread is in the Secure state, it enables the DMAC to perform secure
+and non-secure AXI accesses.
+DMA channel thread is in the Non-secure state
+When the CNS bit is 1, the DMA channel thread is programmed to operate in the Non-secure
+state and it only performs non-secure instruction fetches.
+When a DMA channel thread in the Non-secure state processes the following instructions:
+DMAWFE
+The DMAC uses the status of the corresponding INS bit, in the DMAC_CR3 Register, to
+control if it waits for the event. If:
+INS = 0
+The event is in the Secure state. The DMAC:
+1. Executes a NOP.
+2. Sets the appropriate bit in the DMAC_FSRC Register that corresponds to the DMA channel
+number. See Fault Status DMA Channel Register.
+3. Sets the ch_evnt_err bit in the DMAC_FTRn(n=0~7) Register, see Fault Type DMA
+Channel Registers.
+4. Moves the DMA channel to the Faulting completing state.
+INS = 1
+The event is in the Non-secure state. The DMAC halts execution of the thread and waits for
+the event to occur.
+DMASEV
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1366
+
+RK3588 TRM-Part1
+The DMAC uses the status of the corresponding INS bit, in the DMAC_CR3 Register, to
+control if it creates the event. If:
+INS = 0
+The event-interrupt resource is in the Secure state. The DMAC:
+1. Executes a NOP.
+2. Sets the appropriate bit in the DMAC_FSRC Register that corresponds to the DMA channel
+number. See Fault Status DMA Channel Register.
+3. Sets the ch_evnt_err bit in the DMAC_FTRn(n=0~7) Register, see Fault Type DMA
+Channel Registers.
+4. Moves the DMA channel to the Faulting completing state.
+INS = 1
+The event-interrupt resource is in the Non-secure state. The DMAC creates the eventinterrupt.
+DMAWFP
+The DMAC uses the status of the corresponding PNS bit, in the DMAC_CR4 Register, to
+control if it waits for the peripheral to signal a request. If:
+PNS = 0
+The peripheral is in the Secure state. The DMAC:
+1. Executes a NOP.
+2. Sets the appropriate bit in the DMAC_FSRC Register that corresponds to the DMA channel
+number. See Fault Status DMA Channel Register.
+3. Sets the ch_periph_err bit in the DMAC_FTRn(n=0~7) Register, see Fault Type DMA
+Channel Registers.
+4. Moves the DMA channel to the Faulting completing state.
+PNS = 1
+The peripheral is in the Non-secure state. The DMAC halts execution of the thread and waits
+for the peripheral to signal a request.
+DMALDP, DMASTP
+The DMAC uses the status of the corresponding PNS bit, in the DMAC_CR4 Register, to
+control if it sends an acknowledgement to the peripheral. If:
+PNS = 0
+The peripheral is in the secure state. The DMAC:
+1. Executes a NOP.
+2. Sets the appropriate bit in the DMAC_FSRC Register that corresponds to the DMA channel
+number. See Fault Status DMA Channel Register.
+3. Sets the ch_periph_err bit in the DMAC_FTRn(n=0~7) Register, see Fault Type DMA
+Channel Registers.
+4. Moves the DMA channel to the Faulting completing state.
+PNS = 1
+The peripheral is in the Non-secure state. The DMAC sends a message to the peripheral to
+communicate when the data transfer is complete.
+DMAFLUSHP
+The DMAC uses the status of the corresponding PNS bit, in the DMAC_CR4 Register, to
+control if it sends a flush request to the peripheral. If:
+PNS = 0
+The peripheral is in the secure state. The DMAC:
+1. Executes a NOP.
+2. Sets the appropriate bit in the DMAC_FSRC Register that corresponds to the DMA channel
+number. See Fault Status DMA Channel Register.
+3. Sets the ch_periph_err bit in the DMAC_FTRn(n=0~7) Register, see Fault Type DMA
+Channel Registers.
+4. Moves the DMA channel to the Faulting completing state.
+PNS = 1
+The peripheral is in the Non-secure state. The DMAC clears the state of the peripheral and
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1367
+
+RK3588 TRM-Part1
+sends a message to the peripheral to resend its level status.
+When a DMA channel thread is in the Non-secure state, and a DMAMOV CCR instruction
+attempts to program the channel to perform a secure AXI transaction, the DMAC:
+1. Executes a DMANOP.
+2. Sets the appropriate bit in the DMAC_FSRC Register that corresponds to the DMA channel
+number. See Fault Status DMA Channel Register.
+3. Sets the ch_rdwr_err bit in the DMAC_FTRn(n=0~7) Register, see Fault Type DMA
+Channel Registers.
+4. Moves the DMA channel thread to the Faulting completing state.
+
+12.6.3 Programming Restrictions
+
+Fixed unaligned bursts
+The DMAC does not support fixed unaligned bursts. If you program the following conditions,
+the DMAC treats this as a programming error:
+Unaligned read
+⚫ src_inc field is 0 in the DMAC_CCRn(n=0~7) Register
+⚫ the DMAC_SARn(n=0~7) Register contains an address that is not aligned to the size of
+data that the src_burst_size field contain
+Unaligned write
+⚫ dst_inc field is 0 in the DMAC_CCRn(n=0~7) Register
+⚫ the DMAC_DARn(n=0~7) Register contains an address that is not aligned to the size of
+data that the dst_burst_size field contains
+Endian swap size restrictions
+If you program the endian_swap_size field in the DMAC_CCRn(n=0~7) Register, to enable a
+DMA channel to perform an endian swap then you must set the corresponding
+DMAC_SARn(n=0~7) Register and the corresponding DMAC_DARn(n=0~7) Register to
+contain an address that is aligned to the value that the endian_swap_size field contains.
+Updating DMA channel control registers during a DMA cycle restrictions
+Prior to the DMAC executing a sequence of DMALD and DMAST instructions, the values you
+program in to the DMAC_CCRn(n=0~7) Register, DMAC_SARn(n=0~7) Register, and
+DMAC_DARn(n=0~7) Register control the data byte lane manipulation that the DMAC
+performs when it transfers the data from the source address to the destination address.
+You’d better not update these registers during a DMA cycle.
+Resource sharing between DMA channels
+DMA channel programs share the MFIFO data storage resource. You must not start a set of
+concurrently running DMA channel programs with a resource requirement that exceeds the
+configured size of the MFIFO. If you exceed this limit then the DMAC might lock up and
+generate a Watchdog abort.
+
+12.6.4 Unaligned Transfers
+
+For a configuration with more than one channel, if any of channels 1 to 7 is performing
+transfers between certain types of misaligned source and destination addresses, then the
+output data may be corrupted by the action of channel 0.
+Data corruption might occur if all of the following are true:
+1. Two beats of AXI read data are received for one of channels 1 to 7.
+2. Source and destination address alignments mean that each read data beat is split across
+two lines in the data buffer (see Splitting data, below).
+3. There is one idle cycle between the two read data beats.
+4. Channel 0 performs an operation that updates channel control information during this idle
+cycle (see Updates to channel control information, below).
+Splitting data
+Depending upon the programmed values for the DMA transfer, one beat of read data from
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1368
+
+RK3588 TRM-Part1
+the AXI interface need to be split across two lines in the internal data buffer. This occurs
+when the read data beat contains data bytes which will be written to addresses that wrap
+around at the AXI interface data width, so that these bytes could not be transferred by a
+single AXI write data beat of the full interface width.
+Most applications of DMA do not split data in this way, so are NOT vulnerable to data
+corruption from this defect.
+The following cases are NOT vulnerable to data corruption because they do not split data:
+⚫ Byte lane offset between source and destination addresses is 0 when source and
+destination addresses have the same byte lane alignment, the offset is 0 and a wrap
+operation that splits data cannot occur.
+⚫ Byte lane offset between source and destination addresses is a multiple of source size.
+Table 12-3 Source Size in DMAC_CCRn
+Source size in
+Allowed offset between DMAC_SARn and
+DMAC_CCRn
+DMAC_DARn
+SS8
+any offset allowed.
+SS16
+0,2,4,6,8,10,12,14
+SS32
+0,4,8,12
+SS64
+0,8
+
+12.6.5 Interrupt Sharing between Channels
+
+As the DMAC does not record which channel (or list of channels) have asserted an interrupt.
+So it will depend on your program and whether any of the visible information for that
+program can be used to determine progress, and help identify the interrupt source.
+There are 4 likely information sources that can be used to determine the progress made by
+a program:
+- Program counter (PC)
+- Source address
+- Destination address
+- Loop counters (LC)
+For example, a program might emit an interrupt each time that it iterates around a loop. In
+this case, the interrupt service routine (ISR) would need to store the loop value of each
+channel when it is called, and then compare against the new value when it is next called. A
+change in value would indicate that the program has progressed.
+The ISR must be carefully written to ensure that no interrupts are lost. The sequence of
+operations is as follows:
+1. Disable interrupts
+2. Immediately clear the interrupt in DMA-330
+3. Check the relevant registers for both channels to determine which must be serviced
+4. Take appropriate action for the channels
+5. Re-enable interrupts and exit ISR
+
+12.6.6 Instruction Sets
+Mnemonic
+DMAADDH
+DMAEND
+DMAFLUSHP
+DMAGO
+DMAKILL
+DMALD
+DMALDP
+DMALP
+DMALPEND
+DMALPFE
+
+Table 12-4 DMAC Instruction Sets
+Instruction
+Add Halfword
+C
+End
+M/C
+Flush and notify Peripheral
+C
+Go
+M
+Kill
+C
+Load
+C
+Load Peripheral
+C
+Loop
+C
+Loop End
+C
+Loop Forever
+C
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Thread Usage
+
+1369
+
+RK3588 TRM-Part1
+DMAMOV
+DMANOP
+DMARMB
+DMASEV
+DMAST
+DMASTP
+DMASTZ
+DMAWFE
+DMAWFP
+DMAWMB
+DMAADNH
+
+Move
+No operation
+Read Memory Barrier
+Send Event
+Store
+Store and notify Peripheral
+Store Zero
+Wait For Event M
+Wait For Peripheral
+Write Memory Barrier
+Add Negative Halfword
+Notes: Thread usage: C=DMA channel, M=DMA manager
+
+C
+M/C
+C
+M/C
+C
+C
+C
+M/C
+C
+C
+C
+
+12.6.7 Assembler Directives
+
+In this document, only DMMADNH instruction is took as an example to show the way the
+instruction assembled. For the other instructions, please refer to pl330_trm.pdf.
+DMAADNH
+Add Negative Halfword adds an immediate negative 16-bit value to the DMAC_SARn(n=0~7)
+Register or DMAC_DARn(n=0~7) Register, for the DMA channel thread. This enables the
+DMAC to support 2D DMA operations, or reading or writing an area of memory in a different
+order to naturally incrementing addresses. See Source Address Registers and Destination
+Address Registers.
+The immediate unsigned 16-bit value is one-extended to 32 bits, to create a value that is
+the two’s complement representation of a negative number between -65536 and -1, before
+the DMAC adds it to the address using 32-bit addition. The DMAC discards the carry bit so
+that addresses wrap from 0xFFFFFFFF to 0x00000000. The net effect is to subtract between
+65536 and 1 from the current value in the Source or Destination Address Register.
+Following table shows the instruction encoding.
+Table 12-5 DMAC Instruction Encoding
+Imm[15:8]
+Imm[7:0]
+0 1 0 1 1 1 ra 0
+Assembler syntax
+DMAADNH <address_register>, <16-bit immediate>
+where:
+<address_register>
+Selects the address register to use. It must be either:
+SAR
+DMAC_SARn(n=0~7) Register and sets ra to 0.
+DAR
+DMAC_DARn(n=0~7) Register and sets ra to 1.
+<16-bit immediate>
+The immediate value to be added to the <address_register>.
+You should specify the 16-bit immediate as the number that is to be represented in the
+instruction encoding. For example, DMAADNH DAR, 0xFFF0 causes the value 0xFFFFFFF0 to
+be added to the current value of the Destination Address Register, effectively subtracting 16
+from the DAR.
+You can only use this instruction in a DMA channel thread.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+1370
+
+RK3588 TRM-Part1
+

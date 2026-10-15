@@ -1,0 +1,555 @@
+Chapter 18 PVTPLL
+18.1 Overview
+
+PVTPLL is used to monitor the chip performance variance caused by chip process, voltage and
+temperature, and generate a set of reference signals for adjusting the voltage of the chip.
+PVTPLL supports the following features:
+⚫ A clock oscillation ring is integrated and used to generate a clock like signal (osc_clk), the
+frequency of this clock is determined by the cell delay value of clock oscillation ring circuit
+⚫ A frequency counter(osc_cnt) is used to measure the frequency of ‘osc_clk’
+⚫ A externally input clock (ref_clk) is used as a reference clock for detecting the frequency
+of ‘osc_clk’
+⚫ A calculation counter uses ‘ref_clk’ to generate a configurable periodic timing window
+⚫ The time-counter is used to measure the frequency of ‘osc_clk’
+⚫ Support for dividing the ref_clk and osc_clk
+⚫ Support for configuring the effective polarity of the voltage regulator signal 'OUT'
+⚫ Six PVTPLL are instantiated in RK3588: PVTPLL_BIGCORE0, PVTPLL_BIGCORE1,
+PVTPLL_LITCORE, PVTPLL_DSU, PVTPLL_GPU and PVTPLL_NPU
+⚫ PVTPLL_BIGCORE0, PVTPLL_BIGCORE1, PVTPLL_LITCORE, PVTPLL_DSU
+◼ Support 6 different types of inverter cell selection
+⚫ PVTPLL_GPU and PVTPLL_NPU
+◼ Support 2 different types of inverter cell selection
+⚫ Support 64 levels of different length inverter osc_ring selection
+
+18.2 Block Diagram
+ref_clk
+
+PVTPLL_TOP
+Div_free
+
+osc_cnt[31:0]
+
+FREQ_CAL
+
+clk_div_ref
+
+OSC_WRAPPER
+
+FREQCOM_VOLT
+
+oen
+out
+
+Div_free
+
+clk_div_osc
+
+osc_clk
+
+pvtpll_con0[15:0]
+
+osc_en
+
+pvtpll_con1[31:0]
+
+HUB
+
+pvtpll_con2[31:0]
+
+osc_ring_sel[2:0]
+...
+ring_length_sel[4:0]
+clk_div_ref
+clk_div_osc
+
+...
+
+pvtpll_con3[31:0]
+
+Fig. 18-1 VTPLL Block Diagram
+The PVTPLL include four main blocks:
+(1)OSC_RING: it is composed with inverters with odd number, which is used to generate a
+clock. And PVTPLL support multiple type clock oscillation ring and different length osc_ring.
+(2)FREQ_CAL: it is used to measure the frequency of clock which generated from the
+RING_OSC block.
+(3)FREQCOMP_VOLT: it is used to generate a set of reference signals for adjusting the
+voltage of the chip.
+(4)HUB: it is used to split GRF signals into internal functional signals.
+
+18.3 Function Description
+18.3.1 Interfaces
+
+The PVTPLL is controlled by GRF and CRU, and the monitoring results are obtained by GRF.
+Table 18-1 PVTPLL Interfaces
+Clock and Reset
+ref_clk
+
+I
+
+Reference Clock
+
+resetn
+
+I
+
+LOW : active
+DFT Signals
+
+soc_scan_mode
+
+I
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+SOC scan mode control
+
+2375
+
+RK3588 TRM-Part2
+scan_clk_pvtpll
+
+I
+
+Scan Clock
+
+soc_test_mode
+
+I
+
+SOC test mode enable
+
+tm_pvtpll_oen
+
+O
+
+Test mode
+
+tm_pvtpll_out
+
+O
+
+Test mode
+
+tm_pvtpll_osc_cnt_
+valid
+
+O
+
+Test mode
+Control Signals
+
+pvtpll_con0[31:0]
+
+pvtpll_con1[31:0]
+
+pvtpll_con2[31:0]
+
+pvtpll_con3[31:0]
+
+pvtpll_con0[0]
+
+pvtpll_start
+PVT_PLL monitor start control
+
+pvtpll_con0[1]
+
+osc_en
+osc_ring enable
+
+pvtpll_con0[2]
+
+out_polar
+0: ‘out=1’ when need to increase volt
+1: ‘out=0’ when need to increase volt
+
+pvtpll_con0[7:3]
+
+Reserved
+
+pvtpll_con0[10:8]
+
+osc_ring_sel[2:0]
+osc_ring channel select
+
+pvtpll_con0[12:11]
+
+clk_div_ref[1:0]
+Frequency division factor for ref_clk
+
+pvtpll_con0[14:13]
+
+clk_div_osc[1:0]
+Frequency division factor for osc_clk
+
+pvtpll_con0[15]
+
+bypass
+0: Support glitch-free frequency switching
+1: Not support
+
+pvtpll_con0[21:16]
+
+ring_length_sel[5:0]
+osc_ring inverter length select
+
+pvtpll_con0[31:22]
+
+Reserved
+
+I
+
+cal_cnt[31:0]
+Frequency measurement period
+
+I
+pvtpll_con2[15:0]
+
+threshold[15:0]
+Count difference threshold value
+
+pvtpll_con2[31:16]
+
+ckg_val[15:0]
+Clk-gating interval control count value
+
+I
+
+ref_cnt[31:0]
+Target reference frequency value
+
+I
+
+Output Signals
+oen
+
+O
+
+Voltage regulation enable signal
+Low active
+
+out
+
+O
+
+Voltage regulation indication signal
+
+osc_cnt[31:0]
+
+O
+
+osc_clk counter value
+
+osc_cnt_avg[31:0]
+
+O
+
+osc_clk counter average
+
+osc_clk
+
+O
+
+osc_ring output clock
+Table 18-2 The Registers used to control PVTPLL
+
+PVTPLL I/O
+pvtpll_con0[15:0]
+pvtpll_con0[31:16]
+
+PVTPLL_BIGCORE0/1
+BIGCORE_GRF_PVTPLL
+_CON0_L
+BIGCORE_GRF_PVTPLL
+
+PVTPLL_LITCORE
+LITCORE_GRF_PVTP
+LL_CON0_L
+LITCORE_GRF_PVTP
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+PVTPLL_DSU
+DSU_GRF_PVTPL
+L_CON0_L
+DSU_GRF_PVTPL
+
+PVTPLL_GPU
+GPU_GRF_PVTPL
+L_CON0_L
+GPU_GRF_PVTPL
+
+PVTPLL_NPU
+NPU_GRF_PVTP
+LL_CON0_L
+NPU_GRF_PVTP
+
+2376
+
+RK3588 TRM-Part2
+PVTPLL I/O
+pvtpll_con1[31:0]
+pvtpll_con2[31:0]
+pvtpll_con3[31:0]
+osc_cnt[31:0]
+osc_cnt_avg[31:0]
+
+PVTPLL_BIGCORE0/1
+_CON0_H
+BIGCORE_GRF_PVTPLL
+_CON1
+BIGCORE_GRF_PVTPLL
+_CON2
+BIGCORE_GRF_PVTPLL
+_CON3
+BIGCORE_GRF_PVTPLL
+_STATUS0
+BIGCORE_GRF_PVTPLL
+_STATUS1
+
+PVTPLL_LITCORE
+LL_CON0_H
+LITCORE_GRF_PVTP
+LL_CON1
+LITCORE_GRF_PVTP
+LL_CON2
+LITCORE_GRF_PVTP
+LL_CON3
+LITCORE_GRF_PVTP
+LL_STATUS0
+LITCORE_GRF_PVTP
+LL_STATUS1
+
+PVTPLL_DSU
+L_CON0_H
+DSU_GRF_PVTPL
+L_CON1
+DSU_GRF_PVTPL
+L_CON2
+DSU_GRF_PVTPL
+L_CON3
+DSU_GRF_PVTPL
+L_STATUS0
+DSU_GRF_PVTPL
+L_STATUS1
+
+PVTPLL_GPU
+L_CON0_H
+GPU_GRF_PVTPL
+L_CON1
+GPU_GRF_PVTPL
+L_CON2
+GPU_GRF_PVTPL
+L_CON3
+GPU_GRF_PVTPL
+L_STATUS0
+GPU_GRF_PVTPL
+L_STATUS1
+
+PVTPLL_NPU
+LL_CON0_H
+NPU_GRF_PVTP
+LL_CON1
+NPU_GRF_PVTP
+LL_CON2
+NPU_GRF_PVTP
+LL_CON3
+NPU_GRF_PVTP
+LL_STATUS0
+NPU_GRF_PVTP
+LL_STATUS1
+
+18.3.2 OSC RING
+
+Each PVTPLL contains multiple OSC_RINGs that use different types of inverter cell. The
+number of OSC_RING is defined according to the requirements of each item.
+“osc_ring_sel[2:0]” is used to select which OSC_RING to use. The correspondence between
+“osc_ring_sel[2:0]” and the type of inverter cell is shown in the following table 1-2. The
+number of inverters in each OSC_RING can also be selected by the interface signal
+“ring_legth_sel[4:0]”. The correspondence between “ring_length_sel[5:0]” and the number
+of inverters is shown in the following table 1-3.
+Table 18-3 Inverter Cell Type
+Instance
+osc_ring_sel
+Inverter Cell Type
+
+PVTPLL_BIGCORE0
+PVTPLL_BIGCORE1
+PVTPLL_LITCORE
+PVTPLL_DSU
+
+PVTPLL_GPU
+PVTPLL_NPU
+
+Instance
+
+0
+
+HDBLVT20_INV_S_4
+
+1
+
+HDBLVT22_INV_S_4
+
+2
+
+Reserved
+
+3
+
+HDBSVT22_INV_S_4
+
+4
+
+HDBLVT20_INV_SHSDB_4
+
+5
+
+HDBLVT22_INV_SHSDB_4
+
+6
+
+Reserved
+
+7
+
+HDBSVT22_INV_SHSDB_4
+
+0
+
+UDBLVT20_INV_S_4
+
+1
+
+UDBSVT20_INV_S_4
+
+Table 18-4 Inverter Length Select
+ring_length_sel Number of Inverters
+
+PVTPLL_BIGCORE0
+PVTPLL_BIGCORE1
+PVTPLL_LITCORE
+PVTPLL_DSU
+
+PVTPLL_GPU
+PVTPLL_NPU
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+0
+
+10
+
+1
+
+12
+
+2
+
+14
+
+...
+
+...
+
+n
+
+(n+5)*2
+
+...
+
+...
+
+61
+
+132
+
+62
+
+134
+
+63
+
+136
+
+0
+
+40
+
+1
+
+42
+
+2
+
+44
+
+...
+
+...
+
+n
+
+(n+20)*2
+
+...
+
+...
+
+61
+
+162
+
+2377
+
+RK3588 TRM-Part2
+Instance
+
+ring_length_sel
+
+Number of Inverters
+
+62
+
+164
+
+63
+
+166
+
+18.3.3 Frequency Measurement
+
+‘osc_clk’ is generated by the internal OSC_RING. The time-counter is used to measure the
+frequency of ‘osc_clk’, and the time-counter uses ref_clk as counting clock. PVTPLL
+generates a signal for frequency stabilization by comparing the count values of osc_cnt and
+ref_cnt in the same time period.
+The measurement period is configured through the interface signal cal_cnt[31:0]. At the end
+of each measurement period, the value of osc_cnt is equivalent to the frequency of osc_clk.
+The osc_cnt value is compared with the reference value ref_cnt to generate a signal(out) for
+external voltage regulation.
+
+18.3.4 Voltage Regulation Signal
+
+After starting the auto-regulation function, if osc_cnt[31:0] >
+(ref_cnt[31:0]+threshold[31:0]) or osc_cnt[31:0] < (ref_cnt[31:0]-threshold[31:0]), the
+voltage regulation enable signal ‘oen’ is set to 0, and the value of the voltage adjustment
+signal ‘out’ changes according to the set voltage regulation polarity signal ‘out_polar’, and
+the corresponding relationship is as shown below:
+Out_polar=0: ‘out=1’ when need to increase voltage; ‘out=0’ when need to reduce
+voltage.
+Out_polar=1: ‘out=0’ when need to increase voltage; ‘out=1’ when need to reduce
+voltage.
+
+18.4 Application Notes
+
+1. Configure osc_ring_sel and ring_length_sel.
+2. Set osc_en to 1 to enable the generated clock.
+3. Configure cal_cnt, ref_cnt and threshold, and set out_polar to appropriate value.
+4. Set pvtpll_start to 1 to start automatic detection of the frequency and output voltage
+regulation signal ‘out’.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2378
+
+RK3588 TRM-Part2
+

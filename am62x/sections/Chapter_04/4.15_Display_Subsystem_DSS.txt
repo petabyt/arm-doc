@@ -1,0 +1,153 @@
+4.15 Display Subsystem (DSS)
+This section contains the integration details for the DSS module on this device. For Further information, see the
+Display Subsystem (DSS) section of the Peripherals chapter
+4.15.1 DSS_UL Unsupported Features
+The following features are not supported on this family of devices:
+•
+Video output from Port 1 (dpi_0 interface)
+•
+Fragmented frame buffers
+•
+OLDITX does not support independent displays on each link. Links may be combined to support a single 2K
+display, or the second link can be used to mirror the first link.
+•
+Video output > 1920x1080 @ 60Hz
+•
+Write-back pipeline for memory-to-memory composition
+•
+2-D Tiled buffer access
+•
+On-the-fly rotation
+•
+Compressed data format
+4.15.2 Module Allocations
+Table 4-234. DSS_UL Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+DSS0
+✓
+4.15.3 Resets, Interrupts, and Clocks
+Table 4-235. DSS_UL Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+DSS0
+PSC0_PSC_0
+PD_DSS
+LPSC_DSS
+51
+OFF
+YES
+LPSC_MAIN_IP
+Table 4-236. DSS_UL Resets
+Module Instance
+Source
+Description
+DSS0
+PSC0_PSC_0
+DSS0 reset
+Table 4-237. DSS_UL Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+DSS0
+DSS0_dispc_intr_req
+_0_0
+MCU_M4FSS0_COR
+E0_nvic_IN_40
+MCU_M4FSS0_COR
+E0
+DSS0 interrupt
+request
+level
+DSS0
+DSS0_dispc_intr_req
+_0_0
+GICSS0_spi_IN_116
+GICSS0
+DSS0 interrupt
+request
+level
+DSS0
+DSS0_dispc_intr_req
+_0_0
+R5FSS0_CORE0_intr
+_IN_24
+R5FSS0_CORE0
+DSS0 interrupt
+request
+level
+DSS0
+DSS0_dispc_intr_req
+_1_0
+MCU_M4FSS0_COR
+E0_nvic_IN_41
+MCU_M4FSS0_COR
+E0
+DSS0 interrupt
+request
+level
+DSS0
+DSS0_dispc_intr_req
+_1_0
+GICSS0_spi_IN_117
+GICSS0
+DSS0 interrupt
+request
+level
+DSS0
+DSS0_dispc_intr_req
+_1_0
+R5FSS0_CORE0_intr
+_IN_25
+R5FSS0_CORE0
+DSS0 interrupt
+request
+level
+=== Page 468 ===
+Table 4-238. DSS_UL Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+DSS0
+DPI_0_IN_CLK
+MAIN_PLL16_HSDIV0_C
+LKOUT
+MAIN_PLL16_HSDIV0_C
+LKOUT/7
+DPI_1_IN_CLK
+MAIN_PLL17_HSDIV0_C
+LKOUT
+DSS_DISPC0_CLKSEL1[
+0:0]
+VOUT_EXTPCLKIN
+DSS_DISPC0_CLKSEL1[
+0:0]
+DSS_FUNC_CLK
+MAIN_SYSCLK0/2
+4.15.4 OLDI_TX Integration Features
+Single Link Mode - 1920x1440@60fps with a 200MHz pixel clock
+•
+1x OLDI_TX - Duplicate Display
+Dual Link Mode - 3840x1080@60fps with a 300MHz pixel clock
+•
+1x OLDI_TX - Single, higher resolution image using both OLDI_TX together
+=== Page 469 ===

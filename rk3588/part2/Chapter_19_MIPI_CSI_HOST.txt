@@ -1,0 +1,1627 @@
+Chapter 19 MIPI CSI HOST
+19.1 Overview
+
+The CSI-2 Host Controller is designed to receive data from a CSI-2 compliant camera sensor.
+A D-PHY configured as a Slave acts as the physical layer.
+The MIPI CSI-2 Host Controller supports the following features:
+⚫
+Compliant with MIPI Alliance Specification for CSI-2, Version 1.01.00-9 November
+2010
+⚫
+Interface with MIPI D-PHY v1.2/D-PHY v2.0/C-PHY v1.1
+⚫
+Up to four D-PHY RX data lanes or three C-PHY RX data lanes.
+⚫
+Dynamically configurable multi-lane merging
+⚫
+Long and Short packet decoding
+⚫
+Timing accurate signaling of Frame and Line synchronization packets
+⚫
+Several Frame formats
+◼
+General Frame or Digital Interlaced Video with or without accurate sync timing
+◼
+Data Type (Packet or Frame Level) and Virtual Channel interleaving
+⚫
+32-bit Image Data Interface delivering data formatted as recommended in CSI-2
+Specification
+⚫
+All primary and secondary data formats
+◼
+RGB, YUV, and RAW color space definitions
+◼
+From 24-bit down to 6-bit per pixel
+◼
+Generic or user-defined byte-based data types
+⚫
+Error detection and correction
+◼
+PHY level
+◼
+Packet level
+◼
+Line level
+◼
+Frame level
+⚫
+Support DSI video mode/command mode
+
+19.2 Block Diagram
+
+The following diagram shows the MIPI CSI-2 Host Controller architecture.
+
+⚫
+⚫
+⚫
+⚫
+
+Image
+Data I/F
+
+System
+Data
+Interface
+
+APB Bus
+
+Register
+Bank
+
+CLK PPI
+
+Packet
+Analyzer
+
+PHY
+Adaptation
+Layer
+
+PPI
+
+Fig. 19-1 MIPI CSI-2 Host Controller Architecture
+PHY Adaptation Layer: Manages the D-PHY PPI interface
+Packet Analyzer: Merges the data from the different lanes
+Image Data Interface: Reorders pixels into 32-bit data for memory storage and
+generates timing accurate video synchronization signals
+AMBA-APB Register Bank: Provides access to configuration and control registers
+
+19.3 Function Description
+19.3.1 Supported Resolutions and Frame Rates
+
+The CSI-2 specification does not define the supported standard resolutions or frame rates.
+Camera sensor resolution, blanking periods, synchronization events, frame rates, and pixel
+color depth play a fundamental role in the required bandwidth. All these variables make it
+difficult to define a standard procedure to estimate the minimum lane rate and the minimum
+number of lanes that support a specific CSI-2 device.
+Following table presents some predefined and supported camera settings, assuming the
+following:
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2379
+
+RK3588 TRM-Part2
+Clock lane frequency is 500 MHz or 750 MHz that results in a bandwidth of 1 Gbps or 1.5
+Gbps respectively, for each data lane.
+⚫ No significant control/reserved traffic is present on the link when pixel data is being
+transmitted.
+The last column of following table presents the minimum number of lanes required for each
+configuration.
+Table 19-1 Supported Camera Settings
+Mega
+Mega
+Refresh
+Color
+CSI2 BW D-PHY at
+D-PHY at
+Pixels
+Pixels with
+Rate
+Depth
+(Mbits)
+1 Gbps
+1.5Gbps
+Overhead
+(Hz)
+(bpp)
+Number
+Number
+of Lanes
+of Lanes
+2MP
+2560000
+15
+24
+922
+1
+1
+2MP
+2560000
+30
+24
+1843
+2
+2
+3MP
+3840000
+15
+16
+922
+1
+1
+3MP
+3840000
+30
+16
+1843
+2
+2
+3MP
+3840000
+30
+24
+2765
+3
+2
+5MP
+6400000
+15
+16
+1536
+2
+2
+5MP
+6400000
+15
+24
+2304
+3
+2
+5MP
+6400000
+30
+16
+3072
+4
+3
+8MP
+10240000
+15
+16
+2458
+3
+2
+8MP
+10240000
+15
+24
+3686
+4
+3
+8MP
+10240000
+30
+12
+3686
+4
+3
+12MP
+15360000
+15
+12
+2765
+3
+2
+12MP
+15360000
+15
+16
+3686
+4
+3
+14MP
+17920000
+15
+12
+3226
+4
+3
+16MP
+20480000
+15
+12
+3686
+4
+3
+Video Formats
+1280x720
+921600
+30
+24
+664
+1
+1
+pixels(720p)
+1280x720
+921600
+60
+24
+1327
+2
+1
+pixels(720p)
+1920x1080
+2073600
+60
+24
+2986
+3
+2
+pixels(1080p
+)
+⚫
+
+19.3.2 Error Detection
+
+The CSI-2 Host Controller analyzes the received packets and determines if there are protocol
+errors. It is possible to monitor the following errors:
+⚫ Frame errors such as incorrect Frame sequence, reception of a CRC error in the most
+recent frame, and the mismatch between Frame Start and Frame End
+⚫ Line errors such as incorrect line sequence and mismatch between Line Start and Line
+End
+⚫ Packet errors such as ECC or CRC mismatch
+⚫ D-PHY errors such as synchronization pattern mismatch
+Following table shows all the errors that CSI-2 Host Controller can identify.
+Table 19-2 Errors Identified by the CSI-2 Host Controller
+Error
+Description
+Level Action
+phy_errsotsynchs Start of transmission PHY
+Packets with this error are
+_*
+error on data lane*
+not delivered in IDI
+with no
+interface
+synchronization
+achieved
+phy_erresc_*
+Escape entry error
+PHY
+Informative only. Error is
+(ULPM) on data
+acknowledged in the
+lane*
+register and the interrupt
+pin is raised.
+phy_errsoths_*
+Start of transmission PHY
+Informative only since
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2380
+
+RK3588 TRM-Part2
+error on data lane*
+but synchronization
+can still be achieved
+vc*_err_crc
+
+Checksum error
+detected on virtual
+channel*
+
+Packe
+t
+
+vc*_err_crc
+
+Header ECC contains
+one error detected
+on virtual channel*
+
+Packe
+t
+
+err_ecc_double
+
+Header ECC contains
+two errors.
+Unrecoverable.
+Unrecognized or
+unimplemented data
+type detected in
+virtual channel*
+Error matching
+Frame Start with
+Frame End for virtual
+channel*
+Incorrect Frame
+Sequence detected
+in virtual channel*
+
+Packe
+t
+
+Last received frame,
+in virtual channel*,
+had at least one CRC
+error
+
+Fram
+e
+
+err_id_vc*
+
+err_f_bndry_matc
+h_vc*
+err_f_seq_vc*
+
+err_frame_data_v
+c*
+
+Packe
+t
+Fram
+e
+Fram
+e
+
+PHY can recover from this
+error. Error is
+acknowledged in register
+and the interrupt pin is
+raised.
+Informative only. Error is
+acknowledged in the
+register and Interrupt pin
+is raised.
+Informative only since
+controller can recover the
+correct header. Error is
+acknowledged in the
+register and the interrupt
+pin is raised.
+Packets with this error are
+not delivered in IDI.s
+Informative only. Error is
+acknowledged in the
+register and the interrupt
+pin is raised
+Informative only. Error is
+acknowledged in register
+and the interrupt pin is
+raised if not masked.
+Informative only. Error is
+acknowledged in register
+and the interrupt pin is
+raised if not masked.
+Informative only. Error is
+acknowledged in the
+register and the interrupt
+pin is raised.
+
+19.4 Register Description
+19.4.1 Registers Summary
+Name
+
+Offset
+
+Reset
+Value
+
+Size
+
+Description
+
+CSI2HOST_VERSION
+
+0x0000
+
+W
+
+0x00000000 Controller version identification
+
+CSI2HOST_N_LANES
+
+0x0004
+
+W
+
+0x00000000 Number of active data lanes
+
+CSI2HOST_CSI2_RESETN 0x0010
+
+W
+
+0x00000000 CSI2 controller reset
+
+CSI2HOST_PHY_STATE
+
+0x0014
+
+W
+
+0x00000000 General settings for all blocks
+
+CSI2HOST_ERR1
+
+0x0020
+
+W
+
+0x00000000 Error state register 1
+
+CSI2HOST_ERR2
+
+0x0024
+
+W
+
+0x00000000 Error state register 2
+
+CSI2HOST_MSK1
+
+0x0028
+
+W
+
+0x00000000 Masks for errors 1
+
+CSI2HOST_MSK2
+
+0x002C
+
+W
+
+0x00000000 Masks for errors 2
+
+CSI2HOST_CONTROL
+
+0x0040
+
+W
+
+0x0C204000 Control
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+19.4.2 Detail Registers Description
+CSI2HOST_VERSION
+Address: Operational Base + offset (0x0000)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2381
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+Description
+
+31:1
+
+RO
+
+0x00000000
+
+reserved
+
+0
+
+RO
+
+0x0
+
+version
+Version of the csi2host.
+
+CSI2HOST_N_LANES
+Address: Operational Base + offset (0x0004)
+Bit
+31:2
+
+1:0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+RW 0x0
+
+Description
+reserved
+n_lanes
+Number of active data lanes.
+2'b00: 1 data lane(lane 0)
+2'b01: 2 data lanes(lane0 and 1)
+2'b10: 3 data lanes(lane0,1,and 2)
+2'b11: 4 data lanes(ALL)
+Can only be updated when the D-PHY lane is in the Stop state.
+
+CSI2HOST_CSI2_RESETN
+Address: Operational Base + offset (0x0010)
+Bit
+31:1
+0
+
+Attr Reset Value
+RO
+
+0x00000000
+
+RW 0x0
+
+Description
+reserved
+csi2_resetn
+CSI2 controller reset output.
+Active low.
+
+CSI2HOST_PHY_STATE
+Address: Operational Base + offset (0x0014)
+Bit
+31
+
+Attr Reset Value
+RW 0x0
+
+30:15 RO
+14
+
+13
+
+RO
+
+RO
+
+Description
+bypass_2ecc_tst
+Payload Bypass test mode for double ECC errors.
+
+0x0000
+
+reserved
+
+0x0
+
+phy_rxactivehs_3
+Lane3 high-speed receive active.
+Active high.
+
+0x0
+
+phy_rxactivehs_2
+Lane2 high-speed receive active.
+Active high.
+
+12
+
+RO
+
+0x0
+
+phy_rxactivehs_1
+Lane1 high-speed receive active.
+Active high.
+
+11
+
+RO
+
+0x0
+
+phy_rxactivehs_0
+Lane0 high-speed receive active.
+Active high.
+
+10
+
+RO
+
+0x0
+
+phy_stopstateclk
+Clock lane in Stop state.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2382
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+Description
+
+9
+
+RO
+
+0x0
+
+phy_rxulpsclknot
+This signal indicates that the clock lane module has entered the
+Ultra Low Power state.
+Active low.
+
+8
+
+RO
+
+0x0
+
+phy_rxclkactivehs
+Indicates that the clock lane is actively receiving a DDR clock.
+
+7
+
+RO
+
+0x0
+
+phy_stopstatedata_3
+Data lane 3 in Stop state.
+
+6
+
+RO
+
+0x0
+
+phy_stopstatedata_2
+Data lane 2 in Stop state.
+
+5
+
+RO
+
+0x0
+
+phy_stopstatedata_1
+Data lane 1 in Stop state.
+
+4
+
+RO
+
+0x0
+
+phy_stopstatedata_0
+Data lane 0 in Stop state.
+
+3
+
+RO
+
+0x0
+
+phy_rxulpsesc_3
+Lane module0 has entered the Ultra Low Power mode.
+
+2
+
+RO
+
+0x0
+
+phy_rxulpsesc_2
+Lane module2 has entered the Ultra Low Power mode.
+
+1
+
+RO
+
+0x0
+
+phy_rxulpsesc_1
+Lane module1 has entered the Ultra Low Power mode.
+
+0
+
+RO
+
+0x0
+
+phy_rxulpsesc_0
+Lane module0 has entered the Ultra Low Power mode.
+
+CSI2HOST_ERR1
+Address: Operational Base + offset (0x0020)
+Bit
+
+Attr Reset Value
+
+Description
+
+31
+
+RW 0x0
+
+err_ph_crc_lane2
+Packet crc error of lane2 when sw_cphy_en=1.
+
+30
+
+RW 0x0
+
+err_ph_crc_lane1
+Packet crc error of lane1 when sw_cphy_en=1.
+
+29
+
+RW 0x0
+
+err_ph_crc_lane0
+Packet crc error of lane0 when sw_cphy_en=1.
+
+28
+
+RO
+
+0x0
+
+err_ecc_double
+Header ECC contains 2 errors, unrecoverable.
+
+27
+
+RO
+
+0x0
+
+vc3_err_crc
+Checksum error detected on virtual channel 3.
+
+26
+
+RO
+
+0x0
+
+vc2_err_crc
+Checksum error detected on virtual channel 2.
+
+25
+
+RO
+
+0x0
+
+vc1_err_crc
+Checksum error detected on virtual channel 1.
+
+24
+
+RO
+
+0x0
+
+vc0_err_crc
+Checksum error detected on virtual channel 0.
+
+23:16 RO
+
+0x00
+
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2383
+
+RK3588 TRM-Part2
+Bit
+15
+
+14
+
+13
+
+Attr Reset Value
+RO
+
+RO
+
+RO
+
+Description
+
+0x0
+
+err_frame_data_vc3
+Last received frame, in virtual channel 3, had at least one CRC
+error.
+
+0x0
+
+err_frame_data_vc2
+Last received frame, in virtual channel 2, had at least one CRC
+error.
+
+0x0
+
+err_frame_data_vc1
+Last received frame, in virtual channel 1, had at least one CRC
+error.
+
+12
+
+RO
+
+0x0
+
+err_frame_data_vc0
+Last received frame, in virtual channel 0, had at least one CRC
+error.
+
+11
+
+RO
+
+0x0
+
+err_f_seq_vc3
+Incorrect frame sequence detected in virtual channel 3.
+
+10
+
+RO
+
+0x0
+
+err_f_seq_vc2
+Incorrect frame sequence detected in virtual channel 2.
+
+9
+
+RO
+
+0x0
+
+err_f_seq_vc1
+Incorrect frame sequence detected in virtual channel 1.
+
+8
+
+RO
+
+0x0
+
+err_f_seq_vc0
+Incorrect frame sequence detected in virtual channel 0.
+
+7
+
+RO
+
+0x0
+
+err_f_bndry_match_vc3
+Error matching frame start with frame end for virtual channel 3.
+
+6
+
+RO
+
+0x0
+
+err_f_bndry_match_vc2
+Error matching frame start with frame end for virtual channel 2.
+
+5
+
+RO
+
+0x0
+
+err_f_bndry_match_vc1
+Error matching frame start with frame end for virtual channel 1.
+
+4
+
+RO
+
+0x0
+
+err_f_bndry_match_vc0
+Error matching frame start with frame end for virtual channel 0.
+
+3
+
+RO
+
+0x0
+
+phy_errsotsynchs_3
+Start of transmission error on data lane 3.
+
+2
+
+RO
+
+0x0
+
+phy_errsotsynchs_2
+Start of transmission error on data lane 2.
+
+1
+
+RO
+
+0x0
+
+phy_errsotsynchs_1
+Start of transmission error on data lane 1.
+
+0x0
+
+phy_errsotsynchs_0
+Start of transmission error on data lane 0(no synchronization
+achieved).
+
+0
+
+RO
+
+CSI2HOST_ERR2
+Address: Operational Base + offset (0x0024)
+Bit
+
+Attr Reset Value
+
+31:28 RO
+27
+
+0x0
+
+RW 0x0
+
+Description
+reserved
+cphy_errcodehs_3
+Lane 3 receive invalid code whensw_cphy_en=1.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2384
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+Description
+
+26
+
+RW 0x0
+
+cphy_errcodehs_2
+Lane 2 receive invalid code whensw_cphy_en=1.
+
+25
+
+RW 0x0
+
+cphy_errcodehs_1
+Lane 1 receive invalid code whensw_cphy_en=1.
+
+24
+
+RW 0x0
+
+cphy_errcodehs_0
+Lane 0 receive invalid code whensw_cphy_en=1.
+
+23:16 RO
+
+0x00
+
+reserved
+
+RW 0x0
+
+err_id_vc3
+Unrecognized or unimplemented data type detected in virtual
+channel 3.
+
+RW 0x0
+
+err_id_vc2
+Unrecognized or unimplemented data type detected in virtual
+channel 2.
+
+RW 0x0
+
+err_id_vc1
+Unrecognized or unimplemented data type detected in virtual
+channel 1.
+
+12
+
+RW 0x0
+
+err_id_vc0
+Unrecognized or unimplemented data type detected in virtual
+channel 0.
+
+11
+
+RW 0x0
+
+vc3_err_ecc_corrected
+Header error detected and corrected on virtual channel 3.
+
+10
+
+RW 0x0
+
+vc2_err_ecc_corrected
+Header error detected and corrected on virtual channel 2.
+
+9
+
+RW 0x0
+
+vc1_err_ecc_corrected
+Header error detected and corrected on virtual channel 1.
+
+8
+
+RW 0x0
+
+vc0_err_ecc_corrected
+Header error detected and corrected on virtual channel 0.
+
+RW 0x0
+
+phy_errsoths_3
+Start of transmission error on data lane 3(synchronization can
+still be achieved).
+
+6
+
+RW 0x0
+
+phy_errsoths_2
+Start of transmission error on data lane 2(synchronization can
+still be achieved).
+
+5
+
+RW 0x0
+
+phy_errsoths_1
+Start of transmission error on data lane 1(synchronization can
+still be achieved).
+
+4
+
+RW 0x0
+
+phy_errsoths_0
+Start of transmission error on data lane 0(synchronization can
+still be achieved).
+
+3
+
+RW 0x0
+
+phy_erresc_3
+Escape entry error(ULPM) on data lane 3.
+
+2
+
+RW 0x0
+
+phy_erresc_2
+Escape entry error(ULPM) on data lane 2.
+
+1
+
+RW 0x0
+
+phy_erresc_1
+Escape entry error(ULPM) on data lane 1.
+
+15
+
+14
+
+13
+
+7
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2385
+
+RK3588 TRM-Part2
+Bit
+0
+
+Attr Reset Value
+RW 0x0
+
+Description
+phy_erresc_0
+Escape entry error(ULPM) on data lane 0.
+
+CSI2HOST_MSK1
+Address: Operational Base + offset (0x0028)
+Bit
+
+Attr Reset Value
+
+Description
+
+31
+
+RW 0x0
+
+mask_err_ph_crc_lane2
+Mask for err_ph_crc_lane2.
+
+30
+
+RW 0x0
+
+mask_err_ph_crc_lane1
+Mask for err_ph_crc_lane1.
+
+29
+
+RW 0x0
+
+mask_err_ph_crc_lane0
+Mask for err_ph_crc_lane0.
+
+28
+
+RW 0x0
+
+mask_err_ecc_double
+Mask for err_ecc_double.
+
+27
+
+RW 0x0
+
+mask_vc3_err_crc
+Mask for vc3_err_crc.
+
+26
+
+RW 0x0
+
+mask_vc2_err_crc
+Mask for vc2_err_crc.
+
+25
+
+RW 0x0
+
+mask_vc1_err_crc
+Mask for vc1_err_crc.
+
+24
+
+RW 0x0
+
+mask_vc0_err_crc
+Mask for vc0_err_crc.
+
+23:16 RO
+
+0x00
+
+reserved
+
+15
+
+RW 0x0
+
+mask_err_frame_data_vc3
+Mask for err_frame_data_vc3.
+
+14
+
+RW 0x0
+
+mask_err_frame_data_vc2
+Mask for err_frame_data_vc2.
+
+13
+
+RW 0x0
+
+mask_err_frame_data_vc1
+Mask for err_frame_data_vc1.
+
+12
+
+RW 0x0
+
+mask_err_frame_data_vc0
+Mask for err_frame_data_vc0.
+
+11
+
+RW 0x0
+
+mask_err_f_seq_vc3
+Mask for err_f_seq_vc3.
+
+10
+
+RW 0x0
+
+mask_err_f_seq_vc2
+Mask for err_f_seq_vc2.
+
+9
+
+RW 0x0
+
+mask_err_f_seq_vc1
+Mask for err_f_seq_vc1.
+
+8
+
+RW 0x0
+
+mask_err_f_seq_vc0
+Mask for err_f_seq_vc0.
+
+7
+
+RW 0x0
+
+mask_err_f_bndry_match_vc3
+Mask for err_f_bndry_match_vc3.
+
+6
+
+RW 0x0
+
+mask_err_f_bndry_match_vc2
+Mask for err_f_bndry_match_vc2.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2386
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+Description
+
+5
+
+RW 0x0
+
+mask_err_f_bndry_match_vc1
+Mask for err_f_bndry_match_vc1.
+
+4
+
+RW 0x0
+
+mask_err_f_bndry_match_vc0
+Mask for err_f_bndry_match_vc0.
+
+3
+
+RW 0x0
+
+mask_phy_errsotsynchs_3
+Mask for phy_errsotsynchs_3.
+
+2
+
+RW 0x0
+
+mask_phy_errsotsynchs_2
+Mask for phy_errsotsynchs_2.
+
+1
+
+RW 0x0
+
+mask_phy_errsotsynchs_1
+Mask for phy_errsotsynchs_1.
+
+0
+
+RW 0x0
+
+mask_phy_errsotsynchs_0
+Mask for phy_errsotsynchs_0.
+
+CSI2HOST_MSK2
+Address: Operational Base + offset (0x002C)
+Bit
+
+Attr Reset Value
+
+31:28 RO
+
+0x0
+
+Description
+reserved
+
+27
+
+RW 0x0
+
+mask_phy_errcodehs_3
+Mask for phy_errcodehs_3.
+
+26
+
+RW 0x0
+
+mask_phy_errcodehs_2
+Mask for phy_errcodehs_2.
+
+25
+
+RW 0x0
+
+mask_phy_errcodehs_1
+Mask for phy_errcodehs_1.
+
+24
+
+RW 0x0
+
+mask_phy_errcodehs_0
+Mask for phy_errcodehs_0.
+
+23:16 RO
+
+0x00
+
+reserved
+
+15
+
+RW 0x0
+
+mask_err_id_vc3
+Mask for err_id_vc3.
+
+14
+
+RW 0x0
+
+mask_err_id_vc2
+Mask for err_id_vc2.
+
+13
+
+RW 0x0
+
+mask_err_id_vc1
+Mask for err_id_vc1.
+
+12
+
+RW 0x0
+
+mask_err_id_vc0
+Mask for err_id_vc0.
+
+11
+
+RW 0x0
+
+mask_vc3_err_ecc_corrected
+Mask for vc3_err_ecc_corrected.
+
+10
+
+RW 0x0
+
+mask_vc2_err_ecc_corrected
+Mask for vc2_err_ecc_corrected.
+
+9
+
+RW 0x0
+
+mask_vc1_err_ecc_corrected
+Mask for vc1_err_ecc_corrected.
+
+8
+
+RW 0x0
+
+mask_vc0_err_ecc_corrected
+Mask for vc0_err_ecc_corrected.
+
+7
+
+RW 0x0
+
+mask_phy_errsoths_3
+Mask for phy_errsoths_3.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2387
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+Description
+
+6
+
+RW 0x0
+
+mask_phy_errsoths_2
+Mask for phy_errsoths_2.
+
+5
+
+RW 0x0
+
+mask_phy_errsoths_1
+Mask for phy_errsoths_1
+
+4
+
+RW 0x0
+
+mask_phy_errsoths_0
+Mask for phy_errsoths_0.
+
+3
+
+RW 0x0
+
+mask_phy_erresc_3
+Mask for phy_erresc_3.
+
+2
+
+RW 0x0
+
+mask_phy_erresc_2
+Mask for phy_erresc_2.
+
+1
+
+RW 0x0
+
+mask_phy_erresc_1
+Mask for phy_erresc_1.
+
+0
+
+RW 0x0
+
+mask_phy_erresc_0
+Mask for phy_erresc_0.
+
+CSI2HOST_CONTROL
+Address: Operational Base + offset (0x0040)
+Bit
+
+Attr Reset Value
+
+Description
+
+31:26 RW 0x03
+
+sw_datatype_le
+The datatype of line end.
+
+25:20 RW 0x02
+
+sw_datatype_ls
+The datatype of line start.
+
+19:14 RW 0x01
+
+sw_datatype_fe
+The datatype of frame end.
+
+13:8
+
+RW 0x00
+
+sw_datatype_fs
+The datatype of frame start.
+
+7:5
+
+RO
+
+reserved
+
+0x0
+
+4
+
+RW 0x0
+
+sw_dsi_en
+1'b0: For csi2
+1'b1: For dsi
+
+3:1
+
+RO
+
+reserved
+
+0
+
+0x0
+
+RW 0x0
+
+sw_cphy_en
+1'b0: For dphy
+1'b1: For cphy
+
+19.5 Application Notes
+⚫
+
+⚫
+
+⚫
+
+⚫
+
+The most important step is configuring the right CSI2HOST_N_LANES before pulling up
+csi_resetn. If the host is used to receive DSI data, the sw_dsi_en must be enabled, and
+the sw_datatype_fs, sw_datatype_fe, sw_datatype_ls, sw_datatype_le must be
+configured correctly. When the sw_dsi_en is enabled, those debug or error detection
+registers are useless.
+There are six MIPI CSI HOST in RK3588 SOC, CSI HOST0 is connected to MIPI CD
+Combo PHY0, CSI HOST1 is connected to MIPI CD Combo PHY1, CSI HOST2/3 are
+connected to MIPI DPHY0, CSI HOST4/5 are connected to MIPI DPHY1.
+When MIPI DPHY0 works in full mode, the SYS_GRF SOC_CON2[6] should be set to 0,
+and the CSI HOST2/3 are both connected to MIPI DPHY0 4 lanes. In this case CSI
+HOST3 is suggested not to use.
+When MIPI DPHY0 works in split mode, the SYS_GRF SOC_CON2[6] should be set to 1,
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2388
+
+RK3588 TRM-Part2
+
+⚫
+
+⚫
+
+and CSI HOST2/3 could be connected to MIPI DPHY0 lane0/1 or lane2/3 according to the
+SYS_GRF SOC_CON2[8]/[9].
+When MIPI DPHY1 works in full mode, the SYS_GRF SOC_CON2[7] should be set to 0,
+and the CSI HOST4/5 are both connected to MIPI DPHY1 4 lanes. In this case CSI
+HOST5 is suggested not to use.
+When MIPI DPHY1 works in split mode, the SYS_GRF SOC_CON2[7] should be set to 1,
+and CSI HOST4/5 could be connected to MIPI DPHY1 lane0/1 or lane2/3 according to the
+SYS_GRF SOC_CON2[10]/[11].
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+2389
+
+RK3588 TRM-Part2
+

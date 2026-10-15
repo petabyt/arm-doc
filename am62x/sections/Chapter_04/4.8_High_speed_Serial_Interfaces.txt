@@ -1,0 +1,514 @@
+4.8 High-speed Serial Interfaces
+4.8.1 Gigabit Ethernet Switch (CPSW)
+This section contains the integration details for the CPSW module on this device. For Further information, see
+the Gigabit Ethernet Switch (CPSW) section of the Peripherals chapter
+4.8.1.1 CPSW Unsupported Features
+The following features are not supported by the CPSW switch:
+•
+Maximum frame size of 9600 bytes
+•
+GMII Mode
+•
+SGMII Mode
+•
+MACSEC
+•
+Synchronous Ethernet
+4.8.1.2 Module Allocations
+Table 4-67. CPSW Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+CPSW0
+✓
+4.8.1.3 Resets, Interrupts, and Clocks
+Table 4-68. CPSW Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+CPSW0
+PSC0_PSC_0
+PD_CPSW
+LPSC_CPSW3
+G
+41
+OFF
+YES
+LPSC_MAIN_IP
+Table 4-69. CPSW Resets
+Module Instance
+Source
+Description
+CPSW0
+PSC0_PSC_0
+CPSW0 reset
+Table 4-70. CPSW Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+CPSW0
+CPSW0_cpts_comp_
+0
+PINFUNCTION_CP_
+GEMAC_CPTS0_TS_
+COMPout_CP_GEMA
+C_CPTS0_TS_COM
+P_IN_0
+PINFUNCTION_CP_
+GEMAC_CPTS0_TS_
+COMPout
+CPSW0 interrupt
+request
+level
+CPSW0
+CPSW0_cpts_comp_
+0
+CMP_EVENT_INTRO
+UTER0_in_IN_24
+CMP_EVENT_INTRO
+UTER0
+CPSW0 interrupt
+request
+level
+CPSW0
+CPSW0_cpts_genf0_
+0
+TIMESYNC_EVENT_
+ROUTER0_in_IN_16
+TIMESYNC_EVENT_
+ROUTER0
+CPSW0 interrupt
+request
+level
+CPSW0
+CPSW0_cpts_genf1_
+0
+TIMESYNC_EVENT_
+ROUTER0_in_IN_17
+TIMESYNC_EVENT_
+ROUTER0
+CPSW0 interrupt
+request
+level
+=== Page 147 ===
+Table 4-70. CPSW Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+CPSW0
+CPSW0_cpts_sync_0
+PINFUNCTION_CP_
+GEMAC_CPTS0_TS_
+SYNCout_CP_GEMA
+C_CPTS0_TS_SYNC
+_IN_0
+PINFUNCTION_CP_
+GEMAC_CPTS0_TS_
+SYNCout
+CPSW0 interrupt
+request
+level
+CPSW0
+CPSW0_cpts_sync_0=TIMESYNC_EVENT_
+ROUTER0_in_IN_18
+TIMESYNC_EVENT_
+ROUTER0
+CPSW0 interrupt
+request
+level
+CPSW0
+CPSW0_ecc_ded_pe
+nd_0
+ESM0_esm_lvl_event
+_IN_67
+ESM0
+CPSW0 interrupt
+request
+level
+CPSW0
+CPSW0_ecc_sec_pe
+nd_0
+ESM0_esm_lvl_event
+_IN_3
+ESM0
+CPSW0 interrupt
+request
+level
+CPSW0
+CPSW0_evnt_pend_
+0
+GICSS0_spi_IN_134
+GICSS0
+CPSW0 interrupt
+request
+level
+CPSW0
+CPSW0_evnt_pend_
+0
+R5FSS0_CORE0_intr
+_IN_134
+R5FSS0_CORE0
+CPSW0 interrupt
+request
+level
+CPSW0
+CPSW0_mdio_pend_
+0
+GICSS0_spi_IN_135
+GICSS0
+CPSW0 interrupt
+request
+level
+CPSW0
+CPSW0_mdio_pend_
+0
+R5FSS0_CORE0_intr
+_IN_135
+R5FSS0_CORE0
+CPSW0 interrupt
+request
+level
+CPSW0
+CPSW0_stat_pend_0
+GICSS0_spi_IN_136
+GICSS0
+CPSW0 interrupt
+request
+level
+CPSW0
+CPSW0_stat_pend_0=R5FSS0_CORE0_intr
+_IN_136
+R5FSS0_CORE0
+CPSW0 interrupt
+request
+level
+=== Page 148 ===
+Table 4-71. CPSW Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+CPSW0
+CPPI_CLK
+MAIN_SYSCLK0/2
+CPSW0 CPPI packet
+streaming interface clock
+CPTS_RFT_CLK
+MAIN_PLL2_HSDIV5_CL
+KOUT
+CPSW_CLKSEL[2:0]
+MAIN_PLL0_HSDIV6_CL
+KOUT
+CPSW_CLKSEL[2:0]
+CP_GEMAC_CPTS_REF
+_CLK
+CPSW_CLKSEL[2:0]
+MCU_EXT_REFCLK0
+CPSW_CLKSEL[2:0]
+EXT_REFCLK1
+CPSW_CLKSEL[2:0]
+MCU_SYSCLK0
+CPSW_CLKSEL[2:0]
+MAIN_SYSCLK0
+CPSW_CLKSEL[2:0]
+GMII1_MR_CLK
+MAIN_PLL2_HSDIV1_CL
+KOUT/10
+GMII1_MT_CLK
+MAIN_PLL2_HSDIV1_CL
+KOUT/10
+GMII2_MR_CLK
+MAIN_PLL2_HSDIV1_CL
+KOUT/10
+GMII2_MT_CLK
+MAIN_PLL2_HSDIV1_CL
+KOUT/10
+GMII_RFT_CLK
+MAIN_PLL2_HSDIV1_CL
+KOUT/2
+CPSW0 125MHz Gigabit
+Mode Clock
+RGMII_MHZ_250_CLK
+MAIN_PLL2_HSDIV1_CL
+KOUT
+CPSW0 250-MHz
+Reference clock
+RGMII_MHZ_50_CLK
+MAIN_PLL2_HSDIV1_CL
+KOUT/5
+CPSW0 50-MHz
+Reference Clock
+RGMII_MHZ_5_CLK
+MAIN_PLL2_HSDIV1_CL
+KOUT/50
+CPSW0 5-MHz Reference
+Clock
+=== Page 149 ===
+4.8.2 Universal Serial Bus Subsystem (USB)
+This section contains the integration details for the USB module on this device. For Further information, see the
+Universal Serial Bus Subsystem (USB) section of the Peripherals chapter
+4.8.2.1 USB2SS Unsupported Features
+The following features are not supported on this family of devices:
+•
+Battery Charger Support
+•
+Accessory Charger Adaptor Support
+•
+On-The-Go (OTG)
+•
+No Virtualization Support
+•
+SuperSpeed (5Gb/s) operation
+•
+USB 2.0 ECN: Link Power Management (LPM)
+•
+Low Speed operation in device mode
+•
+Charger Detection
+4.8.2.2 Module Allocations
+Table 4-72. USB Modules Allocation within Device Domains
+Instance
+Domain
+WKUP
+MCU
+Main
+USB0
+✓
+USB1
+✓
+4.8.2.3 Resets, Interrupts, and Clocks
+Table 4-73. USB Integration Attributes
+Module
+Instance
+Power Sleep
+Controller
+Power Domain
+Module
+Domain
+Index
+Default
+Controllable
+dependences
+USB0
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_USB_0
+23
+OFF
+YES
+LPSC_MAIN_IP
+USB1
+PSC0_PSC_0
+GP_CORE_CT
+L
+LPSC_USB_1
+24
+OFF
+YES
+LPSC_MAIN_IP
+Table 4-74. USB Resets
+Module Instance
+Source
+Description
+USB0
+PSC0_PSC_0
+USB0 reset
+USB1
+PSC0_PSC_0
+USB1 reset
+Table 4-75. USB Hardware Requests
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+USB0
+USB0_host_system_
+error_0
+ESM0_esm_lvl_event
+_IN_32
+ESM0
+USB0 interrupt
+request
+level
+USB0
+USB0_irq_[7:0]
+GICSS0_spi_IN_[227:
+220]
+GICSS0
+USB0 interrupt
+request
+level
+USB0
+USB0_irq_[7:0]
+R5FSS0_CORE0_intr
+_IN_[227:220]
+R5FSS0_CORE0
+USB0 interrupt
+request
+level
+USB0
+USB0_misc_level_0
+GICSS0_spi_IN_228
+GICSS0
+USB0 interrupt
+request
+pulse
+=== Page 150 ===
+Table 4-75. USB Hardware Requests (continued)
+Module Instance
+Module Interrupt
+Signal
+Destination Interrupt
+Input
+Destination
+Description
+Type
+USB0
+USB0_misc_level_0
+R5FSS0_CORE0_intr
+_IN_228
+R5FSS0_CORE0
+USB0 interrupt
+request
+pulse
+USB0
+USB0_usb_wakeup_c
+lkstop_wakeup_0
+R5FSS0_CORE0_intr
+_IN_61
+R5FSS0_CORE0
+USB0 interrupt
+request
+level
+USB0
+USB0_usb_wakeup_c
+lkstop_wakeup_0
+WKUP_DEEPSLEEP
+_SOURCES0_Isam6
+2_dm_wakeup_deeps
+leep_sources_IN_9
+WKUP_DEEPSLEEP
+_SOURCES0
+USB0 interrupt
+request
+level
+USB1
+USB1_host_system_
+error_0
+ESM0_esm_lvl_event
+_IN_33
+ESM0
+USB1 interrupt
+request
+level
+USB1
+USB1_irq_[7:0]
+GICSS0_spi_IN_[265:
+258]
+GICSS0
+USB1 interrupt
+request
+level
+USB1
+USB1_irq_[7:0]
+R5FSS0_CORE0_intr
+_IN_[237:230]
+R5FSS0_CORE0
+USB1 interrupt
+request
+level
+USB1
+USB1_misc_level_0
+GICSS0_spi_IN_266
+GICSS0
+USB1 interrupt
+request
+pulse
+USB1
+USB1_misc_level_0
+R5FSS0_CORE0_intr
+_IN_238
+R5FSS0_CORE0
+USB1 interrupt
+request
+pulse
+USB1
+USB1_usb_wakeup_c
+lkstop_wakeup_0
+R5FSS0_CORE0_intr
+_IN_62
+R5FSS0_CORE0
+USB1 interrupt
+request
+level
+USB1
+USB1_usb_wakeup_c
+lkstop_wakeup_0
+WKUP_DEEPSLEEP
+_SOURCES0_Isam6
+2_dm_wakeup_deeps
+leep_sources_IN_10
+WKUP_DEEPSLEEP
+_SOURCES0
+USB1 interrupt
+request
+level
+Table 4-76. USB Clocks
+Module Instance
+Module Clock Input
+Source Clock
+Source Control Register
+Description
+USB0
+BUS_CLK
+MAIN_SYSCLK0/2
+CFG_CLK
+MAIN_SYSCLK0/4
+USB2_APB_PCLK_CLK
+MAIN_SYSCLK0/4
+USB2_REFCLOCK_CLK
+HFOSC0_CLKOUT
+USB0_CLKSEL[0:0]
+MAIN_PLL0_HSDIV8_CL
+KOUT
+USB0_CLKSEL[0:0]
+USB1
+BUS_CLK
+MAIN_SYSCLK0/2
+CFG_CLK
+MAIN_SYSCLK0/4
+USB2_APB_PCLK_CLK
+MAIN_SYSCLK0/4
+USB2_REFCLOCK_CLK
+HFOSC0_CLKOUT
+USB1_CLKSEL[0:0]
+MAIN_PLL0_HSDIV8_CL
+KOUT
+USB1_CLKSEL[0:0]
+=== Page 151 ===

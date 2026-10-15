@@ -1,0 +1,4358 @@
+Chapter 1 Interconnect
+1.1 Overview
+
+The chip-level interconnect enables communication among the modules and subsystems in
+the device. It supports the following features:
+⚫ Cross-bar exchange network
+⚫ Four embedded DDR schedulers for transaction reorder to maximum DDR efficiency
+⚫ Priority management for quality of service (QoS), especially for real-time IP
+⚫ Transaction statistics for bandwidth analysis
+
+1.2 Block Diagram
+CPU
+
+GPU
+
+NPU
+
+VOP
+
+ISP
+
+Other Masters
+
+interconnect
+scheduler0
+
+scheduler1
+
+scheduler2
+
+scheduler3
+
+DDRCTL0
+
+DDRCTL1
+
+DDRCTL2
+
+DDRCTL3
+
+SYSMEM
+
+Other Slaves
+
+Fig. 1-1 Interconnect Diagram
+
+1.3 Function Description
+1.3.1 DDR Scheduler
+
+There are four DDR schedulers in system, their address range size are 8K bytes and their
+base address are shown as follows.
+Table 1-1 DDR scheduler address map
+DDRSCH
+Base Address
+Channel0 DDRSCH
+0xFE000000
+Channel1 DDRSCH
+0xFE002000
+Channel2 DDRSCH
+0xFE004000
+Channel3 DDRSCH
+0xFE006000
+The DDR scheduler is an interface to DDR controllers. The scheduler is a special unit case
+multiplexing several transport interfaces feeding a single DDR controller target, with a
+special arbitration scheme, configurable for optimizing DRAM bandwidth efficiency from the
+DDR controller.
+The scheduler optimizes DRAM efficiency by choosing the best transaction to execute inside
+each port input queue: the scheduler can reorder requests across queues, and within a
+queue as long as they do not have conflicting addresses or ordering constraints. The process
+for choosing the next transaction to issue to the controller is based on a model of the DRAM
+behavior (in terms of timings for pages, banks, bank groups, and data bus), a user
+configuration of arbitration criteria, and a DDR configuration setup representing the current
+assignment of DRAM banks, bank groups, and page bits to the incoming addresses. It also
+makes sure that output queues never overflow.
+The scheduler arbitration criteria take into account the priority characteristics of the
+transactions, providing a trade-off between QoS requirements of each data flow, and the
+global DDR efficiency: for example, an urgent read request may take precedence over less
+urgent write requests, even though there may be a global efficiency loss due to DRAM bus
+turnaround.
+The DDR scheduler is connected to DDR controller, through a simple, ordered interface. A
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+16
+
+RK3588 TRM-Part2
+simple DDR controller BIU converts the generic interface output of the scheduler to the
+appropriate DDR controller protocol, and optionally provides access to DDR controller
+registers. It is the responsibility of the controller to fully handle the DRAM state machine.
+Scheduler
+
+Port0
+Port1
+Port2
+Port3
+Port4
+
+Read
+Latency
+
+AGING
+
+URG_5
+
+URG_4
+
+URG_3
+
+URG_2
+
+BANK IDLE
+PAGE HIT
+
+RW
+
+Fig. 1-2 DDR Scheduler Diagram
+The arbitration criteria is shown above.
+Read Latency: The scheduler monitors the latency of read accesses sent to DDR controller,
+and uses this latency in a feedback loop to control scheduler behavior. When the ceiling is
+exceeded, the scheduler stalls requests until it obtains the responses of previous reads from
+the controller. This mechanism thus prevents scheduler–controller misalignment and
+maintains scheduler–controller system stability, for example, when a DRAM refresh occurs.
+AGING: Biases arbitration towards requests that exceed the aging threshold set by register
+Aging(n) for port (n).
+URG5, URG4, URG3, URG2: Biases arbitration in favor of urgency bits in packets. Three
+bits QoS level will be map to seven bits Urgency level in packets as Table 1-2. URG5 means
+the packets with fifth bit of Urgency field(Urgency[4]) is 1’b1 will be chosen by this arbiter
+stage.
+Table 1-2 QoS and Urgency map
+QoS generator(internal)
+Urgency
+Press/Hurry(external)
+3'b0
+7’b0000000
+3'b1
+7’b0000001
+3'b2
+7’b0000011
+3'b3
+7’b0000111
+3'b4
+7’b0001111
+3'b5
+7’b0011111
+3'b6
+7’b0111111
+3'b7
+7’b1111111
+Note: There is a command queue in DDR controller, although the high priority request will be sent to DDR
+controller first, it does not mean that it can be served by DDR immediately. The request in DDR controller
+command queue will be executed in order taking no account of priority.
+
+BANK_IDLE_PAGE_HIT: Biases arbitration in favor of requests whose target bank is idle
+or whose target row is equal to the active row of the selected bank. The following method is
+used to estimate the state of the bank: Two counters ActCnt and CmdCnt are associated
+with each DDR bank, the bank number being obtained from the address using the "B" bits in
+the selected DDR configuration, set by register ‘DeviceConf’. These counters are
+decremented at each DDR scheduler clock cycle and saturated at 0. A bank is considered
+idle when both counters are null. The ActCnt counter is loaded with ActToAct – 1 each time a
+new page is accessed in that bank. The CmdCnt counter is loaded with:
+RdtoMiss + max(BurstLen, N) – BurstLen – 1 each time an N-word read is sent, and with
+WrtoMiss + max(BurstLen, N) – 1 each time an N-word write is sent.
+When the DDR configuration contains bank groups, also known as "G" bits, the following
+counters are added to each bank group in a device:
+
+Note: CcdLCnt —— The counter is loaded with the result of tCCD_L–1 each time a new request is granted,
+and decremented every clock cycle by 1. RrdCntL —— The counter is loaded with the result of tRRD_L – 1
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+17
+
+RK3588 TRM-Part2
+each time a new page is accessed, and decremented every clock cycle by 1.
+
+RW: Biases arbitration in favor of requests whose RD or WR opcode type matches the type
+in the last-issued requests. The criterion is used to estimate the importance of keeping RD
+and WR transactions together, according to the following method:
+Counter RdWrCnt and bit PrvOpc are used to represent the DDR read–write state. The
+counter is decremented at each scheduler clock cycle and saturated at 0.
+Arbitration is biased in favor of WR when:
+PrvOpc = WR or (PrvOpc = RD and RdWrCnt > RdToWr)
+The counter is then loaded with:
+WrToRr + max(BurstLen, N) – 1
+where N is the number of words of the WR request.
+Arbitration is biased in favor of RD when:
+PrvOpc = RD or (PrvOpc = WR and RdWrCnt > WrToRd)
+The counter is then loaded with WrToRd + max(BurstLen, N) – 1, where N is the number of
+words of the RD request.
+When the DDR configuration contains bank groups, also known as "G" bits, counter
+RdWrCntL is added to each device and bank group. The counter is loaded with the result of
+RdToWr + max(BurstLen, N) – 1 each time a read request is granted, and with WrToRdL +
+max(BurstLen, N) – 1 each time a write is granted. The counter is decremented every clock
+cycle by 1.
+
+1.3.2 Priority Management
+
+As mentioned above, the DDR scheduler will consider the priority of each request to ensure
+desired quality of service. The priority of each request is configurable through the internal
+QoS generator in each master BIU. The QoS generator address of each master BIU and
+default priority are shown below. When configuring the register of QoS generator of a certain
+master BIU，the corresponding clock of the master BIU should be alive.
+Table 1-3 Master BIU information
+Master
+
+VI
+
+VO
+RKVDEC
+AV1
+
+ISP0_MWO
+ISP0_MRO
+ISP1_MWO
+ISP1_MRO
+VICAP_M0
+VICAP_M1
+FISHEYE0
+FISHEYE1
+VOP_M0
+VOP_M1
+RKVDEC0
+RKVDEC1
+AV1
+RKVENC0_M0RO
+RKVENC0_M1RO
+
+RKVENC
+
+RKVENC0_M2WO
+RKVENC1_M0RO
+RKVENC1_M1RO
+RKVENC1_M2WO
+
+CPU
+
+DSU_M0
+DSU_M1
+DSU_MP
+DEBUG
+
+MID
+
+PORT
+
+7'h1d
+7'h1d
+7'h1e
+7'h1e
+7'h44
+7'h45
+7'h0f
+7'h10
+7'h46
+7'h47
+7'h34
+7'h35
+7'h00
+7'h36
+7'h37
+7'h38
+7'h39
+7'h3a
+7'h3b
+NA
+NA
+7'h0d
+7'h04
+
+2
+3
+3
+2
+1
+0
+1
+0
+0
+1
+2
+3
+2
+1
+0
+0
+0
+1
+1
+4
+4
+3
+3
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+PROBE
+ID
+
+default
+QoS
+
+QoS generator
+base address
+
+Shaping
+base address
+
+Ext
+priority
+
+1
+0
+1
+0
+1
+0
+0
+0
+1
+1
+0
+0
+0
+0
+0
+0
+0
+0
+0
+
+2
+2
+2
+2
+2
+2
+0
+0
+2
+2
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+
+0xfdf40500
+0xfdf40400
+0xfdf41000
+0xfdf41100
+0xfdf40600
+0xfdf40800
+0xfdf40000
+0xfdf40200
+0xfdf82000
+0xfdf82200
+0xfdf62000
+0xfdf63000
+0xfdf64000
+0xfdf60000
+0xfdf60200
+0xfdf60400
+0xfdf61000
+0xfdf61200
+0xfdf61400
+0xfe008000
+0xfe008800
+0xfdf34200
+0xfdf34400
+
+0xfdf40580
+0xfdf40480
+0xfdf41080
+0xfdf41180
+0xfdf40680
+0xfdf40880
+0xfdf40080
+0xfdf40280
+0xfdf82080
+0xfdf82280
+0xfdf62080
+0xfdf63080
+0xfdf64080
+0xfdf60080
+0xfdf60280
+0xfdf60480
+0xfdf61080
+0xfdf61280
+0xfdf61480
+NA
+NA
+0xfdf34280
+0xfdf34480
+
+YES
+YES
+YES
+YES
+YES
+YES
+YES
+YES
+YES
+YES
+YES
+YES
+NO
+YES
+YES
+YES
+YES
+YES
+YES
+NO
+NO
+NO
+NO
+
+0,1,2,3
+0,1,2,3
+
+0
+0
+
+18
+
+RK3588 TRM-Part2
+Master
+
+GPU
+
+NPU
+
+VDPU
+
+RGA3_1
+VO0
+VO1
+
+GPU_M0
+GPU_M1
+GPU_M2
+GPU_M3
+NPU1
+NPU0_MRO
+NPU2
+NPU0_MWR
+MCU_NPU
+JPEG_DEC
+JPEG_ENC0
+JPEG_ENC1
+JPEG_ENC2
+JPEG_ENC3
+RGA2_MRO
+RGA2_MWO
+RGA3_0
+VDPU
+IEP
+RGA3_1
+HDCP0
+HDCP1
+HDMIRX
+GIC600_M0
+GIC600_M1
+
+PHP
+
+MMU600PCIE_TCU
+MMU600PHP_TBU
+MMU600PHP_TCU
+
+USB
+
+NVM
+
+BUS
+
+center
+pmu vad
+
+secure
+
+USB3_0
+USB3_1
+USB2HOST_0
+USB2HOST_1
+EMMC
+FSPI
+SDIO
+DECOM
+DMAC0
+DMAC1
+DMAC2
+GIC600M
+DMA2DDR
+MCU_DDR
+VAD
+MCU_PMU
+CRYPTOS
+CRYPTONS
+DCF
+SDMMC
+
+MID
+
+PORT
+
+PROBE
+ID
+
+default
+QoS
+
+QoS generator
+base address
+
+Shaping
+base address
+
+Ext
+priority
+
+7'h15
+7'h16
+7'h17
+7'h18
+7'h2e
+7'h2d
+7'h2f
+7'h2c
+7'h27
+7'h1f
+7'h20
+7'h21
+7'h22
+7'h23
+7'h30
+7'h31
+7'h32
+7'h43
+7'h1c
+7'h33
+7'h19
+7'h1a
+7'h1b
+7'h12
+7'h13
+7'h29
+7'h2a
+7'h2b
+7'h40
+7'h41
+7'h3e
+7'h3f
+7'h0e
+7'h11
+7'h3c
+7'h05
+7'h08
+7'h09
+7'h0a
+7'h14
+7'h07
+7'h26
+7'h42
+7'h28
+7'h02
+7'h01
+7'h03
+7'h3d
+
+2
+3
+0
+1
+3
+2
+0
+1
+0
+3
+2
+2
+3
+3
+3
+3
+2
+2
+3
+1
+2
+2
+2
+3
+2
+3
+3
+3
+2
+2
+2
+2
+3
+3
+3
+1
+1
+1
+1
+1
+0
+0
+2
+2
+2
+2
+2
+2
+
+0
+0
+0
+0
+0
+0
+0
+1
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+
+0
+0
+0
+0
+0
+0
+0
+0
+3
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+5
+5
+2
+0
+0
+0
+0
+0
+4
+4
+4
+4
+4
+4
+4
+0
+0
+4
+4
+0
+0
+3
+0
+3
+0
+0
+0
+4
+
+0xfdf35000
+0xfdf35200
+0xfdf35400
+0xfdf35600
+0xfdf70000
+0xfdf72200
+0xfdf71000
+0xfdf72000
+0xfdf72400
+0xfdf66200
+0xfdf66400
+0xfdf66600
+0xfdf66800
+0xfdf66a00
+0xfdf66c00
+0xfdf66e00
+0xfdf67000
+0xfdf67200
+0xfdf66000
+0xfdf36000
+0xfdf80000
+0xfdf81000
+0xfdf81200
+0xfdf3a000
+0xfdf3a200
+0xfdf3a400
+0xfdf3a600
+0xfdf3a800
+0xfdf3e200
+0xfdf3e000
+0xfdf3e400
+0xfdf3e600
+0xfdf38200
+0xfdf38000
+0xfdf39000
+0xfdf32000
+0xfdf32200
+0xfdf32400
+0xfdf32600
+0xfdf32800
+0xfdf52000
+0xfdf52200
+0xfdf3b200
+0xfdf3b000
+0xfdf3d200
+0xfdf3d000
+0xfdf3d400
+0xfdf3d800
+
+0xfdf35080
+0xfdf35280
+0xfdf35480
+0xfdf35680
+0xfdf70080
+0xfdf72280
+0xfdf71080
+0xfdf72080
+0xfdf72480
+0xfdf66280
+0xfdf66480
+0xfdf66680
+0xfdf66880
+0xfdf66a80
+0xfdf66c80
+0xfdf66e80
+0xfdf67080
+0xfdf67280
+0xfdf66080
+0xfdf36080
+0xfdf80080
+0xfdf81080
+0xfdf81280
+0xfdf3a080
+0xfdf3a280
+0xfdf3a480
+0xfdf3a680
+0xfdf3a880
+0xfdf3e280
+0xfdf3e080
+0xfdf3e480
+0xfdf3e680
+0xfdf38280
+0xfdf38080
+0xfdf39080
+0xfdf32080
+0xfdf32280
+0xfdf32480
+0xfdf32680
+0xfdf32880
+0xfdf52080
+0xfdf52280
+0xfdf3b080
+0xfdf3b080
+0xfdf3d280
+0xfdf3d080
+0xfdf3d480
+0xfdf3d880
+
+NO
+NO
+NO
+NO
+YES
+YES
+YES
+YES
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+YES
+NO
+NO
+YES
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+NO
+
+Except the internal priority control, some masters can also change their priority dynamic by
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+19
+
+RK3588 TRM-Part2
+their internal register according to buffer status. In order to make this work, ExtControl
+register of the corresponding BIU must be set to 0x1. In this case, the interconnect will
+choose the highest priority from the external and internal register. It is better to set the
+internal priority same as the other master BIUs and external priority higher so that the DDR
+scheduler has more opportunity to optimal DDR efficiency. As shown in Table1-1, because
+the arbiter stages ordering is: URG5, URG4, URG3, URG2, the valid values of internal and
+external works in scheduler are 0, 2, 3, 4 and 5.
+
+1.3.3 Shaping
+
+Shaping limits the number of pending packets between master and scheduler. When shaping
+is applied and the number of packets pending on a route to scheduler reaches the
+programmed limit, flow control prevents further transmission of request packets to the BIU
+by de-asserting signal Ready until a complete response packet returns on the route. The
+default shaping value is 255, and address of the shaping control register for each master is
+shown in Table1-3.
+
+1.3.4 Probe
+
+The interconnect provides a service called probe to trace packet and compute traffic statics.
+There are totally 12 probes to monitor the DDR schedule traffic statics, and each can be
+programmed by their registers. They are listed in Table1-3. Which probe should be used to
+measure the bandwidth of a certain master can be find in Table1-3. The bandwidth of DSU
+should be measured by all the probes of Port4, and the sum of the 4 probes is the total
+bandwidth.
+Table 1-4 Bandwidth Probe Base Address
+Probe
+Base Address
+Port0 Probe0
+0xfdf50000
+Port0 Probe1
+0xfdf50400
+Port1 Probe0
+0xfdf50800
+Port1 Probe1
+0xfdf50c00
+Port2 Probe0
+0xfdf51000
+Port2 Probe1
+0xfdf51400
+Port3 Probe0
+0xfdf51800
+Port3 Probe1
+0xfdf51c00
+Port4 Probe0
+0xfe008c00
+Port4 Probe1
+0xfe009000
+Port4 Probe2
+0xfe009400
+Port4 Probe3
+0xfe009800
+
+1.3.5 Channel Address Space
+
+When work in 4 channels interleave mode, CENTER_GRF_CON4[8:4] should be set to
+5’b0000. If not work in interleave mode, CENTER_GRF_CON4[8:4] should be config
+according to the size of each channel, as showed in Table1-5.
+Table 1-5 Channel Address
+channel
+base address
+CENTER_GRF_CON4[8:4]
+size
+channel 0
+channel 1
+channel 2
+channel 3
+5'b00000
+
+0x0_0000_0000
+
+0x2_0000_0000
+
+0x4_0000_0000
+
+0x6_0000_0000
+
+8GB
+
+5'b00101
+
+0x0_0000_0000
+
+0x1_8000_0000
+
+0x3_0000_0000
+
+0x4_8000_0000
+
+6GB
+
+5'b00001
+
+0x0_0000_0000
+
+0x1_0000_0000
+
+0x2_0000_0000
+
+0x3_0000_0000
+
+4GB
+
+5'b00110
+
+0x0_0000_0000
+
+0x0_C000_0000
+
+0x1_8000_0000
+
+0x2_4000_0000
+
+3GB
+
+5'b00010
+
+0x0_0000_0000
+
+0x0_8000_0000
+
+0x1_0000_0000
+
+0x1_8000_0000
+
+2GB
+
+5'b01000
+
+0x0_0000_0000
+
+0x0_6000_0000
+
+0x0_C000_0000
+
+0x1_2000_0000
+
+1.5GB
+
+5'b00011
+
+0x0_0000_0000
+
+0x0_4000_0000
+
+0x0_8000_0000
+
+0x0_C000_0000
+
+1GB
+
+5'b00100
+
+0x0_0000_0000
+
+0x0_2000_0000
+
+0x0_4000_0000
+
+0x0_6000_0000
+
+0.5GB
+
+5'b00111
+
+0x0_0000_0000
+
+0x0_1000_0000
+
+0x0_2000_0000
+
+0x0_3000_0000
+
+0.25GB
+
+5'b10000
+
+NA
+
+NA
+
+0x0_0000_0000
+
+0x2_0000_0000
+
+8GB
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+20
+
+RK3588 TRM-Part2
+5'b10101
+
+NA
+
+NA
+
+0x0_0000_0000
+
+0x1_8000_0000
+
+6GB
+
+5'b10001
+
+NA
+
+NA
+
+0x0_0000_0000
+
+0x1_0000_0000
+
+4GB
+
+5'b10110
+
+NA
+
+NA
+
+0x0_0000_0000
+
+0x0_C000_0000
+
+3GB
+
+5'b10010
+
+NA
+
+NA
+
+0x0_0000_0000
+
+0x0_8000_0000
+
+2GB
+
+5'b11000
+
+NA
+
+NA
+
+0x0_0000_0000
+
+0x0_6000_0000
+
+1.5GB
+
+5'b10011
+
+NA
+
+NA
+
+0x0_0000_0000
+
+0x0_4000_0000
+
+1GB
+
+5'b10100
+
+NA
+
+NA
+
+0x0_0000_0000
+
+0x0_2000_0000
+
+0.5GB
+
+5'b10111
+
+NA
+
+NA
+
+0x0_0000_0000
+
+0x0_1000_0000
+
+0.25GB
+
+1.4 Register Description
+1.4.1 DDRSCH Registers Summary
+Name
+
+Offset
+
+Size
+
+DDRSCH_Id_CoreId
+DDRSCH_Id_RevisionId
+
+0x0000
+0x0004
+
+W
+W
+
+DDRSCH_DeviceConf
+
+0x0008
+
+W
+
+DDRSCH_DeviceSize
+
+0x000C
+
+W
+
+DDRSCH_DdrTimingA
+
+0x0010
+
+W
+
+DDRSCH_DdrTimingB
+
+0x0014
+
+W
+
+DDRSCH_DdrTimingC
+
+0x0018
+
+W
+
+DDRSCH_DdrTimingL
+
+0x001C
+
+W
+
+DDRSCH_DevToDev
+
+0x0020
+
+W
+
+DDRSCH_DdrMode
+
+0x0024
+
+W
+
+DDRSCH_AgingX
+DDRSCH_Aging0
+DDRSCH_Aging1
+DDRSCH_Aging2
+
+0x002C
+0x0030
+0x0034
+0x0038
+
+W
+W
+W
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Reset
+Description
+Value
+0x215FB002 Core id
+0x3C9D4E00 Revision id
+Register DeviceConf stores
+selectors to the predefined list of
+0x00000000 DDR configuration to be
+programmed at initialization
+phase.
+Register DeviceSize is used to set
+0x00004040
+the size of DDR ranks.
+Register DdrTimingA of timing
+register bank n stores timing
+0xFF361D33
+settings used by DDR schedulers
+to compute bank and page states.
+Register DdrTimingB of timing
+register bank n stores timing
+0x1B081306 settings used by DDR schedulers
+to compute penalties pertaining to
+bank and page states.
+Register DdrTimingC of timing
+register bank n: Stores timing
+settings used by DDR schedulers
+0x00000006 to compute penalties pertaining to
+DRAM commands. It is used to
+configure the clock of the register
+bank.
+Long timing for DDR4 Bank Group
+0x00000000
+support
+Register DevToDev of timing
+register bank n contains
+supplementary timing penalties
+that are incurred when changing
+0x00000663
+data-bus ownership of up to four
+devices. The penalties are
+expressed in scheduler clock
+cycles.
+Register DdrMode stores the
+0x0000002C
+controller behaviour description.
+0x00000004 Aging threshold multiplicator
+0x000000FF AGING slice threshold for port0
+0x000000FF AGING slice threshold for port1
+0x000000FF AGING slice threshold for port2
+21
+
+RK3588 TRM-Part2
+Name
+
+Offset
+
+DDRSCH_Aging3
+DDRSCH_Aging4
+
+0x003C
+0x0040
+
+Size
+W
+W
+
+Reset
+Description
+Value
+0x000000FF AGING slice threshold for port3
+0x000000FF AGING slice threshold for port4
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+1.4.2 DDRSCH Detail Registers Description
+
+DDRSCH_Id_CoreId
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+CoreChecksum
+31:8 RO 0x215fb0
+Field containing a checksum of the parameters of the IP.
+CoreTypeId
+7:0
+RO 0x02
+Field identifying the type of IP.
+DDRSCH_Id_RevisionId
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+BuildId
+31:8 RW 0x3c9d4e
+Field containing the build revision of the software used to
+generate the IP HDL code.
+UserId
+7:0
+RW 0x00
+Field containing a user defined value, not used anywhere inside
+the IP itself.
+DDRSCH_DeviceConf
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+DeviceConf
+Selector of predefined ddrConf configuration.
+6'h0: D_RRRR_RRRR_RRRR_RRRR_RRBB_BCCC_CCCC_---6'h1: D_RRRR_RRRR_RRRR_RRRR_RBBB_BCCC_CCCC_---6'h2: D_RRRR_RRRR_RRRR_RRRR_RBBG_CCCC_CCGC_---6'h3: D_RRRR_RRRR_RRRR_RRRR_RBBG_GCCC_CCCC_---6'h4: R_RRRR_RRRR_RRRR_RRRR_RDBB_BCCC_CCCC_---5:0
+RW 0x00
+6'h5: R_RRRR_RRRR_RRRR_RRRR_DBBB_BCCC_CCCC_---6'h6: R_RRRR_RRRR_RRRR_RRRR_DBBG_CCCC_CCGC_---6'h7: R_RRRR_RRRR_RRRR_RRRR_DBBG_GCCC_CCCC_---Others: Reserved
+R: Indicates Row bits
+B: Indicates Bank bits
+C: Indicates Column bits
+G: Indicates Bank Group bits
+DDRSCH_DeviceSize
+Address: Operational Base + offset (0x000C)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+Rank1
+15:8 RW 0x40
+Rank1 size. The granule size is 64MB.
+Rank0
+7:0
+RW 0x40
+Rank0 size. The granule size is 64MB.
+DDRSCH_DdrTimingA
+Address: Operational Base + offset (0x0010)
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+22
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+31:24 RW 0xff
+23
+
+RO
+
+0x0
+
+22:16 RW 0x36
+
+15:14 RO
+
+0x0
+
+13:8
+
+RW 0x1d
+
+7
+
+RO
+
+6:0
+
+RW 0x33
+
+0x0
+
+Description
+ReadLatency
+Maximum delay between a read request and the first data
+response. 0 delay disable the Read Latency control.
+reserved
+WrToMiss
+Minimum number of scheduler clock cycles between the last
+DRAM Write command and a new Read or Write command in
+another page of the same bank. The field must be set to the
+following value, rounded to an integer number of scheduler clock
+cycles:
+(WL*tCkD + tWR + tRP + tRCD) / tCkG
+reserved
+RdToMiss
+Minimum number of scheduler clock cycles between the last
+DRAM Read command and a new Read or Write command in
+another page of the same bank. The field must be set to the
+following value, round to an integer number of scheduler clock
+cycles:
+(tRTP + tRP + tRCD - BL*tCkD/2) / tCkG
+reserved
+ActToAct
+Minimum number of scheduler clock cycles between two
+consecutive DRAM Activate commands on the same bank. The
+field must be set to the following value, rounded to an integer
+number of scheduler clock cycles:
+tRC / tCkG
+
+DDRSCH_DdrTimingB
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+Description
+31:30 RO 0x0
+reserved
+Faw
+Number of cycle of the FAW period. The field must be set to the
+29:24 RW 0x1b
+following value, rounded to an integer number of scheduler clock
+cycles:
+tFAW / tCkG
+23:20 RO 0x0
+reserved
+Rrd
+Number of cycle between two consecutive Activate commands on
+different Banks of the same device. The field must be set to the
+19:16 RW 0x8
+following value, rounded to an integer number of scheduler clock
+cycles:
+tRRD / tCkG
+15:13 RO 0x0
+reserved
+WrToRd
+Minimum number of scheduler clock cycles between the last
+DRAM Write command and a Read command. The field must be
+12:8 RW 0x13
+set to the following value, rounded to an integer of scheduler
+clock cycles:
+((WL + 1)*tCkD + tWTR) / tCkG, for LPDDR4 memories.
+7:5
+RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+23
+
+RK3588 TRM-Part2
+Bit
+
+4:0
+
+Attr Reset Value
+
+RW 0x06
+
+Description
+RdToWr
+Minimum number of scheduler clock cycles between the last
+DRAM Read command and a Write command. The field must be
+set to the following value, rounded to an integer number of
+scheduler clock cycles:
+(RL + RoundUp(tDQSCK(max) / tCKD) + tRPST - WL + tWPRE)
+tCkD / tCKG, for LPDDR4 memories.
+
+DDRSCH_DdrTimingC
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+Description
+31:14 RO 0x00000
+reserved
+WrToMwr
+Number of scheduler clock cycles between the last write data to
+13:8 RW 0x00
+the first data of a masked write command on the same bank. This
+field must be set to 3xBurstPenalty for LPDDR4, and must be set
+to zero for the other DRAM.
+7:4
+RO 0x0
+reserved
+BurstPenalty
+DRAM burst duration on the DRAM data bus in scheduler clock
+cycles. The field must be set to Nd /Ns, where:
+3:0
+RW 0x6
+Nd is the number of DRAM cycles needed to process a DRAM
+burst of determined size, expressed in bytes.
+Ns is the minimum number of scheduler cycles to process a
+DRAM burst of the same size.
+DDRSCH_DdrTimingL
+Address: Operational Base + offset (0x001C)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+RrdL
+Register field RrdL sets the minimum time, expressed in
+11:8 RW 0x0
+scheduler clock cycles of the tRRD timing for LPDDR4 devices.
+This is the timing of access to the same bank group for RD after
+RD.
+WrToRdL
+Register field WrToRdL sets the minimum time, expressed in
+7:3
+RW 0x00
+scheduler clock cycles, of the tWrToRd timing for LPDDR4 devices.
+This is the timing of access to the same bank group, WR to RD.
+CcdL
+Register field CcdL sets the minimum time, expressed in
+2:0
+RW 0x0
+scheduler clock cycles of the tCCD LPDDR4 devices. This is the
+timing of access to the same bank group.
+DDRSCH_DevToDev
+Address: Operational Base + offset (0x0020)
+Bit Attr Reset Value
+Description
+31:15 RO 0x00000
+reserved
+BusWrToWr
+14:12 RW 0x0
+Number of cycle between the last write data to a device and the
+first write data of another device.
+BusWrToRd
+11:8 RW 0x6
+Number of cycle between the last write data to a device and the
+first read data of another device.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+24
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+7:4
+
+RW 0x6
+
+3
+
+RO
+
+2:0
+
+RW 0x3
+
+0x0
+
+Description
+BusRdToWr
+Number of cycle between the last read data of a device and the
+first write data to another device.
+reserved
+BusRdToRd
+Number of cycle between the last read data of a device and the
+first read data of another device.
+
+DDRSCH_DdrMode
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+Description
+31:24 RO 0x00
+reserved
+ForceOrderState
+23:16 RO 0x00
+Force execution order internal state.
+ForceOrder
+When bit n of register field ForceOrder is set to 1, DRAM
+commands are executed in the order they arrive at scheduler port
+15:8 RW 0x00
+n.
+When field bits are set to 1, and BypassFiltering is also set to 1,
+command execution order is guaranteed for the corresponding
+scheduler port.
+7
+RO 0x0
+reserved
+MwrSize
+Register MwrSize sets LPDDR4 and LPDDR5 data width, which is
+used for masked-write split control. The following table shows the
+field values according to DDR type.
+6:5
+RW 0x1
+2'b00: Reserved
+2'b01: LPDDR4 & LPDDR5, 16 bits.
+2'b10: LPDDR4 & LPDDR5, 32 bits.
+2'b11: LPDDR4 & LPDDR5, 32 bits. Identical to value 2'b10.
+BurstSize
+Register field Burst Size sets the DDR burst size, in bytes, as
+shown by the following table.
+2'b00: 16
+4:3
+RW 0x1
+2'b01: 32
+2'b10: 64
+2'b11: 128
+NOTE: For LPDDR4 memories, the field must be set to the
+number of bytes required by BL16 transactions.
+FawBank
+Register field FawBank indicates the number of banks of a given
+device involved in the FAW period during which four banks can be
+2
+RW 0x1
+active.
+It must be set to 0 for 2-bank memories, and 1 for memories
+with four banks or more.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+25
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+BypassFiltering
+When register field BypassFiltering is set to 1, arbiter filters are
+bypassed and timing register outputs are internally set to an idle
+value. The field can be useful during DRAM initialization, when
+training or calibration sequences are performed, and scheduler
+arbitration is not needed.
+When the field is set to 0, scheduler arbitration is fully functional,
+this is the functional usage mode.
+NOTE: When the field is set to 1, the final arbitration level
+continues to elect transactions among those presented to the
+arbiter. Set field ForceOrder to ensure that transactions are
+executed in order, for instance during DRAM initialization.
+AutoPrecharge
+When set to one, pages are automatically closed after each
+access, when set to zero, pages are left opened until an access in
+a different page occurs.
+
+DDRSCH_AgingX
+Address: Operational Base + offset (0x002C)
+Bit Attr Reset Value
+Description
+31:3 RO 0x00000000 reserved
+AgingX
+2:0
+RW 0x4
+Aging threshold multiplicator.
+DDRSCH_Aging0
+Address: Operational Base + offset (0x0030)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+Aging0
+7:0
+RW 0xff
+Aging slice threshold for port 0.
+DDRSCH_Aging1
+Address: Operational Base + offset (0x0034)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+Aging1
+7:0
+RW 0xff
+Aging slice threshold for port 1.
+DDRSCH_Aging2
+Address: Operational Base + offset (0x0038)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+Aging2
+7:0
+RW 0xff
+Aging slice threshold for port 2.
+DDRSCH_Aging3
+Address: Operational Base + offset (0x003C)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+Aging3
+7:0
+RW 0xff
+Aging slice threshold for port 3.
+DDRSCH_Aging4
+Address: Operational Base + offset (0x0040)
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+26
+
+RK3588 TRM-Part2
+Bit
+31:8
+7:0
+
+Attr Reset Value
+Description
+RO 0x000000
+reserved
+Aging4
+RW 0xff
+Aging slice threshold for port 4.
+
+1.4.3 QoS Generator Registers Summary
+Name
+QoSGenerator_Id_CoreId
+QoSGenerator_Id_Revisio
+nId
+QoSGenerator_Priority
+QoSGenerator_Mode
+QoSGenerator_Bandwidth
+QoSGenerator_Saturation
+QoSGenerator_ExtControl
+
+0x0000
+
+W
+
+Reset
+Description
+Value
+0x67B76E04 Core ID and checksum
+
+0x0004
+
+W
+
+0x3C9D4E00 Revision ID
+
+0x0008
+0x000C
+0x0010
+0x0014
+0x0018
+
+W
+W
+W
+W
+W
+
+0x80000000 Priority register
+0x00000003 QoS generate mode
+0x00000000 bandwidth threshold
+0x00000040 Saturation counter
+0x00000000 External control register
+
+Offset
+
+Size
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+1.4.4 QoS Generator Detail Registers Description
+
+QoSGenerator_Id_CoreId
+Address: Operational Base + offset (0x0000)
+Bit Attr Reset Value
+Description
+CoreChecksum
+31:8 RO 0x67b76e
+Field containing a checksum of the parameters of the IP. Reset
+value is different for each QoS generator.
+CoreTypeId
+7:0
+RO 0x04
+Field identifying the type of IP.
+QoSGenerator_Id_RevisionId
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+BuildId
+31:8 RO 0x3c9d4e
+Field containing the build revision of the software used to
+generate the IP HDL code.
+UserId
+7:0
+RO 0x00
+Field containing a user defined value, not used anywhere inside
+the IP itself.
+QoSGenerator_Priority
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+Description
+Mark
+31
+RO 0x1
+Backward compatibility marker when 0.
+30:11 RO 0x00000
+reserved
+P1
+10:8 RW 0x0
+In Regulator mode, defines the HIGH hurry level. In Fixed/Limiter
+mode, defines the Urgency level for READ transactions.
+7:3
+RO 0x00
+reserved
+P0
+2:0
+RW 0x0
+In Regulator mode, defines the LOW hurry level. In Fixed/Limiter
+mode, defines the Urgency level for WRITE transactions.
+QoSGenerator_Mode
+Address: Operational Base + offset (0x000C)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+27
+
+RK3588 TRM-Part2
+Bit
+31:2
+
+1:0
+
+Attr Reset Value
+RO 0x00000000 reserved
+Mode
+Functional Mode
+2’b00: Fixed
+RW 0x3
+2’b01: Limiter
+2’b10: Bypass
+2’b11: Regulator
+
+Description
+
+QoSGenerator_Bandwidth
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+Description
+31:13 RO 0x00000
+reserved
+Bandwidth
+Defines the bandwidth threshold in 1/256th-byte-per-cycle units.
+12:0 RW 0x0000
+In other words, the desired rate in MBps is divided by frequency
+in MHz of the BIU, and then multiplied by 256. Reset value is
+different for each QoS generator.
+QoSGenerator_Saturation
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+Description
+31:10 RO 0x000000
+reserved
+Saturation
+Defines the size of the bandwidth counter, that is, the
+9:0
+RW 0x040
+measurement window, in 16-byte units. In other words, the
+desired number of bytes divided by 16.
+QoSGenerator_ExtControl
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+ExtLimitEn
+When register field ExtLimitEn is set, the bandwidth limiter is
+enabled when input signal ExtThr is asserted. When the signal is
+3
+RW 0x0
+not asserted, the limiter is disabled: bandwidth is not limited, and
+the counter is stuck to 0. When the bit is cleared, the limiter
+operates normally and ignores ExtThr.
+IntClkEn
+When set to 1, register field IntClkEn causes the QoS generator
+to use the BIU clock for bandwidth calculation. When set to 0,
+2
+RW 0x0
+and if configuration parameter useExternalReference is set to
+True, an external reference clock at the socket is used for
+bandwidth calculation.
+ExtThrEn
+When register field ExtThrEn is set, internal signals Urgency,
+1
+RW 0x0
+Press and Hurry are driven, when input signal ExtThr is low, by
+the value in register Priority field P0. When ExtThr is high, they
+are driven by the value in register Priority field P1.
+SocketQosEn
+Register field SocketQosEn determines how priority levels are
+driven when QoS generators and socket interfaces alternatively
+0
+RW 0x0
+drive the levels for Urgency, Pressure, and Hurry signals: When
+set to 0, the QoS generator drives the levels. When set to 1,
+internal signals Pressure and Hurry are driven by the greater of
+the two levels from the socket interface or the QoS generator.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+28
+
+RK3588 TRM-Part2
+
+1.4.5 Shaping Registers Summary
+Name
+Shaper_NbPktMax0
+
+Offset
+0x0008
+
+Size
+
+Reset
+Value
+
+W
+
+0x000000FF
+
+Description
+Max pending packet number
+register
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+1.4.6 Shaping Detail Registers Description
+
+Shaper_NbPktMax0
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+NbPktMax0
+7:0
+RW 0xFF
+Max transport packet pending for route to scheduler.
+
+1.4.7 Probe Registers Summary
+Name
+
+Offset
+
+Size
+
+Reset
+Value
+0x194C4006
+
+Probe_Id_CoreId
+
+0x0000
+
+W
+
+Probe_Id_RevisionId
+
+0x0004
+
+W
+
+Probe_MainCtl
+
+0x0008
+
+W
+
+Probe_CfgCtl
+
+0x000C
+
+W
+
+Probe_FilterLut
+
+0x0014
+
+W
+
+Probe_TraceAlarmEn
+
+0x0018
+
+W
+
+Probe_TraceAlarmStatus
+
+0x001C
+
+W
+
+Probe_TraceAlarmClr
+
+0x0020
+
+W
+
+Probe_StatPeriod
+
+0x0024
+
+W
+
+Probe_StatGo
+
+0x0028
+
+W
+
+Probe_StatAlarmMin
+
+0x002C
+
+W
+
+Probe_StatAlarmMax
+
+0x0034
+
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+Stores the Core Id and core
+checksum.
+0x3C9D4E00 Revision ID
+Register MainCtl contains probe
+0x00000000
+global control bits.
+Stores global enable and active
+0x00000000
+bits.
+Controls the filter look-up table
+(LUT), which is used to select
+0x00000000
+which filters are used and in what
+logical combination.
+Enables hits from either trace
+filters or the LUT to be recorded in
+0x00000000
+the trace alarm status register
+TraceAlarmStatus.
+Register TraceAlarmStatus is a
+read-only register that indicates
+0x00000000
+which LUT or filter has been
+matched by a packet.
+Setting a bit to 1 in register
+TraceAlarmClr clears the
+0x00000000
+corresponding bit in register
+TraceAlarmStatus.
+Register StatPeriod is a 5-bit
+register that sets a period ranging
+from 2 cycles to 2 gigacycles of
+0x00000000
+the probe clock, during which
+statistics are collected before
+being dumped automatically.
+Writing to the 1-bit pulse register
+0x00000000 StatGo generates a statistics
+dump.
+Register StatAlarmMin specifies
+0x00000000 the lower threshold used to
+trigger the statistics alarm.
+Register StatAlarmMax specifies
+0x00000000 the upper threshold used to
+trigger the statistics alarm.
+
+29
+
+RK3588 TRM-Part2
+Name
+
+Offset
+
+Size
+
+Probe_StatAlarmStatus
+
+0x003C
+
+W
+
+Probe_StatAlarmClr
+
+0x0040
+
+W
+
+Probe_StatAlarmEn
+
+0x0044
+
+W
+
+Probe_Filters_0_RouteIdB
+0x0080
+ase
+Probe_Filters_0_RouteIdM
+0x0084
+ask
+
+W
+W
+
+Probe_Filters_0_AddrBase
+0x0088
+_Low
+
+W
+
+Probe_Filters_0_AddrBase
+0x008C
+_High
+
+W
+
+Probe_Filters_0_WindowSi
+0x0090
+ze
+
+W
+
+Probe_Filters_0_SecurityB
+0x0094
+ase
+
+W
+
+Probe_Filters_0_Security
+Mask
+
+0x0098
+
+W
+
+Probe_Filters_0_Opcode
+
+0x009C
+
+W
+
+Probe_Filters_0_Status
+
+0x00A0
+
+W
+
+Probe_Filters_0_Length
+
+0x00A4
+
+W
+
+Probe_Filters_0_Urgency
+
+0x00A8
+
+W
+
+Probe_Filters_0_UserBase 0x00AC
+
+W
+
+Probe_Filters_0_UserMask 0x00B0
+
+W
+
+Probe_Filters_1_RouteIdB
+0x00E0
+ase
+Probe_Filters_1_RouteIdM
+0x00E4
+ask
+
+W
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Reset
+Value
+
+Description
+
+StatAlarmStatus is a 2-bit read0x00000000 only register relative to statistics
+counter.
+0x00000000 State alarm clear register.
+StatAlarm output signals enable
+0x00000001
+register.
+Specifies which value of RouteId
+0x00000000
+should be used to filter packets.
+Specifies the mask used on
+0x00000000
+RouteId to filter packets.
+Specifies the values of the lower
+transport address bits, used in
+0x00000000 conjunction with register
+Filters_N_WindowSize, to filter
+packets.
+Specifies the values of the upper
+transport address bits, used in
+0x00000000 conjunction with register
+Filters_N_WindowSize to filter
+packets.
+Specifies the encoded address
+0x00000000
+mask used to filter packets.
+Specifies, for filter n, the values to
+be matched against bits in the
+0x00000000
+packet header field Security of
+transport packets.
+Specifies, for filter n, which bits of
+0x00000000 packet header field Security are
+used to filter transport packets.
+Contains four fields that control
+0x00000000 which packet opcodes are used to
+select packets by Filter N.
+A 2-bit register that sets criteria
+0x00000000 for filter n based on packet status
+type.
+Register Filters_N_Length is 4-bit
+register that selects candidate
+0x00000000 packets if the number of bytes is
+less than or equal to
+2*FILTERS_N_LENGTH.
+Specifies the minimum urgency
+0x00000000
+level used to filter packets.
+Specifies, for filter n, the values to
+be matched against the lower bits
+0x00000000
+in the packet header field User of
+transport packets.
+Specifies, for filter n, which lower
+bits of packet header field User
+0x00000000
+are used to filter transport
+packets.
+Specifies which value of RouteId
+0x00000000
+should be used to filter packets.
+Specifies the mask used on
+0x00000000
+RouteId to filter packets.
+30
+
+RK3588 TRM-Part2
+Name
+
+Offset
+
+Size
+
+Probe_Filters_1_AddrBase
+0x00E8
+_Low
+
+W
+
+Probe_Filters_1_AddrBase
+0x00EC
+_High
+
+W
+
+Probe_Filters_1_WindowSi
+0x00F0
+ze
+
+W
+
+Probe_Filters_1_SecurityB
+0x00F4
+ase
+
+W
+
+Probe_Filters_1_Security
+Mask
+
+0x00F8
+
+W
+
+Probe_Filters_1_Opcode
+
+0x00FC
+
+W
+
+Probe_Filters_1_Status
+
+0x0100
+
+W
+
+Probe_Filters_1_Length
+
+0x0104
+
+W
+
+Probe_Filters_1_Urgency
+
+0x0108
+
+W
+
+Probe_Filters_1_UserBase 0x010C
+
+W
+
+Probe_Filters_1_UserMask 0x0110
+
+W
+
+Probe_Filters_2_RouteIdB
+0x0140
+ase
+Probe_Filters_2_RouteIdM
+0x0144
+ask
+
+W
+W
+
+Probe_Filters_2_AddrBase
+0x0148
+_Low
+
+W
+
+Probe_Filters_2_AddrBase
+0x014C
+_High
+
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Reset
+Value
+
+Description
+
+Specifies the values of the lower
+transport address bits, used in
+0x00000000 conjunction with register
+Filters_N_WindowSize, to filter
+packets.
+Specifies the values of the upper
+transport address bits, used in
+0x00000000 conjunction with register
+Filters_N_WindowSize to filter
+packets.
+Specifies the encoded address
+0x00000000
+mask used to filter packets.
+Specifies, for filter n, the values to
+be matched against bits in the
+0x00000000
+packet header field Security of
+transport packets.
+Specifies, for filter n, which bits of
+0x00000000 packet header field Security are
+used to filter transport packets.
+Contains four fields that control
+0x00000000 which packet opcodes are used to
+select packets by Filter N.
+A 2-bit register that sets criteria
+0x00000000 for filter n based on packet status
+type.
+Register Filters_N_Length is 4-bit
+register that selects candidate
+0x00000000 packets if the number of bytes is
+less than or equal to
+2*FILTERS_N_LENGTH.
+Specifies the minimum urgency
+0x00000000
+level used to filter packets.
+Specifies, for filter n, the values to
+be matched against the lower bits
+0x00000000
+in the packet header field User of
+transport packets.
+Specifies, for filter n, which lower
+bits of packet header field User
+0x00000000
+are used to filter transport
+packets.
+Specifies which value of RouteId
+0x00000000
+should be used to filter packets.
+Specifies the mask used on
+0x00000000
+RouteId to filter packets.
+Specifies the values of the lower
+transport address bits, used in
+0x00000000 conjunction with register
+Filters_N_WindowSize, to filter
+packets.
+Specifies the values of the upper
+transport address bits, used in
+0x00000000 conjunction with register
+Filters_N_WindowSize to filter
+packets.
+31
+
+RK3588 TRM-Part2
+Size
+
+Reset
+Value
+
+Probe_Filters_2_WindowSi
+0x0150
+ze
+
+W
+
+0x00000000
+
+Probe_Filters_2_SecurityB
+0x0154
+ase
+
+W
+
+Probe_Filters_2_Security
+Mask
+
+0x0158
+
+W
+
+Probe_Filters_2_Opcode
+
+0x015C
+
+W
+
+Probe_Filters_2_Status
+
+0x0160
+
+W
+
+Probe_Filters_2_Length
+
+0x0164
+
+W
+
+Probe_Filters_2_Urgency
+
+0x0168
+
+W
+
+Probe_Filters_2_UserBase 0x016C
+
+W
+
+Probe_Filters_2_UserMask 0x0170
+
+W
+
+Name
+
+Offset
+
+Probe_Filters_3_RouteIdB
+0x01A0
+ase
+Probe_Filters_3_RouteIdM
+0x01A4
+ask
+
+W
+W
+
+Probe_Filters_3_AddrBase
+0x01A8
+_Low
+
+W
+
+Probe_Filters_3_AddrBase
+0x01AC
+_High
+
+W
+
+Probe_Filters_3_WindowSi
+0x01B0
+ze
+
+W
+
+Probe_Filters_3_SecurityB
+0x01B4
+ase
+
+W
+
+Probe_Filters_3_Security
+Mask
+
+W
+
+0x01B8
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+Specifies the encoded address
+mask used to filter packets.
+Specifies, for filter n, the values to
+be matched against bits in the
+0x00000000
+packet header field Security of
+transport packets.
+Specifies, for filter n, which bits of
+0x00000000 packet header field Security are
+used to filter transport packets.
+Contains four fields that control
+0x00000000 which packet opcodes are used to
+select packets by Filter N.
+A 2-bit register that sets criteria
+0x00000000 for filter n based on packet status
+type.
+Register Filters_N_Length is 4-bit
+register that selects candidate
+0x00000000 packets if the number of bytes is
+less than or equal to
+2*FILTERS_N_LENGTH.
+Specifies the minimum urgency
+0x00000000
+level used to filter packets.
+Specifies, for filter n, the values to
+be matched against the lower bits
+0x00000000
+in the packet header field User of
+transport packets.
+Specifies, for filter n, which lower
+bits of packet header field User
+0x00000000
+are used to filter transport
+packets.
+Specifies which value of RouteId
+0x00000000
+should be used to filter packets.
+Specifies the mask used on
+0x00000000
+RouteId to filter packets.
+Specifies the values of the lower
+transport address bits, used in
+0x00000000 conjunction with register
+Filters_N_WindowSize, to filter
+packets.
+Specifies the values of the upper
+transport address bits, used in
+0x00000000 conjunction with register
+Filters_N_WindowSize to filter
+packets.
+Specifies the encoded address
+0x00000000
+mask used to filter packets.
+Specifies, for filter n, the values to
+be matched against bits in the
+0x00000000
+packet header field Security of
+transport packets.
+Specifies, for filter n, which bits of
+0x00000000 packet header field Security are
+used to filter transport packets.
+
+32
+
+RK3588 TRM-Part2
+Name
+
+Offset
+
+Probe_Filters_3_Opcode
+
+0x01BC
+
+W
+
+Probe_Filters_3_Status
+
+0x01C0
+
+W
+
+Probe_Filters_3_Length
+
+0x01C4
+
+W
+
+Probe_Filters_3_Urgency
+
+0x01C8
+
+W
+
+Probe_Filters_3_UserBase 0x01CC
+
+W
+
+Probe_Filters_3_UserMask 0x01D0
+
+W
+
+Probe_Counters_0_Src
+
+0x0204
+
+W
+
+Probe_Counters_0_Alarm
+0x0208
+Mode
+
+W
+
+Probe_Counters_0_Val
+
+0x020C
+
+W
+
+Probe_Counters_1_Src
+
+0x0214
+
+W
+
+Probe_Counters_1_Alarm
+0x0218
+Mode
+
+W
+
+Probe_Counters_1_Val
+
+0x021C
+
+W
+
+Probe_Counters_2_Src
+
+0x0224
+
+W
+
+Probe_Counters_2_Alarm
+0x0228
+Mode
+
+W
+
+Probe_Counters_2_Val
+
+0x022C
+
+W
+
+Probe_Counters_3_Src
+
+0x0234
+
+W
+
+Probe_Counters_3_Alarm
+0x0238
+Mode
+
+W
+
+Probe_Counters_3_Val
+
+W
+
+0x023C
+
+Reset
+Value
+
+Size
+
+Description
+
+Contains four fields that control
+0x00000000 which packet opcodes are used to
+select packets by Filter N.
+A 2-bit register that sets criteria
+0x00000000 for filter n based on packet status
+type.
+Register Filters_N_Length is 4-bit
+register that selects candidate
+0x00000000 packets if the number of bytes is
+less than or equal to
+2*FILTERS_N_LENGTH.
+Specifies the minimum urgency
+0x00000000
+level used to filter packets.
+Specifies, for filter n, the values to
+be matched against the lower bits
+0x00000000
+in the packet header field User of
+transport packets.
+Specifies, for filter n, which lower
+bits of packet header field User
+0x00000000
+are used to filter transport
+packets.
+Specifies, for counter m, the type
+0x00000000 of event source used to increment
+the counter.
+Defines statistics alarm counter
+0x00000000
+behavior.
+Contain the statistics counter
+0x00000000
+values.
+Specifies, for counter m, the type
+0x00000000 of event source used to increment
+the counter.
+Defines statistics alarm counter
+0x00000000
+behavior.
+Contain the statistics counter
+0x00000000
+values.
+Specifies, for counter m, the type
+0x00000000 of event source used to increment
+the counter.
+Defines statistics alarm counter
+0x00000000
+behavior.
+Contain the statistics counter
+0x00000000
+values.
+Specifies, for counter m, the type
+0x00000000 of event source used to increment
+the counter.
+Defines statistics alarm counter
+0x00000000
+behavior.
+Contain the statistics counter
+0x00000000
+values.
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access, DWDouble WORD (64 bits) access
+
+1.4.8 Probe Detail Registers Description
+Probe_Id_CoreId
+Address: Operational Base + offset (0x0000)
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+33
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+31:8
+
+RO
+
+0x194c40
+
+7:0
+
+RO
+
+0x06
+
+Description
+CoreChecksum
+Field containing a checksum of the parameters of the IP. Reset
+value is different for each probe.
+CoreTypeId
+Field identifying the type of IP.
+
+Probe_Id_RevisionId
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+BuildId
+31:8 RO 0x3c9d4e
+Field containing the build revision of the software used to
+generate the IP HDL code.
+UserId
+7:0
+RO 0x00
+Field containing a user defined value, not used anywhere inside
+the IP itself.
+Probe_MainCtl
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+Description
+31:8 RO 0x000000
+reserved
+FiltByteAlwaysChainableEn
+When set to 0, filters are mapped to all statistic counters when
+counting bytes or enabled bytes. Therefore, only filter events
+7
+RW 0x0
+mapped to even counters can be counted using a pair of chained
+counters. When set to 1, filters are mapped only to even statistic
+counters when counting bytes or enabled bytes. Thus events from
+any filter can be counted using a pair of chained counters.
+IntrusiveMode
+When set to 1, register field IntrusiveMode enables trace
+6
+RW 0x0
+operation in Intrusive flow-control mode. When set to 0, the
+register enables trace operation in Overflow flow-control mode.
+StatCondDump
+When set, register field StatCondDump enables the dump of a
+statistics frame to the range of counter values set for registers
+5
+RW 0x0
+StatAlarmMin, StatAlarmMax, and AlarmMode. This field also
+renders register StatAlarmStatus inoperative. When parameter
+statisticsCounterAlarm is set to False, the StatCondDump register
+bit is reserved.
+AlarmEn
+When set, register field AlarmEn enables the probe to collect
+4
+RW 0x0
+alarm-related information. When the register field bit is null, both
+TraceAlarm and StatAlarm outputs are driven to 0.
+StatEn
+When set to 1, register field StatEn enables statistics profiling.
+3
+RW 0x0
+The probe sends statistics results to the output for signal ObsTx.
+All statistics counters are cleared when the StatEn bit goes from
+0 to 1. When set to 0, counters are disabled.
+PayloadEn
+2
+RW 0x0
+Register field PayloadEn, when set to 1, enables traces to contain
+headers and payload. When set to 0, only headers are reported.
+TraceEn
+1
+RW 0x0
+Register field TraceEn enables the probe to send filtered packets
+(Trace) on the ObsTx observation output.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+34
+
+RK3588 TRM-Part2
+Bit
+0
+
+Attr Reset Value
+RW 0x0
+
+Description
+ErrEn
+Register field ErrEn enables the probe to send on the ObsTx
+output any packet with Error status, independently of filtering
+mechanisms, thus constituting a simple supplementary global
+filter.
+
+Probe_CfgCtl
+Address: Operational Base + offset (0x000C)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+Active
+Register field Active is used to inform software that the probe is
+1
+RO 0x0
+active. Probe configuration is not allowed during the active state.
+This bit is raised when bit GlobalEn is set, and is cleared a few
+cycles after setting GlobalEn to zero (probe is Idle).
+GlobalEn
+0
+RW 0x0
+Enables or disables the tracing and statistics collection
+subsystems of the packet probe.
+Probe_FilterLut
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+FilterLut
+Register FilterLut contains a look-up table that is used to combine
+filter outputs in order to trace packets. Packet tracing is enabled
+15:0 RW 0x0000
+when the FilterLut bit of index (FNout ... F0out) is equal to 1. The
+number of bits in register FilterLut is determined by the setting
+for parameter nFilter, calculated as 2**nFilter. When parameter
+nFilter is set to None, FilterLut is reserved.
+Probe_TraceAlarmEn
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+TraceAlarmEn
+Register TraceAlarmEn controls which lookup table or filter can
+set the TraceAlarm signal output once the trace alarm status is
+set. The number of bits in register TraceAlarmEn is determined by
+4:0
+RW 0x00
+the value set for parameter nFilter + 1. Bit nFilter controls the
+lookup table output, and bits (nFilter-1:0) control the
+corresponding filter output. When parameter nFilter is set to
+None, TraceAlarmEn is reserved.
+Probe_TraceAlarmStatus
+Address: Operational Base + offset (0x001C)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+TraceAlarmStatus
+Register TraceAlarmStatus is a read-only register that indicates
+which lookup table or filter has been matched by a packet,
+4:0
+RO 0x00
+independently of register TraceAlarmEn bit configuration. The
+number of bits in TraceAlarmStatus is determined by the value
+set for parameter nFilter + 1. When nFilter is set to None,
+TraceAlarmStatus is reserved.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+35
+
+RK3588 TRM-Part2
+Probe_TraceAlarmClr
+Address: Operational Base + offset (0x0020)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+TraceAlarmClr
+Setting a bit to 1 in register TraceAlarmClr clears the
+corresponding bit in register TraceAlarmStatus. The number of
+4:0
+RW 0x00
+bits in register TraceAlarmClr is equal to (nFilter + 1). When
+nFilter is set to 0, TraceAlarmClr is reserved. NOTE: The written
+value is not stored in TraceAlarmClr. A read always returns 0.
+Probe_StatPeriod
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+StatPeriod
+Register StatPeriod is a 5-bit register that sets a period, within a
+range of 2 cycles to 2 gigacycles, during which statistics are
+collected before being dumped automatically. Setting the register
+implicitly enables automatic mode operation for statistics
+4:0
+RW 0x00
+collection. The period is calculated with the formula: N_Cycle =
+2**StatPeriodWhen register StatPeriod is set to its default value
+0, automatic dump mode is disabled, and register StatGo is
+activated for manual mode operation.
+Note: When parameter statisticsCollection is set to False,
+StatPeriod is reserved.
+Probe_StatGo
+Address: Operational Base + offset (0x0028)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+StatGo
+Writing a 1 to the 1-bit pulse register StatGo generates a
+statistics dump. The register is active when statistics collection
+0
+RW 0x0
+operates in manual mode, that is, when register StatPeriod is set
+to 0. The written value is not stored in StatGo. A read always
+returns 0.
+Probe_StatAlarmMin
+Address: Operational Base + offset (0x002C)
+Bit Attr Reset Value
+Description
+StatAlarmMin
+31:0 RW 0x00000000 Register StatAlarmMin contains the minimum count value used in
+statistics alarm comparisons.
+Probe_StatAlarmMax
+Address: Operational Base + offset (0x0034)
+Bit Attr Reset Value
+Description
+StatAlarmMax
+31:0 RW 0x00000000 Register StatAlarmMax contains the maximum count value used
+in statistics alarm comparisons.
+Probe_StatAlarmStatus
+Address: Operational Base + offset (0x003C)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+36
+
+RK3588 TRM-Part2
+Bit
+31:1
+
+0
+
+Attr Reset Value
+Description
+RO 0x00000000 reserved
+StatAlarmStatus
+Register StatAlarmStatus is a read-only 1-bit register indicating
+that at least one statistics counter has exceeded the programmed
+RO 0x0
+values for registers StatAlarmMin or StatAlarmMax. Output signal
+StatAlarm is equal to the values stored in register MainCtl fields
+StatAlarmStatus and AlarmEn.
+
+Probe_StatAlarmClr
+Address: Operational Base + offset (0x0040)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+StatAlarmClr
+Register StatAlarmClr is a 1-bit register. Writing a 1 to this
+register clears the StatAlarmStatus register bit. When parameter
+0
+RW 0x0
+statisticsCounterAlarm is set to False, StatAlarmClr is reserved.
+NOTE The written value is not stored in StatAlarmClr. A read
+always returns 0.
+Probe_StatAlarmEn
+Address: Operational Base + offset (0x0044)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+StatAlarmEn
+0
+RW 0x1
+Register StatAlarmEn is a 1-bit register. When set to 0 it masks
+StatAlarm and CtiTrigOut(1) signal interrupts.
+Probe_Filters_0_RouteIdBase
+Address: Operational Base + offset (0x0080)
+Bit Attr Reset Value
+Description
+31:26 RO 0x00
+reserved
+Filters_0_RouteIdBase
+25:0 RW 0x0000000
+Register RouteIdBase contains the RouteId-lsbFilterRouteId bits
+base used to filter packets.
+Probe_Filters_0_RouteIdMask
+Address: Operational Base + offset (0x0084)
+Bit Attr Reset Value
+Description
+31:26 RO 0x00
+reserved
+Filters_0_RouteIdMask
+Register RouteIdMask contains the RouteId-lsbFilterRouteId mask
+25:0 RW 0x0000000
+used to filter packets. A packet is a candidate when
+packet.RouteId>>lsbFilterRouteId & RouteIdMask = RouteIdBase
+& RouteIdMask.
+Probe_Filters_0_AddrBase_Low
+Address: Operational Base + offset (0x0088)
+Bit Attr Reset Value
+Filters_0_AddrBase_Low
+31:0 RW 0x00000000
+Address LSB register.
+
+Description
+
+Probe_Filters_0_AddrBase_High
+Address: Operational Base + offset (0x008C)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+37
+
+RK3588 TRM-Part2
+Bit
+31:4
+3:0
+
+Attr Reset Value
+Description
+RO 0x0000000
+reserved
+Filters_0_AddrBase_High
+RW 0x0
+Address MSB register.
+
+Probe_Filters_0_WindowSize
+Address: Operational Base + offset (0x0090)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+Filters_0_WindowSize
+Register WindowSize contains the encoded address mask used to
+filter packets. The effective Mask value is equal to
+~(2max(WindowSize, packet.Len) - 1). A packet is a candidate
+5:0
+RW 0x00
+when packet.Addr & Mask = AddrBase & Mask. This allows
+filtering of packets having an intersection with the
+AddrBase/WindowSize burst aligned region, even if the region is
+smaller than the packet.
+Probe_Filters_0_SecurityBase
+Address: Operational Base + offset (0x0094)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+Filters_0_SecurityBase
+0
+RW 0x0
+Register SecurityBase contains the security base used to filter
+packets.
+Probe_Filters_0_SecurityMask
+Address: Operational Base + offset (0x0098)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+Filters_0_SecurityMask
+Register SecurityMask is contains the security mask used to filter
+0
+RW 0x0
+packets. A packet is a candidate when: packet. Security &
+SecurityMask = SecurityBase & SecurityMasks.
+Probe_Filters_0_Opcode
+Address: Operational Base + offset (0x009C)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+UrgEn
+3
+RW 0x0
+Selects URG packets (urgency).
+LockEn
+2
+RW 0x0
+Selects RDX-WR, RDL, WRC and Linked sequence.
+WrEn
+1
+RW 0x0
+Selects WR packets.
+RdEn
+0
+RW 0x0
+Selects RD packets.
+Probe_Filters_0_Status
+Address: Operational Base + offset (0x00A0)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+RspEn
+1
+RW 0x0
+Selects RSP and FAIL-CONT status packets.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+38
+
+RK3588 TRM-Part2
+Bit
+0
+
+Attr Reset Value
+RW 0x0
+
+Description
+ReqEn
+Selects REQ status packets.
+
+Probe_Filters_0_Length
+Address: Operational Base + offset (0x00A4)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+Filters_0_Length
+3:0
+RW 0x0
+Register Length is 4-bit register that selects candidate packets if
+their number of bytes is less than or equal to 2**Length.
+Probe_Filters_0_Urgency
+Address: Operational Base + offset (0x00A8)
+Bit Attr Reset Value
+Description
+31:3 RO 0x00000000 reserved
+Filters_0_Urgency
+Register Urgency contains the minimum urgency level used to
+2:0
+RW 0x0
+filter packets. A packet is a candidate when its socket urgency is
+greater than or equal to the urgency specified in the register.
+Probe_Filters_0_UserBase
+Address: Operational Base + offset (0x00AC)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+Filters_0_UserBase
+Register UserBase is available when parameter useUserFilter is
+6:0
+RW 0x00
+set to True. Register size is determined by parameter wUser. The
+register stores a user base value that is employed in filtering
+packets.
+Probe_Filters_0_UserMask
+Address: Operational Base + offset (0x00B0)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+Filters_0_UserMask
+Register UserMask is available when parameter useUserFilter is
+set to True. Register size is determined by parameter wUser. The
+6:0
+RW 0x00
+register stores a user mask that is employed in filtering packets.
+A packet is a candidate for trace or statistic collection when
+packet.User & UserMask = UserBase & UserMask.
+Probe_Filters_1_RouteIdBase
+Address: Operational Base + offset (0x00E0)
+Bit Attr Reset Value
+Description
+31:26 RO 0x00
+reserved
+Filters_1_RouteIdBase
+25:0 RW 0x0000000
+Register RouteIdBase contains the RouteId-lsbFilterRouteId bits
+base used to filter packets.
+Probe_Filters_1_RouteIdMask
+Address: Operational Base + offset (0x00E4)
+Bit Attr Reset Value
+31:26 RO 0x00
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+39
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+25:0
+
+RW 0x0000000
+
+Description
+Filters_1_RouteIdMask
+Register RouteIdMask contains the RouteId-lsbFilterRouteId mask
+used to filter packets. A packet is a candidate when
+packet.RouteId>>lsbFilterRouteId & RouteIdMask = RouteIdBase
+& RouteIdMask.
+
+Probe_Filters_1_AddrBase_Low
+Address: Operational Base + offset (0x00E8)
+Bit Attr Reset Value
+Filters_1_AddrBase_Low
+31:0 RW 0x00000000
+Address LSB register.
+
+Description
+
+Probe_Filters_1_AddrBase_High
+Address: Operational Base + offset (0x00EC)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+Filters_1_AddrBase_High
+3:0
+RW 0x0
+Address MSB register.
+Probe_Filters_1_WindowSize
+Address: Operational Base + offset (0x00F0)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+Filters_1_WindowSize
+Register WindowSize contains the encoded address mask used to
+filter packets. The effective Mask value is equal to
+~(2max(WindowSize, packet.Len) - 1). A packet is a candidate
+5:0
+RW 0x00
+when packet.Addr & Mask = AddrBase & Mask. This allows
+filtering of packets having an intersection with the
+AddrBase/WindowSize burst aligned region, even if the region is
+smaller than the packet.
+Probe_Filters_1_SecurityBase
+Address: Operational Base + offset (0x00F4)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+Filters_1_SecurityBase
+0
+RW 0x0
+Register SecurityBase contains the security base used to filter
+packets.
+Probe_Filters_1_SecurityMask
+Address: Operational Base + offset (0x00F8)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+Filters_1_SecurityMask
+Register SecurityMask is contains the security mask used to filter
+0
+RW 0x0
+packets. A packet is a candidate when: packet.Security &
+SecurityMask = SecurityBase & SecurityMasks.
+Probe_Filters_1_Opcode
+Address: Operational Base + offset (0x00FC)
+Bit Attr Reset Value
+31:4 RO 0x0000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+40
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+UrgEn
+Selects URG packets (urgency).
+LockEn
+Selects RDX-WR, RDL, WRC and Linked sequence.
+WrEn
+Selects WR packets.
+RdEn
+Selects RD packets.
+
+Probe_Filters_1_Status
+Address: Operational Base + offset (0x0100)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+RspEn
+1
+RW 0x0
+Selects RSP and FAIL-CONT status packets.
+ReqEn
+0
+RW 0x0
+Selects REQ status packets.
+Probe_Filters_1_Length
+Address: Operational Base + offset (0x0104)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+Filters_1_Length
+3:0
+RW 0x0
+Register Length is 4-bit register that selects candidate packets if
+their number of bytes is less than or equal to 2**Length.
+Probe_Filters_1_Urgency
+Address: Operational Base + offset (0x0108)
+Bit Attr Reset Value
+Description
+31:3 RO 0x00000000 reserved
+Filters_1_Urgency
+Register Urgency contains the minimum urgency level used to
+2:0
+RW 0x0
+filter packets. A packet is a candidate when its socket urgency is
+greater than or equal to the urgency specified in the register.
+Probe_Filters_1_UserBase
+Address: Operational Base + offset (0x010C)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+Filters_1_UserBase
+Register UserBase is available when parameter useUserFilter is
+6:0
+RW 0x00
+set to True. Register size is determined by parameter wUser. The
+register stores a user base value that is employed in filtering
+packets.
+Probe_Filters_1_UserMask
+Address: Operational Base + offset (0x0110)
+Bit Attr Reset Value
+31:7 RO 0x0000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+41
+
+RK3588 TRM-Part2
+Bit
+
+6:0
+
+Attr Reset Value
+
+RW 0x00
+
+Description
+Filters_1_UserMask
+Register UserMask is available when parameter useUserFilter is
+set to True. Register size is determined by parameter wUser. The
+register stores a user mask that is employed in filtering packets.
+A packet is a candidate for trace or statistic collection when
+packet.User & UserMask = UserBase & UserMask.
+
+Probe_Filters_2_RouteIdBase
+Address: Operational Base + offset (0x0140)
+Bit Attr Reset Value
+Description
+31:26 RO 0x00
+reserved
+Filters_2_RouteIdBase
+25:0 RW 0x0000000
+Register RouteIdBase contains the RouteId-lsbFilterRouteId bits
+base used to filter packets.
+Probe_Filters_2_RouteIdMask
+Address: Operational Base + offset (0x0144)
+Bit Attr Reset Value
+Description
+31:26 RO 0x00
+reserved
+Filters_2_RouteIdMask
+Register RouteIdMask contains the RouteId-lsbFilterRouteId mask
+25:0 RW 0x0000000
+used to filter packets. A packet is a candidate when
+packet.RouteId>>lsbFilterRouteId & RouteIdMask = RouteIdBase
+& RouteIdMask.
+Probe_Filters_2_AddrBase_Low
+Address: Operational Base + offset (0x0148)
+Bit Attr Reset Value
+Filters_2_AddrBase_Low
+31:0 RW 0x00000000
+Address LSB register.
+
+Description
+
+Probe_Filters_2_AddrBase_High
+Address: Operational Base + offset (0x014C)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+Filters_2_AddrBase_High
+0
+RW 0x0
+Address MSB register.
+Probe_Filters_2_WindowSize
+Address: Operational Base + offset (0x0150)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+Filters_2_WindowSize
+Register WindowSize contains the encoded address mask used to
+filter packets. The effective Mask value is equal to
+~(2max(WindowSize, packet.Len) - 1). A packet is a candidate
+0
+RW 0x0
+when packet.Addr & Mask = AddrBase & Mask. This allows
+filtering of packets having an intersection with the
+AddrBase/WindowSize burst aligned region, even if the region is
+smaller than the packet.
+Probe_Filters_2_SecurityBase
+Address: Operational Base + offset (0x0154)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+42
+
+RK3588 TRM-Part2
+Bit
+31:1
+0
+
+Attr Reset Value
+Description
+RO 0x00000000 reserved
+Filters_2_SecurityBase
+RW 0x0
+Register SecurityBase contains the security base used to filter
+packets.
+
+Probe_Filters_2_SecurityMask
+Address: Operational Base + offset (0x0158)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+Filters_2_SecurityMask
+Register SecurityMask is contains the security mask used to filter
+0
+RW 0x0
+packets. A packet is a candidate when: packet.Security &
+SecurityMask = SecurityBase & SecurityMasks.
+Probe_Filters_2_Opcode
+Address: Operational Base + offset (0x015C)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+UrgEn
+3
+RW 0x0
+Selects URG packets (urgency).
+LockEn
+2
+RW 0x0
+Selects RDX-WR, RDL, WRC and Linked sequence.
+WrEn
+1
+RW 0x0
+Selects WR packets.
+RdEn
+0
+RW 0x0
+Selects RD packets.
+Probe_Filters_2_Status
+Address: Operational Base + offset (0x0160)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+RspEn
+1
+RW 0x0
+Selects RSP and FAIL-CONT status packets.
+ReqEn
+0
+RW 0x0
+Selects REQ status packets.
+Probe_Filters_2_Length
+Address: Operational Base + offset (0x0164)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+Filters_2_Length
+3:0
+RW 0x0
+Register Length is 4-bit register that selects candidate packets if
+their number of bytes is less than or equal to 2**Length.
+Probe_Filters_2_Urgency
+Address: Operational Base + offset (0x0168)
+Bit Attr Reset Value
+Description
+31:3 RO 0x00000000 reserved
+Filters_2_Urgency
+Register Urgency contains the minimum urgency level used to
+2:0
+RW 0x0
+filter packets. A packet is a candidate when its socket urgency is
+greater than or equal to the urgency specified in the register.
+Probe_Filters_2_UserBase
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+43
+
+RK3588 TRM-Part2
+Address: Operational Base + offset (0x016C)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+Filters_2_UserBase
+Register UserBase is available when parameter useUserFilter is
+6:0
+RW 0x00
+set to True. Register size is determined by parameter wUser. The
+register stores a user base value that is employed in filtering
+packets.
+Probe_Filters_2_UserMask
+Address: Operational Base + offset (0x0170)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+Filters_2_UserMask
+Register UserMask is available when parameter useUserFilter is
+set to True. Register size is determined by parameter wUser. The
+6:0
+RW 0x00
+register stores a user mask that is employed in filtering packets.
+A packet is a candidate for trace or statistic collection when
+packet.User & UserMask = UserBase & UserMask.
+Probe_Filters_3_RouteIdBase
+Address: Operational Base + offset (0x01A0)
+Bit Attr Reset Value
+Description
+31:26 RO 0x00
+reserved
+Filters_3_RouteIdBase
+25:0 RW 0x0000000
+Register RouteIdBase contains the RouteId-lsbFilterRouteId bits
+base used to filter packets.
+Probe_Filters_3_RouteIdMask
+Address: Operational Base + offset (0x01A4)
+Bit Attr Reset Value
+Description
+31:26 RO 0x00
+reserved
+Filters_3_RouteIdMask
+Register RouteIdMask contains the RouteId-lsbFilterRouteId mask
+25:0 RW 0x0000000
+used to filter packets. A packet is a candidate when
+packet.RouteId>>lsbFilterRouteId & RouteIdMask = RouteIdBase
+& RouteIdMask.
+Probe_Filters_3_AddrBase_Low
+Address: Operational Base + offset (0x01A8)
+Bit Attr Reset Value
+Filters_3_AddrBase_Low
+31:0 RW 0x00000000
+Address LSB register.
+
+Description
+
+Probe_Filters_3_AddrBase_High
+Address: Operational Base + offset (0x01AC)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+Filters_3_AddrBase_High
+3:0
+RW 0x0
+Address MSB register.
+Probe_Filters_3_WindowSize
+Address: Operational Base + offset (0x01B0)
+Bit Attr Reset Value
+31:6 RO 0x0000000
+reserved
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+44
+
+RK3588 TRM-Part2
+Bit
+
+5:0
+
+Attr Reset Value
+
+RW 0x00
+
+Description
+Filters_3_WindowSize
+Register WindowSize contains the encoded address mask used to
+filter packets. The effective Mask value is equal to
+~(2max(WindowSize, packet.Len) - 1). A packet is a candidate
+when packet.Addr & Mask = AddrBase & Mask. This allows
+filtering of packets having an intersection with the
+AddrBase/WindowSize burst aligned region, even if the region is
+smaller than the packet.
+
+Probe_Filters_3_SecurityBase
+Address: Operational Base + offset (0x01B4)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+Filters_3_SecurityBase
+0
+RW 0x0
+Register SecurityBase contains the security base used to filter
+packets.
+Probe_Filters_3_SecurityMask
+Address: Operational Base + offset (0x01B8)
+Bit Attr Reset Value
+Description
+31:1 RO 0x00000000 reserved
+Filters_3_SecurityMask
+Register SecurityMask is contains the security mask used to filter
+0
+RW 0x0
+packets. A packet is a candidate when: packet.Security &
+SecurityMask = SecurityBase & SecurityMasks.
+Probe_Filters_3_Opcode
+Address: Operational Base + offset (0x01BC)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+UrgEn
+3
+RW 0x0
+Selects URG packets (urgency).
+LockEn
+2
+RW 0x0
+Selects RDX-WR, RDL, WRC and Linked sequence.
+WrEn
+1
+RW 0x0
+Selects WR packets.
+RdEn
+0
+RW 0x0
+Selects RD packets.
+Probe_Filters_3_Status
+Address: Operational Base + offset (0x01C0)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+RspEn
+1
+RW 0x0
+Selects RSP and FAIL-CONT status packets.
+ReqEn
+0
+RW 0x0
+Selects REQ status packets.
+Probe_Filters_3_Length
+Address: Operational Base + offset (0x01C4)
+Bit Attr Reset Value
+31:4 RO 0x0000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+45
+
+RK3588 TRM-Part2
+Bit
+3:0
+
+Attr Reset Value
+RW 0x0
+
+Description
+Filters_3_Length
+Register Length is 4-bit register that selects candidate packets if
+their number of bytes is less than or equal to 2**Length.
+
+Probe_Filters_3_Urgency
+Address: Operational Base + offset (0x01C8)
+Bit Attr Reset Value
+Description
+31:3 RO 0x00000000 reserved
+Filters_3_Urgency
+Register Urgency contains the minimum urgency level used to
+2:0
+RW 0x0
+filter packets. A packet is a candidate when its socket urgency is
+greater than or equal to the urgency specified in the register.
+Probe_Filters_3_UserBase
+Address: Operational Base + offset (0x01CC)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+Filters_3_UserBase
+Register UserBase is available when parameter useUserFilter is
+6:0
+RW 0x00
+set to True. Register size is determined by parameter wUser. The
+register stores a user base value that is employed in filtering
+packets.
+Probe_Filters_3_UserMask
+Address: Operational Base + offset (0x01D0)
+Bit Attr Reset Value
+Description
+31:7 RO 0x0000000
+reserved
+Filters_3_UserMask
+Register UserMask is available when parameter useUserFilter is
+set to True. Register size is determined by parameter wUser. The
+6:0
+RW 0x00
+register stores a user mask that is employed in filtering packets.
+A packet is a candidate for trace or statistic collection when
+packet.User & UserMask = UserBase & UserMask.
+Probe_Counters_0_Src
+Address: Operational Base + offset (0x0204)
+Bit Attr Reset Value
+31:5 RO 0x0000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+46
+
+RK3588 TRM-Part2
+Bit
+
+4:0
+
+Attr Reset Value
+
+RW 0x00
+
+Description
+IntEvent
+Internal packet event
+5'h00: OFF, counter disabled.
+5'h01: CYCLE, probe clock cycles.
+5'h02: IDLE, idle cycles during which no packet data is observed.
+5'h03: XFER, transfer cycles during which packet data is
+transferred.
+5'h04: BUSY, busy cycles during which the packet data is made
+available by the transmitting agent but the receiving agent is not
+ready to receive it.
+5'h05: WAIT, wait cycles during a packet in which the
+transmitting agent suspends the transfer of packet data.
+5'h06: PKT, packets.
+5'h07: LUT, packets selected by the LUT.
+5'h08: BYTE, total number of payload bytes.
+5'h09: PRESS, clock cycles with pressure level > 0.
+5'h0A: PRESS, clock cycles with pressure level > 1.
+5'h0B: PRESS, clock cycles with pressure level > 2.
+5'h0C: FILT0, packets selected by Filter 0.
+5'h0D: FILT1, packets selected by Filter 1.
+5'h0E: FILT2, packets selected by Filter 2.
+5'h0F: FILT3, packets selected by Filter 3.
+5'h10: CHAIN, carry from counter 2m to counter 2m + 1.
+5'h11: LUT_BYTE_EN, enabled payload byte in packets selected
+by the LUT.
+5'h12: LUT_BYTE, total number of payload bytes in packets
+selected by the LUT.
+5'h13: FILT_BYTE_EN, enabled payload byte in packets selected
+by the associated filter.
+5'h14: FILT_BYTE, total number of payload bytes in packets
+selected by the associated filter.
+Others: Reserved
+
+Probe_Counters_0_AlarmMode
+Address: Operational Base + offset (0x0208)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+Counters_0_AlarmMode
+Register AlarmMode is a 2-bit register that defines the statisticsalarm behavior of the counter.
+2'b00: OFF, the comparison is disabled.
+2'b01: MIN, if the value of the counter is less than the
+StatAlarmMin register at the dump period, the StatAlarmStatus
+1:0
+RW 0x0
+bit is set.
+2'b10: MAX, if the value of the counter is greater than the
+StatAlarmMax register at the dump period, the StatAlarmStatus
+bit is set.
+2'b11: MIN_MAX, if the value of the counter is less than the
+StatAlarmMin register or greater than the StatAlarmMax register
+at the dump period, the corresponding StatAlarmStatus bit is set.
+Probe_Counters_0_Val
+Address: Operational Base + offset (0x020C)
+Bit Attr Reset Value
+31:16 RO 0x0000
+reserved
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+47
+
+RK3588 TRM-Part2
+Bit
+15:0
+
+Attr Reset Value
+RO
+
+0x0000
+
+Description
+Counters_0_Val
+Register Val contains the statistics counter value either pending
+StatAlarm output, or when statistics collection is suspended
+subsequent to triggers or signal statSuspend.
+
+Probe_Counters_1_Src
+Address: Operational Base + offset (0x0214)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+IntEvent
+Internal packet event
+5'h00: OFF, counter disabled.
+5'h01: CYCLE, probe clock cycles.
+5'h02: IDLE, idle cycles during which no packet data is observed.
+5'h03: XFER, transfer cycles during which packet data is
+transferred.
+5'h04: BUSY, busy cycles during which the packet data is made
+available by the transmitting agent but the receiving agent is not
+ready to receive it.
+5'h05: WAIT, wait cycles during a packet in which the
+transmitting agent suspends the transfer of packet data.
+5'h06: PKT, packets.
+5'h07: LUT, packets selected by the LUT.
+5'h08: BYTE, total number of payload bytes.
+5'h09: PRESS, clock cycles with pressure level > 0.
+4:0
+RW 0x00
+5'h0A: PRESS, clock cycles with pressure level > 1.
+5'h0B: PRESS, clock cycles with pressure level > 2.
+5'h0C: FILT0, packets selected by Filter 0.
+5'h0D: FILT1, packets selected by Filter 1.
+5'h0E: FILT2, packets selected by Filter 2.
+5'h0F: FILT3, packets selected by Filter 3.
+5'h10: CHAIN, carry from counter 2m to counter 2m + 1.
+5'h11: LUT_BYTE_EN, enabled payload byte in packets selected
+by the LUT.
+5'h12: LUT_BYTE, total number of payload bytes in packets
+selected by the LUT.
+5'h13: FILT_BYTE_EN, enabled payload byte in packets selected
+by the associated filter.
+5'h14: FILT_BYTE, total number of payload bytes in packets
+selected by the associated filter.
+Others: Reserved
+Probe_Counters_1_AlarmMode
+Address: Operational Base + offset (0x0218)
+Bit Attr Reset Value
+31:2 RO 0x00000000 reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+48
+
+RK3588 TRM-Part2
+Bit
+
+1:0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+Counters_1_AlarmMode
+Register AlarmMode is a 2-bit register that defines the statisticsalarm behavior of the counter.
+2'b00: OFF, the comparison is disabled.
+2'b01: MIN, if the value of the counter is less than the
+StatAlarmMin register at the dump period, the StatAlarmStatus
+bit is set.
+2'b10: MAX, if the value of the counter is greater than the
+StatAlarmMax register at the dump period, the StatAlarmStatus
+bit is set.
+2'b11: MIN_MAX, if the value of the counter is less than the
+StatAlarmMin register or greater than the StatAlarmMax register
+at the dump period, the corresponding StatAlarmStatus bit is set.
+
+Probe_Counters_1_Val
+Address: Operational Base + offset (0x021C)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+Counters_1_Val
+Register Val contains the statistics counter value either pending
+15:0 RO 0x0000
+StatAlarm output, or when statistics collection is suspended
+subsequent to triggers or signal statSuspend.
+Probe_Counters_2_Src
+Address: Operational Base + offset (0x0224)
+Bit Attr Reset Value
+31:5 RO 0x0000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+49
+
+RK3588 TRM-Part2
+Bit
+
+4:0
+
+Attr Reset Value
+
+RW 0x00
+
+Description
+IntEvent
+Internal packet event
+5'h00: OFF, counter disabled.
+5'h01: CYCLE, probe clock cycles.
+5'h02: IDLE, idle cycles during which no packet data is observed.
+5'h03: XFER, transfer cycles during which packet data is
+transferred.
+5'h04: BUSY, busy cycles during which the packet data is made
+available by the transmitting agent but the receiving agent is not
+ready to receive it.
+5'h05: WAIT, wait cycles during a packet in which the
+transmitting agent suspends the transfer of packet data.
+5'h06: PKT, packets.
+5'h07: LUT, packets selected by the LUT.
+5'h08: BYTE, total number of payload bytes.
+5'h09: PRESS, clock cycles with pressure level > 0.
+5'h0A: PRESS, clock cycles with pressure level > 1.
+5'h0B: PRESS, clock cycles with pressure level > 2.
+5'h0C: FILT0, packets selected by Filter 0.
+5'h0D: FILT1, packets selected by Filter 1.
+5'h0E: FILT2, packets selected by Filter 2.
+5'h0F: FILT3, packets selected by Filter 3.
+5'h10: CHAIN, carry from counter 2m to counter 2m + 1.
+5'h11: LUT_BYTE_EN, enabled payload byte in packets selected
+by the LUT.
+5'h12: LUT_BYTE, total number of payload bytes in packets
+selected by the LUT.
+5'h13: FILT_BYTE_EN, enabled payload byte in packets selected
+by the associated filter.
+5'h14: FILT_BYTE, total number of payload bytes in packets
+selected by the associated filter.
+Others: Reserved
+
+Probe_Counters_2_AlarmMode
+Address: Operational Base + offset (0x0228)
+Bit Attr Reset Value
+Description
+31:2 RO 0x00000000 reserved
+Counters_2_AlarmMode
+Register AlarmMode is a 2-bit register that defines the statisticsalarm behavior of the counter.
+2'b00: OFF, the comparison is disabled.
+2'b01: MIN, if the value of the counter is less than the
+StatAlarmMin register at the dump period, the StatAlarmStatus
+1:0
+RW 0x0
+bit is set.
+2'b10: MAX, if the value of the counter is greater than the
+StatAlarmMax register at the dump period, the StatAlarmStatus
+bit is set.
+2'b11: MIN_MAX, if the value of the counter is less than the
+StatAlarmMin register or greater than the StatAlarmMax register
+at the dump period, the corresponding StatAlarmStatus bit is set.
+Probe_Counters_2_Val
+Address: Operational Base + offset (0x022C)
+Bit Attr Reset Value
+31:16 RO 0x0000
+reserved
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+50
+
+RK3588 TRM-Part2
+Bit
+15:0
+
+Attr Reset Value
+RO
+
+0x0000
+
+Description
+Counters_2_Val
+Register Val contains the statistics counter value either pending
+StatAlarm output, or when statistics collection is suspended
+subsequent to triggers or signal statSuspend.
+
+Probe_Counters_3_Src
+Address: Operational Base + offset (0x0234)
+Bit Attr Reset Value
+Description
+31:5 RO 0x0000000
+reserved
+IntEvent
+Internal packet event
+5'h00: OFF, counter disabled.
+5'h01: CYCLE, probe clock cycles.
+5'h02: IDLE, idle cycles during which no packet data is observed.
+5'h03: XFER, transfer cycles during which packet data is
+transferred.
+5'h04: BUSY, busy cycles during which the packet data is made
+available by the transmitting agent but the receiving agent is not
+ready to receive it.
+5'h05: WAIT, wait cycles during a packet in which the
+transmitting agent suspends the transfer of packet data.
+5'h06: PKT, packets.
+5'h07: LUT, packets selected by the LUT.
+5'h08: BYTE, total number of payload bytes.
+5'h09: PRESS, clock cycles with pressure level > 0.
+4:0
+RW 0x00
+5'h0A: PRESS, clock cycles with pressure level > 1.
+5'h0B: PRESS, clock cycles with pressure level > 2.
+5'h0C: FILT0, packets selected by Filter 0.
+5'h0D: FILT1, packets selected by Filter 1.
+5'h0E: FILT2, packets selected by Filter 2.
+5'h0F: FILT3, packets selected by Filter 3.
+5'h10: CHAIN, carry from counter 2m to counter 2m + 1.
+5'h11: LUT_BYTE_EN, enabled payload byte in packets selected
+by the LUT.
+5'h12: LUT_BYTE, total number of payload bytes in packets
+selected by the LUT.
+5'h13: FILT_BYTE_EN, enabled payload byte in packets selected
+by the associated filter.
+5'h14: FILT_BYTE, total number of payload bytes in packets
+selected by the associated filter.
+Others: Reserved
+Probe_Counters_3_AlarmMode
+Address: Operational Base + offset (0x0238)
+Bit Attr Reset Value
+31:2 RO 0x00000000 reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+51
+
+RK3588 TRM-Part2
+Bit
+
+1:0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+Counters_3_AlarmMode
+Register AlarmMode is a 2-bit register that defines the statisticsalarm behavior of the counter.
+2'b00: OFF, the comparison is disabled.
+2'b01: MIN, if the value of the counter is less than the
+StatAlarmMin register at the dump period, the StatAlarmStatus
+bit is set.
+2'b10: MAX, if the value of the counter is greater than the
+StatAlarmMax register at the dump period, the StatAlarmStatus
+bit is set.
+2'b11: MIN_MAX, if the value of the counter is less than the
+StatAlarmMin register or greater than the StatAlarmMax register
+at the dump period, the corresponding StatAlarmStatus bit is set.
+
+Probe_Counters_3_Val
+Address: Operational Base + offset (0x023C)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+Counters_3_Val
+Register Val is a read-only register that is always present. The
+15:0 RO 0x0000
+register contains the statistics counter value either pending
+StatAlarm output, or when statistics collection is suspended
+subsequent to triggers or signal statSuspend.
+
+1.5 Application Notes
+1.5.1 Idle Request
+
+The main interconnect supports flushing the ongoing transaction when the software need to
+do so. If the GPU power domain needs to disconnect from the main interconnect, Idle request
+has to be sent to GPU BIU, the BIU will respond an “ACK”, and when it’s ready to be disconnect,
+one Idle signal will be sent out. Then, if GPU still has transaction to be sent to the DDR
+scheduler, it will be stalled by the BIU.
+If the GPU system power domain is disconnected as the above flow, then CPU wants to access
+to the GPU system, it will response error or held to CPU according to the corresponding GRF
+register setting.
+The sequence is like following figure shows:
+
+The idle request is controlled by PMU.
+
+Fig. 1-3 Idle request
+
+1.5.2 Counting Packets Over a Fixed Period
+
+The following programming sequence counts packets at a given probe point using statistic
+counter 0.
+⚫ Select the interesting probe listed in Table 1-3.
+⚫ Set field StatEn to 1 in register MainCtl.
+⚫ Set register Counters_0_Src to 0x6 (PKT) to count packets.
+⚫ Specify the period during which the packets should be counted by setting register
+StatPeriod to: log2(interval expressed in number of probe clock cycles).
+⚫ Set field GlobalEn of register CfgCtl to 1 to enable packet counting.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+52
+
+RK3588 TRM-Part2
+Once time 2StatPeriod has elapsed, the number of packets counted is dumped to the observer
+and can be read from Counters_0_Val.
+
+1.5.3 Configuring and Managing the Statistics Alarm
+
+The following programming sequence asserts the statistics alarm signal StatAlarm if the
+number of packets exceeds a specified threshold when the statistics dump occurs.
+⚫ Set register StatAlarmMax to the number of packets that should trigger the statistics
+alarm.
+⚫ Set the counter alarm mode to MAX by setting register Counters_0_AlarmMode to 2.
+This triggers the alarm if the count value is greater than StatAlarmMax.
+⚫ Set field StatCondDump to 0 in register MainCtl to generate a statistics alarm event and
+freeze the statistic counter value if the statistic counter exceeds the value of
+StatAlarmMax when a statistics dump occurs.
+⚫ Set field AlarmEn to 1 in register MainCtl and ensure that bit 0 of register StatAlarmEn is
+set to its default value of 1 to activate signal StatAlarm in the event of a statistics alarm.
+In the event that StatAlarm is asserted when the statistics dump period expires, the
+interrupt service routine should:
+1. Read the number of packets contained in register Counters_0_Val.
+2. Clear the statistics alarm by setting bit 0 to 1 in register StatAlarmClr.
+Alternatively, the statistics alarm function can be configured to not drive signal StatAlarm
+when a statistics alarm event occurs. This signal can be disabled by clearing bit 0 of register
+StatAlarmEn to 0.
+
+1.5.4 Counting Filtered Packets Over a Fixed Period
+
+The following programming sequence counts hits from packet filter 2 using statistic counter 0.
+⚫ Set field StatEn to 1 in register MainCtl.
+⚫ Set register Counters_0_Src to 0xE (FILT2) to count packets from filter 2.
+⚫ Specify the period during which the packets should be counted by setting register
+StatPeriod to: log2(interval expressed in number of probe clock cycles).
+⚫ Set field GlobalEn of register CfgCtl to 1 to enable packet counting.
+Once time 2StatPeriod has elapsed, the number of packets counted is dumped to the observer
+and can be read from Counters_0_Val.
+
+1.5.5 Measuring Bandwidth
+
+The following programming sequence example shows how a packet probe can be used to
+measure bandwidth at a probe point.
+Some important points to note about this example are:
+⚫ Statistics counters are chained together to support the maximum theoretical bandwidth.
+Counter 0 is configured to count bytes; counter 1 increments when counter 0 rolls over.
+⚫ The counter values are dumped to an observer after time 2StatPeriod.
+⚫ A maximum bandwidth threshold is defined. A statistics alarm signal is asserted if this
+threshold is exceeded when statistics data is dumped. The comparison is made against
+the concatenated value of the two counters.
+The programming sequence is as follows:
+⚫ Select the interested probe listed in Table 1-3.
+⚫ Set field StatEn to 1 in register MainCtl.
+⚫ Set register Counters_0_Src to 0x8 (BYTES) to count bytes.
+⚫ Set register Counters_1_Src to 0x10 (CHAIN) to increment when counter 0 wraps.
+⚫ Specify the period during which the bytes should be counted by setting register
+StatPeriod to: log2(interval expressed in number of probe clock cycles).
+⚫ Set register Counters_0_AlarmMode to 0x2 (MAX) and Counters_1_AlarmMode to 0x0
+(OFF). A statistics alarm will be raised if the combined count of counter 0 and counter 1
+is greater than the value specified in register StatAlarmMax.
+⚫ Set register StatAlarmMax to a value corresponding to the upper bandwidth limit
+required to trigger the statistics alarm.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+53
+
+RK3588 TRM-Part2
+⚫
+⚫
+
+Set field AlarmEn to 1 in register MainCtl. Ensure bit 0 of register StatAlarmEn is set to 1
+(default value) if the alarm output signal StatAlarm is required.
+Set field GlobalEn of register CfgCtl to 1 to enable the counting of bytes.
+
+In the event that StatAlarm is asserted, the interrupt service routine should:
+⚫ Optionally read the number of packets contained in registers Counters_0_Val and
+Counters_1_Val.
+⚫ Clear the statistics alarm by setting bit 0 to 1 in StatAlarmClr. The signal StatAlarm will
+be de-asserted.
+Measuring bandwidth of certain master
+If a certain master’s bandwidth needs to be measured, the probe corresponding to this master
+can be find in Table 1-3.
+⚫ The register Counters_0_Src should be set to 0x14 (FILT_BYTE) to count payload bytes
+in packets selected by the associated filter: Filter_0.
+⚫ Filters_0_opcode should be set to 0xf to enable all kinds of operation packets.
+⚫ Filters_0_status should be set to 0x3 to enable request and response packets.
+⚫ Filters_0_length should be set to 0xf to enable all packets whose payload length is less
+than 2**16 bytes.
+⚫ Filters_0_usemask should be set to 0x7f to match the MID field in the packets.
+⚫ Filters_0_usebase should be set to the MID value of the master, the MID value of each
+master can be find in Table 1-3.
+
+1.5.6 Address Hash and DDR Channel Interleave
+
+The interleave granule and address hash control of DSU can be configured by setting
+DSU_SGRF registers: SGRF_DDR_HASH_CON0 - SGRF_DDR_HASH_CON7. The interleave
+granule and address hash control of other masters except DSU can be configured by setting
+BUS_SGRF registers: DDR_BANK_HASH_CTRL - DDR_RANK_MASK0.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+54
+
+RK3588 TRM-Part2
+

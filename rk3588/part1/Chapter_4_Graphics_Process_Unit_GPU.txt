@@ -1,0 +1,125 @@
+Chapter 4 Graphics Process Unit (GPU)
+4
+
+4.1 Overview
+The Mali-G610 GPU is a graphics acceleration platform that is based on open standards. It
+supports 2D graphics, 3D graphics, and General Purpose computing on GPU (GPGPU).
+
+4.1.1 Features
+The features listed below which may or may not be present in actual product, may be
+subject to the third party licensing requirements. Please contact Rockchip for actual product
+feature configurations and licensing requirements.
+The Arm Mali-G610 GPU has significant features and properties.
+◼ Support of multiple clock and voltage domains, allowing you to maximize performance
+within a given power budget.
+◼ Programmable architecture.
+◼ API feature set with support for shader-based and fixed-function graphics APIs.
+◼ Anti-aliasing capabilities.
+◼ Effective core for General Purpose computing on GPU (GPGPU) applications.
+◼ High memory bandwidth and low power consumption for 3D graphics content.
+◼ Scalability for products from smartphones to high-end mobile computing.
+◼ Performance leading 3D graphics.
+◼ AMBA 4 AXI‑Lite slave interface for GPU configuration.
+◼ 128-bit or 256-bit AMBA 4 ACE master interface for external memory access.
+◼ Easy integration.
+◼ Latency tolerance.
+◼ Compressed texture formats.
+◼ Configurable per-core power management for enabling the optimal power and
+performance combination for each application.
+◼ Coherency aware interconnects for system memory and resource sharing.
+◼ Arm Frame Buffer Compression (AFBC) 1.3.
+◼ 8-bit, 10-bit, and 16-bit YUV input and output formats.
+◼ Secure processing of DRM-protected content.
+◼ Support Serial Wire debug for embedded MCU
+
+4.1.2 Standard
+The GPU hardware and software support compute standards and graphics API standards.
+The GPU supports these compute API standards:
+◼ OpenCL 2.2 Full Profile
+The GPU supports these graphics API standards:
+◼ OpenGLES 1.1, 2.0, and 3.2
+◼ Vulkan 1.2
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+364
+
+RK3588 TRM-Part1
+
+4.2 Block Diagram
+
+Fig. 4-1 GPU Architecture
+
+4.3 Function Description
+Please refer to the document “ARM_Odin_r0p0_00eac0_TechnicalReferenceManual.pdf” for
+the GPU detail description.
+
+4.4 Register Description
+Please refer to the document “ARM_Odin_r0p0_00eac0_TechnicalReferenceManual.pdf” for
+the GPU detail description.
+
+4.5 Interface Description
+There are two sets of serial debug interface for the embedded MCU. When we debug using
+serial wire, not only set IOMUX, but also configure the bit[11:10] of SYS_GRF_SOC_CON10
+to select the GPU MCU.
+Module Pin
+mcujtag_tckm0
+
+Table 4-1 MCU Serial Wire Debug Interface Description
+Direction
+Pad Name
+IOMUX Setting
+I
+
+SDMMC_CMD/PDM1_CLK1_M0/M
+CU_JTAG_TCK_M0/CAN0_TX_M1
+/UART5_RX_M0/PWM7_IR_M1/G
+PIO4_D4_u
+mcujtag_tmsm0
+I/O
+SDMMC_CLK/PDM1_CLK0_M0/TE
+ST_CLKOUT_M0/MCU_JTAG_TMS
+_M0/CAN0_RX_M1/UART5_TX_M
+0/GPIO4_D5_d
+mcujtag_tckm1
+I
+HDMI_TX0_HPD_M1/PCIE30X2_P
+ERSTN_M2/HDMI_RX_HPDOUT_
+M1/MCU_JTAG_TCK_M1/UART9_
+RX_M2/SPI0_CS0_M3/GPIO3_D4
+_d
+mcujtag_tmsm1
+I/O
+PCIE30X4_BUTTON_RSTN/DP1_
+HPDIN_M0/MCU_JTAG_TMS_M1/
+UART9_TX_M2/PWM11_IR_M3/S
+PI0_CS1_M3/GPIO3_D5_d
+Notes: I=input, O=output, I/O=input/output, bidirectional
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+BUS_IOC_GPIO4D_IOMUX_SEL_H[3:
+0] = 4’h5
+BUS_IOC_GPIO4D_IOMUX_SEL_H[7:
+4] = 4’h5
+
+BUS_IOC_GPIO3D_IOMUX_SEL_H[3:
+0] = 4’h6
+
+BUS_IOC_GPIO3D_IOMUX_SEL_H[7:
+4] = 4’h6
+
+365
+
+RK3588 TRM-Part1
+
+4.6 Application Notes
+Please refer to the document “ARM_Odin_r0p0_00eac0_TechnicalReferenceManual.pdf” for
+the GPU detail description.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+366
+
+RK3588 TRM-Part1
+

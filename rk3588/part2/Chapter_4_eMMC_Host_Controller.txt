@@ -1,0 +1,5590 @@
+Chapter 4 eMMC Host Controller
+4.1 Overview
+
+The eMMC Host Controller is highly programmable, and provides high performance with AXI
+as the bus interface for data transfer (master interface) and AHB as its slave interface.
+It supports following features:
+⚫ Supports SD-HCI Host version 4 mode or less
+◼ Supports same SD-HCI register set for eMMC transfers
+◼ Supports Command Queuing Engine (CQE) and compliant with eMMC CQ HCI
+◼ Supports the following data transfer types: CPU, SDMA, AMDM2, ADMA3
+⚫ Supports eMMC protocols including eMMC 5.1
+◼ Supports Auto-tuning
+◼ Supports 4-bit/8-bit interface
+◼ Supports legacy, High Speed SDR, High Speed DDR, HS200, and HS400 speed
+modes
+◼ Supports boot operation and alternative boot operation
+⚫ AHB Slave Interface:
+◼ Supports 32-bit data width and address width
+⚫ AXI Master Interface:
+◼ Supports 32-bit address width and 64-bit data width
+⚫ Phase adjustment:
+◼ Supports phase auto adjustment for transmit clock, sample clock and data strobe,
+command output.
+
+4.2 Block Diagram
+
+The Host Controller consists of the following main functional blocks.
+
+AXI Master
+
+AXI Master IF
+
+CQE
+
+DMA Engine
+
+TLU
+eMMC Device
+
+AHB Slave
+
+AHB Slave IF
+
+Host Controller
+Registers
+
+SRAM
+Controller
+
+CAU
+
+Fig. 4-1 EMMC Host Control Block Diagram
+
+4.3 Function Description
+
+4.3.1 The AXI Master Bus Interface Unit
+
+This Master Bus Interface Unit implements the logic to transfer data on the AMBA Extensible
+Interface Bus (AXI) bus. The AXI interface transfers data to and from the system memory
+through the AXI master bus interface, respectively.
+
+4.3.2 The AHB Slave Bus Interface Unit
+
+The AHB slave bus interface module implements the logic to primarily access the host
+registers by using an external AMBA high-performance (AHB) bus.
+
+4.3.3 Host Controller Registers
+
+The host controller register unit comprises of the standard SD host controller registers as
+specified in the SD Specifications Part A2 SD Host Controller Standard Specification Version
+4.20a. It also includes Command Queuing registers compliance to JEDEC eMMC 5.1 HCI
+specification.
+
+4.3.4 DMA Engine
+
+The DMA Engine unit handles data transfer between the host and system memory.
+⚫ Support SDMA/ADMA2/ADMA3 modes
+⚫
+Fetch the descriptor and data
+⚫ The same DMA engine is used to interleave data transfer and descriptor fetch. This
+enables new task descriptor fetches (for CMD44 and CMD45) while DMA is moving data
+during task execution (for CMD46 and CMD47).
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+640
+
+RK3588 TRM-Part2
+⚫
+⚫
+⚫
+
+The AXI transaction ID 0 is used for moving data and AXI transaction ID 1 is used to
+fetch task descriptors.
+Pre-fetch data for back-to-back eMMC write commands
+Write back the received data packets to the system memory
+
+4.3.5 SRAM Controller
+
+The SRAM controller interfaces the packet buffer of the host and the transaction controller
+units. The SRAM is a single clock single-port RAM synchronous to the core base clock. The
+width is 64-bit, the depth is 288-location.
+
+4.3.6 Command Queuing Engine
+
+This module implements command queuing and includes the following:
+⚫ Task scheduler with the ability to prioritize execution of tasks
+⚫ Control logic for descriptor fetch
+⚫ Control and sequence task submission and execution
+⚫ Status polling
+⚫ Timers and counter dedicated for CQE operation
+⚫ Interrupt coalescing logic
+
+4.3.7 Transfer Level Unit
+The TLU manages the command/response and data flow for communication with memory
+cards.
+
+4.3.8 Clock Adjustment Unit
+
+The clock adjustment unit (CAU) will detect the clock period and get the delay precision,
+adjust the clock phase base on the dedicate delay element. Also, you can program the
+register to set the delay precision. The flowing signals supports adjustment: transmit clock,
+sample clock and data strobe, command output.
+
+4.4 Register Description
+4.4.1 Registers Summary
+Name
+
+Offset
+
+Size
+
+EMMC_SDMASA
+0x0000
+EMMC_BLOCKSIZE
+0x0004
+EMMC_BLOCKCOUNT
+0x0006
+EMMC_ARGUMENT
+0x0008
+EMMC_XFER_MODE
+0x000C
+EMMC_CMD
+0x000E
+EMMC_RESP01
+0x0010
+EMMC_RESP23
+0x0014
+EMMC_RESP45
+0x0018
+EMMC_RESP67
+0x001C
+EMMC_BUF_DATA
+0x0020
+EMMC_PSTATE
+0x0024
+EMMC_HOST_CTRL1
+0x0028
+EMMC_PWR_CTRL
+0x0029
+EMMC_BGAP_CTRL
+0x002A
+EMMC_CLK_CTRL
+0x002C
+EMMC_TOUT_CTRL
+0x002E
+EMMC_SW_RST
+0x002F
+EMMC_NORMAL_INT_STA
+0x0030
+T
+EMMC_ERROR_INT_STAT 0x0032
+EMMC_NORMAL_INT_STA
+0x0034
+T_EN
+EMMC_ERROR_INT_STAT_
+0x0036
+EN
+EMMC_NORMAL_INT_SIG
+0x0038
+NAL_EN
+
+W
+HW
+HW
+W
+HW
+HW
+W
+W
+W
+W
+W
+W
+B
+B
+B
+HW
+B
+B
+
+Reset
+Description
+Value
+0x00000000 SDMA System Address Register
+0x00000000 Block Size Register
+0x00000000 Block Count Register
+0x00000000 Argument Register
+0x00000000 Transfer Mode Register
+0x00000000 Command Register
+0x00000000 Response Register 0/1
+0x00000000 Response Register 2/3
+0x00000000 Response Register 4/5
+0x00000000 Response Register 6/7
+0x00000000 Buffer Data Port Register
+0x19FF0000 Present State Register
+0x00000000 Host Control 1 Register
+0x00000000 Power Control Register
+0x00000000 Block Gap Control Register
+0x00000000 Clock Control Register
+0x00000000 Timeout Control Register
+0x00000000 Software Reset Register
+
+HW 0x00000000 Normal Interrupt Status Register
+HW 0x00000000 Error Interrupt Status Register
+Normal Interrupt Status Enable
+HW 0x00000000
+Register
+Error Interrupt Status Enable
+HW 0x00000000
+Register
+Normal Interrupt Signal Enable
+HW 0x00000000
+Register
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+641
+
+RK3588 TRM-Part2
+Name
+EMMC_ERROR_INT_SIGN
+AL_EN
+EMMC_AUTO_CMD_STAT
+EMMC_HOST_CTRL2
+EMMC_CAPABILITIES1
+EMMC_CAPABILITIES2
+EMMC_FORCE_AUTO_CM
+D_STAT
+EMMC_FORC_ERR_INT_S
+TAT
+EMMC_ADMA_ERR_STAT
+EMMC_ADMA_SA
+
+Offset
+
+Size
+
+Reset
+Value
+
+Error Interrupt Signal Enable
+Register
+0x00000000 Auto CMD Error Status Register
+0x00000000 Host Control 2 Register
+0x40EDC880 Capabilities Register 1
+0x000A2077 Capabilities Register 2
+Force Event Register for Auto CMD
+0x00000000
+Error Status Register
+Force Event Register for Error
+0x00000000
+Interrupt Status Register
+0x00000000 ADMA Error Status Register
+0x00000000 ADMA System Address Register
+Preset Value for Initialization
+0x00000000
+Register
+Preset Value for Default Speed
+0x00000000
+Register
+Preset Value for High Speed
+0x00000000
+Register
+0x00000000 Preset Value for SDR12 Register
+0x00000000 Preset Value for SDR25 Register
+0x00000000 Preset Value for SDR50 Register
+0x00000000 Preset Value for SDR104 Register
+0x00000000 Preset Value for DDR50 Register
+ADMA3 Integrated Descriptor
+0x00000000
+Address Register
+
+0x003A
+
+HW 0x00000000
+
+0x003C
+0x003E
+0x0040
+0x0044
+
+HW
+HW
+W
+W
+
+0x0050
+
+HW
+
+0x0052
+
+HW
+
+0x0054
+0x0058
+
+B
+W
+
+EMMC_PRESET_INIT
+
+0x0060
+
+HW
+
+EMMC_PRESET_DS
+
+0x0062
+
+HW
+
+EMMC_PRESET_HS
+
+0x0064
+
+HW
+
+EMMC_PRESET_SDR12
+EMMC_PRESET_SDR25
+EMMC_PRESET_SDR50
+EMMC_PRESET_SDR104
+EMMC_PRESET_DDR50
+
+0x0066
+0x0068
+0x006A
+0x006C
+0x006E
+
+HW
+HW
+HW
+HW
+HW
+
+EMMC_ADMA_ID
+
+0x0078
+
+W
+
+EMMC_SLOT_INTR_STATU
+0x00FC
+S
+EMMC_HOST_CNTRL_VER
+0x00FE
+S
+
+Description
+
+HW 0x00000000 Slot Interrupt Status Register
+HW 0x00001005 Host Controller Version Register
+
+EMMC_CQVER
+
+0x0180
+
+W
+
+EMMC_CQCAP
+
+0x0184
+
+W
+
+EMMC_CQCFG
+
+0x0188
+
+W
+
+EMMC_CQCTRL
+
+0x018C
+
+W
+
+EMMC_CQIS
+
+0x0190
+
+W
+
+EMMC_CQISE
+
+0x0194
+
+W
+
+EMMC_CQISGE
+
+0x0198
+
+W
+
+EMMC_CQIC
+
+0x019C
+
+W
+
+EMMC_CQTDLBA
+
+0x01A0
+
+W
+
+EMMC_CQTDBR
+
+0x01A8
+
+W
+
+EMMC_CQTCN
+
+0x01AC
+
+W
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Command Queuing Version
+Register
+Command Queuing Capabilities
+0x00000000
+Register
+Command Queuing Configuration
+0x00000000
+Register
+Command Queuing Control
+0x00000000
+Register
+Command Queuing Interrupt
+0x00000000
+Status Register
+Command Queuing Interrupt
+0x00000000
+Status Enable Register
+Command Queuing Interrupt
+0x00000000
+Signal Enable Register
+Command Queuing Interrupt
+0x00000000
+Coalescing Register
+Command Queuing Task
+0x00000000 Descriptor List Base Address
+Register
+Command Queuing Door Bell
+0x00000000
+Register
+Command Queuing Task Clear
+0x00000000
+Notification Register
+0x00000510
+
+642
+
+RK3588 TRM-Part2
+Name
+
+Offset
+
+EMMC_CQDQS
+
+0x01B0
+
+EMMC_CQDPT
+
+0x01B4
+
+EMMC_CQTCLR
+
+0x01B8
+
+EMMC_CQSSC1
+
+0x01C0
+
+EMMC_CQSSC2
+
+0x01C4
+
+EMMC_CQCRDCT
+
+0x01C8
+
+EMMC_CQRMEM
+
+0x01D0
+
+EMMC_CQTERRI
+
+0x01D4
+
+EMMC_CQCRI
+
+0x01D8
+
+EMMC_CQCRA
+
+0x01DC
+
+EMMC_VER_ID
+EMMC_VER_TYPE
+EMMC_HOST_CTRL3
+EMMC_EMMC_CTRL
+EMMC_BOOT_CTRL
+EMMC_AT_CTRL
+EMMC_AT_STAT
+EMMC_DLL_CTRL
+
+0x0500
+0x0504
+0x0508
+0x052C
+0x052E
+0x0540
+0x0544
+0x0800
+
+EMMC_DLL_RXCLK
+
+0x0804
+
+EMMC_DLL_TXCLK
+
+0x0808
+
+EMMC_DLL_STRBIN
+
+0x080C
+
+EMMC_DLL_CMDOUT
+
+0x0810
+
+EMMC_DLL_STATUS0
+EMMC_DLL_STATUS1
+
+0x0840
+0x0844
+
+Reset
+Value
+
+Size
+
+Description
+
+Command Queuing Device Queue
+Status Register
+Command Queuing Device
+W
+0x00000000
+Pending Tasks Register
+Command Queuing Task Clear
+W
+0x00000000
+Register
+Command Queuing Send Status
+W
+0x00011000
+Configuration 1 Register
+Command Queuing Send Status
+W
+0x00000000
+Configuration 2 Register
+Command Queuing Command
+W
+0x00000000 Response For Direct Command
+Register
+Command Queuing Command
+W
+0xFDF9A080 Response Mode Error Mask
+Register
+Command Queuing Task Error
+W
+0x00000000
+Information Register
+Command Queuing Command
+W
+0x00000000
+Response Index Register
+Command Queuing Command
+W
+0x00000000
+Response Argument Register
+W
+0x00000000 Host Version ID Register
+W
+0x00000000 Host Version Type Register
+B
+0x00000000 Host Control 3 Register
+HW 0x00000004 EMMC Control Register
+HW 0x00000000 Boot Control Register
+W
+0x00000000 Tuning Control Register
+W
+0x00000000 Tuning Status Register
+W
+0x00000000 DLL Global Control Register
+DLL Control Register For Receive
+W
+0x00000000
+Clock
+DLL Control Register For Transmit
+W
+0x00000000
+Clock
+DLL Control Register For Strobe
+W
+0x00000000
+Input
+DLL Control Register For
+W
+0x00000000
+Command Output
+W
+0x00000000 DLL Status Register 0
+W
+0x00000000 DLL Status Register 1
+W
+
+0x00000000
+
+Notes:Size:B- Byte (8 bits) access, HW- Half WORD (16 bits) access, W-WORD (32 bits) access
+
+4.4.2 Detail Register Description
+
+EMMC_SDMASA
+Address: Operational Base + offset (0x0000)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+643
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+BLOCKCNT_SDMASA
+32-bit Block Count (SDMA System Address).
+1. SDMA System Address (Host Version 4 Enable = 0): This
+register contains the system memory address for an SDMA
+transfer in the 32-bit addressing mode. When the Host Controller
+stops an SDMA transfer, this register points to the system
+address of the next contiguous data position. It can be accessed
+only if no transaction is executing. Reading this register during
+data transfers may return an invalid value.
+2. 32-bit Block Count (Host Version 4 Enable = 1): From the Host
+Controller Version 4.10 specification, this register is redefined as
+32-bit Block Count. The Host Controller decrements the block
+count of this register for every block transfer and the data
+transfer stops when the count reaches zero. This register must be
+accessed when no transaction is executing. Reading this register
+during data transfers may return invalid value.
+Values:
+32'hFFFFFFFF: 1 Block
+......
+32'h00000002: 2 Blocks
+32'h00000001: 1 Block
+32'h00000000: Stop Count
+Note:
+a. For Host Version 4 Enable = 0, the Host driver does not
+program the system address in this register while operating in
+ADMA mode. The system address must be programmed in the
+ADMA System Address register.
+b. For Host Version 4 Enable = 0, the Host driver programs a
+non-zero 32-bit block count value in this register when Auto
+CMD23 is enabled for non-DMA and ADMA modes. Auto CMD23
+cannot be used with SDMA.
+c. This register must be programmed with a non-zero value for
+data transfer if the 32-bit Block count register is used instead of
+the 16-bit Block count register.
+
+EMMC_BLOCKSIZE
+Address: Operational Base + offset (0x0004)
+Bit Attr Reset Value
+Description
+15
+RO 0x0
+reserved
+SDMA_BUF_BDARY
+SDMA Buffer Boundary.
+These bits specify the size of contiguous buffer in system
+memory. The SDMA transfer waits at every boundary specified by
+these fields and the Host Controller generates the DMA interrupt
+to request the Host Driver to update the SDMA System Address
+register.
+Values:
+14:12 RW 0x0
+3'h0: 4K bytes SDMA Buffer Boundary
+3'h1: 8K bytes SDMA Buffer Boundary
+3'h2: 16K bytes SDMA Buffer Boundary
+3'h3: 32K bytes SDMA Buffer Boundary
+3'h4: 64K bytes SDMA Buffer Boundary
+3'h5: 128K bytes SDMA Buffer Boundary
+3'h6: 256K bytes SDMA Buffer Boundary
+3'h7: 512K bytes SDMA Buffer Boundary
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+644
+
+RK3588 TRM-Part2
+Bit
+
+11:0
+
+Attr Reset Value
+
+RW 0x000
+
+Description
+XFER_BLOCK_SIZE
+Transfer Block Size.
+These bits specify the block size of data transfers. In case of
+memory, it is set to 512 bytes. It can be accessed only if no
+transaction is executing. Read operations during transfers may
+return an invalid value, and write operations are ignored.
+Values:
+12'h1: 1 byte
+12'h2: 2 bytes
+12'h3: 3 bytes
+......
+12'h1FF: 511 byte
+12'h200: 512 bytes
+......
+12'h800: 2048 bytes
+Note:
+This register must be programmed with a non-zero value for data
+transfer.
+
+EMMC_BLOCKCOUNT
+Address: Operational Base + offset (0x0006)
+Bit Attr Reset Value
+Description
+BLOCK_CNT
+16-bit Block Count.
+If the Host Version 4 Enable bit is set 0 or the 16-bit Block Count
+register is set to non-zero, the 16-bit Block Count register is
+selected.
+If the Host Version 4 Enable bit is set 1 and the 16-bit Block
+Count register is set to zero, the 32-bit Block Count register is
+selected.
+Values:
+15:0 RW 0x0000
+16'h0: Stop Count
+16'h1: 1 Block
+16'h2: 2 Blocks
+......
+16'hFFFF: 65535 Blocks
+Note:
+For Host Version 4 Enable = 0, this register must be set to 0
+before programming the 32-bit block count register when Auto
+CMD23 is enabled for non-DMA and ADMA modes.
+EMMC_ARGUMENT
+Address: Operational Base + offset (0x0008)
+Bit Attr Reset Value
+Description
+ARGUMENT
+Command Argument.
+31:0 RW 0x00000000
+These bits specify the SD/eMMC command argument that is
+specified in bits 39-8 of the Command format.
+EMMC_XFER_MODE
+Address: Operational Base + offset (0x000C)
+Bit Attr Reset Value
+15:9 RO 0x00
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+645
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+8
+
+RW 0x0
+
+7
+
+RW 0x0
+
+6
+
+RW 0x0
+
+5
+
+RW 0x0
+
+Description
+RESP_INT_DISABLE
+Response Interrupt Disable.
+The Host Controller supports response check function to avoid
+overhead of response error check by the Host driver. Response
+types of only R1 and R5 can be checked by the Controller.
+If Host Driver checks the response error, set this bit to 0 and wait
+for Command Complete Interrupt and then check the response
+register.
+If the Host Controller checks the response error, set this bit to 1
+and set the Response Error Check Enable bit to 1. The Command
+Complete Interrupt is disabled by this bit regardless of the
+Command Complete Signal Enable.
+Note:
+During tuning (when the Execute Tuning bit in the Host Control2
+register is set), the Command Complete Interrupt is not
+generated irrespective of the Response Interrupt Disable setting.
+Values:
+1'b0: Response Interrupt is enabled
+1'b1: Response Interrupt is disabled
+RESP_ERR_CHK_ENABLE
+Response Error Check Enable.
+The Host Controller supports response check function to avoid
+overhead of response error check by Host driver.
+Response types of only R1 and R5 can be checked by the
+Controller. If the Host Controller checks the response error, set
+this bit to 1 and set Response Interrupt Disable to 1. If an error is
+detected, the Response Error interrupt is generated in the Error
+Interrupt Status register.
+Note:
+a. Response error check must not be enabled for any response
+type other than R1 and R5.
+b. Response check must not be enabled for the tuning command.
+Values:
+1'b0: Response Error Check is disabled
+1'b1: Response Error Check is enabled
+RESP_TYPE
+Response Type R1/R5.
+This bit selects either R1 or R5 as a response type when the
+Response Error Check is selected.
+Values:
+1'b0: R1
+1'b1: R5
+MULTI_BLK_SEL
+Multi/Single Block Select.
+This bit is set when issuing multiple-block transfer commands
+using the DAT line. If this bit is set to 0, it is not necessary to set
+the Block Count register.
+Values:
+1'b0: Single Block
+1'b1: Multiple Block
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+646
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+4
+
+RW 0x0
+
+3:2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+DATA_XFER_DIR
+Data Transfer Direction Select.
+This bit defines the direction of DAT line data transfers. This bit is
+set to 1 by the Host Driver to transfer data from the SD/eMMC
+card to the Host Controller and it is set to 0 for all other
+commands.
+Values:
+1'b0: Write (Host to Card)
+1'b1: Read (Card to Host)
+AUTO_CMD_ENABLE
+Auto Command Enable.
+This field determines use of Auto Command functions.
+Values:
+2'h0: Auto Command Disabled
+2'h1: Auto CMD12 Enable
+2'h2: Auto CMD23 Enable
+2'h3: Auto CMD Auto Select
+BLOCK_COUNT_ENABLE
+Block Count Enable.
+This bit is used to enable the Block Count register, which is
+relevant for multiple block transfers. If this bit is set to 0, the
+Block Count register is disabled, which is useful in executing an
+infinite transfer. The Host Driver must set this bit to 0 when
+ADMA is used.
+Values:
+1'b0: Disable
+1'b1: Enable
+DMA_ENABLE
+DMA Enable.
+This bit enables the DMA functionality. If this bit is set to 1, a
+DMA operation begins when the Host Driver writes to the
+Command register. You can select one of the DMA modes by
+using DMA Select in the Host Control 1 register.
+Values:
+1'b0: No data transfer or Non-DMA data transfer
+1'b1: DMA Data transfer
+
+EMMC_CMD
+Address: Operational Base + offset (0x000E)
+Bit Attr Reset Value
+Description
+15:14 RO 0x0
+reserved
+CMD_INDEX
+Command Index.
+13:8 RW 0x00
+These bits are set to the command number that is specified in
+bits 45-40 of the command format.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+647
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+7:6
+
+RW 0x0
+
+5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+3
+
+RW 0x0
+
+Description
+CMD_TYPE
+Command Type.
+These bits indicate the command type.
+Note:
+While issuing Abort CMD using CMD12/CMD52 or reset CMD using
+CMD0/CMD52, CMD_TYPE field shall be set to 0x3.
+Values:
+2'h0: Normal
+2'h1: Suspend
+2'h2: Resume
+2'h3: Abort
+DATA_PRESENT_SEL
+Data Present Select.
+This bit is set to 1 to indicate that data is present and that the
+data is transferred using the DAT line. This bit is set to 0 in the
+following instances:
+a. Command using the CMD line
+b. Command with no data transfer but using busy signal on the
+DAT[0] line
+c. Resume Command
+Values:
+1'b0: No Data Present
+1'b1: Data Present
+CMD_IDX_CHK_ENABLE
+Command Index Check Enable.
+This bit enables the Host Controller to check the index field in the
+response to verify if it has the same value as the command index.
+If the value is not the same, it is reported as a Command Index
+error.
+Note:
+a. Index check enable must be set to 0 for the command with no
+response, R2 response, R3 response and R4 response.
+b. For the tuning command, this bit must always be set to enable
+the index check.
+Values:
+1'b0: Disable
+1'b1: Enable
+CMD_CRC_CHK_ENABLE
+Command CRC Check Enable.
+This bit enables the Host Controller to check the CRC field in the
+response. If an error is detected, it is reported as a Command
+CRC error.
+Note:
+a. CRC check enable must be set to 0 for the command with no
+response, R3 response, and R4 response.
+b. For the tuning command, this bit must always be set to 1 to
+enable the CRC check.
+Values:
+1'b0: Disable
+1'b1: Enable
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+648
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+2
+
+RW 0x0
+
+1:0
+
+RW 0x0
+
+Description
+SUB_CMD_FLAG
+Sub Command Flag.
+This bit distinguishes between a main command and a sub
+command.
+Values:
+1'b0: Main Command
+1'b1: Sub Command
+RESP_TYPE_SELECT
+Response Type Select.
+This bit indicates the type of response expected from the card.
+Values:
+2'h0: No Response
+2'h1: Response length 136
+2'h2: Response length 48
+2'h3: Response length 48, check Busy after response.
+
+EMMC_RESP01
+Address: Operational Base + offset (0x0010)
+Bit Attr Reset Value
+Description
+RESP01
+Command Response.
+These bits reflect 39-8 bits of SD/eMMC Response Field.
+31:0 RO 0x00000000
+Note:
+For Auto CMD, the 32-bit response (bits 39-8 of the Response
+Field) is updated in the RESP67 register.
+EMMC_RESP23
+Address: Operational Base + offset (0x0014)
+Bit Attr Reset Value
+Description
+RESP23
+31:0 RO 0x00000000 Command Response.
+These bits reflect 71-40 bits of the SD/eMMC Response Field.
+EMMC_RESP45
+Address: Operational Base + offset (0x0018)
+Bit Attr Reset Value
+Description
+RESP45
+31:0 WO 0x00000000 Command Response.
+These bits reflect 103-72 bits of the Response Field.
+EMMC_RESP67
+Address: Operational Base + offset (0x001C)
+Bit Attr Reset Value
+Description
+RESP67
+Command Response
+31:0 RO 0x00000000 These bits reflect bits 135-104 of SD/EMMC Response Field.
+For Auto CMD, this register also reflects the 32-bit response (bits
+39-8 of the Response Field).
+EMMC_BUF_DATA
+Address: Operational Base + offset (0x0020)
+Bit Attr Reset Value
+Description
+BUF_DATA
+31:0 RW 0x00000000 Buffer Data.
+These bits enable access to the Host Controller packet buffer.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+649
+
+RK3588 TRM-Part2
+EMMC_PSTATE
+Address: Operational Base + offset (0x0024)
+Bit Attr Reset Value
+Description
+31:29 RO 0x0
+reserved
+SUB_CMD_STAT
+Sub Command Status.
+This bit is used to distinguish between a main command and a
+28
+RO 0x1
+sub command status.
+Values:
+1'b0: Main Command Status
+1'b1: Sub Command Status
+CMD_ISSUE_ERR
+Command Not Issued by Error.
+This bit is set if a command cannot be issued after setting the
+27
+RO 0x1
+command register due to an error except the Auto CMD12 error.
+Values:
+1'b0: No error for issuing a command
+1'b1: Command cannot be issued
+26:25 RO 0x0
+reserved
+CMD_LINE_LVL
+Command-Line Signal Level.
+24
+RO 0x1
+This bit is used to check the CMD line level to recover from errors
+and for debugging.
+DAT_3_0
+DAT[3:0] Line Signal Level.
+23:20 RO 0xf
+This bit is used to check the DAT line level to recover from errors
+and for debugging.
+WR_PROTECT_SW_LVL
+Write Protect Switch Pin Level.
+This bit is supported only for memory and combo cards.
+19
+RO 0x1
+Values:
+1'b0: Write protected
+1'b1: Write enabled
+CARD_DETECT_PIN_LEVEL
+Card Detect Pin Level.
+18
+RO 0x1
+Values:
+1'b0: No card present
+1'b1: Card Present
+CARD_STABLE
+Card Stable.
+This bit indicates the stability of the Card Detect Pin Level. A card
+is not detected if this bit is set to 1 and the value of the
+17
+RO 0x1
+CARD_INSERTED bit is 0.
+Values:
+1'b0: Reset or Debouncing
+1'b1: No Card or Inserted
+CARD_INSERTED
+Card Inserted.
+This bit indicates whether a card has been inserted. The Host
+Controller debounces this signal so that Host Driver need not wait
+16
+RO 0x1
+for it to stabilize.
+Values:
+1'b0: Reset, Debouncing, or No card
+1'b1: Card Inserted
+15:12 RO 0x0
+reserved
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+650
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+11
+
+RO
+
+0x0
+
+10
+
+RO
+
+0x0
+
+9
+
+RW 0x0
+
+8
+
+RO
+
+0x0
+
+7:4
+
+RO
+
+0x0
+
+3
+
+RO
+
+0x0
+
+2
+
+RO
+
+0x0
+
+Description
+BUF_RD_ENABLE
+Buffer Read Enable.
+This bit is used for non-DMA transfers. This bit is set if valid data
+exists in the Host buffer.
+Values:
+1'b0: Read disable
+1'b1: Read enable
+BUF_WR_ENABLE
+Buffer Write Enable.
+This bit is used for non-DMA transfers. This bit is set if space is
+available for writing data.
+Values:
+1'b0: Write disable
+1'b1: Write enable
+RD_XFER_ACTIVE
+Read Transfer Active.
+This bit indicates whether a read transfer is active for SD/eMMC
+mode.
+Values:
+1'b0: No valid data
+1'b1: Transferring data
+WR_XFER_ACTIVE
+Write Transfer Active.
+This status indicates whether a write transfer is active for
+SD/eMMC mode.
+Values:
+1'b0: No valid data
+1'b1: Transferring data
+DAT_7_4
+DAT[7:4] Line Signal Level.
+This bit is used to check the DAT line level to recover from errors
+and for debugging.
+RE_TUNE_REQ
+Re-Tuning Request.
+Host Controller does not generate retuning request. The software
+must maintain the Retuning timer.
+DAT_LINE_ACTIVE
+DAT Line Active (SD/eMMC Mode only).
+This bit indicates whether one of the DAT lines on the SD/eMMC
+bus is in use.
+In the case of read transactions, this bit indicates whether a read
+transfer is executing on the SD/eMMC bus.
+In the case of write transactions, this bit indicates whether a
+write transfer is executing on the SD/eMMC bus.
+For a command with busy, this status indicates whether the
+command executing busy is executing on an SD/eMMC bus.
+Values:
+1'b0: DAT Line Inactive
+1'b1: DAT Line Active
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+651
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+CMD_INHIBIT_DAT
+Command Inhibit (DAT).
+This bit is applicable for SD/eMMC mode and is generated if either
+DAT line active or Read transfer active is set to 1. If this bit is set
+to 0, it indicates that the Host Controller can issue subsequent
+SD/eMMC commands.
+Values:
+1'b0: Can issue command which used DAT line
+1'b1: Cannot issue command which used DAT line
+CMD_INHIBIT
+Command Inhibit (CMD).
+If this bit is set to 0, it indicates that the CMD line is not in use
+and the Host controller can issue an SD/eMMC command using
+the CMD line. This bit is set when the command register is
+written. This bit is cleared when the command response is
+received. This bit is not cleared by the response of auto
+CMD12/23 but cleared by the response of read/write command.
+Values:
+1'b0: Host Controller is ready to issue a command
+1'b1: Host Controller is not ready to issue a command
+
+EMMC_HOST_CTRL1
+Address: Operational Base + offset (0x0028)
+Bit Attr Reset Value
+Description
+CARD_DETECT_SIG_SEL
+Card Detect Signal Selection.
+This bit selects a source for card detection. When the source for
+the card detection is switched, the interrupt must be disabled
+7
+RW 0x0
+during the switching period.
+Values:
+1'b0: Card Detect Signal is selected (for normal use)
+1'b1: Card Detect Test Level is selected (for test purpose)
+CARD_DETECT_TEST_LVL
+Card Detect Test Level.
+This bit is enabled while the Card Detect Signal Selection is set to
+6
+RW 0x0
+1 and it indicates whether a card inserted or not.
+Values:
+1'b0: No Card
+1'b1: Card Inserted
+EXT_DAT_XFER
+Extended Data Transfer Width.
+This bit controls 8-bit bus width mode of embedded device.
+5
+RW 0x0
+Values:
+1'b0: Bus Width is selected by the Data Transfer Width
+1'b1: 8-bit Bus Width
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+652
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+4:3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RO
+
+0x0
+
+Description
+DMA_SEL
+DMA Select.
+This field is used to select the DMA type.
+When Host Version 4 Enable is 1 in Host Control 2 register:
+2'h0: SDMA is selected
+2'h1: Reserved
+2'h2: ADMA2 is selected
+2'h3: ADMA2 or ADMA3 is selected
+When Host Version 4 Enable is 0 in Host Control 2 register:
+2'h0: SDMA is selected
+2'h1: Reserved
+2'h2: 32-bit Address ADMA2 is selected
+2'h3: Reserved
+Values:
+2'h0: SDMA is selected
+2'h1: Reserved
+2'h2: ADMA2 is selected
+2'h3: ADMA2 or ADMA3 is selected
+HIGH_SPEED_EN
+High Speed Enable.
+In SD/eMMC mode, this bit is used to determine the selection of
+pre-set value for High Speed mode. Before setting this bit, the
+Host Driver checks the High Speed Support in the Capabilities
+register.
+Values:
+1'b0: Normal Speed mode
+1'b1: High Speed mode
+DAT_XFER_WIDTH
+Data Transfer Width.
+For SD/eMMC mode, this bit selects the data transfer width of the
+Host Controller. The Host Driver sets it to match the data width of
+the SD/eMMC card.
+Values:
+1'b0: 1-bit mode
+1'b1: 4-bit mode
+reserved
+
+EMMC_PWR_CTRL
+Address: Operational Base + offset (0x0029)
+Bit Attr Reset Value
+Description
+7:1
+RO 0x00
+reserved
+SD_BUS_PWR
+If this bit is cleared, the Host Controller stops the SD Clock by
+clearing the SD_CLK_IN bit in the EMMC_CLK_CTRL register.
+0
+RW 0x0
+Values:
+1'b0: Power off
+1'b1: Power on
+EMMC_BGAP_CTRL
+Address: Operational Base + offset (0x002A)
+Bit Attr Reset Value
+7:4
+RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+653
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+INT_AT_BGAP
+Interrupt At Block Gap.
+This bit is valid only in the 4-bit mode of an SDIO card and is
+used to select a sample point in the interrupt cycle. Setting to 1
+enables interrupt detection at the block gap for a multiple block
+transfer.
+RD_WAIT_CTRL
+Read Wait Control.
+This bit is used to enable the read wait protocol to stop read data
+using DAT[2] line if the card supports read wait. Otherwise, the
+Host Controller has to stop the card clock to hold the read data.
+Values:
+1'b0: Disable Read Wait Control
+1'b1: Enable Read Wait Control
+CONTINUE_REQ
+Continue Request.
+This bit is used to restart the transaction, which was stopped
+using the Stop At Block Gap Request. The Host Controller
+automatically clears this bit when the transaction restarts. If stop
+at block gap request is set to 1, any write to this bit is ignored.
+Values:
+1'b0: No Affect
+1'b1: Restart
+STOP_BG_REQ
+Stop At Block Gap Request.
+This bit is used to stop executing read and write transactions at
+the next block gap for non-DMA, SDMA, and ADMA transfers.
+Values:
+1'b0: Transfer
+1'b1: Stop
+
+EMMC_CLK_CTRL
+Address: Operational Base + offset (0x002C)
+Bit Attr Reset Value
+Description
+FREQ_SEL
+SDCLK Frequency Select.
+These bits specify the lower 8 bits of 10-bit SDCLK Frequency
+Select control.
+These bits are used to select the frequency of the SDCLK signal.
+These bits depend on setting of Preset Value Enable in the Host
+Control 2 register. If Preset Value Enable = 0, these bits are set
+by the Host Driver. If Preset Value Enable = 1, these bits are
+automatically set to a value specified in one of the Preset Value
+register.
+1. 10-bit Divided Clock Mode:
+15:8 RW 0x00
+10'h000: Base clock (10MHz - 255 MHz)
+10'h001: 1/2 Divided Clock
+10'h002: 1/4 Divided Clock
+......
+10'h3ff: 1/2046 Divided clock
+2. Programmable Clock Mode:
+10'h000: Base clock * M
+10'h001: Base clock * M /2
+10'h002: Base clock * M /3
+......
+10'h3ff: Base clock * M /1024
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+654
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+7:6
+
+RW 0x0
+
+5
+
+RW 0x0
+
+4:3
+
+RO
+
+2
+
+RW 0x0
+
+1
+
+RO
+
+0
+
+RW 0x0
+
+0x0
+
+0x0
+
+Description
+UPPER_FREQ_SEL
+These bits specify the upper 2 bits of 10-bit SDCLK Frequency
+Select control.
+CLK_GEN_SELECT
+Clock Generator Select.
+This bit is used to select the clock generator mode in SDCLK
+Frequency Select. If Preset Value Enable = 0, this bit is set by the
+Host Driver. If Preset Value Enable = 1, this bit is automatically
+set to a value specified in one of the
+Preset Value registers.
+Values:
+1'b0: Divided Clock Mode
+1'b1: Programmable Clock Mode
+reserved
+SD_CLK_EN
+SD/eMMC Clock Enable.
+This bit stops the SDCLK when set to 0. The SDCLK Frequency
+Select bit can be changed when this bit is set to 0.
+Values:
+1'b0: Disable providing SDCLK
+1'b1: Enable providing SDCLK
+INTERNAL_CLK_STABLE
+Internal Clock Stable.
+Values:
+1'b0: Not Ready
+1'b1: Ready
+INTERNAL_CLK_EN
+Internal Clock Enable.
+This bit is set to 0 when the Host Driver is not using the Host
+Controller.
+The Host Controller must stop its internal clock to enter a very
+low power state. However, registers can still be read and written
+to.
+Note:
+If this bit is not used to control the internal clock (base clock and
+master clock), it is recommended to set this bit to 1.
+Values:
+1'b0: Stop
+1'b1: Oscillate
+
+EMMC_TOUT_CTRL
+Address: Operational Base + offset (0x002E)
+Bit Attr Reset Value
+7:4
+RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+655
+
+RK3588 TRM-Part2
+Bit
+
+3:0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+TOUT_CNT
+Data Timeout Counter Value.
+This value determines the interval by which DAT line timeouts are
+detected.
+Timeout clock frequency will be generated by dividing the base
+clock TMCLK by this value. When setting this register, prevent
+inadvertent timeout events by clearing the Data Timeout Error
+Status Enable (in the Error Interrupt Status Enable register).
+Values:
+4'h0: TMCLK * 2^13
+4'h1: TMCLK * 2^14
+......
+4'he: TMCLK * 2^27
+4'hf: Reserved
+
+EMMC_SW_RST
+Address: Operational Base + offset (0x002F)
+Bit Attr Reset Value
+Description
+7:3
+RO 0x00
+reserved
+SW_RST_DAT
+Software Reset For DAT line.
+This bit is used in SD/eMMC mode and it resets only a part of the
+data circuit and the DMA circuit is also reset.
+The following registers and bits are cleared by this bit:
+a. Buffer Data Port register:
+Buffer is cleared and initialized.
+b. Present state register:
+Buffer Read Enable
+Buffer Write Enable
+Read Transfer Active
+Write Transfer Active
+DAT Line Active
+2
+RW 0x0
+Command Inhibit (DAT)
+c. Block Gap Control register:
+Continue Request
+Stop At Block Gap Request
+d. Normal Interrupt status register:
+Buffer Read Ready
+Buffer Write Ready
+DMA Interrupt
+Block Gap Event
+Transfer Complete
+Values:
+1'b0: Work
+1'b1: Reset
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+656
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+SW_RST_CMD
+Software Reset For CMD line.
+This bit resets only a part of the command circuit to be able to
+issue a command. This reset is effective only for a command
+issuing circuit (including response error statuses related to
+Command Inhibit (CMD) control) and does not affect the data
+transfer circuit. Host Controller can continue data transfer even
+after this reset is executed while handling subcommand-response
+errors.
+The following registers and bits are cleared by this bit:
+a. Present State register - Command Inhibit (CMD) bit
+b. Normal Interrupt Status register - Command Complete bit
+c. Error Interrupt Status - Response error statuses related to
+Command Inhibit (CMD) bit
+Values:
+1'b0: Work
+1'b1: Reset
+SW_RST_ALL
+Software Reset For All.
+This reset affects the entire Host Controller except for the card
+detection circuit. During its initialization, the Host Driver sets this
+bit to 1 to reset the Host Controller. All registers are reset except
+the capabilities register. If this bit is set to 1, the Host Driver
+must issue reset command and reinitialize the card.
+Values:
+1'b0: Work
+1'b1: Reset
+
+EMMC_NORMAL_INT_STAT
+Address: Operational Base + offset (0x0030)
+Bit Attr Reset Value
+Description
+ERROR_INT_STAT
+Error Interrupt.
+If any of the bits in the Error Interrupt Status register are set,
+15
+RO 0x0
+then this bit is set.
+Values:
+1'b0: No Error
+1'b1: Error
+CQE_EVENT
+Command Queuing Event.
+This status is set if Command Queuing/Crypto related event has
+occurred in eMMC/SD mode. Read CQHCI's CQIS/CRNQIS register
+RC/
+for more details.
+14
+W1 0x0
+Values:
+C
+1'b0: No Event
+1'b1: Command Queuing Event is detected
+Writes to this bit clear it. Value of 1 clears bit and 0 leaves bit
+intact.
+FX_EVENT
+FX Event.
+This status is set when R[14] of response register is set to 1 and
+Response Type R1/R5 is set to 0 in Transfer Mode register. This
+13
+RO 0x0
+interrupt is used with response check function.
+Values:
+1'b0: No Event
+1'b1: FX Event is detected
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+657
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+12
+
+RO
+
+0x0
+
+11:9
+
+RO
+
+0x0
+
+8
+
+RO
+
+0x0
+
+7
+
+RC/
+W1 0x0
+C
+
+6
+
+RC/
+W1 0x0
+C
+
+5
+
+RC/
+W1 0x0
+C
+
+4
+
+RC/
+W1 0x0
+C
+
+Description
+RE_TUNE_EVENT
+Re-tuning Event.
+This bit is set if the Re-Tuning Request changes from 0 to 1. ReTuning request is not supported.
+reserved
+CARD_INTERRUPT
+Card Interrupt.
+This bit reflects the synchronized value of DAT[1] Interrupt Input
+for SD Mode.
+Values:
+1'b0: No Card Interrupt
+1'b1: Generate Card Interrupt
+CARD_REMOVAL
+Card Removal.
+This bit is set if the Card Inserted in the Present State register
+changes from 1 to 0.
+Values:
+1'b0: Card state stable or Debouncing
+1'b1: Card Removed
+Writes to this bit clear it. Value of 1 clears bit and 0 leaves bit
+intact.
+CARD_INSERTION
+Card Insertion.
+This bit is set if the Card Inserted in the Present State register
+changes from 0 to 1.
+Values:
+1'b0: Card state stable or Debouncing
+1'b1: Card Inserted
+Writes to this bit clear it. Value of 1 clears bit and 0 leaves bit
+intact.
+BUF_RD_READY
+Buffer Read Ready.
+This bit is set if the Buffer Read Enable changes from 0 to 1.
+Values:
+1'b0: Not ready to read buffer
+1'b1: Ready to read buffer
+Writes to this bit clear it. Value of 1 clears bit and 0 leaves bit
+intact.
+BUF_WR_READY
+Buffer Write Ready.
+This bit is set if the Buffer Write Enable changes from 0 to 1.
+Values:
+1'b0: Not ready to write buffer
+1'b1: Ready to write buffer
+Writes to this bit clear it. Value of 1 clears bit and 0 leaves bit
+intact.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+658
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+3
+
+RC/
+W1 0x0
+C
+
+2
+
+RC/
+W1 0x0
+C
+
+1
+
+RC/
+W1 0x0
+C
+
+0
+
+RC/
+W1 0x0
+C
+
+Description
+DMA_INTERRUPT
+DMA Interrupt.
+This bit is set if the Host Controller detects the SDMA Buffer
+Boundary during transfer. In case of ADMA, by setting the Int
+field in the descriptor table, the Host controller generates this
+interrupt. This interrupt is not generated after a Transfer
+Complete.
+Values:
+1'b0: No DMA Interrupt
+1'b1: DMA Interrupt is generated
+Writes to this bit clear it. Value of 1 clears bit and 0 leaves bit
+intact.
+BGAP_EVENT
+Block Gap Event.
+This bit is set when both read/write transaction is stopped at
+block gap due to a Stop at Block Gap Request.
+Values:
+1'b0: No Block Gap Event
+1'b1: Transaction stopped at block gap
+Writes to this bit clear it. Value of 1 clears bit and 0 leaves bit
+intact.
+XFER_COMPLETE
+Transfer Complete.
+This bit is set when a read/write transfer and a command with
+status busy is completed.
+Values:
+1'b0: Not complete
+1'b1: Command execution is completed
+Writes to this bit clear it. Value of 1 clears bit and 0 leaves bit
+intact.
+CMD_COMPLETE
+Command Complete.
+In an SD/eMMC Mode, this bit is set when the end bit of a
+response except for Auto CMD12 and Auto CMD23.
+This interrupt is not generated when the Response Interrupt
+Disable in Transfer Mode Register is set to 1.
+Values:
+1'b0: No Command Complete
+1'b1: Command Complete
+Writes to this bit clear it. Value of 1 clears bit and 0 leaves bit
+intact.
+
+EMMC_ERROR_INT_STAT
+Address: Operational Base + offset (0x0032)
+Bit Attr Reset Value
+Description
+15:13 RO 0x0
+reserved
+BOOT_ACK_ERR
+Boot Acknowledgement Error.
+This bit is set when there is a timeout for boot acknowledgement
+RC/
+or when detecting boot acknowledgement status having a value
+12
+W1 0x0
+other than 3'b010. This is applicable only when boot
+C
+acknowledgement is expected in eMMC mode.
+Values:
+1'b0: No Error
+1'b1: Error
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+659
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+11
+
+RC/
+W1 0x0
+C
+
+10
+
+RC/
+W1 0x0
+C
+
+9
+
+RC/
+W1 0x0
+C
+
+Description
+RESP_ERR
+Response Error
+Host Controller Version 4.00 supports response error check
+function to avoid overhead of response error check by Host Driver
+during DMA execution. If Response Error Check Enable is set to 1
+in the Transfer Mode register, Host Controller Checks R1 or R5
+response. If an error is detected in a response, this bit is set to 1.
+Values:
+1'b0: No Error
+1'b1: Error
+TUNING_ERR
+Tuning Error.
+This bit is set when an unrecoverable error is detected in a tuning
+circuit except during the tuning procedure (occurrence of an error
+during tuning procedure is indicated by Sampling Clock Select in
+the Host Control 2 register). By detecting Tuning Error, Host
+Driver needs to abort a command executing and perform tuning.
+To reset tuning circuit, Sampling Clock Select is set to 0 before
+executing tuning procedure. The Tuning Error is higher priority
+than the other error interrupts generated during data transfer. By
+detecting Tuning Error, the Host Driver must discard data
+transferred by a current read/write command and retry data
+transfer after the Host Controller retrieved from the tuning circuit
+error.
+Values:
+1'b0: No Error
+1'b1: Error
+ADMA_ERR
+ADMA Error.
+This bit is set when the Host Controller detects error during
+ADMA-based data transfer. The error could be due to following
+reasons:
+a. Error response received from System bus
+b. ADMA3,ADMA2 Descriptors invalid
+c. CQE Task or Transfer descriptors invalid
+When the error occurs, the state of the ADMA is saved in the
+ADMA Error Status register.
+In eMMC CQE mode:
+The Host Controller generates this Interrupt when it detects an
+invalid descriptor data at the Fetch Descriptor state. ADMA Error
+State in the ADMA Error Status indicates that an error has
+occurred in Fetch Descriptor state. The Host Driver may find that
+Valid bit is not set at the error descriptor.
+Values:
+1'b0: No Error
+1'b1: Error
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+660
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+8
+
+RC/
+W1 0x0
+C
+
+7
+
+RO
+
+6
+
+RC/
+W1 0x0
+C
+
+5
+
+RC/
+W1 0x0
+C
+
+4
+
+RC/
+W1 0x0
+C
+
+3
+
+RC/
+W1 0x0
+C
+
+2
+
+RC/
+W1 0x0
+C
+
+0x0
+
+Description
+AUTO_CMD_ERR
+Auto CMD Error.
+This error status is used by Auto CMD12 and Auto CMD23 in
+SD/eMMC mode. This bit is set when detecting that any of the
+bits D00 to D05 in Auto CMD Error Status register has changed
+from 0 to 1. D07 is effective in case of Auto CMD12. Auto CMD
+Error Status register is valid while this bit is set to 1 and may be
+cleared by clearing of this bit.
+Values:
+1'b0: No Error
+1'b0: Error
+reserved
+DATA_END_BIT_ERR
+Data End Bit Error.
+This error occurs in SD/eMMC mode either when detecting 0 at
+the end bit position of read data that uses the DAT line or at the
+end bit position of the CRC status.
+Values:
+1'b0: No Error
+1'b1: Error
+DATA_CRC_ERR
+Data CRC Error.
+This error occurs in SD/eMMC mode when detecting CRC error
+when transferring read data which uses the DAT line, when
+detecting the Write CRC status having a value of other than 010
+or when write CRC status timeout.
+Values:
+1'b0: No Error
+1'b1: Error
+DATA_TOUT_ERR
+Data Timeout Error.
+This bit is set in SD/eMMC mode when detecting one of the
+following timeout conditions:
+a. Busy timeout for R1b, R5b type
+b. Busy timeout after Write CRC status
+c. Write CRC Status timeout
+d. Read Data timeout
+Values:
+1'b0: No Error
+1'b1: Time out
+CMD_IDX_ERR
+Command Index Error.
+This bit is set if a Command Index error occurs in the command
+response in SD/eMMC mode.
+Values:
+1'b0: No Error
+1'b1: Error
+CMD_END_BIT_ERR
+Command End Bit Error.
+This bit is set when detecting that the end bit of a command
+response is 0 in SD/eMMC mode.
+Values:
+1'b0: No Error
+1'b1: End Bit Error generated
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+661
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+1
+
+RC/
+W1 0x0
+C
+
+0
+
+RC/
+W1 0x0
+C
+
+Description
+CMD_CRC_ERR
+Command CRC Error.
+Command CRC Error is generated in SD/eMMC mode for following
+two cases.
+a. If a response is returned and the Command Timeout Error is
+set to 0 (indicating no timeout), this bit is set to 1 when detecting
+a CRC error in the command response.
+b. The Host Controller detects a CMD line conflict by monitoring
+the CMD line when a command is issued. If the Host Controller
+drives the CMD line to 1 level, but detects 0 level on the CMD line
+at the next SD clock edge, then the Host Controller aborts the
+command (stop driving CMD line) and set this bit to 1. The
+Command Timeout Error is also set to 1 to distinguish a CMD line
+conflict.
+Values:
+1'b0: No Error
+1'b1: CRC Error generated
+CMD_TOUT_ERR
+Command Timeout Error.
+In SD/eMMC Mode, this bit is set only if no response is returned
+within 64 SD clock cycles from the end bit of the command. If the
+Host Controller detects a CMD line conflict, along with Command
+CRC Error bit, this bit is set to 1, without waiting for 64 SD/eMMC
+card clock cycles.
+Values:
+1'b0: No Error
+1'b1: Time out
+
+EMMC_NORMAL_INT_STAT_EN
+Address: Operational Base + offset (0x0034)
+Bit Attr Reset Value
+Description
+15
+RO 0x0
+reserved
+CQE_EVENT_STAT_EN
+CQE Event Status Enable.
+14
+RW 0x0
+Values:
+1'b0: Masked
+1'b1: Enabled
+13:9 RO 0x00
+reserved
+CARD_INTERRUPT_STAT_EN
+Card Interrupt Status Enable.
+8
+RW 0x0
+Values:
+1'b0: Masked
+1'b1: Enabled
+CARD_REMOVAL_STAT_EN
+Card Removal Status Enable.
+7
+RW 0x0
+Values:
+1'b0: Masked
+1'b1: Enabled
+CARD_INSERTION_STAT_EN
+Card Insertion Status Enable.
+6
+RW 0x0
+Values:
+1'b0: Masked
+1'b1: Enabled
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+662
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+BUF_RD_READY_STAT_EN
+Buffer Read Ready Status Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+BUF_WR_READY_STAT_EN
+Buffer Write Ready Status Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+DMA_INTERRUPT_STAT_EN
+DMA Interrupt Status Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+BGAP_EVENT_STAT_EN
+Block Gap Event Status Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+XFER_COMPLETE_STAT_EN
+Transfer Complete Status Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+CMD_COMPLETE_STAT_EN
+Command Complete Status Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+
+EMMC_ERROR_INT_STAT_EN
+Address: Operational Base + offset (0x0036)
+Bit Attr Reset Value
+Description
+15:13 RO 0x0
+reserved
+BOOT_ACK_ERR_STAT_EN
+Boot Acknowledgment Error Status Enable..
+12
+RW 0x0
+Values:
+1'b0: Masked
+1'b1: Enabled
+RESP_ERR_STAT_EN
+Response Error Status Enable.
+11
+RW 0x0
+Values:
+1'b0: Masked
+1'b1: Enabled
+TUNING_ERR_STAT_EN
+Tuning Error Status Enable.
+10
+RW 0x0
+Values:
+1'b0: Masked
+1'b1: Enabled
+ADMA_ERR_STAT_EN
+ADMA Error Status Enable.
+9
+RW 0x0
+Values:
+1'b0: Masked
+1'b1: Enabled
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+663
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+8
+
+RW 0x0
+
+7
+
+RO
+
+6
+
+RW 0x0
+
+5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+0x0
+
+Description
+AUTO_CMD_ERR_STAT_EN
+Auto CMD Error Status Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+reserved
+DATA_END_BIT_ERR_STAT_EN
+Data End Bit Error Status Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+DATA_CRC_ERR_STAT_EN
+Data CRC Error Status Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+DATA_TOUT_ERR_STAT_EN
+Data Timeout Error Status Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+CMD_IDX_ERR_STAT_EN
+Command Index Error Status Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+CMD_END_BIT_ERR_STAT_EN
+Command End Bit Error Status Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+CMD_CRC_ERR_STAT_EN
+Command CRC Error Status Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+CMD_TOUT_ERR_STAT_EN
+Command Timeout Error Status Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+
+EMMC_NORMAL_INT_SIGNAL_EN
+Address: Operational Base + offset (0x0038)
+Bit Attr Reset Value
+Description
+15
+RO 0x0
+reserved
+CQE_EVENT_SIGNAL_EN
+CQE Event Signal Enable.
+14
+RW 0x0
+Values:
+1'b0: Masked
+1'b1: Enabled
+13:9 RO 0x00
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+664
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+8
+
+RW 0x0
+
+7
+
+RW 0x0
+
+6
+
+RW 0x0
+
+5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+CARD_INTERRUPT_SIGNAL_EN
+Card Interrupt Signal Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+CARD_REMOVAL_SIGNAL_EN
+Card Removal Signal Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+CARD_INSERTION_SIGNAL_EN
+Card Insertion Signal Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+BUF_RD_READY_SIGNAL_EN
+Buffer Read Ready Signal Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+BUF_WR_READY_SIGNAL_EN
+Buffer Write Ready Signal Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+DMA_INTERRUPT_SIGNAL_EN
+DMA Interrupt Signal Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+BGAP_EVENT_SIGNAL_EN
+Block Gap Event Signal Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+XFER_COMPLETE_SIGNAL_EN
+Transfer Complete Signal Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+CMD_COMPLETE_SIGNAL_EN
+Command Complete Signal Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+
+EMMC_ERROR_INT_SIGNAL_EN
+Address: Operational Base + offset (0x003A)
+Bit Attr Reset Value
+Description
+15:13 RO 0x0
+reserved
+BOOT_ACK_ERR_SIGNAL_EN
+Boot Acknowledgment Error Signal Enable.
+12
+RW 0x0
+Values:
+1'b0: Masked
+1'b1: Enabled
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+665
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+11
+
+RW 0x0
+
+10
+
+RW 0x0
+
+9
+
+RW 0x0
+
+8
+
+RW 0x0
+
+7
+
+RO
+
+6
+
+RW 0x0
+
+5
+
+RW 0x0
+
+4
+
+RW 0x0
+
+3
+
+RW 0x0
+
+2
+
+RW 0x0
+
+1
+
+RW 0x0
+
+0x0
+
+Description
+RESP_ERR_SIGNAL_EN
+Response Error Signal Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+TUNING_ERR_SIGNAL_EN
+Tuning Error Signal Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+ADMA_ERR_SIGNAL_EN
+ADMA Error Signal Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+AUTO_CMD_ERR_SIGNAL_EN
+Auto CMD Error Signal Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+reserved
+DATA_END_BIT_ERR_SIGNAL_EN
+Data End Bit Error Signal Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+DATA_CRC_ERR_SIGNAL_EN
+Data CRC Error Signal Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+DATA_TOUT_ERR_SIGNAL_EN
+Data Timeout Error Signal Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+CMD_IDX_ERR_SIGNAL_EN
+Command Index Error Signal Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+CMD_END_BIT_ERR_SIGNAL_EN
+Command End Bit Error Signal Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+CMD_CRC_ERR_SIGNAL_EN
+Command CRC Error Signal Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+666
+
+RK3588 TRM-Part2
+Bit
+0
+
+Attr Reset Value
+RW 0x0
+
+Description
+CMD_TOUT_ERR_SIGNAL_EN
+Command Timeout Error Signal Enable.
+Values:
+1'b0: Masked
+1'b1: Enabled
+
+EMMC_AUTO_CMD_STAT
+Address: Operational Base + offset (0x003C)
+Bit Attr Reset Value
+Description
+15:8 RO 0x00
+reserved
+CMD_NOT_ISSUED_AUTO_CMD12
+Command Not Issued By Auto CMD12 Error.
+If this bit is set to 1, CMD_wo_DAT is not executed due to an
+Auto CMD12 Error (D04-D01) in this register. This bit is set to 0
+7
+RO 0x0
+when Auto CMD Error is generated by Auto CMD23.
+Values:
+1'b0: No Error
+1'b1: Not Issued
+6
+RO 0x0
+reserved
+AUTO_CMD_RESP_ERR
+Auto CMD Response Error.
+This bit is set when Response Error Check Enable in the Transfer
+Mode register is set to 1 and an error is detected in R1 response
+5
+RO 0x0
+of either Auto CMD12 or CMD13. This status is ignored if any bit
+between D00 to D04 is set to 1.
+Values:
+1'b0: No Error
+1'b1: Error
+AUTO_CMD_IDX_ERR
+Auto CMD Index Error.
+This bit is set if the command index error occurs in response to a
+4
+RO 0x0
+command.
+Values:
+1'b0: No Error
+1'b1: Error
+AUTO_CMD_EBIT_ERR
+Auto CMD End Bit Error.
+This bit is set when detecting that the end bit of command
+3
+RO 0x0
+response is 0.
+Values:
+1'b0: No Error
+1'b1: End Bit Error Generated
+AUTO_CMD_CRC_ERR
+Auto CMD CRC Error.
+This bit is set when detecting a CRC error in the command
+2
+RO 0x0
+response.
+Values:
+1'b0: No Error
+1'b1: CRC Error Generated
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+667
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+1
+
+RO
+
+0x0
+
+0
+
+RO
+
+0x0
+
+Description
+AUTO_CMD_TOUT_ERR
+Auto CMD Timeout Error.
+This bit is set if no response is returned with 64 SDCLK cycles
+from the end bit of the command.
+If this bit is set to 1, error status bits (D04-D01) are
+meaningless.
+Values:
+1'b0: No Error
+1'b1: Time out
+AUTO_CMD12_NOT_EXEC
+Auto CMD12 Not Executed.
+If multiple memory block data transfer is not started due to a
+command error, this bit is not set because it is not necessary to
+issue an Auto CMD12. Setting this bit to 1 means that the Host
+Controller cannot issue Auto CMD12 to stop multiple memory
+block data transfer, due to some error. If this bit is set to 1, error
+status bits (D04-D01) is meaningless. This bit is set to 0 when
+Auto CMD Error is generated by Auto CMD23.
+Values:
+1'b0: Executed
+1'b1: Not Executed
+
+EMMC_HOST_CTRL2
+Address: Operational Base + offset (0x003E)
+Bit Attr Reset Value
+Description
+PRESET_VAL_ENABLE
+Preset Value Enable.
+This bit enables automatic selection of SDCLK frequency and
+Driver strength Preset Value registers. When Preset Value Enable
+is set, SDCLK frequency generation (Frequency Select and Clock
+Generator Select) and the driver strength selection are performed
+15
+RW 0x0
+by the controller.
+These values are selected from set of Preset Value registers
+based on selected speed mode.
+Values:
+1'b0: SDCLK and Driver Strength are controlled by Host Driver
+1'b1: Automatic Selection by Preset Value are Enabled
+ASYNC_INT_ENABLE
+Asynchronous Interrupt Enable.
+This bit can be set if a card supports asynchronous interrupts and
+Asynchronous Interrupt Support is set to 1 in the Capabilities
+14
+RW 0x0
+register.
+Values:
+1'b0: Disabled
+1'b1: Enabled
+ADDRESSING
+64-bit Addressing.
+This bit is effective when Host Version 4 Enable is set to 1.
+13
+RW 0x0
+Values:
+1'b0: 32 bits addressing
+1'b1: 64 bits addressing
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+668
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+12
+
+RW 0x0
+
+11
+
+RW 0x0
+
+10
+
+RW 0x0
+
+9
+
+RO
+
+8
+
+RW 0x0
+
+7
+
+RW 0x0
+
+6
+
+RW 0x0
+
+5:4
+
+RO
+
+3
+
+RW 0x0
+
+0x0
+
+0x0
+
+Description
+HOST_VER4_ENABLE
+Host Version 4 Enable.
+This bit selects either Version 3.00 compatible mode or Version 4
+mode.
+Values:
+1'b0: Version 3.00 compatible mode
+1'b1: Version 4 mode
+CMD23_ENABLE
+CMD23 Enable.
+If the card supports CMD23, this bit is set to 1. This bit is used to
+select Auto CMD23 or Auto CMD12 for ADMA3 data transfer.
+Values:
+1'b0: Auto CMD23 is disabled
+1'b1: Auto CMD23 is enabled
+ADMA2_LEN_MODE
+ADMA2 Length Mode.
+This bit selects ADMA2 Length mode to be either 16-bit or 26-bit.
+Values:
+1'b0: 16-bit Data Length Mode
+1'b1: 26-bit Data Length Mode
+reserved
+UHS2_IF_ENABLE
+This bit should be set to 0 for SD/eMMC Interface.
+SAMPLE_CLK_SEL
+Sampling Clock Select.
+This bit is used by the Host Controller to select the sampling clock
+in SD/eMMC mode to receive CMD and DAT. This bit is set by the
+tuning procedure and is valid after the completion of tuning
+(when Execute Tuning is cleared). Setting this bit to 1 means that
+tuning is completed successfully and setting this bit to 0 means
+that tuning has failed.
+Values:
+1'b0: Fixed clock is used to sample data
+1'b1: Tuned clock is used to sample data
+EXEC_TUNING
+Execute Tuning.
+This bit is set to 1 to start the tuning procedure in SD/eMMC
+speed modes and this bit is automatically cleared when tuning
+procedure is completed.
+Values:
+1'b0: Not Tuned or Tuning completed
+1'b1: Execute Tuning
+reserved
+SIGNALING_EN
+1.8V Signalling Enable.
+Values:
+1'b0: 3.3V Signalling
+1'b1: 1.8V Signalling
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+669
+
+RK3588 TRM-Part2
+Bit
+
+2:0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+UHS_MODE_SEL
+UHS Mode/eMMC Speed Mode Select.
+These bits are used to select UHS mode in the SD mode of
+operation. In eMMC mode, these bits are used to select eMMC
+Speed mode.
+Values:
+UHS Mode:
+3'h0: SDR12
+3'h1: SDR25
+3'h2: SDR50
+3'h3: SDR104
+3'h4: DDR50
+Others: Reserved
+eMMC Mode:
+3'h0: Legacy
+3'h1: High Speed SDR
+3'h3: HS200
+3'h4: High Speed DDR
+3'h7: HS400
+Others: Reserved
+
+EMMC_CAPABILITIES1
+Address: Operational Base + offset (0x0040)
+Bit Attr Reset Value
+Description
+SLOT_TYPE
+Slot Type.
+These bits indicate usage of a slot by a specific Host System.
+31:30 RO 0x1
+2'h0: Removable Card Slot
+2'h1: Embedded Slot for One Device
+2'h2: Shared Bus Slot (SD mode)
+2'h3: Reserved
+ASYNC_INT_SUPPORT
+Asynchronous Interrupt Support (SD Mode only).
+29
+RO 0x0
+Values:
+1'b0: Asynchronous Interrupt Not Supported
+1'b1: Asynchronous Interrupt Supported
+SYS_ADDR_64_V3
+64-bit System Address Support for V3.
+This bit sets the Host controller to support 64-bit System
+Addressing of V3 mode.
+SDMA cannot be used in 64-bit Addressing in Version 3 Mode.
+28
+RO 0x0
+If this bit is set to 1, 64-bit ADMA2 with using 96-bit Descriptor
+can be enabled by setting Host Version 4 Enable
+(HOST_VER4_ENABLE = 0) and DMA select (DMA_SEL =11b).
+Values:
+1'b0: 64-bit System Address for V3 is Not Supported
+1'b1: 64-bit System Address for V3 is Supported
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+670
+
+RK3588 TRM-Part2
+Bit
+
+27
+
+Attr Reset Value
+
+RO
+
+0x0
+
+26:24 RO
+
+0x0
+
+23
+
+RO
+
+0x1
+
+22
+
+RO
+
+0x1
+
+21
+
+RO
+
+0x1
+
+20
+
+RO
+
+0x0
+
+19
+
+RO
+
+0x1
+
+Description
+SYS_ADDR_64_V4
+64-bit System Address Support for V4.
+This bit sets the Host Controller to support 64-bit System
+Addressing of V4 mode. When this bit is set to 1, full or part of
+64-bit address must be used to decode the Host Controller
+Registers so that Host Controller Registers can be placed above
+system memory area. 64-bit address decode of Host Controller
+registers is effective regardless of setting to 64-bit Addressing in
+Host Control 2.
+If this bit is set to 1, 64-bit DMA Addressing for version 4 is
+enabled by setting Host Version 4 Enable (HOST_VER4_ENABLE =
+1) and by setting 64-bit Addressing (ADDRESSING =1) in the
+Host Control 2 register. SDMA can be used and ADMA2 uses 128bit Descriptor.
+Values:
+1'b0: 64-bit System Address for V4 is Not Supported
+1'b1: 64-bit System Address for V4 is Supported
+reserved
+SUS_RES_SUPPORT
+Suspense/Resume Support.
+This bit indicates whether the Host Controller supports
+Suspend/Resume functionality. If this bit is 0, the Host Driver
+does not issue either Suspend or Resume commands because the
+Suspend and Resume mechanism is not supported.
+Values:
+1'b0: Not Supported
+1'b1: Supported
+SDMA_SUPPORT
+SDMA Support.
+This bit indicates whether the Host Controller is capable of using
+SDMA to transfer data between the system memory and the Host
+Controller directly.
+Values:
+1'b0: SDMA not Supported
+1'b1: SDMA Supported
+HIGH_SPEED_SUPPORT
+High Speed Support.
+This bit indicates whether the Host Controller and the Host
+System supports High Speed mode and they can supply the SD
+Clock frequency from 25 MHz to 50 MHz.
+Values:
+1'b0: High Speed not Supported
+1'b1: High Speed Supported
+reserved
+ADMA2_SUPPORT
+ADMA2 Support.
+This bit indicates whether the Host Controller is capable of using
+ADMA2.
+Values:
+1'b0: ADMA2 not Supported
+1'b1: ADMA2 Supported
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+671
+
+RK3588 TRM-Part2
+Bit
+
+18
+
+Attr Reset Value
+
+RO
+
+0x1
+
+17:16 RO
+
+0x1
+
+15:8
+
+RO
+
+0xc8
+
+7
+
+RO
+
+0x1
+
+6
+
+RO
+
+0x0
+
+Description
+EMBEDDED_8_BIT
+8-bit Support for Embedded Device.
+This bit indicates whether the Host Controller is capable of using
+an 8-bit bus width mode.
+Values:
+1'b0: 8-bit Bus Width not Supported
+1'b1: 8-bit Bus Width Supported
+MAX_BLK_LEN
+Maximum Block Length.
+This bit indicates the maximum block size that the Host driver
+can read and write to the buffer in the Host Controller. The buffer
+transfers this block size without wait cycles. The transfer block
+length is always 512 bytes for the SD Memory irrespective of this
+bit.
+Values:
+2'h0: 512 Byte
+2'h1: 1024 Byte
+2'h2: 2048 Byte
+2'h3: Reserved
+BASE_CLK_FREQ
+Base Clock Frequency for SD clock.
+These bits indicate the base (maximum) clock frequency for the
+SD Clock. The definition of these bits depends on the Host
+Controller Version.
+(1) 6-Bit Base Clock Frequency: This mode is supported by the
+Host Controller version 1.00 and 2.00. The upper 2 bits are not
+effective and are always 0. The unit values are 1 MHz. The
+supported clock range is 10 MHz to 63 MHz.
+8'h0: Get information through another method
+8'h0: 1 MHz
+8'h1: 2 MHz
+.............
+8'h3f: 63 MHz
+Others: Reserved
+(2) 8-Bit Base Clock Frequency: This mode is supported by the
+Host Controller version 3.00. The unit values are 1 MHz. The
+supported clock range is 10 MHz to 255 MHz.
+8'h0: Get information through another method
+8'h0: 1 MHz
+8'h0: 2 MHz
+............
+8'hff: 255 MHz
+TOUT_CLK_UNIT
+Timeout Clock Unit.
+This bit shows the unit of base clock frequency used to detect
+Data Timeout Error.
+Values:
+1'b0: KHz
+1'b1: MHz
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+672
+
+RK3588 TRM-Part2
+Bit
+
+5:0
+
+Attr Reset Value
+
+RO
+
+0x00
+
+Description
+TOUT_CLK_FREQ
+Timeout Clock Frequency.
+This bit shows the base clock frequency used to detect Data
+Timeout Error. The Timeout Clock unit defines the unit of timeout
+clock frequency. It can be KHz or MHz.
+6'h0: Get information through another method
+6'h1: 1KHz / 1MHz
+6'h2: 2KHz / 2MHz
+6'h3: 3KHz / 3MHz
+...........
+6'h3f: 63KHz / 63MHz
+
+EMMC_CAPABILITIES2
+Address: Operational Base + offset (0x0044)
+Bit Attr Reset Value
+Description
+31:26 RO 0x00
+reserved
+ADMA3_SUPPORT
+ADMA3 Support.
+This bit indicates whether the Host Controller is capable of using
+25
+RO 0x0
+ADMA3.
+Values:
+1'b0: ADMA3 not Supported
+1'b1: ADMA3 Supported
+24
+RO 0x0
+reserved
+CLK_MUL
+Clock Multiplier.
+These bits indicate the clock multiplier of the programmable clock
+generator. Setting these bits to 0 means that the Host Controller
+does not support a programmable clock generator.
+23:16 RO 0x0a
+Values:
+8'h0: Clock Multiplier is not Supported
+8'h1: Clock Multiplier M = 2
+8'h2: Clock Multiplier M = 3
+.........
+8'hFF: Clock Multiplier M = 256
+RE_TUNING_MODES
+Re-Tuning Modes.
+Values:
+These bits select the re-tuning method and limit the maximum
+data length.
+15:14 RO 0x0
+Values:
+2'h0: Timer
+2'h1: Timer and Re-Tuning Request (Not supported)
+2'h2: Auto Re-Tuning (for transfer)
+2'h3: Reserved
+USE_TUNING_SDR50
+Use Tuning for SDR50.
+13
+RO 0x1
+Values:
+1'b0: SDR50 does not require tuning
+1'b1: SDR50 requires tuning
+12
+RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+673
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+11:8
+
+RO
+
+0x0
+
+7
+
+RO
+
+0x0
+
+6
+
+RO
+
+0x1
+
+5
+
+RO
+
+0x1
+
+4
+
+RO
+
+0x1
+
+3
+
+RO
+
+0x0
+
+2
+
+RO
+
+0x1
+
+1
+
+RO
+
+0x1
+
+0
+
+RO
+
+0x1
+
+Description
+RETUNE_CNT
+Timer Count for Re-Tuning.
+Values:
+4'h0: Re-Tuning Timer disabled
+4'h1: 1 seconds
+4'h2: 2 seconds
+4'h3: 4 seconds
+........
+4'hB: 1024 seconds
+4'hC~4'hE: Reserved
+4'hF: Get information from other source
+reserved
+DRV_TYPED
+This bit indicates support of Driver Type D for 1.8 Signaling.
+Values:
+1'b0: Driver Type D is Not Supported
+1'b1: Driver Type D is Supported
+DRV_TYPEC
+This bit indicates support of Driver Type C for 1.8 Signaling.
+Values:
+1'b0: Driver Type C is Not Supported
+1'b1: Driver Type C is Supported
+DRV_TYPEA
+This bit indicates support of Driver Type A for 1.8 Signaling.
+Values:
+1'b0: Driver Type A is Not Supported
+1'b1: Driver Type A is Supported
+UHS2_SUPPORT
+UHS-II Support.
+Values:
+1'b0: UHS-II is Not Supported
+1'b1: UHS-II is Supported
+DDR50_SUPPORT
+DDR50 Support.
+Values:
+1'b0: DDR50 is Not Supported
+1'b1: DDR50 is Supported
+SDR104_SUPPORT
+SDR104 Support.
+Values:
+1'b0: SDR104 is Not Supported
+1'b1: SDR104 is Supported
+SDR50_SUPPORT
+SDR50 Support.
+Values:
+1'b0: SDR50 is Not Supported
+1'b1: SDR50 is Supported
+
+EMMC_FORCE_AUTO_CMD_STAT
+Address: Operational Base + offset (0x0050)
+Bit Attr Reset Value
+15:8 RO 0x00
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+674
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+7
+
+WO 0x0
+
+6
+
+RO
+
+5
+
+WO 0x0
+
+4
+
+WO 0x0
+
+3
+
+WO 0x0
+
+2
+
+WO 0x0
+
+1
+
+WO 0x0
+
+0
+
+WO 0x0
+
+0x0
+
+Description
+FORCE_CMD_NOT_ISSUED_AUTO_CMD12
+Force Event for Command Not Issued By Auto CMD12 Error.
+Values:
+1'b0: Not Affected
+1'b1: Command Not Issued By Auto CMD12 Error Status is set
+reserved
+FORCE_AUTO_CMD_RESP_ERR
+Force Event for Auto CMD Response Error.
+Values:
+1'b0: Not Affected
+1'b1: Auto CMD Response Error Status is set
+FORCE_AUTO_CMD_IDX_ERR
+Force Event for Auto CMD Index Error.
+Values:
+1'b0: Not Affected
+1'b1: Auto CMD Index Error Status is set
+FORCE_AUTO_CMD_EBIT_ERR
+Force Event for Auto CMD End Bit Error.
+Values:
+1'b0: Not Affected
+1'b1: Auto CMD End Bit Error Status is set
+FORCE_AUTO_CMD_CRC_ERR
+Force Event for Auto CMD CRC Error.
+Values:
+1'b0: Not Affected
+1'b1: Auto CMD CRC Error Status is set
+FORCE_AUTO_CMD12_TOUT_ERR
+Force Event for Auto CMD Timeout Error.
+Values:
+1'b0: Not Affected
+1'b1: Auto CMD Timeout Error Status is set
+FORCE_AUTO_CMD12_NOT_EXEC
+Force Event for Auto CMD12 Not Executed.
+Values:
+1'b0: Not Affected
+1'b1: Auto CMD12 Not Executed Status is set
+
+EMMC_FORC_ERR_INT_STAT
+Address: Operational Base + offset (0x0052)
+Bit Attr Reset Value
+Description
+15:13 RO 0x0
+reserved
+FORCE_BOOT_ACK_ERR
+Force Event for Boot Acknowledge error.
+12
+WO 0x0
+Values:
+1'b0: Not Affected
+1'b1: Boot Acknowledge Error Status is set
+FORCE_RESP_ERR
+Force Event for Response Error.
+11
+WO 0x0
+Values:
+1'b0: Not Affected
+1'b1: Response Error Status is set
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+675
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+10
+
+WO 0x0
+
+9
+
+WO 0x0
+
+8
+
+WO 0x0
+
+7
+
+RO
+
+6
+
+WO 0x0
+
+5
+
+WO 0x0
+
+4
+
+WO 0x0
+
+3
+
+WO 0x0
+
+2
+
+WO 0x0
+
+1
+
+WO 0x0
+
+0
+
+WO 0x0
+
+0x0
+
+Description
+FORCE_TUNING_ERR
+Force Event for Tuning Error
+Values:
+1'b0: Not Affected
+1'b1: Tuning Error Status is set
+FORCE_ADMA_ERR
+Force Event for ADMA Error.
+Values:
+1'b0: Not Affected
+1'b1: ADMA Error Status is set
+FORCE_AUTO_CMD_ERR
+Force Event for Auto CMD Error.
+Values:
+1'b0: Not Affected
+1'b1: Auto CMD Error Status is set
+reserved
+FORCE_DATA_END_BIT_ERR
+Force Event for Data End Bit Error.
+Values:
+1'b0: Not Affected
+1'b1: Data End Bit Error Status is set
+FORCE_DATA_CRC_ERR
+Force Event for Data CRC Error.
+Values:
+1'b0: Not Affected
+1'b1: Data CRC Error Status is set
+FORCE_DATA_TOUT_ERR
+Force Event for Data Timeout Error.
+Values:
+1'b0: Not Affected
+1'b1: Data Timeout Error Status is set
+FORCE_CMD_IDX_ERR
+Force Event for Command Index Error.
+Values:
+1'b0: Not Affected
+1'b1: Command Index Error Status is set
+FORCE_CMD_END_BIT_ERR
+Force Event for Command End Bit Error.
+Values:
+1'b0: Not Affected
+1'b1: Command End Bit Error Status is set
+FORCE_CMD_CRC_ERR
+Force Event for Command CRC Error.
+Values:
+1'b0: Not Affected
+1'b1: Command CRC Error Status is set
+FORCE_CMD_TOUT_ERR
+Force Event for Command Timeout Error.
+Values:
+1'b0: Not Affected
+1'b1: Command Timeout Error Status is set
+
+EMMC_ADMA_ERR_STAT
+Address: Operational Base + offset (0x0054)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+676
+
+RK3588 TRM-Part2
+Bit
+7:3
+
+2
+
+1:0
+
+Attr Reset Value
+Description
+RO 0x00
+reserved
+ADMA_LEN_ERR
+ADMA Length Mismatch Error States.
+This error occurs in the following instances:
+a. While the Block Count Enable is being set, the total data length
+specified by the Descriptor table is different from that specified
+RO 0x0
+by the Block Count and Block Length;
+b. When the total data length cannot be divided by the block
+length
+Values:
+1'b0: No Error
+1'b1: Error
+ADMA_ERR_STATES
+ADMA Error States.
+These bits indicate the state of ADMA when an error occurs
+during ADMA data transfer.
+Values:
+2'h0: Stop DMA - SYS_ADR register points to a location next to
+RO 0x0
+the error descriptor
+2'h1: Fetch Descriptor - SYS_ADR register points to the error
+descriptor
+2'h2: Never set this state
+2'h3: Transfer Data - SYS_ADR register points to a location next
+to the error descriptor
+
+EMMC_ADMA_SA
+Address: Operational Base + offset (0x0058)
+Bit Attr Reset Value
+Description
+ADMA_SA
+ADMA System Address.
+These bits indicate the 32 bits of the ADMA system address.
+a. SDMA: If Host Version 4 Enable is set to 1, this register stores
+the system address of the data location
+31:0 RW 0x00000000
+b. ADMA2: This register stores the byte address of the executing
+command of the descriptor table
+c. ADMA3: This register is set by ADMA3. ADMA2 increments the
+address of this register that points to the next line, every time a
+Descriptor line is fetched.
+EMMC_PRESET_INIT
+Address: Operational Base + offset (0x0060)
+Bit Attr Reset Value
+Description
+15:11 RO 0x00
+reserved
+CLK_GEN_SEL_VAL
+Clock Generator Select Value.
+This bit is effective when the Host Controller supports a
+10
+RO 0x0
+programmable clock generator.
+Values:
+1'b0: Host Controller Ver2.0 Compatible Clock Generator
+1'b1: Programmable Clock Generator
+FREQ_SEL_VAL
+SDCLK Frequency Select Value.
+9:0
+RO 0x000
+10-bit preset value to be set in SDCLK Frequency Select field of
+the Clock Control register described by a Host System.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+677
+
+RK3588 TRM-Part2
+EMMC_PRESET_DS
+Address: Operational Base + offset (0x0062)
+Bit Attr Reset Value
+Description
+15:11 RO 0x00
+reserved
+CLK_GEN_SEL_VAL
+Clock Generator Select Value.
+This bit is effective when the Host Controller supports a
+10
+RO 0x0
+programmable clock generator.
+Values:
+1'b0: Host Controller Ver2.0 Compatible Clock Generator
+1'b1: Programmable Clock Generator
+FREQ_SEL_VAL
+SDCLK Frequency Select Value.
+9:0
+RO 0x000
+10-bit preset value to be set in SDCLK Frequency Select field of
+the Clock Control register described by a Host System.
+EMMC_PRESET_HS
+Address: Operational Base + offset (0x0064)
+Bit Attr Reset Value
+Description
+15:11 RO 0x00
+reserved
+CLK_GEN_SEL_VAL
+Clock Generator Select Value.
+This bit is effective when the Host Controller supports a
+10
+RO 0x0
+programmable clock generator.
+Values:
+1'b0: Host Controller Ver2.0 Compatible Clock Generator
+1'b1: Programmable Clock Generator
+FREQ_SEL_VAL
+SDCLK Frequency Select Value.
+9:0
+RO 0x000
+10-bit preset value to be set in SDCLK Frequency Select field of
+the Clock Control register described by a Host System.
+EMMC_PRESET_SDR12
+Address: Operational Base + offset (0x0066)
+Bit Attr Reset Value
+Description
+15:11 RO 0x00
+reserved
+CLK_GEN_SEL_VAL
+Clock Generator Select Value.
+This bit is effective when the Host Controller supports a
+10
+RO 0x0
+programmable clock generator.
+Values:
+1'b0: Host Controller Ver2.0 Compatible Clock Generator
+1'b1: Programmable Clock Generator
+FREQ_SEL_VAL
+SDCLK Frequency Select Value.
+9:0
+RO 0x000
+10-bit preset value to be set in SDCLK Frequency Select field of
+the Clock Control register described by a Host System.
+EMMC_PRESET_SDR25
+Address: Operational Base + offset (0x0068)
+Bit Attr Reset Value
+15:11 RO 0x00
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+678
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+10
+
+RO
+
+0x0
+
+9:0
+
+RO
+
+0x000
+
+Description
+CLK_GEN_SEL_VAL
+Clock Generator Select Value.
+This bit is effective when the Host Controller supports a
+programmable clock generator.
+Values:
+1'b0: Host Controller Ver2.0 Compatible Clock Generator
+1'b1: Programmable Clock Generator
+FREQ_SEL_VAL
+SDCLK Frequency Select Value.
+10-bit preset value to be set in SDCLK Frequency Select field of
+the Clock Control register described by a Host System.
+
+EMMC_PRESET_SDR50
+Address: Operational Base + offset (0x006A)
+Bit Attr Reset Value
+Description
+15:11 RO 0x00
+reserved
+CLK_GEN_SEL_VAL
+Clock Generator Select Value.
+This bit is effective when the Host Controller supports a
+10
+RO 0x0
+programmable clock generator.
+Values:
+1'b0: Host Controller Ver2.0 Compatible Clock Generator
+1'b1: Programmable Clock Generator
+FREQ_SEL_VAL
+SDCLK Frequency Select Value.
+9:0
+RO 0x000
+10-bit preset value to be set in SDCLK Frequency Select field of
+the Clock Control register described by a Host System.
+EMMC_PRESET_SDR104
+Address: Operational Base + offset (0x006C)
+Bit Attr Reset Value
+Description
+15:11 RO 0x00
+reserved
+CLK_GEN_SEL_VAL
+Clock Generator Select Value.
+This bit is effective when the Host Controller supports a
+10
+RO 0x0
+programmable clock generator.
+Values:
+1'b0: Host Controller Ver2.0 Compatible Clock Generator
+1'b1: Programmable Clock Generator
+FREQ_SEL_VAL
+SDCLK Frequency Select Value.
+9:0
+RO 0x000
+10-bit preset value to be set in SDCLK Frequency Select field of
+the Clock Control register described by a Host System.
+EMMC_PRESET_DDR50
+Address: Operational Base + offset (0x006E)
+Bit Attr Reset Value
+Description
+15:11 RO 0x00
+reserved
+CLK_GEN_SEL_VAL
+Clock Generator Select Value.
+This bit is effective when the Host Controller supports a
+10
+RO 0x0
+programmable clock generator.
+Values:
+1'b0: Host Controller Ver2.0 Compatible Clock Generator
+1'b1: Programmable Clock Generator
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+679
+
+RK3588 TRM-Part2
+Bit
+9:0
+
+Attr Reset Value
+RO
+
+0x000
+
+Description
+FREQ_SEL_VAL
+SDCLK Frequency Select Value.
+10-bit preset value to be set in SDCLK Frequency Select field of
+the Clock Control register described by a Host System.
+
+EMMC_ADMA_ID
+Address: Operational Base + offset (0x0078)
+Bit Attr Reset Value
+Description
+ADMA_ID
+ADMA Integrated Descriptor Address.
+These bits indicate the 32-bit of the ADMA Integrated Descriptor
+31:0 RW 0x00000000
+address. The start address of Integrated Descriptor is set to these
+register bits. The ADMA3 fetches one Descriptor Address and
+increments these bits to indicate the next Descriptor address.
+EMMC_SLOT_INTR_STATUS
+Address: Operational Base + offset (0x00FC)
+Bit Attr Reset Value
+Description
+15:8 RO 0x00
+reserved
+INTR_SLOT
+Interrupt signal for each Slot.
+7:0
+RO 0x00
+Host Controller support single card slot. This register shall always
+return 0.
+EMMC_HOST_CNTRL_VERS
+Address: Operational Base + offset (0x00FE)
+Bit Attr Reset Value
+Description
+VENDOR_VERSION_NUM
+15:8 RO 0x10
+Vendor Version Number.
+SPEC_VERSION_NUM
+Specification Version Number.
+Values:
+8'h0: SD Host Controller Specification Version 1.00
+8'h1: SD Host Controller Specification Version 2.00
+7:0
+RO 0x05
+8'h2: SD Host Controller Specification Version 3.00
+8'h3: SD Host Controller Specification Version 4.00
+8'h4: SD Host Controller Specification Version 4.10
+8'h5: SD Host Controller Specification Version 4.20
+Others: Reserved
+EMMC_CQVER
+Address: Operational Base + offset (0x0180)
+Bit Attr Reset Value
+Description
+31:12 RO 0x00000
+reserved
+EMMC_VER_MAJOR
+11:8 RO 0x5
+eMMC Major Version Number (1st digit left of decimal point) in
+BCD format
+EMMC_VER_MINOR
+7:4
+RO 0x1
+eMMC Minor Version Number(1st digit right of decimal point) in
+BCD format
+EMMC_VER_SUFFIX
+3:0
+RO 0x0
+eMMC Version Suffix (2nd digit right of decimal point) in BCD
+format
+EMMC_CQCAP
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+680
+
+RK3588 TRM-Part2
+Address: Operational Base + offset (0x0184)
+Bit Attr Reset Value
+Description
+31:29 RO 0x0
+reserved
+CRYPTO_SUPPORT
+Crypto Support.
+This bit indicates whether the Host Controller supports
+28
+RO 0x0
+cryptographic operations.
+Values:
+1'b0: Crypto not Supported
+1'b1: Crypto Supported
+27:16 RO 0x000
+reserved
+ITCFMUL
+Internal Timer Clock Frequency Multiplier.
+This field indicates the frequency of the clock used for interrupt
+coalescing timer and for determining the SQS polling period. See
+ITCFVAL definition for details.
+15:12 RO 0x0
+4'h0: 1 KHz clock
+4'h1: 10 KHz clock
+4'h2: 100 KHz clock
+4'h3: 1 MHz clock
+4'h4: 10 MHz clock
+Others: Reserved
+11:10 RO 0x0
+reserved
+ITCFVAL
+Internal Timer Clock Frequency Value.
+9:0
+RO 0x000
+This field scales the frequency of the timer clock provided by
+ITCFMUL. The Final clock frequency of actual timer clock is
+calculated as ITCFVAL* ITCFMUL.
+EMMC_CQCFG
+Address: Operational Base + offset (0x0188)
+Bit Attr Reset Value
+Description
+31:13 RO 0x00000
+reserved
+DCMD_EN
+Direct Command (DCMD) Enable.
+This bit indicates to the hardware whether the Task Descriptor in
+slot #31 of the TDL is a Data Transfer Task Descriptor, or a Direct
+Command Task Descriptor.
+12
+RW 0x0
+CQE uses this bit when a task is issued in slot #31, to determine
+how to decode the Task Descriptor.
+Values:
+1'b0: Task descriptor in slot #31 is a Data Transfer Task
+Descriptor
+1'b1: Task descriptor in slot #31 is a DCMD Task Descriptor
+11:9 RO 0x0
+reserved
+TASK_DESC_SIZE
+This bit indicates the size of task descriptor used in host memory.
+This bit can only be configured when Command Queueing Enable
+8
+RW 0x0
+bit is 0 (command queueing is disabled)
+Values:
+1'b0: Task descriptor size is 64 bits
+1'b1: Task descriptor size is 128 bits
+7:2
+RO 0x00
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+681
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+CR_GENERAL_EN
+Crypto General Enable.
+Enable/Disable bit for Crypto Engine. If cryptographic operations
+are not supported, this status bit is reserved.
+Values:
+1'b0: Disable cryptographic operations for all transactions
+1'b1: Enable cryptographic operations for transactions where
+TD.CE=1 or CRNQP.CE=1
+CQ_EN
+Command Queueing Enable.
+When CQE is disable, the software controls the eMMC bus using
+the registers between the addresses 0x000 to 0x1FF.
+Before the software writes to this bit, the software verifies that
+the eMMC host controller is in idle state and there are no ongoing
+commands or data transfers. When software wants to exit
+command queuing mode, it clears all previous tasks (if any)
+before setting this bit to 0.
+Values:
+1'b0: Disable command queuing
+1'b1: Enable command queuing
+
+EMMC_CQCTRL
+Address: Operational Base + offset (0x018C)
+Bit Attr Reset Value
+Description
+31:9 RO 0x000000
+reserved
+CLR_ALL_TASKS
+Clear all tasks.
+This bit can only be written when the controller is halted. This bit
+does not clear tasks in the device. The software has to use the
+8
+RW 0x0
+CMDQ_TASK_MGMT command to clear device's queue.
+Values:
+1'b0: Programming 0 has no effect
+1'b1: Clears all the tasks in the controller
+7:1
+RO 0x00
+reserved
+HALT
+Halt request and resume.
+Values:
+1'b0: RESUME_CQE. Software writes 0 to this bit to exit from the
+halt state and resume CQE activity.
+1'b1: HALT_CQE. Software writes 1 to this bit when it wants to
+acquire software control over the eMMC bus and to disable CQE
+0
+RW 0x0
+from issuing command on the bus.
+For example, issuing a Discard Task command
+(CMDQ_TASK_MGMT). When the software writes 1, CQE
+completes the ongoing task (if any in progress). After the task is
+completed and the CQE is in idle state, CQE does not issue new
+commands and indicates to the software by setting this bit to 1.
+The software can poll on this bit until it is set to 1 and only then
+send commands on the eMMC bus.
+EMMC_CQIS
+Address: Operational Base + offset (0x0190)
+Bit Attr Reset Value
+31:4 RO 0x0000000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+682
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+3
+
+RC/
+W1 0x0
+C
+
+2
+
+RC/
+W1 0x0
+C
+
+1
+
+RC/
+W1 0x0
+C
+
+0
+
+RC/
+W1 0x0
+C
+
+Description
+TCL
+Task Cleared Interrupt.
+This status bit is asserted (if CQISTE.TCL=1) when a task clear
+operation is completed by CQE. The completed task clear
+operation is either an individual task clear (CQTCLR) or clearing
+of all tasks (CQCTL).
+Values:
+1'b0: TCL Interrupt is not set
+1'b1: TCL Interrupt is set
+RED
+Response Error Detected Interrupt.
+This status bit is asserted (if CQISTE.RED=1) when a response is
+received with an error bit set in the device status field.
+Software uses CQRMEM register to configure which device status
+bit fields may trigger an interrupt, and which are masked.
+Values:
+1'b0: RED Interrupt is not set
+1'b1: RED Interrupt is set
+TCC
+Task Complete Interrupt.
+This status bit is asserted(if CQISTE.TCC=1) when at least one of
+the following two conditions are met:
+a. A task is completed and the INT bit is set in its Task Descriptor
+b. Interrupt caused by Interrupt Coalescing logic
+Values:
+1'b0: TCC Interrupt is not set
+1'b1: TCC Interrupt is set
+HAC
+Halt Complete Interrupt.
+This status bit is asserted (if CQISTE.HAC=1) when halt bit in
+CQCTL register transitions from 0 to 1 indicating that Hhost
+Controller has completed its current ongoing task and has
+entered halt state.
+Values:
+1'b0: HAC Interrupt is not set
+1'b1: HAC Interrupt is set
+
+EMMC_CQISE
+Address: Operational Base + offset (0x0194)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+TCL_STE
+Task Cleared Interrupt status enable.
+3
+RW 0x0
+Values:
+1'b0: CQIS.TCL is disabled
+1'b1: CQIS.TCL is set when its interrupt condition is active
+RED_STE
+Response Error Detected Interrupt status enable.
+2
+RW 0x0
+Values:
+1'b0: CQIS.RED is disabled
+1'b1: CQIS.RED is set when its interrupt condition is active
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+683
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+TCC_STE
+Task Complete Interrupt status enable.
+Values:
+1'b0: CQIS.TCC is disabled
+1'b1: CQIS.TCC is set when its interrupt condition is active
+HAC_STE
+Halt Complete Interrupt status enable.
+Values:
+1'b0: CQIS.HAC is disabled
+1'b1: CQIS.HAC is set when its interrupt condition is active
+
+EMMC_CQISGE
+Address: Operational Base + offset (0x0198)
+Bit Attr Reset Value
+Description
+31:4 RO 0x0000000
+reserved
+TCL_SGE
+Task Cleared Interrupt signal enable.
+3
+RW 0x0
+Values:
+1'b0: CQIS.TCL interrupt signal generation is disabled
+1'b1: CQIS.TCL interrupt signal generation is active
+RED_SGE
+Response Error Detected Interrupt signal enable.
+2
+RW 0x0
+Values:
+1'b0: CQIS.RED interrupt signal generation is disabled
+1'b1: CQIS.RED interrupt signal generation is active
+TCC_SGE
+Task Complete Interrupt signal enable.
+1
+RW 0x0
+Values:
+1'b0: CQIS.TCC interrupt signal generation is disabled
+1'b1: CQIS.TCC interrupt signal generation is active
+HAC_SGE
+Halt Complete Interrupt signal enable.
+0
+RW 0x0
+Values:
+1'b0: CQIS.HAC interrupt signal generation is disabled
+1'b1: CQIS.HAC interrupt signal generation is active
+EMMC_CQIC
+Address: Operational Base + offset (0x019C)
+Bit Attr Reset Value
+Description
+INTC_EN
+Interrupt Coalescing Enable Bit.
+Values:
+31
+RW 0x0
+1'b0: Interrupt coalescing mechanism is disabled
+1'b1: Interrupt coalescing mechanism is active. Interrupts are
+counted and timed, and coalesced interrupts are generated
+30:21 RO 0x000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+684
+
+RK3588 TRM-Part2
+Bit
+
+20
+
+Attr Reset Value
+
+RO
+
+0x0
+
+19:17 RO
+
+0x0
+
+16
+
+WO 0x0
+
+15
+
+WO 0x0
+
+14:13 RO
+
+0x0
+
+12:8
+
+WO 0x00
+
+7
+
+WO 0x0
+
+Description
+INTC_STAT
+Interrupt Coalescing Status Bit.
+This bit indicates to the software whether any tasks (with INT=0)
+have completed and counted towards interrupt coalescing (that
+is, this is set if and only if INTC counter > 0).
+Values:
+1'b0: INT0 Task completions have not occurred since last counter
+reset (INTC counter == 0)
+1'b1: At least one INT0 task completion has been counted (INTC
+counter > 0)
+reserved
+INTC_RST
+Counter and Timer Reset.
+When host driver writes 1, the interrupt coalescing timer and
+counter are reset.
+Values:
+1'b0: No Effect
+1'b1: Interrupt coalescing timer and counter are reset
+INTC_TH_WEN
+Interrupt Coalescing Counter Threshold Write Enable.
+When software writes 1 to this bit, the value INTC_TH is updated
+with the contents written on the same cycle.
+Values:
+1'b0: Clears INTC_TH_WEN
+1'b1: Sets INTC_TH_WEN
+reserved
+INTC_TH
+Interrupt Coalescing Counter Threshold filed.
+Software uses this field to configure the number of task
+completions (only tasks with INT=0 in the Task Descriptor), which
+are required in order to generate an interrupt.
+Counter Operation: As data transfer tasks with INT=0 complete,
+they are counted by CQE. The counter is reset by software during
+the interrupt service routine. The counter stops counting when it
+reaches the value configured in INTC_TH, and generates
+interrupt.
+5'h0: Interrupt coalescing feature disabled
+5'h1: Interrupt coalescing interrupt generated after 1 task when
+INT=0 completes
+5'h2: Interrupt coalescing interrupt generated after 2 tasks when
+INT=0 completes
+........
+5'h1f: Interrupt coalescing interrupt generated after 31 tasks
+when INT=0 completes
+To write to this field, the INTC_TH_WEN bit must be set during
+the same write operation.
+TOUT_VAL_WEN
+When software writes 1 to this bit, the value TOUT_VAL is
+updated with the contents written on the same cycle.
+Values:
+1'b0: clears TOUT_VAL_WEN
+1'b1: Sets TOUT_VAL_WEN
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+685
+
+RK3588 TRM-Part2
+Bit
+
+6:0
+
+Attr Reset Value
+
+RW 0x00
+
+Description
+TOUT_VAL
+Interrupt Coalescing Timeout Value.
+Software uses this field to configure the maximum time allowed
+between the completion of a task on the bus and the generation
+of an interrupt.
+Timer Operation: The timer is reset by software during the
+interrupt service routine. It starts running when a data transfer
+task with INT=0 is completed, after the timer was reset. When
+the timer reaches the value configured in ICTOVAL field it
+generates an interrupt and stops.
+The timer's unit is equal to 1024 clock periods of the clock whose
+frequency is specified in the Internal Timer Clock Frequency field
+CQCAP register.
+7'h0: Timer is disabled. Timeout-based interrupt is not generated
+7'h1: Timeout on 01x1024 cycles of timer clock frequency
+7'h2: Timeout on 02x1024 cycles of timer clock frequency
+........
+7'h7f: Timeout on 127x1024 cycles of timer clock frequency
+In order to write to this field, the TOUT_VAL_WEN bit must be set
+at the same write operation.
+
+EMMC_CQTDLBA
+Address: Operational Base + offset (0x01A0)
+Bit Attr Reset Value
+Description
+TDLBA
+Task Descriptor List Base Address.
+This register stores the LSB bits (bits 31:0) of the byte address of
+the head of the Task Descriptor List in system memory. The size
+31:0 RW 0x00000000
+of the task descriptor list is 32 * (Task Descriptor size + Transfer
+Descriptor size) as configured by Host driver. This address shall
+be set on 1 KB boundary. The lower 10 bits of this register shall
+be set to 0 by software and shall be ignored by CQE.
+EMMC_CQTDBR
+Address: Operational Base + offset (0x01A8)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+686
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+31:0
+
+RW 0x00000000
+
+Description
+DBR
+Command Queueing Task Doorbell.
+Software shall configure TDLBA, and enable CQE in CQCFG before
+using this register.
+Writing 1 to bit n of this register triggers CQE to start processing
+the task encoded in slot n of the TDL. Writing 0 by the software
+does not have any impact on the hardware, and does not change
+the value of the register bit.
+CQE always processes tasks in-order according to the order
+submitted to the list by CQTDBR write transactions.
+CQE processes Data Transfer tasks by reading the Task Descriptor
+and sending QUEUED_TASK_PARAMS (CMD44) and
+QUEUED_TASK_ADDRESS (CMD45) commands to the device.
+CQE processes DCMD tasks (in slot #31, when enabled) by
+reading the Task Descriptor, and generating the command
+encoded by its index and argument.
+The corresponding bit is cleared to 0 by CQE in one of the
+following events:
+a. When a task execution is completed (with success or error)
+b. The task is cleared using CQTCLR register
+c. All tasks are cleared using CQCTL register
+d. CQE is disabled using CQCFG register
+Software may initiate multiple tasks at the same time (batch
+submission) by writing 1 to multiple bits of this register in the
+same transaction.
+In the case of batch submission, CQE shall process the tasks in
+order of the task index, starting with the lowest index. If one or
+more tasks in the batch are marked with QBR, the ordering of
+execution will be based on said processing order.
+
+EMMC_CQTCN
+Address: Operational Base + offset (0x01AC)
+Bit Attr Reset Value
+Description
+TCN
+Task Complete Notification.
+Each of the 32 bits are bit mapped to the 32 tasks.
+Bit-N(1): Task-N has completed execution (with success or
+errors)
+31:0 RW 0x00000000 Bit-N(0): Task-N has not completed, could be pending or not
+submitted.
+On task completion, software may read this register to know
+which tasks have finished. After reading this register, software
+may clear the relevant bit fields by writing 1 to the corresponding
+bits.
+EMMC_CQDQS
+Address: Operational Base + offset (0x01B0)
+Bit Attr Reset Value
+Description
+DQS
+Device Queue Status.
+Each of the 32 bits are bit mapped to the 32 tasks.
+Bit-N(1): Device has marked task N as ready for execution
+31:0 RO 0x00000000
+Bit-N(0): Task-N is not ready for execution. This task could be
+pending in device or not submitted.
+Host controller updates this register with response of the Device
+Queue Status command.
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+687
+
+RK3588 TRM-Part2
+EMMC_CQDPT
+Address: Operational Base + offset (0x01B4)
+Bit Attr Reset Value
+Description
+DPT
+Device Pending Tasks.
+Each of the 32 bits are bit mapped to the 32 tasks.
+Bit-N(1): Task-N has been successfully queued into the device
+and is awaiting execution.
+Bit-N(0): Task-N is not yet queued.
+Bit n of this register is set if and only if QUEUED_TASK_PARAMS
+31:0 RO 0x00000000
+(CMD44) and QUEUED_TASK_ADDRESS (CMD45) were sent for
+this specific task and if this task has not been executed yet.
+CQE shall set this bit after receiving a successful response for
+CMD45. CQE shall clear this bit after the task has completed
+execution.
+Software reads this register in the task-discard procedure to
+determine if the task is queued in the device.
+EMMC_CQTCLR
+Address: Operational Base + offset (0x01B8)
+Bit Attr Reset Value
+Description
+TCLR
+Command Queueing Task Clear.
+Writing 1 to bit n of this register orders CQE to clear a task which
+software has previously issued.
+This bit can only be written when CQE is in Halt state as indicated
+31:0 RW 0x00000000 in CQCFG register Halt bit. When software writes 1 to a bit in this
+register, CQE updates the value to 1, and starts clearing the data
+structures related to the task. CQE clears the bit fields (sets a
+value of 0) in CQTCLR and in CQTDBR once the clear operation is
+complete. Software must poll on the CQTCLR until it is cleared to
+verify that a clear operation was done.
+EMMC_CQSSC1
+Address: Operational Base + offset (0x01C0)
+Bit Attr Reset Value
+31:20 RO 0x000
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+688
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+19:16 RW 0x1
+
+15:0
+
+RW 0x1000
+
+Description
+SQSCMD_BLK_CNT
+Send Status Command Block Counter.
+This field indicates when SQS CMD is sent while data transfer is in
+progress.
+A value of 'n' indicates that CQE sends status command on the
+CMD line, during the transfer of data block BLOCK_CNT-n, on the
+data lines, where BLOCK_CNT is the number of blocks in the
+current transaction.
+4'h0: SEND_QUEUE_STATUS (CMD13) command is not sent
+during the transaction. Instead, it is sent only when the data lines
+are idle.
+4'h1: SEND_QUEUE_STATUS command is to be sent during the
+last block of the transaction.
+4'h2: SEND_QUEUE_STATUS command when last 2 blocks are
+pending.
+4'h3: SEND_QUEUE_STATUS command when last 3 blocks are
+pending.
+........
+4'hf: SEND_QUEUE_STATUS command when last 15 blocks are
+pending.
+Should be programmed only when CQCFG.CQ_EN is '0'.
+SQSCMD_IDLE_TMR
+Send Status Command Idle Timer.
+This field configures the polling period to be used when using
+periodic SEND_QUEUE_STATUS (CMD13) polling. Periodic polling
+is used when tasks are pending in the device, but no data
+transfer is in progress. When a SEND_QUEUE_STATUS response
+indicates that no task is ready for execution, CQE counts the
+configured time until it issues the next SEND_QUEUE_STATUS.
+Timer units are clock periods of the clock whose frequency is
+specified in the Internal Timer Clock Frequency field CQCAP
+register. The minimum value is 0x0001 (1 clock period) and the
+maximum value is 0xFFFF (65535 clock periods).
+For example, a CQCAP field value of 0 indicates a 19.2 MHz clock
+frequency (period = 52.08 ns). If the setting in CQSSC1.CIT is
+0x1000, the calculated polling period is 4096*52.08 ns= 213.33
+ns.
+Should be programmed only when CQCFG.CQ_EN is '0'.
+
+EMMC_CQSSC2
+Address: Operational Base + offset (0x01C4)
+Bit Attr Reset Value
+Description
+31:16 RO 0x0000
+reserved
+SQSCMD_RCA
+Send Queue RCA.
+This field provides CQE with the contents of the 16-bit RCA field
+15:0 RW 0x0000
+in SEND_QUEUE_STATUS (CMD13) command argument.
+CQE copies this field to bits 31:16 of the argument when
+transmitting SEND_ QUEUE_STATUS (CMD13) command.
+EMMC_CQCRDCT
+Address: Operational Base + offset (0x01C8)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+689
+
+RK3588 TRM-Part2
+Bit
+
+31:0
+
+Attr Reset Value
+
+RO
+
+0x00000000
+
+Description
+DCMD_RESP
+Direct Command Last Response.
+This register contains the response of the command generated by
+the last direct command (DCMD) task that was sent.
+Contents of this register are valid only after bit 31 of CQTDBR
+register is cleared by the controller.
+
+EMMC_CQRMEM
+Address: Operational Base + offset (0x01D0)
+Bit Attr Reset Value
+Description
+RESP_ERR_MASK
+Response Mode Error Mask.
+The bits of this field are bit mapped to the device response.
+This bit is used as an interrupt mask on the device status filed
+that is received in R1/R1b responses. The reset value of this
+register is set to trigger an interrupt on all "Error" type bits in the
+31:0 RW 0xfdf9a080
+device status.
+1'b0: When a R1/R1b response is received, bit i in the device
+status is ignored.
+1'b1: When a R1/R1b response is received, with a bit i in the
+device status set, a RED interrupt is generated.
+Note: Responses to CMD13 (SQS) encode the QSR so that they
+are ignored by this logic.
+EMMC_CQTERRI
+Address: Operational Base + offset (0x01D4)
+Bit Attr Reset Value
+Description
+TRANS_ERR_FIELDS_VALID
+Data Transfer Error Field Valid.
+This bit is updated when an error is detected while a data transfer
+transaction was in progress.
+31
+RO 0x0
+Values:
+1'b0: Ignore contents of TRANS_ERR_TASKID and
+TRANS_ERR_CMD_INDX
+1'b1: Data transfer related error detected. Check contents of
+TRANS_ERR_TASKID and TRANS_ERR_CMD_INDX fields
+30:29 RO 0x0
+reserved
+TRANS_ERR_TASKID
+Data Transfer Error Task ID.
+28:24 RO 0x00
+This field captures the ID of the task that was executed and
+whose data transfer has errors.
+23:22 RO 0x0
+reserved
+TRANS_ERR_CMD_INDX
+Data Transfer Error Command Index.
+21:16 RO 0x00
+This field captures the index of the command that was executed
+and whose data transfer has errors.
+RESP_ERR_FIELDS_VALID
+Response Mode Error Fields Valid.
+This bit is updated when an error is detected while a command
+transaction was in progress.
+15
+RO 0x0
+Values:
+1'b0: Ignore contents of RESP_ERR_TASKID and
+RESP_ERR_CMD_INDX
+1'b1: Response-related error is detected. Check contents of
+RESP_ERR_TASKID and RESP_ERR_CMD_INDX fields
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+690
+
+RK3588 TRM-Part2
+Bit Attr Reset Value
+Description
+14:13 RO 0x0
+reserved
+RESP_ERR_TASKID
+Response Mode Error Task ID.
+12:8 RO 0x00
+This field captures the ID of the task which was executed on the
+command line when the error occurred.
+7:6
+RO 0x0
+reserved
+RESP_ERR_CMD_INDX
+Response Mode Error Command Index.
+5:0
+RO 0x00
+This field captures the index of the command that was executed
+on the command line when the error occurred.
+EMMC_CQCRI
+Address: Operational Base + offset (0x01D8)
+Bit Attr Reset Value
+Description
+31:6 RO 0x0000000
+reserved
+CMD_RESP_INDX
+Last Command Response Index
+5:0
+RO 0x00
+This field stores the index of the last received command
+response. CQE shall update the value every time a command
+response is received.
+EMMC_CQCRA
+Address: Operational Base + offset (0x01DC)
+Bit Attr Reset Value
+Description
+CMD_RESP_ARG
+Last Command Response Argument.
+31:0 RO 0x00000000 This field stores the argument of the last received command. CQE
+shall update the value every time a command response is
+received.
+EMMC_VER_ID
+Address: Operational Base + offset (0x0500)
+Bit Attr Reset Value
+VER_ID
+31:0 RO 0x00000000
+Current version number.
+
+Description
+
+EMMC_VER_TYPE
+Address: Operational Base + offset (0x0504)
+Bit Attr Reset Value
+VER_TYPE
+31:0 RO 0x00000000
+Version type.
+
+Description
+
+EMMC_HOST_CTRL3
+Address: Operational Base + offset (0x0508)
+Bit Attr Reset Value
+7:5
+RO 0x0
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+Description
+
+691
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+4
+
+RW 0x0
+
+3:1
+
+RO
+
+0
+
+RW 0x0
+
+0x0
+
+Description
+SW_CG_DIS
+Internal clock gating disable control.
+This bit must be used to disable IP's internal clock gating when
+required. When disabled clocks are not gated. Clocks to the core
+(except AHB bus clock) must be stopped when programming this
+bit.
+Values:
+1'b0: Internal clock gating is disabled, clocks are not gated
+internally
+1'b1: Internal clock gates are active and clock gating is controlled
+internally
+reserved
+CMD_CONFLICT_CHECK
+Command conflict check.
+This bit enables command conflict check.
+Host Controller monitors the CMD line whenever a command is
+issued and checks whether the value driven on command output
+line matches the value on command input line at next subsequent
+edge of transmit clock to determine command conflict error. This
+bit is cleared only if the feed back delay (including IO Pad delay)
+is more than (card clock period - flop setup time).
+Values:
+1'b0: Disable command conflict check
+1'b1: Check for command conflict after 1 card clock cycle
+
+EMMC_EMMC_CTRL
+Address: Operational Base + offset (0x052C)
+Bit Attr Reset Value
+Description
+15:11 RO 0x00
+reserved
+CQE_PREFETCH_DISABLE
+Enable or Disable CQE's PREFETCH feature.
+This field allows Software to disable CQE's data prefetch feature
+when set to 1.
+10
+RW 0x0
+Values:
+1'b0: CQE can prefetch data for successive WRITE transfers and
+pipeline successive READ transfers
+1'b1: Prefetch for WRITE and Pipeline for READ are disabled
+CQE_ALGO_SEL
+Scheduler algorithm selected for execution.
+This bit selects the Algorithm used for selecting one of the many
+ready tasks for execution.
+9
+RW 0x0
+Values:
+1'b0: Priority based reordering with FCFS to resolve equal priority
+tasks
+1'b1: First come First serve, in the order of DBR rings
+ENH_STROBE_ENABLE
+Enhanced Strobe Enable.
+This bit instructs Host to sample the CMD line using data strobe
+8
+RW 0x0
+for HS400 mode.
+Values:
+1'b0: CMD line is sampled using receive clock for HS400 mode
+1'b1: CMD line is sampled using data strobe for HS400 mode
+7:3
+RO 0x00
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+692
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+2
+
+RW 0x1
+
+1
+
+RW 0x0
+
+0
+
+RW 0x0
+
+Description
+EMMC_RST_N
+EMMC Device Reset signal control.
+Values:
+1'b0: Reset to eMMC device asserted
+1'b1: Reset to eMMC device is de-asserted
+DISABLE_DATA_CRC_CHK
+Disable Data CRC Check.
+This bit controls masking of CRC16 error for Card Write in eMMC
+mode. This is useful in bus testing (CMD19) for an eMMC device.
+In bus testing, an eMMC card does not send CRC status for a
+block, which may generate CRC error. This CRC error can be
+masked using this bit during bus testing.
+Values:
+1'b0: DATA CRC check is enabled
+1'b1: DATA CRC check is disabled
+CARD_IS_EMMC
+eMMC Card present.
+This bit indicates the type of card connected. An application
+program this bit based on the card connected to Host Controller.
+Values:
+1'b0: Card connected to Host Controller is a non-eMMC card
+1'b1: Card connected to Host Controller is an eMMC card
+
+EMMC_BOOT_CTRL
+Address: Operational Base + offset (0x052E)
+Bit Attr Reset Value
+Description
+BOOT_TOUT_CNT
+Boot Acknowledge Timeout Counter Value.
+This value determines the interval by which boot acknowledge
+timeout (50 ms) is detected when boot acknowledge is expected
+during boot operation.
+15:12 RW 0x0
+Values:
+4'h0: TMCLK x 2^13
+4'h1: TMCLK x 2^14
+......
+4'hE: TMCLK x 2^27
+4'hF: Reserved
+11:9 RO 0x0
+reserved
+BOOT_ACK_ENABLE
+Boot Acknowledge Enable.
+When this bit set, Host checks for boot acknowledge start pattern
+of 0-1-0 during boot operation. This bit is applicable for both
+8
+RW 0x0
+mandatory and alternate boot mode.
+Values:
+1'b1: Boot Acknowledge enable
+1'b0: Boot Acknowledge disable
+VALIDATE_BOOT
+Validate Mandatory Boot Enable bit.
+This bit is used to validate the MAN_BOOT_EN bit.
+7
+RW 0x0
+Values:
+1'b1: Validate Mandatory boot enable bit
+1'b0: Ignore Mandatory boot Enable bit
+6:1
+RO 0x00
+reserved
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+693
+
+RK3588 TRM-Part2
+Bit
+
+0
+
+Attr Reset Value
+
+RW 0x0
+
+Description
+MAN_BOOT_EN
+Mandatory Boot Enable.
+This bit is used to initiate the mandatory boot operation. The
+application sets this bit along with VALIDATE_BOOT bit.
+Writing 0 is ignored. The Host Controller clears this bit after the
+boot transfer is completed or terminated.
+Values:
+1'b1: Mandatory boot enable
+1'b0: Mandatory boot disable
+
+EMMC_AT_CTRL
+Address: Operational Base + offset (0x0540)
+Bit Attr Reset Value
+Description
+31:21 RO 0x000
+reserved
+POST_CHANGE_DLY
+Time taken for phase switching and stable clock output.
+Values:
+20:19 RW 0x0
+2'h0: Less than 1-cycle latency
+2'h1: Less than 2-cycle latency
+2'h2: Less than 3-cycle latency
+2'h3: Less than 4-cycle latency
+PRE_CHANGE_DLY
+Maximum Latency specification between transmit clock and
+receive clock.
+Values:
+18:17 RW 0x0
+2'h0: Less than 1-cycle latency
+2'h1: Less than 2-cycle latency
+2'h2: Less than 3-cycle latency
+2'h3: Less than 4-cycle latency
+TUNE_CLK_STOP_EN
+Clock stopping control for Tuning and auto-tuning circuit.
+When enabled, clock gate control output is pulled low before
+changing phase select codes. This effectively stops the receive
+16
+RW 0x0
+clock. Changing phase code when clocks are stopped ensures
+glitch free phase switching.
+Values:
+1'b0: Clocks not stopped
+1'b1: Clocks stopped during phase code change
+15:5 RO 0x000
+reserved
+SW_TUNE_EN
+This fields enables software-managed tuning flow.
+4
+RW 0x0
+Values:
+1'b0: Software-managed tuning disabled
+1'b1: Software-managed tuning enabled
+RPT_TUNE_ERR
+Framing errors are not generated when executing tuning.
+This debug bit allows users to report these errors.
+3
+RW 0x0
+Values:
+1'b0: Default mode where per host no errors are reported
+1'b1: Debug mode for reporting framing errors
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+694
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+2
+
+RW 0x0
+
+1:0
+
+RO
+
+0x0
+
+Description
+SWIN_TH_EN
+Sampling window Threshold enable.
+Selects the tuning mode. Field should be programmed only when
+SAMPLE_CLK_SEL is '0'.
+Values:
+1'b0: Tuning engine sweeps all taps and settles at the largest
+window.
+1'b1: Tuning engine selects the first complete sampling window
+that meets the threshold set by SWIN_TH_VAL field.
+reserved
+
+EMMC_AT_STAT
+Address: Operational Base + offset (0x0544)
+Bit Attr Reset Value
+Description
+31:24 RO 0x00
+reserved
+L_EDGE_PH_CODE
+Left Edge Phase code.
+23:16 RO 0x00
+Reading this field returns the phase code value used by Autotuning engine to sample data on Left edge of sampling window.
+R_EDGE_PH_CODE
+Right Edge Phase code.
+15:8 RO 0x00
+Reading this field returns the phase code value used by Autotuning engine to sample data on Right edge of sampling window.
+CENTER_PH_CODE
+Centered Phase code.
+7:0
+RW 0x00
+Setting AT_CTRL.SW_TUNE_EN enables software to write to this
+field.
+EMMC_DLL_CTRL
+Address: Operational Base + offset (0x0800)
+Bit Attr Reset Value
+Description
+31:25 RO 0x00
+reserved
+DLL_BYPASS_MODE
+DLL bypass mode select.
+24
+RW 0x0
+1'b0: Normal
+1'b1: Bypass
+DLL_START_POINT
+23:16 RW 0x00
+DLL start point for phase detect.
+DLL_INCRMENT
+15:8 RW 0x00
+DLL increment value.
+7:2
+RO 0x00
+reserved
+DLL_SRST
+DLL software reset indication.
+1
+RW 0x0
+1'b0: Normal work
+1'b1: Reset
+DLL_START
+DLL working indication.
+0
+RW 0x0
+1'b0: DLL is not working
+1'b1: DLL is working
+EMMC_DLL_RXCLK
+Address: Operational Base + offset (0x0804)
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+695
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+Description
+RX_CLK_ORI_GATE
+
+31
+
+RW 0x0
+
+30
+
+RO
+
+29
+
+RW 0x0
+
+28
+
+RW 0x0
+
+27
+
+RW 0x0
+
+26
+
+RW 0x0
+
+25
+
+RW 0x0
+
+24
+
+RW 0x0
+
+0x0
+
+23:16 RW 0x00
+15:8
+
+RW 0x00
+
+7:5
+
+RO
+
+4:0
+
+RW 0x00
+
+0x0
+
+Receive original clock source gating enable.
+1'b0: Receive original clock source is not auto gating,
+active when card clock is stable and enable.
+1'b1: Receive original clock source is auto gating, active
+when card is working.
+reserved
+RX_CLK_SRC_SEL
+Receive clock source selection.
+1'b0: Receive clock source is transmit clock output
+1'b1: Receive clock source is original clock input
+RX_CLK_CHGWIN
+Receive clock change window configuration. When high, receive
+clock is gated.
+RX_CLK_DLY_ENA
+Delay enable for receive clock output.
+1'b0: Disable delay. Receive clock output comes from receive
+clock source, determined by RX_CLK_SRC_SEL.
+1'b1: Enable delay. Receive clock output comes from delay line
+output of receive clock source.
+RX_DELAY_NUM_SEL
+Delay element number selection for receive clock.
+1'b0: Delay element number comes from hardware calculation
+1'b1: Delay element number comes from software
+(RX_DELAY_NUM)
+RX_TAP_VALUE_SEL
+Tap value selection for receive clock.
+1'b0: Tap value equals to (DLL_LOCK_VALUE*2)%256
+1'b1: Tap value comes from software (RX_TAP_VALUE)
+RX_TAP_NUM_SEL
+Tap number selection for receive clock.
+1'b0: Tap number comes from tuning result
+1'b1: Tap number comes from software (RX_TAP_NUM)
+RX_DELAY_NUM
+Total delay element number of selected tap used for receive
+clock.
+RX_TAP_VALUE
+Tap value for receive clock. It denotes delay element number for
+receive clock cycle.
+reserved
+RX_TAP_NUM
+Tap number for receive clock.
+Every clock is divided into 32 taps equably. The selected tap
+number is RX_TAP_NUM+1. Use tap number to select tap used
+for receive clock.
+
+EMMC_DLL_TXCLK
+Address: Operational Base + offset (0x0808)
+Bit Attr Reset Value
+Description
+31:30 RO 0x0
+reserved
+TX_CLK_SRC_SEL
+Transmit clock source selection.
+29
+RW 0x0
+1'b0: Transmit clock source is invertion of original clock input
+1'b1: Transmit clock source is original clock input
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+696
+
+RK3588 TRM-Part2
+Bit
+28
+
+Attr Reset Value
+Description
+RO 0x0
+reserved
+TX_CLK_DLY_ENA
+Delay enable for transmit clock output.
+1'b0: Disable delay. Transmit clock output comes from transmit
+27
+RW 0x0
+clock source, determined by TX_CLK_SRC_SEL.
+1'b1: Enable delay. Transmit clock output comes from delay line
+output of transmit clock source.
+TX_DELAY_NUM_SEL
+Delay element number selection for transmit clock.
+26
+RW 0x0
+1'b0: Delay element number comes from hardware calculation
+1'b1: Delay element number comes from software
+(TX_DELAY_NUM)
+TX_TAP_VALUE_SEL
+Tap value selection for transmit clock.
+25
+RW 0x0
+1'b0: Tap value equals to (DLL_LOCK_VALUE*2)%256
+1'b1: Tap value comes from software (TX_TAP_VALUE)
+TX_TAP_NUM_SEL
+Tap number selection for transmit clock.
+24
+RW 0x0
+1'b0: Tap number is 8
+1'b1: Tap number comes from software (TX_TAP_NUM)
+TX_DELAY_NUM
+23:16 RW 0x00
+Total delay element number of selected tap used for transmit
+clock.
+TX_TAP_VALUE
+15:8 RW 0x00
+Tap value for transmit clock. It denotes delay element number for
+transmit clock cycle.
+7:5
+RO 0x0
+reserved
+TX_TAP_NUM
+Tap number for transmit clock.
+4:0
+RW 0x00
+Every clock is divided into 32 taps equably. The selected tap
+number is TX_TAP_NUM+1. Use tap number to select tap used
+for transmit clock.
+EMMC_DLL_STRBIN
+Address: Operational Base + offset (0x080C)
+Bit Attr Reset Value
+Description
+31:28 RO 0x0
+reserved
+STRBIN_DELAY_ENA
+Delay enable for strobe input.
+27
+RW 0x0
+1'b0: Disable delay. Strobe input comes from original data strobe.
+1'b1: Enable delay. Strobe input comes from delay line output of
+original data strobe.
+STRBIN_DELAY_NUM_SEL
+Delay element number selection for strobe input.
+26
+RW 0x0
+1'b0: Delay element number comes from hardware calculation
+1'b1: Delay element number comes from software
+(STRBIN_DELAY_NUM)
+STRBIN_TAP_VALUE_SEL
+Tap value selection for strobe input.
+25
+RW 0x0
+1'b0: Tap value equals to (DLL_LOCK_VALUE*2)%256
+1'b1: Tap value comes from software (STRBIN_TAP_VALUE)
+STRBIN_TAP_NUM_SEL
+Tap number selection for strobe input.
+24
+RW 0x0
+1'b0: Tap number is 8
+1'b1: Tap number comes from software (TAPNUM_TAP_NUM)
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+697
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+23:16 RW 0x00
+15:8
+
+RW 0x00
+
+7:5
+
+RO
+
+4:0
+
+RW 0x00
+
+0x0
+
+Description
+STRBIN_DELAY_NUM
+Total delay element number of selected tap used for strobe input.
+STRBIN_TAP_VALUE
+Tap value for strobe input. It denotes delay element number for
+strobe input cycle.
+reserved
+STRBIN_TAP_NUM
+Tap number for strobe input.
+Every clock is divided into 32 taps equably. The selected tap
+number is STRBIN_TAP_NUM+1. Use tap number to select tap
+used for strobe input.
+
+EMMC_DLL_CMDOUT
+Address: Operational Base + offset (0x0810)
+Bit Attr Reset Value
+Description
+31
+RO 0x0
+reserved
+CMDOEN_SRC_SEL
+Command output enable selection.
+2'b00: Command output enable is from register output triggered
+by clock rising edge
+30:29 RW 0x0
+2'b01: Command output enable is from register output triggered
+by clock falling edge
+Others: Command output enable is from both register output
+triggered by clock rising edge and register output triggered by
+clock falling edge
+CMDOUT_SRC_SEL
+Command output source selection.
+1'b0: Command output source is from register output triggered
+28
+RW 0x0
+by clock rising edge
+1'b1: Command output source is from register output triggered
+by clock falling edge
+CMDOUT_DELAY_ENA
+Delay enable for command output.
+1'b0: Disable delay. Command output comes from command
+27
+RW 0x0
+output source, determined by CMDOUT_SRC_SEL.
+1'b1: Enable delay. Command output comes from delay line
+output of command output source.
+CMDOUT_DELAY_NUM_SEL
+Delay element number selection for command output.
+26
+RW 0x0
+1'b0: Delay element number comes from hardware calculation
+1'b1: Delay element number comes from software
+(CMDOUT_DELAY_NUM)
+CMDOUT_TAP_VALUE_SEL
+Tap value selection for command output.
+25
+RW 0x0
+1'b0: Tap value equals to (DLL_LOCK_VALUE*2)%256
+1'b1: Tap value comes from software (CMDOUT_TAP_VALUE)
+CMDOUT_TAP_NUM_SEL
+Tap number selection for command output.
+24
+RW 0x0
+1'b0: Tap number is 0
+1'b1: Tap number comes from software (CMDOUT_TAP_NUM)
+CMDOUT_DELAY_NUM
+23:16 RW 0x00
+Total delay element number of selected tap used for command
+output.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+698
+
+RK3588 TRM-Part2
+Bit
+
+Attr Reset Value
+
+15:8
+
+RW 0x00
+
+7:5
+
+RO
+
+4:0
+
+RW 0x00
+
+0x0
+
+Description
+CMDOUT_TAP_VALUE
+Tap value for command output. It denotes delay element number
+for command output.
+reserved
+CMDOUT_TAP_NUM
+Tap number for command output.
+Every clock is divided into 32 taps equably. The selected tap
+number is CMDOUT_TAP_NUM+1. Use tap number to select tap
+used for command output.
+
+EMMC_DLL_STATUS0
+Address: Operational Base + offset (0x0840)
+Bit Attr Reset Value
+Description
+31:24 RO 0x00
+reserved
+DLL_CMDOUT_DELAY_VALUE
+23:16 RO 0x00
+Delay element number used for command output
+15:10 RO 0x00
+reserved
+DLL_LOCK_TIMEOUT
+Delay line phase detection timeout status.
+9
+RO 0x0
+1'b0: Not timeout
+1'b1: Timeout
+DLL_LOCK
+Delay line lock indication.
+8
+RO 0x0
+1'b0: Delay line is not locked
+1'b1: Delay line is locked
+DLL_LOCK_VALUE
+Delay line lock value for half card clock cycle.
+7:0
+RO 0x00
+It denotes the delay element number needed for delay line
+locked. It is valid when DLL_LOCK is high.
+EMMC_DLL_STATUS1
+Address: Operational Base + offset (0x0844)
+Bit Attr Reset Value
+Description
+31:24 RO 0x00
+reserved
+DLL_STRBIN_DELAY_VALUE
+23:16 RO 0x00
+Delay element number used for strobe input
+DLL_RXCLK_DELAY_VALUE
+15:8 RO 0x00
+Delay element number used for receive clock
+DLL_TXCLK_DELAY_VALUE
+7:0
+RO 0x00
+Delay element number used for transmit clock
+
+4.5 Interface Description
+
+4.5.1 EMMC Interface Description
+Module Pin
+
+Direction
+
+emmc_cclk
+
+O
+
+emmc_ccmd
+
+I/O
+
+emmc_cdata0
+
+I/O
+
+emmc_cdata1
+
+I/O
+
+emmc_cdata2
+
+I/O
+
+emmc_cdata3
+
+I/O
+
+Table 4-1 EMMC Interface Description
+PAD Name
+EMMC_CLKOUT/GPIO2_A1_d
+EMMC_CMD/FSPI_CLK_M0/GPI
+O2_A0_u
+EMMC_D0/FSPI_D0_M0/GPIO2
+_D0_u
+EMMC_D1/FSPI_D1_M0/GPIO2
+_D1_u
+EMMC_D2/FSPI_D2_M0/GPIO2
+_D2_u
+EMMC_D3/FSPI_D3_M0/GPIO2
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+IOMUX Setting
+
+EMMC_IOC_GPIO2A_IOMUX_SEL_L[
+7:4]=4’h1
+EMMC_IOC_GPIO2A_IOMUX_SEL_L[
+3:0]=4’h1
+EMMC_IOC_GPIO2D_IOMUX_SEL_L[
+3:0]=4’h1
+EMMC_IOC_GPIO2D_IOMUX_SEL_L[
+7:4]=4’h1
+EMMC_IOC_GPIO2D_IOMUX_SEL_L[
+11:8]=4’h1
+EMMC_IOC_GPIO2D_IOMUX_SEL_L[
+699
+
+RK3588 TRM-Part2
+Module Pin
+
+Direction
+
+PAD Name
+
+_D3_u
+EMMC_D4/I2C1_SCL_M3/UART
+emmc_cdata4 I/O
+5_RX_M2/GPIO2_D4_u
+EMMC_D5/I2C1_SDA_M3/UAR
+emmc_cdata5 I/O
+T5_TX_M2/GPIO2_D5_u
+EMMC_D6/FSPI_CS0N_M0/GPI
+emmc_cdata6 I/O
+O2_D6_u
+EMMC_D7/FSPI_CS1N_M0/GPI
+emmc_cdata7 I/O
+O2_D7_u
+EMMC_DATA_STROBE/I2C2_S
+DA_M2/UART5_CTSN_M1/GPIO
+emmc_strbin
+I
+2_A2_d
+EMMC_RSTN/I2C2_SCL_M2/UA
+emmc_rstn
+O
+RT5_RTSN_M1/GPIO2_A3_d
+Notes: I=input, O=output, I/O=input/output, bidirectional
+
+IOMUX Setting
+15:12]=4’h1
+EMMC_IOC_GPIO2D_IOMUX_SEL_H[
+3:0]=4’h1
+EMMC_IOC_GPIO2D_IOMUX_SEL_H[
+7:4]=4’h1
+EMMC_IOC_GPIO2D_IOMUX_SEL_H[
+11:8]=4’h1
+EMMC_IOC_GPIO2D_IOMUX_SEL_H[
+15:12]=4’h1
+EMMC_IOC_GPIO2A_IOMUX_SEL_L[
+11:8]=4’h1
+EMMC_IOC_GPIO2A_IOMUX_SEL_L[
+15:12]=4’h1
+
+4.6 Application Notes
+4.6.1 Clock Adjustment
+
+Phase detection is needed if you want to know the card clock’s precision before clock
+adjustment. The detection flow is as below:
+(1)
+Set EMMC_DLL_CTRL[1]=1 to reset the EMMC DLL; then set EMMC_DLL_CTRL[1]=0
+to dis-reset EMMC DLL;
+(2)
+Set DLL_START_POINT in EMMC_DLL_CTRL[23:16]; set DLL_INCREMENT in
+EMMC_DLL_CTRL[15:8], and set EMMC_DLL_CTRL[0] to start the DLL phase
+detection.
+(3)
+Wait for DLL lock until EMMC_DLL_STATUS0[8] equals to 1. Get the
+EMMC_DLL_STATUS0[7:0] as the locked value for the half card clock cycle time.
+(4)
+If EMMC_DLL_STATUS0[9]=1 and EMMC_DLL_STATUS0[8]=0, the detection is
+timeout, you can adjust the DLL_START_POINT or DLL_INCREMENT to re-detection.;
+or bypass the detection if the total delay line length is short than half clock cycle. You
+need to set EMMC_DLL_CTRL[0] to 0 before you restart phase detection as(1)~(3).
+After phase detection, the clock’s precision is shown in EMMC_DLL_STATUS0[7:0]
+(DLL_LOCK_VALUE) based on delay element.
+We can calculate the delay element numbers requirement for transmit clock (TXCLK),
+receive clock (RXCLK), data strobe input (STRBIN), command output (CMDOUT), denoted as
+“XX” as follows:
+(1)
+Get tap value: if XX_TAP_VALUE_SEL=0, tap value equals to
+(DLL_LOCK_VALUE*2)%256; else tap value is set by software, XX_TAP_VALUE;
+(2)
+Get tap number: if XX_TAP_NUM_SEL=0, tap number comes from Host Controller;
+else tap number is set by software, XX_TAP_NUM;
+(3)
+Get required delay element numbers: if XX_DELAY_NUM_SEL=0, delay element
+number equals to tap value* tap number; else delay element number is set by
+software, XX_DELAY_NUM.
+The adjustment value for every cycle (XX) is equals to required delay element
+numbers*delay time of every element.
+The delay time of every element is in the range of 36ps~68ps, varying with different voltage
+and temperature.
+
+Copyright 2022 © Rockchip Electronics Co., Ltd.
+
+700
+
+RK3588 TRM-Part2
+

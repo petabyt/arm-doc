@@ -1,0 +1,333 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Copyright © 2025 Rockchip Electronics CO., LTD.
+
+www.rock-chips.com
+
+
+
+
+… ……
+…
+
+
+
+
+System Peripheral
+
+RK3588
+
+Clock & Reset
+PMU
+18x PLL
+System register
+
+Cortex-A76
+Quad-Core
+
+Cortex-A55
+Quad-Core
+
+(64K/64K L1 I/D Cache)
+
+(32K/32K L1 I/D Cache)
+
+2MB L2 Cache
+
+512KB L2 Cache
+
+30x Timer
+
+3MB L3 Cache
+
+16x PMW
+
+Dual-cluster Core
+
+5x Watchdog
+
+MCU (Cortex-M0) x3
+
+2x Crypto
+High Performance NPU
+
+TS-ADC
+
+1MB Share Memory
+
+3x DMAC
+6x PVTM
+3x Mailbox
+
+Multi-Media
+Interface
+2x MIPI-CSI DPHY 4L/CPHY 3L
+4x MIPI-CSI DPHY 2L
+2x MIPI-DSI DPHY 4 Lane
+2x HDMI2.1 TX/eDP1.3 4 Lane
+2x DP1.4 4 Lane with HDCP2.3
+(Combo with USB3)
+
+Multi-Media Processor
+GPU Mali-G610 MP4
+(4x256KB L2 Cache)
+
+2D Graphics Engine
+
+Image Enhancement
+Processor
+
+Dual pipe ISP
+(Support camera HDR input)
+
+8K Video Encoder
+(H265/H264…)
+
+8K 10-bits Video Decoder
+(H265/H264/VP9…)
+
+USB OTG1 3.1/2.0/TypeC
+2x USB Host 2.0
+SATA3/PCIe2.1/USB3Host
+2x SATA3/PCIe2.1
+PCIe3.0 (2x2,1x4,4x1)
+
+External Memory Interface
+eMMC5.1
+
+SD3.0/MMC4.5
+
+LPDDR4/LPDDR4X/LPDDR5
+Quad-channel x16bit
+
+Copyright © 2025 Rockchip Electronics CO., LTD.
+
+4x I2S/PCM/TDM
+2x SPDIF(8ch)
+10x UART
+6x SPI
+9x I2C
+2x Giga-Ethernet
+SDIO 3.0
+GPIO
+
+JPEG Encoder/Decoder
+
+HDMI RX 2.0
+Display Controller
+(Support video HDR output)
+
+USB OTG0 3.1/2.0/TypeC
+
+PDM/Audio PWM
+
+SAR-ADC
+
+Interrupt Controller
+
+Connectivity
+
+Embedded
+Memory
+SRAM
+ROM
+OTP
+
+www.rock-chips.com
+
+
+
+
+… ……
+…
+
+
+
+
+
+Camera
+Sensor
+
+MIPI Panel
+
+MIPI CSI RX *4
+
+MIPI DSI TX*2
+
+eDP Panel/
+HDMI
+
+eDP Panel/
+HDMI
+
+HDMI2.1
+
+HDMI2.1
+
+/eDP1.4
+
+/eDP1.4
+
+
+
+
+
+HDMI2.0 RX
+
+
+WiFi 6/BT/GPS
+
+PCIe2.0
+
+Module
+
+UART
+
+SATA
+
+4*16bit
+
+PCIe2.0/
+
+RK3588
+
+SATA3.0
+PCIe 3.0
+
+PMIC
+RK806-1
+
+SD Card
+
+SDMMC
+
+Gigabit PHY
+
+GMAC0
+
+USB3.1/
+TYPE-C/DP1.4
+*2
+
+Power
+
+eMMC
+
+eMMC
+
+4*A76+ 4*A55
+
+USB2.0
+OTG/HOST
+*2
+
+System
+
+LPDDR4/4X/LPDDR5
+
+DDR_Controller
+
+Gigabit PHY
+
+GMAC1
+I2S
+
+PDM
+
+Audio Codec
+
+MIC Array
+
+Copyright © 2025 Rockchip Electronics CO., LTD.
+
+OSC
+
+SPI/I2C
+
+24MHz
+
+Touch Panel
+
+www.rock-chips.com
+
+
